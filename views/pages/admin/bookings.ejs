@@ -1,0 +1,72 @@
+<%- include("../partials/head") %>
+<body>
+  <%- include("../partials/nav") %>
+  <div class="container section">
+    <div class="pageHead">
+      <div>
+        <h1>Bookings</h1>
+        <p class="muted">Latest bookings (includes guest bookings).</p>
+      </div>
+      <div class="pageHead__actions">
+        <a class="btn" href="/admin">Dashboard</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <form id="adminBookingSearch" class="form">
+        <div class="twoCol">
+          <div class="gridForm__row">
+            <label>Limit</label>
+            <input name="limit" type="number" value="50" />
+          </div>
+          <div class="gridForm__row">
+            <label>&nbsp;</label>
+            <button class="btn btn--primary">Refresh</button>
+          </div>
+        </div>
+        <div class="muted" id="adminBookingMsg"></div>
+      </form>
+    </div>
+
+    <div class="cardsGrid" id="adminBookings"></div>
+  </div>
+
+  <script>window.API_BASE="<%= API_BASE %>"</script>
+  <script src="/public/js/app.js"></script>
+  <script>
+    (function(){
+      const form=document.getElementById("adminBookingSearch");
+      const msg=document.getElementById("adminBookingMsg");
+      const wrap=document.getElementById("adminBookings");
+      const token=localStorage.getItem("ct_access")||"";
+      const user=JSON.parse(localStorage.getItem("ct_user")||"null");
+      if(!user||user.role!=="admin"){ location.href="/login"; return; }
+
+      async function run(limit){
+        wrap.innerHTML=""; msg.textContent="Loading…";
+        const r=await fetch(window.API_BASE+"/api/admin/bookings?limit="+encodeURIComponent(limit),{headers:{Authorization:"Bearer "+token}});
+        const j=await r.json(); if(!r.ok) throw new Error(j.message||"Failed");
+        msg.textContent=(j.items||[]).length+" bookings";
+        wrap.innerHTML=(j.items||[]).map(b=>{
+          const trip=b.tripId||{}; const route=trip.routeId||{}; const seats=(b.seats||[]).map(s=>s.seatId).join(", ");
+          const guest=b.guest||{};
+          const who=b.userId?("User: "+b.userId):(guest.email||guest.phone||guest.name?("Guest: "+(guest.name||guest.email||guest.phone)):"Guest");
+          return `<div class="cardItem">
+            <h3>${route.title||"Booking"} <span class="muted" style="font-size:12px">(${b.status})</span></h3>
+            <div class="meta">${who}</div>
+            <div class="meta">Seats: ${seats}</div>
+            <div class="meta">${b.currency} ${Number(b.amount||0).toLocaleString()} ${b.walletUsed?(" • Wallet used: "+b.walletUsed):""}</div>
+            <div class="meta">Referral: ${b.referralCode||"—"}</div>
+          </div>`;
+        }).join("") || `<div class="muted">No bookings yet.</div>`;
+      }
+
+      form.addEventListener("submit",(e)=>{
+        e.preventDefault();
+        const fd=new FormData(form);
+        run(fd.get("limit")||"50").catch(err=>msg.textContent="❌ "+err.message);
+      });
+      run("50").catch(()=>{});
+    })();
+  </script>
+</body>

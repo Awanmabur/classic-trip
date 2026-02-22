@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>New Vehicle — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container narrow">
+      <h1>Create vehicle</h1>
+      <div class="card">
+        <form id="vehicleForm" class="form" enctype="multipart/form-data">
+          <label>Type</label>
+          <select name="type">
+            <option value="bus">Bus</option>
+            <option value="train">Train</option>
+            <option value="flight">Flight</option>
+          </select>
+
+          <label>Name</label>
+          <input name="name" placeholder="Classic Coach 1" required/>
+
+          <label>Plate/Code</label>
+          <input name="plateOrCode" placeholder="UBG 123X / KQR 100 / ..."/>
+
+          <label>Layout</label>
+          <select name="layoutName" id="layoutName">
+            <option value="2x2">Bus 2x2</option>
+            <option value="2x3">Bus 2x3</option>
+            <option value="custom">Custom JSON</option>
+          </select>
+
+          <label>Rows</label>
+          <input name="rows" type="number" min="1" value="10" required/>
+
+          <div id="customSeatsWrap" style="display:none">
+            <label>Custom Seats JSON</label>
+            <textarea name="seats" rows="6" placeholder='[{"seatId":"1A","row":1,"col":1,"label":"1A"}]'></textarea>
+            <label>Cols (optional)</label>
+            <input name="cols" type="number" min="1" />
+          </div>
+
+          <label>Images</label>
+          <input name="images" type="file" accept="image/*" multiple />
+
+          <button class="btn btn--primary btn--block" type="submit">Create</button>
+          <div class="muted" id="vehicleMsg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+  <%- include("../../partials/footer") %>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Logout — <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body>
+  <%- include("../partials/nav") %>
+  <section class="section">
+    <div class="container narrow">
+      <h1>Logged out</h1>
+      <div class="card">
+        <p>You are logged out in this browser (token removed).</p>
+        <a class="btn btn--primary" href="/">Go home</a>
+      </div>
+    </div>
+  </section>
+  <%- include("../partials/footer") %>
+</body>
+</html>

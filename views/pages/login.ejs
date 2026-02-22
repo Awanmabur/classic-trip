@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Login — <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body>
+  <%- include("../partials/nav") %>
+
+  <section class="section">
+    <div class="container narrow">
+      <h1>Login</h1>
+      <div class="card">
+        <form id="loginForm" class="form">
+          <label>Email</label>
+          <input name="email" type="email" placeholder="you@example.com" required/>
+          <label>Password</label>
+          <input name="password" type="password" placeholder="••••••••" required/>
+          <button class="btn btn--primary btn--block" type="submit">Login</button>
+          <div class="muted" id="loginMsg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <%- include("../partials/footer") %>
+</body>
+</html>

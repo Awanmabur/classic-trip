@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title><%= APP_NAME %> — Book buses, trains, flights & hotels</title>
+  <%- include("../partials/head") %>
+</head>
+<body>
+  <%- include("../partials/nav") %>
+
+  <header class="hero">
+    <div class="container hero__grid">
+      <div>
+        <div class="badge">New • Seat maps • Partner dashboards</div>
+        <h1>Book trips across East Africa — in seconds.</h1>
+        <p class="lead">Search buses, trains, flights, and hotels. Pick seats with live availability. Get instant confirmations.</p>
+
+        <div class="card card--glass">
+          <div class="tabs" id="homeTabs">
+            <button class="tab is-active" data-type="bus">Buses</button>
+            <button class="tab" data-type="train">Trains</button>
+            <button class="tab" data-type="flight">Flights</button>
+            <button class="tab" data-type="hotel">Hotels</button>
+          </div>
+          <form class="gridForm" action="/search" method="get">
+            <input type="hidden" name="type" id="homeType" value="bus"/>
+            <div class="gridForm__row">
+              <label>From</label>
+              <input name="from" placeholder="Kampala" />
+            </div>
+            <div class="gridForm__row">
+              <label>To</label>
+              <input name="to" placeholder="Jinja" />
+            </div>
+            <div class="gridForm__row">
+              <label>Date</label>
+              <input name="date" type="date"/>
+            </div>
+            <button class="btn btn--primary btn--block" type="submit">Search</button>
+          </form>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="kpi__n">Live</div><div class="muted">Seat availability</div></div>
+          <div class="kpi"><div class="kpi__n">TTL</div><div class="muted">Seat hold protection</div></div>
+          <div class="kpi"><div class="kpi__n">Pro</div><div class="muted">Partner dashboards</div></div>
+        </div>
+      </div>
+
+      <div class="heroArt">
+        <div class="heroCard">
+          <div class="heroCard__top">
+            <div class="pill">Classic Trip</div>
+            <div class="muted">Demo UI</div>
+          </div>
+          <div class="heroCard__body">
+            <div class="seatMini">
+              <div class="seatMini__title">Seat map preview</div>
+              <div class="seatMini__grid" aria-hidden="true">
+                <% for(let i=0;i<30;i++){ %>
+                  <span class="seatMini__s <%= (i%7===2) ? 'aisle' : (i%9===0 ? 'taken' : '') %>"></span>
+                <% } %>
+              </div>
+              <div class="seatMini__legend">
+                <span><i class="dot ok"></i> Available</span>
+                <span><i class="dot warn"></i> Held</span>
+                <span><i class="dot bad"></i> Taken</span>
+              </div>
+            </div>
+            <div class="muted">Pick your seat, pay, travel.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <h2>Featured departures</h2>
+      <p class="muted">This list loads from your backend trips search. Create routes + vehicles + trips in Partner, then return here.</p>
+      <div id="featuredTrips" class="cardsGrid"></div>
+    </div>
+  </section>
+
+  <%- include("../partials/footer") %>
+</body>
+</html>

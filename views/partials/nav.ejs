@@ -1,0 +1,15 @@
+<nav class="nav">
+  <div class="nav__inner">
+    <a class="brand" href="/"><span class="brand__dot"></span> <%= APP_NAME %></a>
+    <div class="nav__links">
+      <a href="/search">Search</a>
+      <a href="/wallet" data-auth="customer">Wallet & Earn</a>
+      <a href="/me/bookings" data-auth="customer">My Bookings</a>
+      <a href="/partner" data-auth="partner">Partner</a>
+      <a href="/admin" data-auth="admin">Admin</a>
+      <a href="/login" data-guest>Login</a>
+      <a href="/register" class="btn btn--primary" data-guest>Get Started</a>
+      <button class="btn btn--ghost" id="btnLogout" data-auth="any">Logout</button>
+    </div>
+  </div>
+</nav>

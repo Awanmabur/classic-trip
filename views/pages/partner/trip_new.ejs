@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>New Trip — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container narrow">
+      <h1>Create departure (Trip)</h1>
+      <div class="card">
+        <form id="tripForm" class="form">
+          <label>Select Listing (Route/Hotel)</label>
+          <select name="routeId" id="routeId"></select>
+
+          <label>Select Vehicle</label>
+          <select name="vehicleId" id="vehicleId"></select>
+
+          <label>Departure</label>
+          <input name="departureAt" type="datetime-local" required/>
+
+          <label>Arrive (optional)</label>
+          <input name="arriveAt" type="datetime-local"/>
+
+          <label>Base Price</label>
+          <input name="basePrice" type="number" min="0" value="50000" required/>
+
+          <label>Currency</label>
+          <input name="currency" value="UGX"/>
+
+          <button class="btn btn--primary btn--block" type="submit">Create trip</button>
+          <div class="muted" id="tripMsg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+  <%- include("../../partials/footer") %>
+</body>
+</html>

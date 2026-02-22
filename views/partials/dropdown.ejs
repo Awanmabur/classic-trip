@@ -1,0 +1,54 @@
+
+<header class="header">
+
+<div id="menu-btn"> <a href="/"><img src="/images/logo1.png" width="40" alt=""></a> </div>
+
+ <a data-aos="zoom-in-left" data-aos-delay="150" href="/" class="logo">welcome to classic mart</a>
+
+   <nav class="navbar">
+     <a>
+       <form method="get">
+        <div id="searchUsers" class="instant-search">
+
+           <input id="desktop-search-input" class="search" type="text" spellcheck="false" placeholder="Search any product you want">
+
+        </div>
+       </form>
+      </a>
+
+    </nav>
+
+
+    <% if( !isProfileOwner ){ %>
+
+      <div class="amok">
+
+        <input id="mobile-search-input" class="search" type="text" spellcheck="false" placeholder="Search any product you want">
+
+      </div>
+
+        <a class="hiddensearch" id="dark" href="/profile-home/"><i class="fa fa-2x fa-user" aria-hidden="true"></i> </a>
+        <button class="hiddensearch" id="dark" onclick="myFunction()"><i class="fa fa-2x fa-adjust" aria-hidden="true"></i></button>
+        <a href="/signup" class="login-btn">join</a>
+
+
+    <% } else { %>
+
+      <div class="amok">
+
+        <input id="mobile-search-input" class="search" type="text" spellcheck="false" placeholder="Search any product you want">
+
+      </div>
+
+        <button class="hiddensearch" id="dark" onclick="myFunction()"><i class="fa fa-2x fa-adjust" aria-hidden="true"></i></button>
+        <!-- <div class="login-btn"> -->
+          <a class="hiddensearch" id="darkpro" href="/profile/<%= isProfileOwner._id %>"><%= isProfileOwner.fname %> </a>
+        <!-- </div> -->
+        <a href="/logout" class="login-btn">Logout</a></li>
+
+
+    <% } %>
+
+</header>
+
+<div id="results" class="search-results"></div>

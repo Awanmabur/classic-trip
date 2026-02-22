@@ -1,0 +1,88 @@
+<%- include("partials/head") %>
+<body>
+  <%- include("partials/nav") %>
+  <div class="container section">
+    <div class="pageHead">
+      <div>
+        <h1>Wallet & Earn</h1>
+        <p class="muted">Share trips using your code and earn 5% per booking. Redeem on your next trip.</p>
+      </div>
+      <div class="pageHead__actions">
+        <a class="btn" href="/search">Find a Trip</a>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <h2>My wallet</h2>
+        <div class="summaryRow"><div class="muted">Balance</div><div class="pill" id="wBalance">—</div></div>
+        <div class="summaryRow"><div class="muted">Currency</div><div class="pill" id="wCurrency">—</div></div>
+        <hr />
+        <h2>My referral link</h2>
+        <p class="muted">Share this link. When someone books through it, you get 5% wallet credit.</p>
+        <div class="gridForm">
+          <div class="gridForm__row">
+            <label>Your referral code</label>
+            <input id="wCode" readonly />
+          </div>
+          <div class="gridForm__row">
+            <label>Share link (opens home and stores your code)</label>
+            <input id="wLink" readonly />
+          </div>
+          <button class="btn btn--primary" id="btnCopyRef" type="button">Copy link</button>
+          <div class="muted" id="wMsg"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent wallet activity</h2>
+        <div class="muted" id="wTxMsg"></div>
+        <div class="gridForm" id="wTxns"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>window.API_BASE="<%= API_BASE %>"</script>
+  <script src="/public/js/app.js"></script>
+  <script>
+    (async()=>{
+      const token=localStorage.getItem("ct_access")||"";
+      const user=JSON.parse(localStorage.getItem("ct_user")||"null");
+      if(!user){ location.href="/login"; return; }
+
+      const msg=document.getElementById("wMsg");
+      const txmsg=document.getElementById("wTxMsg");
+
+      try{
+        const r=await fetch(window.API_BASE+"/api/wallet/me",{headers:{Authorization:"Bearer "+token}});
+        const j=await r.json(); if(!r.ok) throw new Error(j.message||"Failed");
+        document.getElementById("wBalance").textContent=Number(j.wallet.balance||0).toLocaleString();
+        document.getElementById("wCurrency").textContent=j.wallet.currency||"UGX";
+
+        const pr=await fetch(window.API_BASE+"/api/promotions/me",{headers:{Authorization:"Bearer "+token}});
+        const pj=await pr.json(); if(!pr.ok) throw new Error(pj.message||"Failed");
+        const code=pj.user.referralCode||"";
+        document.getElementById("wCode").value=code;
+        const link=location.origin+"/?ref="+encodeURIComponent(code);
+        document.getElementById("wLink").value=link;
+
+        document.getElementById("btnCopyRef").onclick=async()=>{
+          await navigator.clipboard.writeText(link);
+          msg.textContent="✅ Copied!";
+          setTimeout(()=>msg.textContent="",1200);
+        };
+
+        const wrap=document.getElementById("wTxns");
+        wrap.innerHTML=(j.txns||[]).map(t=>`<div class="cardItem">
+          <h3>${t.type.replace(/_/g," ").toUpperCase()}</h3>
+          <div class="meta">${t.currency} ${Number(t.amount||0).toLocaleString()}</div>
+          <div class="meta">${new Date(t.createdAt).toLocaleString()}</div>
+          ${t.note?`<div class="meta">${t.note}</div>`:""}
+        </div>`).join("") || `<div class="muted">No transactions yet.</div>`;
+        txmsg.textContent="";
+      }catch(e){
+        txmsg.textContent="❌ "+e.message;
+      }
+    })();
+  </script>
+</body>

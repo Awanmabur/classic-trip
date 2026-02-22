@@ -1,0 +1,43 @@
+<%- include("partials/head") %>
+<body>
+  <%- include("partials/nav") %>
+  <div class="container section">
+    <div class="pageHead">
+      <div>
+        <h1>Guest Booking</h1>
+        <p class="muted">Lookup code: <span class="pill"><%= code %></span></p>
+      </div>
+      <div class="pageHead__actions">
+        <a class="btn" href="/search">Book another trip</a>
+      </div>
+    </div>
+
+    <div class="card" id="gbCard">
+      <div class="muted" id="gbMsg">Loading…</div>
+      <div id="gbBody"></div>
+    </div>
+  </div>
+
+  <script>window.API_BASE="<%= API_BASE %>"; window.GUEST_CODE="<%= code %>"</script>
+  <script src="/public/js/app.js"></script>
+  <script>
+    (async()=>{
+      const msg=document.getElementById("gbMsg");
+      const body=document.getElementById("gbBody");
+      try{
+        const r=await fetch(window.API_BASE+"/api/bookings/guest/"+encodeURIComponent(window.GUEST_CODE));
+        const j=await r.json(); if(!r.ok) throw new Error(j.message||"Not found");
+        const b=j.booking; const trip=b.tripId||{}; const route=trip.routeId||{};
+        const seats=(b.seats||[]).map(s=>s.seatId).join(", ");
+        msg.textContent="";
+        body.innerHTML=`<h2>${route.title||"Trip"}</h2>
+          <p class="muted">${new Date(b.travelDate).toLocaleString()}</p>
+          <p class="muted">Status: ${b.status}</p>
+          <p class="muted">Seats: ${seats}</p>
+          <p class="muted">Amount: ${b.currency} ${Number(b.amount||0).toLocaleString()}</p>`;
+      }catch(e){
+        msg.textContent="❌ "+e.message;
+      }
+    })();
+  </script>
+</body>

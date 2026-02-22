@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Occupancy — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container">
+      <h1>Trip occupancy</h1>
+      <p class="muted" id="occMeta">Loading…</p>
+      <div class="card">
+        <div class="kpis">
+          <div class="kpi"><div class="kpi__n" id="oTotal">—</div><div class="muted">Total</div></div>
+          <div class="kpi"><div class="kpi__n" id="oBooked">—</div><div class="muted">Booked</div></div>
+          <div class="kpi"><div class="kpi__n" id="oHeld">—</div><div class="muted">Held</div></div>
+          <div class="kpi"><div class="kpi__n" id="oRemaining">—</div><div class="muted">Remaining</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Seats taken</h3>
+        <div id="seatsTaken" class="pillGrid"></div>
+      </div>
+      <div class="actionsRow">
+        <a class="btn btn--ghost" href="/partner/trips/<%= tripId %>/manifest">View manifest</a>
+      </div>
+    </div>
+  </section>
+  <script>window.TRIP_ID="<%= tripId %>";</script>
+  <%- include("../../partials/footer") %>
+</body>
+</html>

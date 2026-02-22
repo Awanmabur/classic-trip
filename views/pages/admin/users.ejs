@@ -1,0 +1,68 @@
+<%- include("../partials/head") %>
+<body>
+  <%- include("../partials/nav") %>
+  <div class="container section">
+    <div class="pageHead">
+      <div>
+        <h1>Users</h1>
+        <p class="muted">Search by name, email or referral code.</p>
+      </div>
+      <div class="pageHead__actions">
+        <a class="btn" href="/admin">Dashboard</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <form id="adminUserSearch" class="form">
+        <div class="twoCol">
+          <div class="gridForm__row">
+            <label>Search</label>
+            <input name="q" placeholder="e.g. John, CT-XXXXXX, email@example.com" />
+          </div>
+          <div class="gridForm__row">
+            <label>Limit</label>
+            <input name="limit" type="number" value="50" />
+          </div>
+        </div>
+        <button class="btn btn--primary">Search</button>
+        <div class="muted" id="adminUserMsg"></div>
+      </form>
+    </div>
+
+    <div class="cardsGrid" id="adminUsers"></div>
+  </div>
+
+  <script>window.API_BASE="<%= API_BASE %>"</script>
+  <script src="/public/js/app.js"></script>
+  <script>
+    (function(){
+      const form=document.getElementById("adminUserSearch");
+      const msg=document.getElementById("adminUserMsg");
+      const wrap=document.getElementById("adminUsers");
+      const token=localStorage.getItem("ct_access")||"";
+      const user=JSON.parse(localStorage.getItem("ct_user")||"null");
+      if(!user||user.role!=="admin"){ location.href="/login"; return; }
+
+      async function run(params){
+        wrap.innerHTML=""; msg.textContent="Loading…";
+        const qs=new URLSearchParams(params).toString();
+        const r=await fetch(window.API_BASE+"/api/admin/users?"+qs,{headers:{Authorization:"Bearer "+token}});
+        const j=await r.json(); if(!r.ok) throw new Error(j.message||"Failed");
+        msg.textContent=(j.items||[]).length+" users";
+        wrap.innerHTML=(j.items||[]).map(u=>`<div class="cardItem">
+          <h3>${u.name} <span class="muted" style="font-size:12px">(${u.role})</span></h3>
+          <div class="meta">${u.email}${u.phone?(" • "+u.phone):""}</div>
+          <div class="meta">Referral: ${u.referralCode||"—"}</div>
+          <div class="meta">Status: ${u.status}</div>
+        </div>`).join("") || `<div class="muted">No users found.</div>`;
+      }
+
+      form.addEventListener("submit",(e)=>{
+        e.preventDefault();
+        const fd=new FormData(form);
+        run(Object.fromEntries(fd.entries())).catch(err=>msg.textContent="❌ "+err.message);
+      });
+      run({q:"",limit:"50"}).catch(()=>{});
+    })();
+  </script>
+</body>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Manifest — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container">
+      <h1>Passenger manifest</h1>
+      <p class="muted" id="manMeta">Loading…</p>
+      <div id="manifest" class="cardsGrid"></div>
+      <div class="muted" id="manMsg"></div>
+    </div>
+  </section>
+  <script>window.TRIP_ID="<%= tripId %>";</script>
+  <%- include("../../partials/footer") %>
+</body>
+</html>

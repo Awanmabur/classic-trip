@@ -1,0 +1,74 @@
+<html lang="en">
+<head>
+ <!-- Title -->
+    <title>classic-mart | Shop Fashion, Electronics, & More – Fast Delivery from South Sudan to USA, Canada & Australia</title>
+
+    <!-- Meta Description -->
+    <meta name="description" content="Discover unbeatable deals on fashion, electronics, and more at classic-mart. Serving South Sudan, East Africa, with fast, reliable shipping to the USA, Canada, and Australia. Shop now for top-quality products and excellent customer service!" />
+
+    <!-- Meta Keywords -->
+    <meta name="keywords" content="classic-mart, online shopping South Sudan, e-commerce East Africa, buy electronics South Sudan, fashion shopping South Sudan, USA delivery from Africa, global shipping e-commerce South Sudan, shop online in Canada from South Sudan, fast delivery to Australia, electronics in East Africa" />
+
+    <!-- Charset -->
+    <meta charset="UTF-8">
+
+    <!-- Viewport for Mobile Responsiveness -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://www.junubmart.com/" />
+
+    <!-- Open Graph Tags for Social Sharing -->
+    <meta property="og:title" content="classic-mart | Shop Fashion, Electronics & More" />
+    <meta property="og:description" content="Shop the best deals on fashion, electronics, and more with fast delivery from South Sudan to the USA, Canada, and Australia." />
+    <meta property="og:url" content="https://www.junubmart.com/" />
+    <meta property="og:image" content="https://www.junubmart.com/images/og-image.jpg" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter Card Tags for Twitter Sharing -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="classic-mart | Shop Fashion, Electronics & More">
+    <meta name="twitter:description" content="Shop the best deals on fashion, electronics, and more with fast delivery from South Sudan to the USA, Canada, and Australia.">
+    <meta name="twitter:image" content="https://www.junubmart.com/images/twitter-image.jpg">
+
+    <!-- Robots (SEO) -->
+    <meta name="robots" content="index, follow">
+
+    <!-- Favicon -->
+    <link rel="icon" href="https://www.junubmart.com/favicon.ico" type="image/x-icon" />
+
+<link rel="stylesheet" href=".././css/flash.css">
+</head>
+
+<div id="danger">
+    <% if(errorMessage && errorMessage.length > 0){ %>
+        <div id="danger1" class="danger">
+					<span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <%= errorMessage %>
+        </div>
+    <% } %>
+    <% if(successMessage && successMessage.length > 0){ %>
+        <div id="alert" class="alert">
+					<span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <%= successMessage %>
+        </div>
+    <% } %>
+		<% if(welcomeMessage && welcomeMessage.length > 0){ %>
+        <div id="alert" class="alert">
+					<span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <%= welcomeMessage %> <%= user.fname %> <%= user.lname %>
+        </div>
+    <% } %>
+		<% if(logoutMessage && logoutMessage.length > 0){ %>
+        <div id="alert" class="alert">
+					<span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <%= logoutMessage %> <strong>
+        </div>
+    <% } %>
+		<% if(warningMessage && warningMessage.length > 0){ %>
+        <div id="alert2" class="warning">
+					<span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <%= warningMessage %> <strong>
+        </div>
+    <% } %>
+</div>

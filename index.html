@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Classic Trip | East Africa Booking — Beautiful UI</title>
+
+    <!-- Fonts + Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        /* ======================================================
+      Classic Trip — Single-file UI Upgrade
+      - Clean tokens, no duplicate resets
+      - Fixed mobile nav + sticky header
+      - Improved sidebar (collapsible on mobile)
+      - Better hero + search (no awkward absolute video)
+      - Horizontal carousels with arrows + drag
+      - "Details" modal
+      - Accessible focus states + reduced motion support
+    ====================================================== */
+
+        :root {
+            --bg: #070a12;
+            --bg2: #0b1020;
+            --card: rgba(255, 255, 255, .06);
+            --card2: rgba(255, 255, 255, .08);
+            --line: rgba(255, 255, 255, .10);
+
+            --text: #f4f7ff;
+            --muted: rgba(244, 247, 255, .68);
+
+            --primary: #4f8cff;
+            /* brand blue */
+            --primary2: #2f6bff;
+            --accent: #ffb703;
+            /* warm accent */
+            --hot: #ff3d00;
+            /* orange/red */
+            --ok: #22c55e;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+
+            --shadow: 0 18px 50px rgba(0, 0, 0, .35);
+            --shadow2: 0 10px 26px rgba(0, 0, 0, .28);
+            --radius: 18px;
+            --radius2: 14px;
+
+            --focus: 0 0 0 4px rgba(79, 140, 255, .22);
+            --container: min(1200px, 92%);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background:
+                radial-gradient(900px 520px at 10% 0%, rgba(79, 140, 255, .22), transparent 65%),
+                radial-gradient(900px 520px at 95% 10%, rgba(255, 183, 3, .18), transparent 60%),
+                radial-gradient(900px 520px at 50% 110%, rgba(255, 61, 0, .12), transparent 60%),
+                linear-gradient(180deg, var(--bg), var(--bg2));
+            color: var(--text);
+            line-height: 1.55;
+            overflow-x: hidden;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                scroll-behavior: auto !important;
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+
+        /* Layout */
+        .container {
+            width: var(--container);
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            align-items: start;
+            padding: 18px 0 28px;
+        }
+
+        @media (max-width: 980px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Components */
+        .card {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .05));
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow2);
+        }
+
+        .soft {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .04));
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: var(--radius);
+        }
+
+        .p12 {
+            padding: 12px;
+        }
+
+        .p14 {
+            padding: 14px;
+        }
+
+        .p16 {
+            padding: 16px;
+        }
+
+        .p18 {
+            padding: 18px;
+        }
+
+        .mt8 {
+            margin-top: 8px;
+        }
+
+        .mt10 {
+            margin-top: 10px;
+        }
+
+        .mt12 {
+            margin-top: 12px;
+        }
+
+        .mt16 {
+            margin-top: 16px;
+        }
+
+        .mt18 {
+            margin-top: 18px;
+        }
+
+        .mt22 {
+            margin-top: 22px;
+        }
+
+        .mb6 {
+            margin-bottom: 6px;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .hr {
+            height: 1px;
+            background: var(--line);
+            margin: 12px 0;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: rgba(244, 247, 255, .88);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .badge i {
+            opacity: .85;
+        }
+
+        .badge--ok {
+            background: rgba(34, 197, 94, .12);
+            border-color: rgba(34, 197, 94, .24);
+            color: rgba(34, 197, 94, .95);
+        }
+
+        .badge--info {
+            background: rgba(79, 140, 255, .12);
+            border-color: rgba(79, 140, 255, .24);
+            color: rgba(79, 140, 255, .95);
+        }
+
+        .badge--warn {
+            background: rgba(245, 158, 11, .14);
+            border-color: rgba(245, 158, 11, .28);
+            color: rgba(245, 158, 11, .98);
+        }
+
+        .badge--hot {
+            background: rgba(255, 61, 0, .13);
+            border-color: rgba(255, 61, 0, .26);
+            color: rgba(255, 61, 0, .98);
+        }
+
+        .btn {
+            border: none;
+            border-radius: var(--radius2);
+            padding: 10px 12px;
+            font-weight: 950;
+            display: inline-flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            transition: transform .14s ease, filter .14s ease, background .14s ease, border-color .14s ease;
+        }
+
+        .btn:focus,
+        input:focus,
+        select:focus,
+        .iconbtn:focus {
+            outline: none;
+            box-shadow: var(--focus);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.03);
+        }
+
+        .btn:active {
+            transform: translateY(0px) scale(.99);
+        }
+
+        .btn--primary {
+            color: #061027;
+            background: linear-gradient(135deg, var(--accent), var(--hot));
+            box-shadow: 0 14px 34px rgba(255, 61, 0, .18);
+        }
+
+        .btn--blue {
+            color: #eaf2ff;
+            background: linear-gradient(135deg, rgba(79, 140, 255, .95), rgba(47, 107, 255, .95));
+            box-shadow: 0 14px 34px rgba(79, 140, 255, .22);
+        }
+
+        .btn--ghost {
+            color: rgba(244, 247, 255, .90);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, .14);
+        }
+
+        .btn--ghost:hover {
+            border-color: rgba(79, 140, 255, .35);
+        }
+
+        .iconbtn {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(255, 255, 255, .04);
+            color: rgba(244, 247, 255, .90);
+            display: grid;
+            place-items: center;
+            user-select: none;
+            transition: transform .14s ease, border-color .14s ease, background .14s ease;
+        }
+
+        .iconbtn:hover {
+            border-color: rgba(79, 140, 255, .35);
+            background: rgba(79, 140, 255, .08);
+            transform: translateY(-1px);
+        }
+
+        /* Header */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 80;
+            background: rgba(7, 10, 18, .62);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .nav__inner {
+            width: var(--container);
+            margin: 0 auto;
+            padding: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 1000;
+            letter-spacing: -.4px;
+        }
+
+        .mark {
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, rgba(79, 140, 255, .95), rgba(255, 183, 3, .95));
+            color: #081026;
+            box-shadow: 0 10px 30px rgba(79, 140, 255, .18);
+            font-weight: 1100;
+        }
+
+        .nav__links {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav__links a {
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-weight: 900;
+            color: rgba(244, 247, 255, .84);
+            border: 1px solid transparent;
+            transition: background .14s ease, border-color .14s ease, color .14s ease;
+        }
+
+        .nav__links a:hover {
+            background: rgba(79, 140, 255, .10);
+            border-color: rgba(79, 140, 255, .22);
+            color: #eaf2ff;
+        }
+
+        .nav__links a.is-active {
+            background: rgba(255, 183, 3, .10);
+            border-color: rgba(255, 183, 3, .22);
+            color: rgba(255, 183, 3, .98);
+        }
+
+        .nav__actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 980px) {
+            .nav__links {
+                display: none;
+            }
+        }
+
+        /* Mobile drawer */
+        .drawer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            display: none;
+            z-index: 120;
+        }
+
+        .drawer.is-open {
+            display: block;
+        }
+
+        .drawer__panel {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: min(420px, 92%);
+            background: linear-gradient(180deg, rgba(14, 20, 38, .98), rgba(10, 13, 24, .98));
+            border-left: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 22px 0 0 22px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drawer__top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .10);
+        }
+
+        .drawer__body {
+            padding: 14px;
+            overflow: auto;
+        }
+
+        .drawer__links {
+            display: grid;
+            gap: 10px;
+        }
+
+        .drawer__links a {
+            padding: 12px 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            font-weight: 950;
+        }
+
+        .drawer__links a:hover {
+            border-color: rgba(79, 140, 255, .30);
+            background: rgba(79, 140, 255, .10);
+        }
+
+        .drawer__bottom {
+            padding: 14px;
+            border-top: 1px solid rgba(255, 255, 255, .10);
+            display: grid;
+            gap: 10px;
+        }
+
+        /* Hero / Search */
+        .heroWrap {
+            padding: 18px 0 6px;
+        }
+
+        .hero {
+            padding: 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background:
+                radial-gradient(900px 520px at 12% 0%, rgba(79, 140, 255, .22), transparent 60%),
+                radial-gradient(900px 520px at 92% 15%, rgba(255, 183, 3, .18), transparent 58%),
+                linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .03));
+            box-shadow: var(--shadow2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: -120px -60px auto auto;
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 61, 0, .22), transparent 60%);
+            filter: blur(2px);
+            transform: rotate(10deg);
+            pointer-events: none;
+        }
+
+        .heroTop {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .heroTitle {
+            margin: 0;
+            font-size: 42px;
+            letter-spacing: -1px;
+            line-height: 1.05;
+            max-width: 18ch;
+            background: linear-gradient(135deg, rgba(255, 183, 3, .98), rgba(255, 61, 0, .95), rgba(79, 140, 255, .98));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .heroSub {
+            margin-top: 10px;
+            max-width: 62ch;
+            color: rgba(244, 247, 255, .72);
+            font-size: 16px;
+        }
+
+        @media (max-width: 560px) {
+            .heroTitle {
+                font-size: 34px;
+            }
+        }
+
+        .heroBadges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .searchCard {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1.2fr .8fr;
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        @media (max-width: 980px) {
+            .searchCard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .searchForm {
+            padding: 14px;
+        }
+
+        .segmented {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .segBtn {
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .04);
+            color: rgba(244, 247, 255, .92);
+            border-radius: 14px;
+            padding: 10px 12px;
+            font-weight: 1000;
+            user-select: none;
+            transition: background .14s ease, border-color .14s ease;
+        }
+
+        .segBtn:hover {
+            border-color: rgba(79, 140, 255, .30);
+            background: rgba(79, 140, 255, .08);
+        }
+
+        .segBtn.is-active {
+            border-color: rgba(255, 183, 3, .30);
+            background: rgba(255, 183, 3, .10);
+            color: rgba(255, 183, 3, .98);
+        }
+
+        .formGrid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 980px) {
+            .formGrid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 540px) {
+            .formGrid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 950;
+            color: rgba(244, 247, 255, .70);
+            margin: 0 0 6px;
+        }
+
+        .field .control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .04);
+            transition: border-color .14s ease, background .14s ease;
+        }
+
+        .field .control:focus-within {
+            border-color: rgba(79, 140, 255, .45);
+            box-shadow: var(--focus);
+            background: rgba(79, 140, 255, .08);
+        }
+
+        .field i {
+            opacity: .9;
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: rgba(244, 247, 255, .92);
+            font-weight: 900;
+        }
+
+        .field input::placeholder {
+            color: rgba(244, 247, 255, .55);
+        }
+
+        input[type="date"] {
+            color-scheme: dark;
+        }
+
+        .formActions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .quickPills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            color: rgba(244, 247, 255, .80);
+        }
+
+        .pill {
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            font-weight: 950;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .pill:hover {
+            border-color: rgba(79, 140, 255, .30);
+        }
+
+        /* Right media panel */
+        .mediaCard {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .mediaTop {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mediaTitle {
+            font-weight: 1000;
+            letter-spacing: -.2px;
+        }
+
+        .videoWrap {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .videoWrap video {
+            width: 100%;
+            display: block;
+            aspect-ratio: 16 / 9;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            padding: 14px;
+            position: sticky;
+            top: 76px;
+            height: fit-content;
+        }
+
+        @media (max-width: 980px) {
+            .sidebar {
+                position: static;
+                top: auto;
+            }
+        }
+
+        .sideHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sideTitle {
+            font-weight: 1000;
+        }
+
+        .sideSearch {
+            width: 100%;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .04);
+            color: rgba(244, 247, 255, .92);
+            outline: none;
+            font-weight: 900;
+        }
+
+        .sideSearch:focus {
+            border-color: rgba(79, 140, 255, .45);
+            box-shadow: var(--focus);
+            background: rgba(79, 140, 255, .08);
+        }
+
+        .filters {
+            margin-top: 12px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .filterGroup h3 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            letter-spacing: .8px;
+            text-transform: uppercase;
+            color: rgba(244, 247, 255, .70);
+        }
+
+        .filterList {
+            display: grid;
+            gap: 8px;
+        }
+
+        .check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            font-weight: 900;
+            color: rgba(244, 247, 255, .86);
+            user-select: none;
+        }
+
+        .check:hover {
+            border-color: rgba(79, 140, 255, .30);
+            background: rgba(79, 140, 255, .08);
+        }
+
+        .check input {
+            accent-color: var(--primary);
+        }
+
+        /* Mobile sidebar button */
+        .mobileFiltersBtn {
+            display: none;
+        }
+
+        @media (max-width: 980px) {
+            .mobileFiltersBtn {
+                display: inline-flex;
+            }
+
+            .sidebar.card {
+                display: none;
+            }
+        }
+
+        /* Sidebar sheet */
+        .sheet {
+            position: fixed;
+            inset: 0;
+            display: none;
+            background: rgba(0, 0, 0, .55);
+            z-index: 130;
+        }
+
+        .sheet.is-open {
+            display: block;
+        }
+
+        .sheetPanel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: min(420px, 92%);
+            background: linear-gradient(180deg, rgba(14, 20, 38, .98), rgba(10, 13, 24, .98));
+            border-right: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 0 22px 22px 0;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sheetTop {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .10);
+        }
+
+        .sheetBody {
+            padding: 14px;
+            overflow: auto;
+        }
+
+        .sheetBottom {
+            padding: 14px;
+            border-top: 1px solid rgba(255, 255, 255, .10);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Main content sections */
+        .main {
+            display: grid;
+            gap: 16px;
+        }
+
+        .sectionTitleRow {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 0 4px;
+        }
+
+        .sectionTitle {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 1100;
+            letter-spacing: -.3px;
+        }
+
+        .sectionHint {
+            font-size: 13px;
+            color: rgba(244, 247, 255, .66);
+        }
+
+        /* Controller tabs */
+        .controllerBar {
+            padding: 10px 12px;
+            display: flex;
+            gap: 8px;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, .04);
+            scrollbar-width: none;
+        }
+
+        .controllerBar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chip {
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .03);
+            color: rgba(244, 247, 255, .85);
+            font-weight: 1000;
+            white-space: nowrap;
+            user-select: none;
+            cursor: pointer;
+            transition: border-color .14s ease, background .14s ease;
+        }
+
+        .chip:hover {
+            border-color: rgba(79, 140, 255, .30);
+            background: rgba(79, 140, 255, .08);
+        }
+
+        .chip.is-active {
+            border-color: rgba(255, 183, 3, .30);
+            background: rgba(255, 183, 3, .10);
+            color: rgba(255, 183, 3, .98);
+        }
+
+        /* Carousel */
+        .carousel {
+            position: relative;
+        }
+
+        .rail {
+            display: flex;
+            gap: 12px;
+            overflow: auto;
+            scroll-snap-type: x mandatory;
+            padding: 8px 4px 12px;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
+        }
+
+        .rail::-webkit-scrollbar {
+            display: none;
+        }
+
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 2;
+            display: none;
+        }
+
+        .arrow.left {
+            left: -6px;
+        }
+
+        .arrow.right {
+            right: -6px;
+        }
+
+        @media (min-width: 980px) {
+            .arrow {
+                display: grid;
+            }
+        }
+
+        .item {
+            flex: 0 0 360px;
+            scroll-snap-align: start;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            box-shadow: var(--shadow2);
+            transition: transform .16s ease, border-color .16s ease, background .16s ease;
+        }
+
+        .item:hover {
+            transform: translateY(-3px);
+            border-color: rgba(79, 140, 255, .26);
+            background: rgba(79, 140, 255, .06);
+        }
+
+        @media (max-width: 420px) {
+            .item {
+                flex-basis: 88vw;
+            }
+        }
+
+        .thumb {
+            height: 190px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, .06);
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1.02);
+            filter: saturate(1.05);
+        }
+
+        .thumb::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, .55));
+            pointer-events: none;
+        }
+
+        .thumbBadges {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            z-index: 1;
+        }
+
+        .body {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .title {
+            font-weight: 1100;
+            letter-spacing: -.3px;
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: rgba(244, 247, 255, .72);
+            font-weight: 900;
+            font-size: 13px;
+        }
+
+        .meta i {
+            opacity: .9;
+        }
+
+        .desc {
+            color: rgba(244, 247, 255, .70);
+            font-size: 13px;
+            line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 2px;
+        }
+
+        .priceRow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-weight: 1000;
+        }
+
+        .price {
+            color: rgba(244, 247, 255, .92);
+        }
+
+        .small {
+            font-size: 12px;
+            color: rgba(244, 247, 255, .65);
+            font-weight: 900;
+        }
+
+        /* Blogs */
+        .blogs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 980px) {
+            .blogs {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .blog {
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            box-shadow: var(--shadow2);
+            transition: transform .14s ease, border-color .14s ease, background .14s ease;
+        }
+
+        .blog:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 183, 3, .26);
+            background: rgba(255, 183, 3, .06);
+        }
+
+        .blog h3 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            font-weight: 1100;
+        }
+
+        .blog p {
+            margin: 0;
+            color: rgba(244, 247, 255, .70);
+            font-size: 13px;
+        }
+
+        .blog a {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            font-weight: 1000;
+            color: rgba(255, 183, 3, .95);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            background: rgba(0, 0, 0, .60);
+            z-index: 150;
+            padding: 18px;
+        }
+
+        .modal.is-open {
+            display: grid;
+            place-items: center;
+        }
+
+        .modalCard {
+            width: min(980px, 96%);
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: linear-gradient(180deg, rgba(14, 20, 38, .98), rgba(10, 13, 24, .98));
+            box-shadow: var(--shadow);
+        }
+
+        .modalTop {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, .10);
+            gap: 10px;
+        }
+
+        .modalBody {
+            padding: 14px;
+            display: grid;
+            grid-template-columns: 1fr .9fr;
+            gap: 14px;
+        }
+
+        @media (max-width: 980px) {
+            .modalBody {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .modalMedia {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+            height: 320px;
+        }
+
+        .modalMedia img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .kv {
+            display: grid;
+            gap: 10px;
+        }
+
+        .kvRow {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .kvRow strong {
+            font-weight: 1100;
+        }
+
+        .modalFooter {
+            padding: 14px;
+            border-top: 1px solid rgba(255, 255, 255, .10);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+            background: rgba(255, 255, 255, .02);
+        }
+
+        .footerInner {
+            width: var(--container);
+            margin: 0 auto;
+            padding: 18px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            color: rgba(244, 247, 255, .70);
+            font-weight: 900;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- NAV -->
+    <header class="nav">
+        <div class="nav__inner">
+            <a class="brand" href="#">
+                <span class="mark">CT</span>
+                <span>Classic Trip</span>
+            </a>
+
+            <nav class="nav__links" aria-label="Primary navigation">
+                <a href="#home" class="is-active">Home</a>
+                <a href="#buses">Buses</a>
+                <a href="#hotels">Hotels</a>
+                <a href="#flights">Flights</a>
+                <a href="#blogs">Blogs</a>
+            </nav>
+
+            <div class="nav__actions">
+                <button class="btn btn--ghost mobileFiltersBtn" id="btnOpenFilters"><i class="fa-solid fa-sliders"></i>
+                    Filters</button>
+                <button class="iconbtn" id="btnOpenMenu" aria-label="Open menu"><i
+                        class="fa-solid fa-bars"></i></button>
+                <button class="btn btn--ghost" id="btnLogin"><i class="fa-regular fa-user"></i> Login</button>
+                <button class="btn btn--primary" id="btnStart"><i class="fa-solid fa-bolt"></i> Start booking</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Drawer -->
+    <div class="drawer" id="drawer" aria-hidden="true">
+        <div class="drawer__panel" role="dialog" aria-modal="true" aria-label="Menu">
+            <div class="drawer__top">
+                <div class="brand">
+                    <span class="mark">CT</span>
+                    <span>Classic Trip</span>
+                </div>
+                <button class="iconbtn" id="btnCloseMenu" aria-label="Close menu"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="drawer__body">
+                <div class="drawer__links">
+                    <a href="#home" data-jump="home"><i class="fa-solid fa-house"></i> Home</a>
+                    <a href="#buses" data-jump="buses"><i class="fa-solid fa-bus"></i> Buses</a>
+                    <a href="#hotels" data-jump="hotels"><i class="fa-solid fa-hotel"></i> Hotels</a>
+                    <a href="#flights" data-jump="flights"><i class="fa-solid fa-plane-departure"></i> Flights</a>
+                    <a href="#ads" data-jump="ads"><i class="fa-solid fa-bullhorn"></i> Ads</a>
+                    <a href="#blogs" data-jump="blogs"><i class="fa-regular fa-pen-to-square"></i> Blogs</a>
+                </div>
+
+                <div class="hr"></div>
+                <div class="muted">Demo actions</div>
+
+                <div class="mt12" style="display:grid; gap:10px">
+                    <button class="btn btn--ghost" id="btnReset"><i class="fa-solid fa-rotate"></i> Reset UI</button>
+                    <button class="btn btn--blue" id="btnDemoSearch"><i class="fa-solid fa-magnifying-glass"></i> Demo
+                        search</button>
+                </div>
+            </div>
+
+            <div class="drawer__bottom">
+                <button class="btn btn--ghost" id="btnLogin2"><i class="fa-regular fa-user"></i> Login</button>
+                <button class="btn btn--primary" id="btnStart2"><i class="fa-solid fa-bolt"></i> Start booking</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Filters Sheet -->
+    <div class="sheet" id="sheet" aria-hidden="true">
+        <div class="sheetPanel" role="dialog" aria-modal="true" aria-label="Filters">
+            <div class="sheetTop">
+                <strong>Filters</strong>
+                <button class="iconbtn" id="btnCloseFilters" aria-label="Close filters"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="sheetBody" id="sheetBody"></div>
+            <div class="sheetBottom">
+                <button class="btn btn--ghost" id="btnCancelFilters">Cancel</button>
+                <button class="btn btn--blue" id="btnApplyFilters">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal" aria-hidden="true">
+        <div class="modalCard" role="dialog" aria-modal="true" aria-label="Details">
+            <div class="modalTop">
+                <div>
+                    <div class="badge badge--info" id="mType"><i class="fa-solid fa-circle-info"></i> Bus</div>
+                    <div style="font-weight:1100; margin-top:6px" id="mTitle">Trip details</div>
+                    <div class="muted" id="mSub" style="font-size:13px; font-weight:900; margin-top:3px">Route • time
+                    </div>
+                </div>
+                <button class="iconbtn" id="btnCloseModal" aria-label="Close details"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modalBody">
+                <div class="modalMedia">
+                    <img id="mImg" alt="Preview"
+                        src="https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?auto=format&fit=crop&w=1200&q=60">
+                </div>
+                <div class="kv">
+                    <div class="kvRow"><span class="muted">Operator</span><strong id="mOperator">Classic
+                            Express</strong></div>
+                    <div class="kvRow"><span class="muted">Departure</span><strong id="mDepart">07:30</strong></div>
+                    <div class="kvRow"><span class="muted">Arrival</span><strong id="mArrive">09:10</strong></div>
+                    <div class="kvRow"><span class="muted">Duration</span><strong id="mDur">1h 40m</strong></div>
+                    <div class="kvRow"><span class="muted">Policies</span><strong id="mPolicy">Instant confirmation •
+                            Refundable</strong></div>
+                    <div class="kvRow"><span class="muted">Price</span><strong id="mPrice">UGX 25,000</strong></div>
+                    <div class="muted" style="font-size:13px; font-weight:900">
+                        Tip: In your real app, this modal becomes a full “select seat / select room / choose baggage”
+                        page.
+                    </div>
+                </div>
+            </div>
+            <div class="modalFooter">
+                <button class="btn btn--ghost" id="btnModalSave"><i class="fa-regular fa-bookmark"></i> Save</button>
+                <button class="btn btn--primary" id="btnModalBook"><i class="fa-solid fa-ticket"></i> Book now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="container heroWrap" id="home">
+        <section class="hero">
+            <div class="heroTop">
+                <div>
+                    <h1 class="heroTitle">Explore East Africa. Book faster. Travel smarter.</h1>
+                    <p class="heroSub">
+                        Classic Trip brings buses, hotels, flights & trains into a single clean booking experience —
+                        with transparent pricing, instant confirmation, and easy filters.
+                    </p>
+
+                    <div class="heroBadges mt12">
+                        <span class="badge badge--ok"><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
+                        <span class="badge badge--info"><i class="fa-solid fa-bolt"></i> Instant confirmation</span>
+                        <span class="badge badge--warn"><i class="fa-solid fa-tags"></i> Best deals</span>
+                        <span class="badge badge--hot"><i class="fa-solid fa-headset"></i> 24/7 support</span>
+                    </div>
+                </div>
+
+                <div class="heroBadges">
+                    <span class="badge"><i class="fa-solid fa-location-dot"></i> Uganda • Kenya • Rwanda • Tanzania • S.
+                        Sudan</span>
+                </div>
+            </div>
+
+            <div class="searchCard">
+                <!-- Search -->
+                <div class="card searchForm">
+                    <div class="segmented" id="segments">
+                        <button class="segBtn is-active" data-type="bus"><i class="fa-solid fa-bus"></i> Bus</button>
+                        <button class="segBtn" data-type="hotel"><i class="fa-solid fa-hotel"></i> Hotel</button>
+                        <button class="segBtn" data-type="flight"><i class="fa-solid fa-plane-departure"></i>
+                            Flight</button>
+                        <button class="segBtn" data-type="train"><i class="fa-solid fa-train"></i> Train</button>
+                    </div>
+
+                    <div class="formGrid">
+                        <div class="field" data-show="fromTo">
+                            <label>From</label>
+                            <div class="control">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <input id="from" placeholder="Kampala" value="Kampala">
+                            </div>
+                        </div>
+
+                        <div class="field" data-show="fromTo">
+                            <label>To</label>
+                            <div class="control">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <input id="to" placeholder="Entebbe" value="Entebbe">
+                            </div>
+                        </div>
+
+                        <div class="field" data-show="cityOnly" style="display:none">
+                            <label>City</label>
+                            <div class="control">
+                                <i class="fa-solid fa-city"></i>
+                                <input id="city" placeholder="Kampala" value="Kampala">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>Date</label>
+                            <div class="control">
+                                <i class="fa-regular fa-calendar"></i>
+                                <input id="date" type="date">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>Passengers</label>
+                            <div class="control">
+                                <i class="fa-solid fa-user-group"></i>
+                                <select id="pax">
+                                    <option>1</option>
+                                    <option>2</option>
+                                    <option>3</option>
+                                    <option>4</option>
+                                    <option>5</option>
+                                    <option>6</option>
+                                    <option>7</option>
+                                    <option>8</option>
+                                    <option>9</option>
+                                    <option>10</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="formActions">
+                        <div class="quickPills">
+                            <span class="pill" data-quick="Kampala|Entebbe"><i class="fa-solid fa-route"></i> Kampala ⇄
+                                Entebbe</span>
+                            <span class="pill" data-quick="Kampala|Jinja"><i class="fa-solid fa-route"></i> Kampala ⇄
+                                Jinja</span>
+                            <span class="pill" data-quick="Juba|Nimule"><i class="fa-solid fa-route"></i> Juba ⇄
+                                Nimule</span>
+                        </div>
+                        <button class="btn btn--blue" id="btnSearch"><i class="fa-solid fa-magnifying-glass"></i>
+                            Search</button>
+                    </div>
+
+                    <div class="mt10 muted" style="font-size:13px; font-weight:900">
+                        Demo UI: search will open “details” for a suggested result.
+                    </div>
+                </div>
+
+                <!-- Media -->
+                <div class="card mediaCard">
+                    <div class="mediaTop">
+                        <div>
+                            <div class="mediaTitle">See how Classic Trip works</div>
+                            <div class="muted" style="font-size:13px; font-weight:900">Short demo video placeholder
+                            </div>
+                        </div>
+                        <span class="badge badge--info"><i class="fa-solid fa-sparkles"></i> Clean UI</span>
+                    </div>
+                    <div class="videoWrap">
+                        <video controls preload="metadata">
+                            <source
+                                src="https://media.geeksforgeeks.org/wp-content/uploads/20231020155223/Full-Stack-Development-_-LIVE-Classes-_-GeeksforGeeks.mp4"
+                                type="video/mp4">
+                            Your browser does not support video.
+                        </video>
+                    </div>
+                    <div class="muted" style="font-size:13px; font-weight:900">
+                        Replace with your own promo video / reels later.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="container">
+        <div class="grid">
+            <!-- SIDEBAR -->
+            <aside class="card sidebar" id="desktopSidebar">
+                <div class="sideHeader">
+                    <div class="sideTitle">Filters</div>
+                    <button class="btn btn--ghost" id="btnClear"><i class="fa-solid fa-eraser"></i> Clear</button>
+                </div>
+
+                <input class="sideSearch" id="sideSearch" placeholder="Search routes, cities, operators..." />
+
+                <div class="filters">
+                    <div class="filterGroup">
+                        <h3>Category</h3>
+                        <div class="filterList">
+                            <label class="check"><input type="checkbox" checked> Buses</label>
+                            <label class="check"><input type="checkbox"> Flights</label>
+                            <label class="check"><input type="checkbox"> Hotels</label>
+                            <label class="check"><input type="checkbox"> Trains</label>
+                        </div>
+                    </div>
+
+                    <div class="filterGroup">
+                        <h3>Countries</h3>
+                        <div class="filterList">
+                            <label class="check"><input type="checkbox"> Uganda</label>
+                            <label class="check"><input type="checkbox"> Kenya</label>
+                            <label class="check"><input type="checkbox"> Rwanda</label>
+                            <label class="check"><input type="checkbox"> Tanzania</label>
+                            <label class="check"><input type="checkbox"> South Sudan</label>
+                            <label class="check"><input type="checkbox"> Ethiopia</label>
+                            <label class="check"><input type="checkbox"> Burundi</label>
+                        </div>
+                    </div>
+
+                    <div class="filterGroup">
+                        <h3>Policies</h3>
+                        <div class="filterList">
+                            <label class="check"><input type="checkbox" checked> Instant confirmation</label>
+                            <label class="check"><input type="checkbox"> Refundable</label>
+                            <label class="check"><input type="checkbox"> Pay on arrival</label>
+                        </div>
+                    </div>
+
+                    <div class="filterGroup">
+                        <h3>Price cap</h3>
+                        <div class="soft p14">
+                            <div class="muted" style="font-weight:900; font-size:13px">Max budget: <span
+                                    id="priceLabel">65</span>%</div>
+                            <input id="priceRange" type="range" min="0" max="100" value="65"
+                                style="width:100%; margin-top:10px; accent-color: var(--primary);">
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN -->
+            <main class="main" aria-label="Content">
+                <!-- Controller tabs -->
+                <div class="controllerBar" id="controller">
+                    <span class="chip is-active" data-chip="foryou"><i class="fa-solid fa-wand-magic-sparkles"></i> For
+                        you</span>
+                    <span class="chip" data-chip="nearby"><i class="fa-solid fa-location-crosshairs"></i> Nearby</span>
+                    <span class="chip" data-chip="today"><i class="fa-regular fa-calendar"></i> Today</span>
+                    <span class="chip" data-chip="weekend"><i class="fa-solid fa-umbrella-beach"></i> This
+                        weekend</span>
+                    <span class="chip" data-chip="nextweek"><i class="fa-solid fa-forward"></i> Next week</span>
+                    <span class="chip" data-chip="deals"><i class="fa-solid fa-tags"></i> Deals</span>
+                </div>
+
+                <!-- BUSES -->
+                <section class="mt8" id="buses">
+                    <div class="sectionTitleRow">
+                        <div>
+                            <h2 class="sectionTitle">Featured Buses</h2>
+                            <div class="sectionHint">Top routes • Clean vehicles • Better prices</div>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                            <span class="badge badge--info"><i class="fa-solid fa-bolt"></i> Instant</span>
+                            <span class="badge badge--ok"><i class="fa-solid fa-star"></i> 4.6+</span>
+                        </div>
+                    </div>
+
+                    <div class="carousel">
+                        <button class="iconbtn arrow left" data-arrow="bus" data-dir="-1" aria-label="Scroll left"><i
+                                class="fa-solid fa-chevron-left"></i></button>
+                        <button class="iconbtn arrow right" data-arrow="bus" data-dir="1" aria-label="Scroll right"><i
+                                class="fa-solid fa-chevron-right"></i></button>
+
+                        <div class="rail" id="rail-bus">
+                            <!-- Card 1 -->
+                            <article class="item" data-type="Bus" data-title="Kampala ⇄ Entebbe Express"
+                                data-sub="Fast route • AC • Wi-Fi" data-operator="Classic Express" data-depart="07:30"
+                                data-arrive="09:10" data-dur="1h 40m" data-policy="Instant confirmation • Refundable"
+                                data-price="UGX 25,000"
+                                data-img="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Bus">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--ok"><i class="fa-solid fa-star"></i> 4.7</span>
+                                        <span class="badge badge--info"><i class="fa-solid fa-wifi"></i> Wi-Fi</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Kampala ⇄ Entebbe Express</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 07:30</span>
+                                        <span><i class="fa-solid fa-route"></i> 1h 40m</span>
+                                        <span><i class="fa-solid fa-bolt"></i> Instant</span>
+                                    </div>
+                                    <p class="desc">Reliable departures, clean seats, and quick boarding. Perfect for
+                                        airport runs.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">UGX 25,000</div>
+                                            <div class="small">Taxes included</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-ticket"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Card 2 -->
+                            <article class="item" data-type="Bus" data-title="Kampala ⇄ Jinja Comfort Coach"
+                                data-sub="Best value • Smooth ride" data-operator="LakeLine" data-depart="09:10"
+                                data-arrive="11:20" data-dur="2h 10m" data-policy="Instant confirmation"
+                                data-price="UGX 20,000"
+                                data-img="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1505852679233-d9fd70aff56d?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Route">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--warn"><i class="fa-solid fa-tags"></i> Best
+                                            value</span>
+                                        <span class="badge"><i class="fa-solid fa-snowflake"></i> AC</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Kampala ⇄ Jinja Comfort Coach</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 09:10</span>
+                                        <span><i class="fa-solid fa-route"></i> 2h 10m</span>
+                                        <span><i class="fa-solid fa-shield-halved"></i> Verified</span>
+                                    </div>
+                                    <p class="desc">Comfortable seating and stable pricing. Great for daily commuters
+                                        and weekend travel.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">UGX 20,000</div>
+                                            <div class="small">Limited seats</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-ticket"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Card 3 -->
+                            <article class="item" data-type="Bus" data-title="Juba ⇄ Nimule Border Shuttle"
+                                data-sub="Quick border run" data-operator="Nile Transit" data-depart="06:40"
+                                data-arrive="09:00" data-dur="2h 20m" data-policy="Instant confirmation • ID required"
+                                data-price="SSP 18,000"
+                                data-img="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Bus">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--info"><i class="fa-solid fa-bolt"></i> Instant</span>
+                                        <span class="badge"><i class="fa-solid fa-id-card"></i> ID</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Juba ⇄ Nimule Border Shuttle</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 06:40</span>
+                                        <span><i class="fa-solid fa-route"></i> 2h 20m</span>
+                                        <span><i class="fa-solid fa-location-dot"></i> Border</span>
+                                    </div>
+                                    <p class="desc">Popular border shuttle. Keep your ID ready for smooth processing.
+                                    </p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">SSP 18,000</div>
+                                            <div class="small">Operator rules apply</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-ticket"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- HOTELS -->
+                <section class="mt18" id="hotels">
+                    <div class="sectionTitleRow">
+                        <div>
+                            <h2 class="sectionTitle">Featured Hotels</h2>
+                            <div class="sectionHint">Top-rated stays • Free cancellation options</div>
+                        </div>
+                        <span class="badge badge--ok"><i class="fa-solid fa-circle-check"></i> Verified
+                            properties</span>
+                    </div>
+
+                    <div class="carousel">
+                        <button class="iconbtn arrow left" data-arrow="hotel" data-dir="-1" aria-label="Scroll left"><i
+                                class="fa-solid fa-chevron-left"></i></button>
+                        <button class="iconbtn arrow right" data-arrow="hotel" data-dir="1" aria-label="Scroll right"><i
+                                class="fa-solid fa-chevron-right"></i></button>
+
+                        <div class="rail" id="rail-hotel">
+                            <article class="item" data-type="Hotel" data-title="Kampala City Central Suites"
+                                data-sub="Near CBD • Wi-Fi" data-operator="City Central" data-depart="Check-in 14:00"
+                                data-arrive="Check-out 12:00" data-dur="2 nights"
+                                data-policy="Free cancellation • Pay on arrival" data-price="$35 / night"
+                                data-img="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Hotel">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--ok"><i class="fa-solid fa-star"></i> 4.5</span>
+                                        <span class="badge"><i class="fa-solid fa-wifi"></i> Wi-Fi</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Kampala City Central Suites</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-solid fa-location-dot"></i> CBD</span>
+                                        <span><i class="fa-solid fa-mug-saucer"></i> Breakfast</span>
+                                        <span><i class="fa-solid fa-ban"></i> Free cancel</span>
+                                    </div>
+                                    <p class="desc">Clean rooms, strong Wi-Fi and easy access to business hubs.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$35 / night</div>
+                                            <div class="small">Taxes included</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-bed"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="item" data-type="Hotel" data-title="Entebbe Lake View Hotel"
+                                data-sub="Airport access • Quiet stay" data-operator="Lake View"
+                                data-depart="Check-in 14:00" data-arrive="Check-out 12:00" data-dur="2 nights"
+                                data-policy="Free cancellation" data-price="$48 / night"
+                                data-img="https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Hotel">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--info"><i class="fa-solid fa-plane"></i> Airport</span>
+                                        <span class="badge"><i class="fa-solid fa-water"></i> Lake</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Entebbe Lake View Hotel</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-solid fa-location-dot"></i> Entebbe</span>
+                                        <span><i class="fa-solid fa-shield-halved"></i> Verified</span>
+                                        <span><i class="fa-solid fa-ban"></i> Free cancel</span>
+                                    </div>
+                                    <p class="desc">Perfect for early flights—quiet, comfortable, and close to the
+                                        airport.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$48 / night</div>
+                                            <div class="small">Limited rooms</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-bed"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="item" data-type="Hotel" data-title="Jinja Riverside Stay"
+                                data-sub="Great views • Calm" data-operator="Riverside" data-depart="Check-in 14:00"
+                                data-arrive="Check-out 12:00" data-dur="2 nights" data-policy="Free cancellation"
+                                data-price="$29 / night"
+                                data-img="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Hotel">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--warn"><i class="fa-solid fa-tags"></i> Deal</span>
+                                        <span class="badge"><i class="fa-solid fa-tree"></i> Calm</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Jinja Riverside Stay</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-solid fa-location-dot"></i> Jinja</span>
+                                        <span><i class="fa-solid fa-martini-glass"></i> Lounge</span>
+                                        <span><i class="fa-solid fa-ban"></i> Free cancel</span>
+                                    </div>
+                                    <p class="desc">Ideal for weekend getaways with a relaxing riverside vibe.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$29 / night</div>
+                                            <div class="small">Great for couples</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-bed"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FLIGHTS -->
+                <section class="mt18" id="flights">
+                    <div class="sectionTitleRow">
+                        <div>
+                            <h2 class="sectionTitle">Featured Flights</h2>
+                            <div class="sectionHint">Direct + flexible options • Transparent fares</div>
+                        </div>
+                        <span class="badge badge--info"><i class="fa-solid fa-plane"></i> Best routes</span>
+                    </div>
+
+                    <div class="carousel">
+                        <button class="iconbtn arrow left" data-arrow="flight" data-dir="-1" aria-label="Scroll left"><i
+                                class="fa-solid fa-chevron-left"></i></button>
+                        <button class="iconbtn arrow right" data-arrow="flight" data-dir="1"
+                            aria-label="Scroll right"><i class="fa-solid fa-chevron-right"></i></button>
+
+                        <div class="rail" id="rail-flight">
+                            <article class="item" data-type="Flight" data-title="EBB → NBO (Direct)"
+                                data-sub="Fast route • Morning" data-operator="AeroLink" data-depart="07:10"
+                                data-arrive="08:25" data-dur="1h 15m"
+                                data-policy="Instant confirmation • Carry-on included" data-price="$140"
+                                data-img="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Flight">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--ok"><i class="fa-solid fa-bolt"></i> Direct</span>
+                                        <span class="badge"><i class="fa-solid fa-suitcase-rolling"></i> Carry-on</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">EBB → NBO (Direct)</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 07:10</span>
+                                        <span><i class="fa-solid fa-route"></i> 1h 15m</span>
+                                        <span><i class="fa-solid fa-bolt"></i> Direct</span>
+                                    </div>
+                                    <p class="desc">Quick direct flight—perfect for business trips and connections.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$140</div>
+                                            <div class="small">From price</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-plane"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="item" data-type="Flight" data-title="EBB → DAR (1 stop)"
+                                data-sub="Cheapest • Afternoon" data-operator="SkyConnect" data-depart="12:40"
+                                data-arrive="16:10" data-dur="3h 30m" data-policy="Instant confirmation"
+                                data-price="$120"
+                                data-img="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Flight">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--warn"><i class="fa-solid fa-tags"></i> Cheapest</span>
+                                        <span class="badge"><i class="fa-solid fa-shuffle"></i> 1 stop</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">EBB → DAR (1 stop)</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 12:40</span>
+                                        <span><i class="fa-solid fa-route"></i> 3h 30m</span>
+                                        <span><i class="fa-solid fa-shuffle"></i> 1 stop</span>
+                                    </div>
+                                    <p class="desc">Affordable fare for flexible travelers. Great savings.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$120</div>
+                                            <div class="small">From price</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-plane"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="item" data-type="Flight" data-title="EBB → KGL (Direct)"
+                                data-sub="Fastest • Evening" data-operator="Premier Air" data-depart="18:05"
+                                data-arrive="19:10" data-dur="1h 05m"
+                                data-policy="Instant confirmation • Carry-on included" data-price="$175"
+                                data-img="https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Flight">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--info"><i class="fa-solid fa-bolt"></i> Fastest</span>
+                                        <span class="badge"><i class="fa-solid fa-bag-shopping"></i> Carry-on</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">EBB → KGL (Direct)</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-regular fa-clock"></i> 18:05</span>
+                                        <span><i class="fa-solid fa-route"></i> 1h 05m</span>
+                                        <span><i class="fa-solid fa-bolt"></i> Direct</span>
+                                    </div>
+                                    <p class="desc">Fast direct flight—ideal for quick regional travel.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">$175</div>
+                                            <div class="small">From price</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-plane"></i> Book</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ADS -->
+                <section class="mt18" id="ads">
+                    <div class="sectionTitleRow">
+                        <div>
+                            <h2 class="sectionTitle">Sponsorship & Ads</h2>
+                            <div class="sectionHint">Promote operators, hotels, tours, and travel brands</div>
+                        </div>
+                        <span class="badge"><i class="fa-solid fa-bullhorn"></i> Sponsored</span>
+                    </div>
+
+                    <div class="carousel">
+                        <button class="iconbtn arrow left" data-arrow="ads" data-dir="-1" aria-label="Scroll left"><i
+                                class="fa-solid fa-chevron-left"></i></button>
+                        <button class="iconbtn arrow right" data-arrow="ads" data-dir="1" aria-label="Scroll right"><i
+                                class="fa-solid fa-chevron-right"></i></button>
+
+                        <div class="rail" id="rail-ads">
+                            <article class="item" data-type="Ad" data-title="Advertise your bus company"
+                                data-sub="Reach travelers instantly" data-operator="Classic Trip Ads" data-depart="—"
+                                data-arrive="—" data-dur="—" data-policy="Sponsored placement"
+                                data-price="From $29/week"
+                                data-img="https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Ads">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--hot"><i class="fa-solid fa-fire"></i> High
+                                            reach</span>
+                                        <span class="badge"><i class="fa-solid fa-chart-line"></i> Analytics</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Advertise your bus company</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-solid fa-bullhorn"></i> Sponsored</span>
+                                        <span><i class="fa-solid fa-chart-line"></i> Track clicks</span>
+                                        <span><i class="fa-solid fa-users"></i> Target routes</span>
+                                    </div>
+                                    <p class="desc">Run sponsored placements and attract more bookings with a clean,
+                                        trusted marketplace.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">From $29/week</div>
+                                            <div class="small">Limited slots</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-paper-plane"></i> Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="item" data-type="Ad" data-title="Hotel promo placement"
+                                data-sub="Boost bookings" data-operator="Classic Trip Ads" data-depart="—"
+                                data-arrive="—" data-dur="—" data-policy="Sponsored placement"
+                                data-price="From $39/week"
+                                data-img="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=60">
+                                <div class="thumb">
+                                    <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=60"
+                                        alt="Ads">
+                                    <div class="thumbBadges">
+                                        <span class="badge badge--warn"><i class="fa-solid fa-tags"></i> Promo</span>
+                                        <span class="badge"><i class="fa-solid fa-eye"></i> Visibility</span>
+                                    </div>
+                                </div>
+                                <div class="body">
+                                    <h3 class="title">Hotel promo placement</h3>
+                                    <div class="meta">
+                                        <span><i class="fa-solid fa-location-dot"></i> City targeting</span>
+                                        <span><i class="fa-solid fa-chart-line"></i> Reports</span>
+                                        <span><i class="fa-solid fa-star"></i> Reviews</span>
+                                    </div>
+                                    <p class="desc">Showcase your hotel to travelers searching by city, date, and
+                                        budget.</p>
+                                    <div class="priceRow">
+                                        <div>
+                                            <div class="price">From $39/week</div>
+                                            <div class="small">Sponsored</div>
+                                        </div>
+                                        <div class="actions">
+                                            <button class="btn btn--ghost" data-action="details"><i
+                                                    class="fa-regular fa-eye"></i> Details</button>
+                                            <button class="btn btn--primary" data-action="book"><i
+                                                    class="fa-solid fa-paper-plane"></i> Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BLOGS -->
+                <section class="mt18" id="blogs">
+                    <div class="sectionTitleRow">
+                        <div>
+                            <h2 class="sectionTitle">Latest Blogs</h2>
+                            <div class="sectionHint">Content that builds trust and boosts SEO</div>
+                        </div>
+                        <span class="badge badge--info"><i class="fa-solid fa-globe"></i> Travel updates</span>
+                    </div>
+
+                    <div class="blogs">
+                        <article class="blog">
+                            <h3>Best bus routes in Uganda for airport runs</h3>
+                            <p>How to travel safely and quickly between Kampala and Entebbe — and what to look for in
+                                operators.</p>
+                            <a href="#"><span>Read more</span> <i class="fa-solid fa-arrow-right"></i></a>
+                        </article>
+
+                        <article class="blog">
+                            <h3>Hotel booking: how to pick the right stay</h3>
+                            <p>Cancellation policies, location tips, and how to avoid hidden fees when booking online.
+                            </p>
+                            <a href="#"><span>Read more</span> <i class="fa-solid fa-arrow-right"></i></a>
+                        </article>
+
+                        <article class="blog">
+                            <h3>Flights across East Africa: best times to book</h3>
+                            <p>A simple guide to prices, direct routes, and how to plan for connections.</p>
+                            <a href="#"><span>Read more</span> <i class="fa-solid fa-arrow-right"></i></a>
+                        </article>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footerInner">
+            <div>© <span id="year"></span> Classic Trip • Built for East Africa</div>
+            <div class="muted">Demo UI • Replace data & connect your backend later</div>
+        </div>
+    </footer>
+
+    <script>
+        // ======================================================
+        // Classic Trip — UI interactions (single file)
+        // ======================================================
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        // Year
+        $("#year").textContent = new Date().getFullYear();
+
+        // Date default to today
+        const today = new Date().toISOString().slice(0, 10);
+        $("#date").value = today;
+
+        // Drawer
+        const drawer = $("#drawer");
+        $("#btnOpenMenu").addEventListener("click", () => openDrawer(true));
+        $("#btnCloseMenu").addEventListener("click", () => openDrawer(false));
+        drawer.addEventListener("click", (e) => { if (e.target === drawer) openDrawer(false); });
+
+        function openDrawer(open) {
+            drawer.classList.toggle("is-open", open);
+            drawer.setAttribute("aria-hidden", open ? "false" : "true");
+            if (!open) return;
+            // close filters sheet if open
+            openFilters(false);
+        }
+
+        // Menu jump
+        $$("[data-jump]").forEach(a => {
+            a.addEventListener("click", (e) => {
+                e.preventDefault();
+                openDrawer(false);
+                const id = a.getAttribute("data-jump");
+                const el = document.getElementById(id);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+        });
+
+        // Mobile filters sheet: clone desktop sidebar
+        const sheet = $("#sheet");
+        const sheetBody = $("#sheetBody");
+        $("#btnOpenFilters").addEventListener("click", () => openFilters(true));
+        $("#btnCloseFilters").addEventListener("click", () => openFilters(false));
+        $("#btnCancelFilters").addEventListener("click", () => openFilters(false));
+        $("#btnApplyFilters").addEventListener("click", () => {
+            toast("Filters applied (demo).");
+            openFilters(false);
+        });
+        sheet.addEventListener("click", (e) => { if (e.target === sheet) openFilters(false); });
+
+        function openFilters(open) {
+            sheet.classList.toggle("is-open", open);
+            sheet.setAttribute("aria-hidden", open ? "false" : "true");
+
+            if (open) {
+                sheetBody.innerHTML = "";
+                const clone = $("#desktopSidebar").cloneNode(true);
+                clone.style.display = "block";
+                clone.style.position = "static";
+                clone.style.top = "auto";
+                clone.style.boxShadow = "none";
+                sheetBody.appendChild(clone);
+            }
+        }
+
+        // Price range label
+        $("#priceRange").addEventListener("input", (e) => $("#priceLabel").textContent = e.target.value);
+
+        // Controller chips active
+        $("#controller").addEventListener("click", (e) => {
+            const chip = e.target.closest(".chip");
+            if (!chip) return;
+            $$(".chip", $("#controller")).forEach(c => c.classList.remove("is-active"));
+            chip.classList.add("is-active");
+            toast(`Filter: ${chip.dataset.chip} (demo)`);
+        });
+
+        // Segments: show city-only for hotel
+        const segments = $("#segments");
+        segments.addEventListener("click", (e) => {
+            const btn = e.target.closest(".segBtn");
+            if (!btn) return;
+            $$(".segBtn", segments).forEach(b => b.classList.remove("is-active"));
+            btn.classList.add("is-active");
+
+            const type = btn.dataset.type;
+            const showCity = type === "hotel";
+            $$("[data-show='cityOnly']").forEach(el => el.style.display = showCity ? "" : "none");
+            $$("[data-show='fromTo']").forEach(el => el.style.display = showCity ? "none" : "");
+
+            toast(`Search mode: ${type.toUpperCase()}`);
+        });
+
+        // Quick pills
+        $$("[data-quick]").forEach(p => {
+            p.addEventListener("click", () => {
+                const [f, t] = p.dataset.quick.split("|");
+                $("#from").value = f;
+                $("#to").value = t;
+                toast("Route filled.");
+            });
+        });
+
+        // Search button (demo opens modal from first bus card)
+        $("#btnSearch").addEventListener("click", () => {
+            // pick first card based on segment
+            const type = $(".segBtn.is-active", segments)?.dataset.type || "bus";
+            let pick = null;
+            if (type === "hotel") pick = $("#rail-hotel .item");
+            else if (type === "flight") pick = $("#rail-flight .item");
+            else pick = $("#rail-bus .item");
+            if (pick) openDetailsFromCard(pick);
+            else toast("No demo items.");
+        });
+
+        // Buttons: login/start (demo)
+        ["#btnLogin", "#btnLogin2"].forEach(sel => {
+            $(sel).addEventListener("click", () => toast("Login modal (demo)."));
+        });
+        ["#btnStart", "#btnStart2"].forEach(sel => {
+            $(sel).addEventListener("click", () => {
+                document.getElementById("home").scrollIntoView({ behavior: "smooth" });
+                toast("Start booking.");
+            });
+        });
+
+        // Reset & demo search
+        $("#btnReset").addEventListener("click", () => {
+            $("#from").value = "Kampala";
+            $("#to").value = "Entebbe";
+            $("#city").value = "Kampala";
+            $("#date").value = today;
+            $("#pax").value = "1";
+            $("#sideSearch").value = "";
+            $("#priceRange").value = 65;
+            $("#priceLabel").textContent = "65";
+            toast("UI reset.");
+            openDrawer(false);
+        });
+
+        $("#btnDemoSearch").addEventListener("click", () => {
+            openDrawer(false);
+            openDetailsFromCard($("#rail-bus .item"));
+        });
+
+        // Carousel arrows
+        $$("[data-arrow]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const key = btn.dataset.arrow;
+                const dir = parseInt(btn.dataset.dir, 10) || 1;
+                const rail = document.getElementById(`rail-${key}`);
+                if (!rail) return;
+                rail.scrollBy({ left: dir * 420, behavior: "smooth" });
+            });
+        });
+
+        // Drag to scroll (rail)
+        $$(".rail").forEach(rail => {
+            let isDown = false, startX = 0, startLeft = 0;
+            rail.addEventListener("mousedown", (e) => {
+                isDown = true;
+                startX = e.pageX;
+                startLeft = rail.scrollLeft;
+            });
+            window.addEventListener("mouseup", () => isDown = false);
+            window.addEventListener("mousemove", (e) => {
+                if (!isDown) return;
+                const dx = e.pageX - startX;
+                rail.scrollLeft = startLeft - dx;
+            });
+        });
+
+        // Card actions
+        document.body.addEventListener("click", (e) => {
+            const btn = e.target.closest("button[data-action]");
+            if (!btn) return;
+            const card = btn.closest(".item");
+            if (!card) return;
+
+            if (btn.dataset.action === "details") {
+                openDetailsFromCard(card);
+            } else if (btn.dataset.action === "book") {
+                openDetailsFromCard(card);
+                toast("Proceed to booking (connect backend later).");
+            }
+        });
+
+        // Modal
+        const modal = $("#modal");
+        $("#btnCloseModal").addEventListener("click", () => openModal(false));
+        modal.addEventListener("click", (e) => { if (e.target === modal) openModal(false); });
+        $("#btnModalSave").addEventListener("click", () => toast("Saved (demo)."));
+        $("#btnModalBook").addEventListener("click", () => toast("Booking flow (demo)."));
+
+        function openModal(open) {
+            modal.classList.toggle("is-open", open);
+            modal.setAttribute("aria-hidden", open ? "false" : "true");
+            if (open) openDrawer(false);
+        }
+
+        function openDetailsFromCard(card) {
+            if (!card) return;
+            $("#mType").innerHTML = `<i class="fa-solid fa-circle-info"></i> ${card.dataset.type || "Item"}`;
+            $("#mTitle").textContent = card.dataset.title || "Details";
+            $("#mSub").textContent = card.dataset.sub || "—";
+            $("#mOperator").textContent = card.dataset.operator || "—";
+            $("#mDepart").textContent = card.dataset.depart || "—";
+            $("#mArrive").textContent = card.dataset.arrive || "—";
+            $("#mDur").textContent = card.dataset.dur || "—";
+            $("#mPolicy").textContent = card.dataset.policy || "—";
+            $("#mPrice").textContent = card.dataset.price || "—";
+            $("#mImg").src = card.dataset.img || $("#mImg").src;
+            openModal(true);
+        }
+
+        // Clear filters (demo)
+        $("#btnClear").addEventListener("click", () => {
+            $$("#desktopSidebar input[type='checkbox']").forEach(c => c.checked = false);
+            $("#sideSearch").value = "";
+            $("#priceRange").value = 65;
+            $("#priceLabel").textContent = "65";
+            toast("Filters cleared (demo).");
+        });
+
+        // Toast
+        const toastEl = document.createElement("div");
+        toastEl.style.position = "fixed";
+        toastEl.style.left = "50%";
+        toastEl.style.transform = "translateX(-50%)";
+        toastEl.style.bottom = "18px";
+        toastEl.style.zIndex = "999";
+        toastEl.style.padding = "10px 12px";
+        toastEl.style.borderRadius = "14px";
+        toastEl.style.background = "rgba(15,20,38,.92)";
+        toastEl.style.color = "white";
+        toastEl.style.border = "1px solid rgba(255,255,255,.12)";
+        toastEl.style.boxShadow = "0 18px 50px rgba(0,0,0,.35)";
+        toastEl.style.fontWeight = "900";
+        toastEl.style.display = "none";
+        toastEl.style.maxWidth = "min(560px, 92%)";
+        document.body.appendChild(toastEl);
+
+        function toast(msg) {
+            toastEl.textContent = msg;
+            toastEl.style.display = "block";
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => toastEl.style.display = "none", 2100);
+        }
+    </script>
+</body>
+
+</html>

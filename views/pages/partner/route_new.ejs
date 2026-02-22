@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>New Listing — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container narrow">
+      <h1>Create listing (Route/Hotel)</h1>
+      <div class="card">
+        <form id="routeForm" class="form" enctype="multipart/form-data">
+          <label>Type</label>
+          <select name="type" id="routeType">
+            <option value="bus">Bus route</option>
+            <option value="train">Train route</option>
+            <option value="flight">Flight route</option>
+            <option value="hotel">Hotel</option>
+          </select>
+
+          <label>Title</label>
+          <input name="title" placeholder="Kampala ⇄ Jinja Express" required/>
+
+          <label>Description</label>
+          <textarea name="description" rows="4" placeholder="What makes this great?"></textarea>
+
+          <div class="twoCol">
+            <div>
+              <label>Country</label>
+              <input name="country" placeholder="Uganda"/>
+            </div>
+            <div>
+              <label>City</label>
+              <input name="city" placeholder="Kampala"/>
+            </div>
+          </div>
+
+          <div id="routeFields">
+            <label>From</label>
+            <input name="from" placeholder="Kampala"/>
+            <label>To</label>
+            <input name="to" placeholder="Jinja"/>
+          </div>
+
+          <div id="hotelFields" style="display:none">
+            <label>Address</label>
+            <input name="address" placeholder="Plot 1, Kampala"/>
+            <div class="twoCol">
+              <div>
+                <label>Stars</label>
+                <input name="stars" type="number" min="0" max="5" value="3"/>
+              </div>
+              <div>
+                <label>Amenities (comma separated)</label>
+                <input name="amenities" placeholder="WiFi, Breakfast, Pool"/>
+              </div>
+            </div>
+          </div>
+
+          <label>Currency</label>
+          <input name="currency" value="UGX"/>
+
+          <label>Images</label>
+          <input name="images" type="file" accept="image/*" multiple />
+
+          <button class="btn btn--primary btn--block" type="submit">Create</button>
+          <div class="muted" id="routeMsg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+  <%- include("../../partials/footer") %>
+</body>
+</html>

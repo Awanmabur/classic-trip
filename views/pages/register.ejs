@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Register — <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body>
+  <%- include("../partials/nav") %>
+
+  <section class="section">
+    <div class="container narrow">
+      <h1>Create account</h1>
+      <div class="card">
+        <form id="registerForm" class="form">
+          <label>Name</label>
+          <input name="name" placeholder="Your name" required/>
+          <label>Email</label>
+          <input name="email" type="email" placeholder="you@example.com" required/>
+          <label>Phone</label>
+          <input name="phone" placeholder="+256..." />
+          <label>Password</label>
+          <input name="password" type="password" placeholder="Strong password" required/>
+          <label>Role</label>
+          <select name="role">
+            <option value="customer">Customer</option>
+            <option value="partner">Partner</option>
+          </select>
+          <button class="btn btn--primary btn--block" type="submit">Create account</button>
+          <div class="muted" id="registerMsg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <%- include("../partials/footer") %>
+</body>
+</html>

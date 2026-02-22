@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Trip — <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body>
+  <%- include("../partials/nav") %>
+
+  <section class="section">
+    <div class="container">
+      <div class="split">
+        <div>
+          <h1 id="tripTitle">Trip details</h1>
+          <p class="muted" id="tripMeta">Loading…</p>
+
+          <div class="card">
+            <h3>Seat selection</h3>
+            <div class="seatLegend">
+              <span><i class="seatDot available"></i> Available</span>
+              <span><i class="seatDot held"></i> Held</span>
+              <span><i class="seatDot taken"></i> Taken</span>
+              <span><i class="seatDot aisle"></i> Aisle</span>
+            </div>
+            <div id="seatGrid" class="seatGrid"></div>
+
+            <div class="actionsRow">
+              <button class="btn" id="btnHold">Hold Seats</button>
+              <button class="btn btn--primary" id="btnConfirm">Confirm Booking</button>
+            </div>
+
+            <div class="muted" id="seatNote"></div>
+          </div>
+        </div>
+
+        <aside>
+          <div class="card">
+            <h3>Summary</h3>
+            <div class="summaryRow"><span>Selected</span><strong id="selCount">0</strong></div>
+            <div class="summaryRow"><span>Price</span><strong id="selPrice">—</strong></div>
+            <div class="summaryRow"><span>Status</span><strong id="selStatus" class="muted">Not held</strong></div>
+
+            <div class="hr"></div>
+
+            <div class="row" style="align-items:center; justify-content:space-between">
+              <div class="muted">Referral</div>
+              <div class="pill" id="refPill">None</div>
+            </div>
+
+            <div class="gridForm" data-auth="customer">
+              <div class="gridForm__row">
+                <label class="checkbox">
+                  <input type="checkbox" id="useWallet" />
+                  <span>Use wallet balance as discount</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="muted" data-guest>
+              Tip: Guest booking is supported. For seat holds and wallet discounts, login first.
+            </div>
+
+            <div class="actionsRow" data-guest>
+              <a class="btn btn--ghost" href="/login">Login</a>
+              <a class="btn btn--ghost" href="/register">Register</a>
+            </div>
+          </div>
+
+          <div class="card" data-guest>
+            <h3>Book as guest</h3>
+            <p class="muted">No login needed. You’ll get a lookup code to view your booking.</p>
+            <div class="gridForm">
+              <div class="gridForm__row">
+                <label>Name</label>
+                <input id="gName" placeholder="e.g. Jonathan" />
+              </div>
+              <div class="gridForm__row">
+                <label>Email</label>
+                <input id="gEmail" placeholder="e.g. you@email.com" />
+              </div>
+              <div class="gridForm__row">
+                <label>Phone</label>
+                <input id="gPhone" placeholder="e.g. +256…" />
+              </div>
+              <button class="btn btn--primary" id="btnGuestConfirm" type="button">Book as Guest</button>
+              <div class="muted" id="gNote"></div>
+            </div>
+          </div>
+
+          <div class="card" data-auth="customer">
+            <h3>Share & Earn</h3>
+            <p class="muted">Share any trip. If someone books through your link, you earn 5% (wallet credit).</p>
+            <div class="gridForm">
+              <div class="gridForm__row">
+                <label>Share link</label>
+                <input id="shareLink" readonly />
+              </div>
+              <button class="btn" id="btnCopyShare" type="button">Copy</button>
+              <div class="muted" id="shareMsg"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <script>window.TRIP_ID="<%= tripId %>";</script>
+  <%- include("../partials/footer") %>
+</body>
+</html>

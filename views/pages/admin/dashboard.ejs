@@ -1,0 +1,59 @@
+<%- include("../partials/head") %>
+<body>
+  <%- include("../partials/nav") %>
+
+  <div class="container section">
+    <div class="pageHead">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p class="muted">Platform-wide analytics for Classic Trip.</p>
+      </div>
+      <div class="pageHead__actions">
+        <a class="btn" href="/admin/users">Users</a>
+        <a class="btn" href="/admin/bookings">Bookings</a>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="muted">Users</div><div class="kpi__n" id="aUsers">—</div></div>
+      <div class="kpi"><div class="muted">Partners</div><div class="kpi__n" id="aPartners">—</div></div>
+      <div class="kpi"><div class="muted">Trips</div><div class="kpi__n" id="aTrips">—</div></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="muted">Bookings</div><div class="kpi__n" id="aBookings">—</div></div>
+      <div class="kpi"><div class="muted">Confirmed</div><div class="kpi__n" id="aConfirmed">—</div></div>
+      <div class="kpi"><div class="muted">Revenue</div><div class="kpi__n" id="aRevenue">—</div></div>
+    </div>
+
+    <hr />
+    <div class="card">
+      <h2>Revenue breakdown</h2>
+      <div class="muted" id="aRevBreak">—</div>
+    </div>
+  </div>
+
+  <script>window.API_BASE="<%= API_BASE %>"</script>
+  <script src="/public/js/app.js"></script>
+  <script>
+    (async()=>{
+      const user = JSON.parse(localStorage.getItem("ct_user")||"null");
+      if(!user || user.role!=="admin"){ location.href="/login"; return; }
+      try{
+        const r=await fetch(window.API_BASE+"/api/admin/stats",{headers:{Authorization:"Bearer "+(localStorage.getItem("ct_access")||"")}});
+        const j=await r.json(); if(!r.ok) throw new Error(j.message||"Failed");
+        const s=j.stats||{};
+        document.getElementById("aUsers").textContent=s.users??0;
+        document.getElementById("aPartners").textContent=s.partners??0;
+        document.getElementById("aTrips").textContent=s.trips??0;
+        document.getElementById("aBookings").textContent=s.bookings??0;
+        document.getElementById("aConfirmed").textContent=s.confirmed??0;
+        const rev=(s.revenue||[]).map(x=>`${x._id}: ${Number(x.total||0).toLocaleString()}`).join(" • ");
+        document.getElementById("aRevenue").textContent=rev||"0";
+        document.getElementById("aRevBreak").textContent=rev||"No confirmed revenue yet.";
+      }catch(e){
+        document.getElementById("aRevBreak").textContent="❌ "+e.message;
+      }
+    })();
+  </script>
+</body>

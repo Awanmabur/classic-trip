@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Partner Dashboard — <%= APP_NAME %></title>
+  <%- include("../../partials/head") %>
+</head>
+<body>
+  <%- include("../../partials/nav") %>
+  <section class="section">
+    <div class="container">
+      <div class="pageHead">
+        <div>
+          <h1>Partner dashboard</h1>
+          <p class="muted">Create vehicles, listings, trips, and monitor occupancy.</p>
+        </div>
+        <div class="pageHead__actions">
+          <a class="btn btn--ghost" href="/partner/vehicles/new">New Vehicle</a>
+          <a class="btn btn--ghost" href="/partner/routes/new">New Listing</a>
+          <a class="btn btn--primary" href="/partner/trips/new">New Trip</a>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="kpi__n" id="kTrips">—</div><div class="muted">Trips</div></div>
+        <div class="kpi"><div class="kpi__n" id="kBookings">—</div><div class="muted">Bookings</div></div>
+        <div class="kpi"><div class="kpi__n" id="kConfirmed">—</div><div class="muted">Confirmed</div></div>
+      </div>
+
+      <h2>Recent trips</h2>
+      <div class="cardsGrid" id="partnerTrips"></div>
+      <div class="muted" id="partnerMsg"></div>
+    </div>
+  </section>
+  <%- include("../../partials/footer") %>
+</body>
+</html>
