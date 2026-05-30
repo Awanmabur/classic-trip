@@ -1,0 +1,7 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard"><span class="badge badgeHot"><i class="fa-solid fa-newspaper"></i> Blog and SEO</span><h1 class="heroTitle">Route guides, booking help and partner education.</h1><p class="heroSub">The blueprint asks for SEO/blog support, so the platform includes a ready public guide section.</p></section>
+  <section class="gridCards" style="margin-top:14px"><% blogs.forEach(blog => { %><article class="listing"><a href="/blogs/<%= blog.slug %>"><div class="thumb"><img src="<%= blog.image %>" alt="<%= blog.title %>"></div><div class="listingBody"><span class="badge badgeInfo"><%= blog.tag %></span><h3 class="listingTitle"><%= blog.title %></h3><p class="desc"><%= blog.excerpt %></p></div></a></article><% }) %></section>
+</main>
+<%- include('../partials/site-footer') %>

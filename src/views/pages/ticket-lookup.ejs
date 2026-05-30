@@ -1,0 +1,35 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="detailGrid">
+    <form class="card" style="padding:16px" action="/tickets" method="get">
+      <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Guest ticket lookup</span>
+      <h1 class="heroTitle" style="font-size:30px;margin-top:10px">Find a ticket without logging in.</h1>
+      <p class="heroSub">Use the booking reference from Gmail, WhatsApp, or the success page. Add phone or email to verify a guest ticket.</p>
+      <div class="bookingForm" style="margin-top:12px">
+        <input name="bookingRef" placeholder="Booking ref, for example CT-BUS-1042" value="<%= query.bookingRef || '' %>" required>
+        <input name="contact" placeholder="Phone or email" value="<%= query.contact || '' %>">
+      </div>
+      <button class="btn btnPrimary" type="submit" style="margin-top:12px;width:100%"><i class="fa-solid fa-magnifying-glass"></i> Find ticket</button>
+      <a class="btn btnGhost" href="/search?bookable=true" style="margin-top:8px;width:100%"><i class="fa-solid fa-ticket"></i> Buy another ticket</a>
+    </form>
+
+    <aside class="sidePanel">
+      <% if (booking) { %>
+        <div class="ticketPaper">
+          <div><span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Ticket found</span><h2 style="margin:8px 0 0"><%= booking.bookingRef %></h2><p class="muted" style="margin:4px 0 0;font-weight:800"><%= listing.title %></p></div>
+          <img src="<%= qrDataUrl %>" alt="Ticket QR" style="width:160px;height:160px">
+          <div class="ticketLine"><span>Guest</span><b><%= booking.guestSnapshot.fullName %></b></div>
+          <div class="ticketLine"><span>Status</span><b><%= booking.bookingStatus %></b></div>
+          <div class="ticketLine"><span>Total</span><b><%= money(booking.pricing.total, booking.pricing.currency) %></b></div>
+          <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-qrcode"></i> Open full ticket</a>
+        </div>
+      <% } else if (lookupAttempted) { %>
+        <div class="empty">No ticket matched those details. Check the reference and the phone or email used during checkout.</div>
+      <% } else { %>
+        <div class="summaryCard"><h3>How it works</h3><p class="muted">Guest checkout creates a booking reference and QR ticket. This lookup page keeps ticket access available even when the customer has no account.</p></div>
+      <% } %>
+    </aside>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

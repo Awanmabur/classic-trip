@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title><%= title %> - <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body data-page="dashboard-shell">
+  <%- include("../partials/nav") %>
+
+  <main class="dashShell" data-dashboard="<%= dashboardType %>">
+    <aside class="dashSide card">
+      <div class="dashBrand">
+        <span class="logoDot">CT</span>
+        <div>
+          <strong><%= title %></strong>
+          <span id="dashRole">Loading role...</span>
+        </div>
+      </div>
+
+      <nav class="dashMenu">
+        <% sections.forEach((section) => { %>
+          <a href="#<%= section.id %>">
+            <i><%= section.icon %></i>
+            <span><%= section.label %></span>
+          </a>
+        <% }) %>
+      </nav>
+
+      <div class="dashHelp">
+        <strong>Role access</strong>
+        <p><%= roleNote %></p>
+      </div>
+    </aside>
+
+    <section class="dashMain">
+      <div class="dashTop card">
+        <div>
+          <h1><%= title %></h1>
+          <p><%= subtitle %></p>
+        </div>
+        <div class="dashActions">
+          <a class="btn btn--ghost" href="/dashboard">Switch dashboard</a>
+          <a class="btn btn--primary" href="/search">Browse marketplace</a>
+        </div>
+      </div>
+
+      <div id="dashMsg" class="dashMsg">Loading dashboard data...</div>
+      <div id="dashStats" class="kpiGrid"></div>
+
+      <div class="dashPanels">
+        <section class="dashSection card" id="overview">
+          <h2>Overview</h2>
+          <div id="dashOverview" class="featureGrid"></div>
+        </section>
+
+        <section class="dashSection card" id="activity">
+          <h2>Activity</h2>
+          <div id="dashActivity" class="featureGrid"></div>
+        </section>
+      </div>
+
+      <section class="dashSection card" id="bookings">
+        <div class="pageHead">
+          <div>
+            <h2>Bookings and tickets</h2>
+            <p class="muted">Recent records scoped to the dashboard role.</p>
+          </div>
+        </div>
+        <div class="tableWrap">
+          <table id="dashBookings">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Customer</th>
+                <th>Service</th>
+                <th>Date</th>
+                <th>Seats</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Split</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="dashPanels">
+        <section class="dashSection card" id="finance">
+          <h2>Finance</h2>
+          <div id="dashFinance" class="featureGrid"></div>
+        </section>
+
+        <section class="dashSection card" id="tools">
+          <h2>Tools</h2>
+          <div id="dashTools" class="featureGrid"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script defer src="/public/js/dashboards.js"></script>
+</body>
+</html>

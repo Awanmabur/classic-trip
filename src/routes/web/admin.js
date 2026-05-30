@@ -1,0 +1,46 @@
+const express = require('express');
+const dashboardController = require('../../controllers/admin/dashboardController');
+const companyController = require('../../controllers/admin/companyController');
+const bookingController = require('../../controllers/admin/bookingController');
+const paymentController = require('../../controllers/admin/paymentController');
+const promoterController = require('../../controllers/admin/promoterController');
+const withdrawalController = require('../../controllers/admin/withdrawalController');
+const disputeController = require('../../controllers/admin/disputeController');
+const reviewController = require('../../controllers/admin/reviewController');
+const promotionController = require('../../controllers/admin/promotionController');
+const settingController = require('../../controllers/admin/settingController');
+const reportController = require('../../controllers/reportController');
+const { requireAuth } = require('../../middlewares/auth');
+const { requireRole } = require('../../middlewares/roles');
+const upload = require('../../middlewares/upload');
+const router = express.Router();
+
+router.use('/admin', requireAuth, requireRole('super_admin'));
+
+router.get('/admin', dashboardController.index);
+router.get('/admin/companies', dashboardController.index);
+router.get('/admin/bookings', dashboardController.index);
+router.get('/admin/payments', dashboardController.index);
+router.get('/admin/promoters', dashboardController.index);
+router.get('/admin/withdrawals', dashboardController.index);
+router.get('/admin/disputes', dashboardController.index);
+router.get('/admin/refunds', dashboardController.index);
+router.get('/admin/reviews', dashboardController.index);
+router.get('/admin/promotions', dashboardController.index);
+router.get('/admin/settings', dashboardController.index);
+router.get('/admin/reports/:type.csv', reportController.admin);
+router.post('/admin/companies', upload.single('imageFile'), companyController.create);
+router.post('/admin/companies/:slug/approve', companyController.approve);
+router.post('/admin/companies/:slug/reject', companyController.reject);
+router.post('/admin/companies/:slug/suspend', companyController.suspend);
+router.get('/admin/api/bookings', bookingController.list);
+router.get('/admin/api/payments', paymentController.list);
+router.get('/admin/api/promoters', promoterController.list);
+router.post('/admin/withdrawals/:id/approve', withdrawalController.approve);
+router.get('/admin/api/disputes', disputeController.list);
+router.post('/admin/refunds/:id/approve', disputeController.approveRefund);
+router.post('/admin/reviews/:id/moderate', reviewController.moderate);
+router.get('/admin/api/promotions', promotionController.list);
+router.post('/admin/settings', settingController.update);
+
+module.exports = router;

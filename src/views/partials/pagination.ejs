@@ -1,0 +1,1 @@
+<% if (pagination && pagination.pages > 1) { %><div class="chips"><% for (let p=1;p<=pagination.pages;p++){ %><a class="chip <%= pagination.page===p?'active':'' %>" href="?page=<%= p %>"><%= p %></a><% } %></div><% } %>

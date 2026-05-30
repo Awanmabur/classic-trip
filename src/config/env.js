@@ -1,36 +1,58 @@
-const dotenv = require("dotenv");
-dotenv.config();
+const path = require('path');
+let dotenv = null;
+try { dotenv = require('dotenv'); } catch (error) { dotenv = null; }
+if (dotenv) dotenv.config({ path: path.join(process.cwd(), '.env') });
 
-function must(name) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
+const number = (key, fallback) => {
+  const value = Number(process.env[key]);
+  return Number.isFinite(value) ? value : fallback;
+};
+
+const env = {
+  appName: process.env.APP_NAME || 'Classic Trip',
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isProduction: process.env.NODE_ENV === 'production',
+  port: number('PORT', 5000),
+  appUrl: process.env.APP_URL || 'http://localhost:5000',
+  mongoUri: process.env.MONGO_URI || '',
+  sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    apiKey: process.env.CLOUDINARY_API_KEY || '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+    folder: process.env.CLOUDINARY_FOLDER || 'classic-trip',
+    maxUploadSizeMb: number('MAX_UPLOAD_SIZE_MB', 5),
+  },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/auth/google/callback',
+  },
+  paymentProvider: process.env.PAYMENT_PROVIDER || 'mock',
+  paymentWebhookSecret: process.env.PAYMENT_WEBHOOK_SECRET || 'dev_webhook_secret',
+  commission: {
+    platform: number('PLATFORM_COMMISSION', 10),
+    promoter: number('PROMOTER_COMMISSION', 3),
+    platformWithPromoter: number('PLATFORM_WITH_PROMOTER_COMMISSION', 7),
+    company: number('COMPANY_COMMISSION', 90),
+  },
+  email: {
+    from: process.env.EMAIL_FROM || 'no-reply@classictrip.com',
+    host: process.env.SMTP_HOST || '',
+    port: process.env.SMTP_PORT || '',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+  },
+  demoPassword: process.env.DEMO_PASSWORD || 'Password123',
+};
+
+function validateEnv() {
+  const requiredInProduction = ['SESSION_SECRET', 'MONGO_URI'];
+  const missing = requiredInProduction.filter((key) => !process.env[key]);
+  if (env.isProduction && missing.length) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+  return true;
 }
 
-const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
-const WEB_ORIGIN = process.env.WEB_ORIGIN || `http://localhost:${PORT}`;
-
-module.exports = {
-  NODE_ENV: process.env.NODE_ENV || "development",
-  PORT: Number(process.env.PORT || 3010),
-  MONGO_URI: must("MONGO_URI"),
-
-  JWT_ACCESS_SECRET: must("JWT_ACCESS_SECRET"),
-  JWT_REFRESH_SECRET: must("JWT_REFRESH_SECRET"),
-  JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES || "15m",
-  JWT_REFRESH_EXPIRES: process.env.JWT_REFRESH_EXPIRES || "14d",
-
-  COOKIE_SECURE: String(process.env.COOKIE_SECURE || "false") === "true",
-  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || "",
-  REFRESH_COOKIE_NAME: process.env.REFRESH_COOKIE_NAME || "ct_rt",
-
-  SEAT_HOLD_MINUTES: Number(process.env.SEAT_HOLD_MINUTES || 10),
-
-  CLOUDINARY_CLOUD_NAME: must("CLOUDINARY_CLOUD_NAME"),
-  CLOUDINARY_API_KEY: must("CLOUDINARY_API_KEY"),
-  CLOUDINARY_API_SECRET: must("CLOUDINARY_API_SECRET"),
-
-  ADMIN_NAME: process.env.ADMIN_NAME || "Admin",
-  ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@classictrip.test",
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "AdminPass123!"
-};
+module.exports = { env, validateEnv };

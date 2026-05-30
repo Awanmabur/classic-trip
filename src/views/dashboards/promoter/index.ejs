@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classic Trip | Promoter Dashboard</title>
+  <meta name="description" content="Classic Trip Promoter Dashboard for referral links, commissions, withdrawals, shared listings, performance, and payout history." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root{
+      --container:min(1420px,94%);
+      --sidebar:282px;
+      --topbar:66px;
+      --primary:#4f8cff;
+      --primary2:#2f6bff;
+      --accent:#ffb703;
+      --hot:#ff5a1f;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 22px 70px rgba(0,0,0,.24);
+      --shadow2:0 12px 38px rgba(0,0,0,.18);
+    }
+
+    html[data-theme="dark"]{
+      --bg0:#03050b;
+      --bg1:#060914;
+      --cardA:rgba(255,255,255,.068);
+      --cardB:rgba(255,255,255,.034);
+      --soft:rgba(255,255,255,.048);
+      --line:rgba(255,255,255,.105);
+      --line2:rgba(255,255,255,.065);
+      --text:#f7f9ff;
+      --muted:rgba(247,249,255,.64);
+      --muted2:rgba(247,249,255,.42);
+      --input:rgba(255,255,255,.055);
+      --table:rgba(255,255,255,.035);
+      --panel:rgba(7,10,20,.94);
+      --active:rgba(255,183,3,.26);
+      --activeLine:rgba(255,183,3,.46);
+      --selectBg:#0d1222;
+    }
+
+    html[data-theme="light"]{
+      --bg0:#eef3ff;
+      --bg1:#e9eef8;
+      --cardA:rgba(255,255,255,.94);
+      --cardB:rgba(255,255,255,.78);
+      --soft:rgba(15,23,42,.045);
+      --line:rgba(15,23,42,.105);
+      --line2:rgba(15,23,42,.065);
+      --text:#0f172a;
+      --muted:rgba(15,23,42,.62);
+      --muted2:rgba(15,23,42,.43);
+      --input:rgba(15,23,42,.045);
+      --table:rgba(15,23,42,.03);
+      --panel:rgba(255,255,255,.96);
+      --active:rgba(255,183,3,.28);
+      --activeLine:rgba(255,183,3,.50);
+      --selectBg:#ffffff;
+      --shadow:0 22px 70px rgba(15,23,42,.11);
+      --shadow2:0 12px 38px rgba(15,23,42,.08);
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:auto}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(650px 390px at 8% -12%, rgba(79,140,255,.055), transparent 68%),
+        radial-gradient(560px 340px at 94% -10%, rgba(255,183,3,.03), transparent 70%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
+      overflow-x:hidden;
+    }
+
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    :focus,:focus-visible{outline:none!important;box-shadow:none!important}
+
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:20px}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:20px;border:2px solid transparent;background-clip:content-box}
+
+    .app{
+      width:var(--container);
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:var(--sidebar) minmax(0,1fr);
+      gap:16px;
+      padding:14px 0 24px;
+    }
+
+    .sideBackdrop{display:none}
+
+    .sidebar{
+      position:sticky;
+      top:14px;
+      height:calc(100vh - 28px);
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      border-radius:30px;
+      box-shadow:var(--shadow2);
+      backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      z-index:80;
+    }
+
+    .sideTop{
+      padding:14px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .mark{
+      width:42px;
+      height:42px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      color:#081026;
+      background:linear-gradient(135deg,rgba(79,140,255,.96),rgba(255,183,3,.96));
+      font-weight:1000;
+      flex:0 0 auto;
+      box-shadow:0 12px 28px rgba(79,140,255,.14);
+    }
+
+    .brandText{min-width:0}
+    .brandText strong{
+      display:block;
+      font-size:14px;
+      letter-spacing:-.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .brandText span{
+      display:block;
+      margin-top:2px;
+      font-size:11px;
+      color:var(--muted);
+      font-weight:850;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .sideSearch{padding:12px 14px 8px}
+
+    .searchBox,.control{
+      border:1px solid var(--line);
+      background:var(--input);
+      border-radius:22px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 13px;
+      min-width:0;
+    }
+
+    .searchBox input,.control input,.control select,.control textarea{
+      width:100%;
+      border:0;
+      background:transparent;
+      color:var(--text);
+      min-width:0;
+      font-weight:850;
+      font-size:12px;
+    }
+
+    select option{background:var(--selectBg);color:var(--text)}
+    .searchBox input::placeholder,.control input::placeholder,.control textarea::placeholder{color:var(--muted2)}
+
+    .sideNav{
+      padding:9px;
+      display:grid;
+      gap:10px;
+      overflow:auto;
+      flex:1;
+      align-content:start;
+    }
+
+    .navBtn{
+      width:100%;
+      min-width:0;
+      border:1px solid transparent;
+      background:transparent;
+      color:var(--muted);
+      border-radius:18px;
+      padding:11px 12px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:12.2px;
+      font-weight:900;
+      text-align:left;
+      white-space:nowrap;
+      overflow:hidden;
+      transition:.16s ease;
+    }
+
+    .navBtn span{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      display:block;
+    }
+
+    .navBtn i{
+      width:20px;
+      height:20px;
+      display:grid;
+      place-items:center;
+      font-size:13px;
+      color:var(--muted);
+      flex:0 0 auto;
+    }
+
+    .navBtn:hover{
+      background:rgba(79,140,255,.13);
+      border-color:rgba(79,140,255,.32);
+      color:var(--text);
+      border-radius:28px;
+      padding-top:15px;
+      padding-bottom:15px;
+      transform:translateY(-1px);
+    }
+
+    .navBtn.is-active{
+      background:var(--active);
+      border-color:var(--activeLine);
+      color:var(--accent);
+      border-radius:28px;
+      padding-top:15px;
+      padding-bottom:15px;
+      box-shadow:0 12px 28px rgba(255,183,3,.13);
+    }
+
+    .navBtn.is-active i{color:var(--accent)}
+
+    .sideFoot{
+      border-top:1px solid var(--line);
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+
+    .miniProfile{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:9px;
+      border-radius:22px;
+      background:var(--soft);
+      border:1px solid var(--line2);
+    }
+
+    .avatar{
+      width:36px;
+      height:36px;
+      border-radius:14px;
+      background:linear-gradient(135deg,rgba(79,140,255,.92),rgba(255,90,31,.82));
+      display:grid;
+      place-items:center;
+      color:#fff;
+      font-weight:1000;
+      flex:0 0 auto;
+      font-size:12px;
+    }
+
+    .profileMeta strong{display:block;font-size:12px}
+    .profileMeta span{display:block;color:var(--muted);font-size:10px;font-weight:850;margin-top:2px}
+
+    .main{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .topbar{
+      position:sticky;
+      top:14px;
+      z-index:50;
+      min-height:var(--topbar);
+      max-height:var(--topbar);
+      border:1px solid var(--line);
+      border-radius:28px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+      box-shadow:var(--shadow2);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      overflow:hidden;
+    }
+
+    .topLeft{
+      min-width:0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .menuBtn{display:none!important}
+
+    .pageTitle{min-width:0}
+    .pageTitle h1{
+      margin:0;
+      font-size:18px;
+      line-height:1.1;
+      letter-spacing:-.35px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .pageTitle p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:11.5px;
+      font-weight:800;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:660px;
+    }
+
+    .topActions{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      flex-wrap:nowrap;
+      justify-content:flex-end;
+      min-width:max-content;
+    }
+
+    .btn,.iconBtn,.chip,.tabBtn{
+      border:1px solid var(--line);
+      background:var(--soft);
+      color:var(--text);
+      border-radius:999px;
+      height:39px;
+      padding:0 13px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:950;
+      font-size:12px;
+      white-space:nowrap;
+      transition:.15s ease;
+    }
+
+    .btn:hover,.iconBtn:hover,.chip:hover,.tabBtn:hover{
+      transform:translateY(-1px);
+      border-color:rgba(79,140,255,.26);
+      background:rgba(79,140,255,.08);
+    }
+
+    .iconBtn{
+      width:39px;
+      padding:0;
+      flex:0 0 auto;
+    }
+
+    .btnPrimary{
+      border-color:transparent;
+      color:#071226;
+      background:linear-gradient(135deg,var(--accent),var(--hot));
+      box-shadow:0 14px 34px rgba(255,90,31,.12);
+    }
+
+    .btnBlue{
+      border-color:transparent;
+      background:linear-gradient(135deg,rgba(79,140,255,.94),rgba(47,107,255,.94));
+      color:#eef5ff;
+      box-shadow:0 14px 34px rgba(79,140,255,.12);
+    }
+
+    .btnDanger{
+      background:rgba(239,68,68,.12);
+      color:#ff8b8b;
+      border-color:rgba(239,68,68,.22);
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:var(--soft);
+      padding:6px 9px;
+      font-size:11px;
+      font-weight:950;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+
+    .badge.ok{background:rgba(34,197,94,.105);border-color:rgba(34,197,94,.22);color:#42d77a}
+    .badge.warn{background:rgba(255,183,3,.105);border-color:rgba(255,183,3,.24);color:#ffc847}
+    .badge.bad{background:rgba(239,68,68,.105);border-color:rgba(239,68,68,.22);color:#ff8b8b}
+    .badge.info{background:rgba(79,140,255,.115);border-color:rgba(79,140,255,.22);color:#7fb0ff}
+
+    .content{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      scroll-margin-top:84px;
+    }
+
+    .section{
+      display:none;
+      animation:fadeIn .20s ease both;
+      scroll-margin-top:84px;
+    }
+    .section.is-open{display:block}
+
+    @keyframes fadeIn{
+      from{opacity:0;transform:translateY(6px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    .hero,.card{
+      border:1px solid var(--line);
+      border-radius:30px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow2);
+      overflow:hidden;
+    }
+
+    .hero{padding:16px}
+
+    .heroGrid{
+      display:grid;
+      grid-template-columns:minmax(0,1.1fr) 360px;
+      gap:14px;
+      align-items:stretch;
+    }
+
+    .welcome{
+      min-height:190px;
+      border-radius:25px;
+      padding:18px;
+      border:1px solid var(--line2);
+      background:rgba(255,255,255,.026);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:20px;
+    }
+
+    .welcome h2{
+      margin:12px 0 0;
+      font-size:27px;
+      line-height:1.06;
+      letter-spacing:-.8px;
+      max-width:720px;
+    }
+
+    .welcome p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+      max-width:780px;
+      line-height:1.55;
+    }
+
+    .heroActions{display:flex;gap:9px;flex-wrap:wrap}
+
+    .livePanel{
+      border-radius:25px;
+      padding:16px;
+      border:1px solid var(--line2);
+      background:rgba(255,255,255,.026);
+      display:grid;
+      gap:12px;
+    }
+
+    .liveHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .liveHeader strong{font-size:14px}
+    .pulse{
+      width:9px;height:9px;border-radius:50%;
+      background:var(--ok);
+      box-shadow:0 0 0 8px rgba(34,197,94,.12);
+    }
+
+    .liveList{display:grid;gap:10px}
+    .liveItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px;
+      border-radius:18px;
+      background:var(--soft);
+      border:1px solid var(--line2);
+    }
+    .liveItem span:first-child{font-size:12px;color:var(--muted);font-weight:850}
+    .liveItem strong{font-size:13px}
+
+    .statsGrid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .statCard{
+      border:1px solid var(--line);
+      border-radius:24px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow2);
+      padding:14px;
+      min-width:0;
+      overflow:hidden;
+    }
+
+    .statTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+
+    .statIcon{
+      width:38px;height:38px;border-radius:15px;
+      display:grid;place-items:center;
+      background:rgba(79,140,255,.115);
+      color:#7fb0ff;
+      border:1px solid rgba(79,140,255,.20);
+      flex:0 0 auto;
+    }
+
+    .trend{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:11px;font-weight:950;
+      color:#42d77a;
+      padding:5px 8px;border-radius:999px;
+      background:rgba(34,197,94,.10);
+      border:1px solid rgba(34,197,94,.18);
+    }
+
+    .statNumber{
+      font-size:22px;
+      font-weight:1000;
+      letter-spacing:-.7px;
+      margin-top:12px;
+    }
+
+    .statLabel{
+      margin-top:3px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:850;
+    }
+
+    .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+    .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+
+    .cardPad{padding:16px}
+    .cardHead{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding:16px 16px 0;
+      flex-wrap:wrap;
+    }
+
+    .cardTitle h3{
+      margin:0;
+      font-size:16px;
+      letter-spacing:-.25px;
+    }
+    .cardTitle p{
+      margin:5px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      line-height:1.45;
+    }
+
+    .tabs{
+      display:flex;
+      gap:7px;
+      flex-wrap:wrap;
+      padding:12px 16px 0;
+    }
+
+    .tabBtn,.chip{
+      height:33px;
+      padding:0 11px;
+      color:var(--muted);
+      font-size:11.5px;
+    }
+
+    .tabBtn.is-on,.chip.is-on{
+      background:var(--active);
+      border-color:var(--activeLine);
+      color:var(--accent);
+    }
+
+    .tabPane{display:none}
+    .tabPane.is-on{display:block}
+
+    .tableWrap{overflow:auto;padding:12px 16px 16px}
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0 8px;
+      min-width:760px;
+    }
+
+    th{
+      text-align:left;
+      color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      padding:0 10px;
+      white-space:nowrap;
+    }
+
+    td{
+      background:var(--table);
+      border-top:1px solid var(--line2);
+      border-bottom:1px solid var(--line2);
+      padding:10px;
+      font-size:12px;
+      font-weight:800;
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+
+    td:first-child{border-left:1px solid var(--line2);border-radius:16px 0 0 16px}
+    td:last-child{border-right:1px solid var(--line2);border-radius:0 16px 16px 0}
+
+    .nameCell{display:flex;align-items:center;gap:10px}
+
+    .miniLogo{
+      width:34px;height:34px;border-radius:13px;
+      display:grid;place-items:center;
+      background:rgba(79,140,255,.115);
+      color:#7fb0ff;
+      border:1px solid rgba(79,140,255,.20);
+      flex:0 0 auto;
+      font-weight:1000;
+    }
+
+    .nameCell strong{display:block;font-size:12px}
+    .nameCell span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+
+    .rowActions{display:flex;gap:6px;justify-content:flex-end}
+
+    .tinyBtn{
+      width:33px;height:33px;border-radius:999px;
+      display:grid;place-items:center;
+      border:1px solid var(--line);
+      background:var(--soft);
+      color:var(--text);
+      transition:.15s ease;
+      font-size:12px;
+    }
+    .tinyBtn:hover{transform:translateY(-1px);background:rgba(79,140,255,.08);border-color:rgba(79,140,255,.25)}
+    .tinyBtn.danger{color:#ff8b8b;background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.20)}
+
+    .quickGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+    .quickCard{
+      border:1px solid var(--line2);
+      background:var(--soft);
+      border-radius:22px;
+      padding:13px;
+      display:grid;
+      gap:9px;
+      min-height:112px;
+      transition:.15s ease;
+      color:var(--text);
+      text-align:left;
+    }
+
+    .quickCard:hover{transform:translateY(-2px);border-color:rgba(79,140,255,.23);background:rgba(79,140,255,.07)}
+
+    .quickIcon{
+      width:36px;height:36px;border-radius:14px;
+      display:grid;place-items:center;
+      background:rgba(255,183,3,.12);
+      color:var(--accent);
+      border:1px solid rgba(255,183,3,.20);
+    }
+
+    .quickCard strong{font-size:13px}
+    .quickCard span{font-size:11px;color:var(--muted);font-weight:800;line-height:1.45}
+
+    .splitGrid{display:grid;gap:10px;padding:16px}
+
+    .splitItem{
+      display:grid;
+      gap:8px;
+      padding:12px;
+      border:1px solid var(--line2);
+      border-radius:20px;
+      background:var(--soft);
+    }
+
+    .splitTop{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      font-size:12px;font-weight:900;
+    }
+
+    .progress{
+      height:9px;
+      border-radius:999px;
+      background:rgba(255,255,255,.07);
+      overflow:hidden;
+      border:1px solid var(--line2);
+    }
+
+    html[data-theme="light"] .progress{background:rgba(15,23,42,.06)}
+    .progress i{
+      display:block;height:100%;border-radius:999px;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+    }
+
+    .formPanel{padding:16px;display:grid;gap:12px}
+    .formGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .field label{display:block;color:var(--muted);font-size:11px;font-weight:950;margin:0 0 6px}
+    .control{min-height:45px;border-radius:22px;padding:10px 13px}
+    .control textarea{resize:vertical;min-height:92px;padding:4px 0}
+    .full{grid-column:1/-1}
+
+    .notice{
+      padding:13px;
+      border-radius:22px;
+      border:1px solid rgba(255,183,3,.22);
+      background:rgba(255,183,3,.10);
+      color:var(--text);
+      font-size:12px;
+      font-weight:850;
+      line-height:1.55;
+    }
+
+    .linkBox{
+      border:1px dashed rgba(255,183,3,.38);
+      background:rgba(255,183,3,.08);
+      border-radius:22px;
+      padding:13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-width:0;
+    }
+
+    .linkBox code{
+      color:var(--text);
+      font-weight:900;
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      min-width:0;
+    }
+
+    .chart{padding:16px;display:grid;gap:10px}
+
+    .bars{
+      display:flex;
+      align-items:end;
+      gap:9px;
+      height:185px;
+      padding:12px;
+      border-radius:22px;
+      border:1px solid var(--line2);
+      background:var(--soft);
+    }
+
+    .bar{
+      flex:1;
+      min-width:22px;
+      border-radius:14px 14px 8px 8px;
+      background:linear-gradient(180deg,rgba(79,140,255,.95),rgba(255,183,3,.72));
+      position:relative;
+      transition:.18s ease;
+    }
+
+    .bar:hover{filter:brightness(1.06);transform:translateY(-3px)}
+    .bar span{
+      position:absolute;
+      left:50%;
+      bottom:-26px;
+      transform:translateX(-50%);
+      color:var(--muted);
+      font-size:10px;
+      font-weight:900;
+    }
+
+    .reportGrid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:14px;
+      padding:16px;
+    }
+
+    .reportCard{
+      padding:16px;
+      border-radius:24px;
+      border:1px solid var(--line2);
+      background:var(--soft);
+      display:grid;
+      gap:12px;
+    }
+
+    .reportCard h4{margin:0;font-size:15px}
+    .reportCard p{margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55}
+
+    .modal{
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:160;
+      background:rgba(0,0,0,.62);
+      padding:18px;
+      place-items:center;
+    }
+
+    .modal.is-open{display:grid}
+
+    .modalCard{
+      width:min(860px,96vw);
+      max-height:92vh;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:30px;
+      background:linear-gradient(180deg,var(--panel),rgba(9,13,26,.96));
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+    }
+
+    html[data-theme="light"] .modalCard{
+      background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(255,255,255,.90));
+    }
+
+    .modalHead{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .modalHead h3{margin:0;font-size:18px}
+    .modalHead p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:800}
+    .modalBody{padding:16px}
+
+    .detailBlock{display:grid;gap:12px}
+    .detailGroup{border:1px solid var(--line);border-radius:20px;background:var(--soft);padding:12px;display:grid;gap:10px}
+    .detailGroup h4{margin:0;font-size:13px;text-transform:capitalize}
+    .detailGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .detailItem{border:1px solid var(--line2);border-radius:16px;padding:10px;background:var(--soft);display:grid;gap:4px;min-width:0}
+    .detailItem span{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted2);font-weight:1000}
+    .detailItem b{font-size:12px;color:var(--text);overflow-wrap:anywhere}
+    .tableTools{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0;align-items:center}
+    .tableTools .control{min-width:170px;flex:1 1 170px;max-width:280px}
+    .tableTools .btn{min-height:38px}
+    .tinyBtn[disabled]{opacity:.42;cursor:not-allowed}
+
+    .deleteBox{
+      display:grid;
+      gap:12px;
+      padding:16px;
+      border-radius:24px;
+      background:rgba(239,68,68,.10);
+      border:1px solid rgba(239,68,68,.22);
+    }
+
+    .toast{
+      position:fixed;
+      right:18px;
+      bottom:18px;
+      z-index:200;
+      display:none;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow);
+      padding:12px 14px;
+      font-weight:900;
+      font-size:13px;
+      backdrop-filter:blur(16px);
+    }
+
+    .toast.show{display:flex;gap:10px;align-items:center;animation:toastIn .2s ease both}
+    @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+    @media (max-width:1180px){
+      :root{--sidebar:252px}
+      .heroGrid{grid-template-columns:1fr}
+      .statsGrid,.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid2{grid-template-columns:1fr}
+      .grid3,.reportGrid{grid-template-columns:1fr}
+      .pageTitle p{max-width:420px}
+    }
+
+    @media (max-width:760px){
+      .app{
+        width:min(100% - 22px,760px);
+        grid-template-columns:1fr;
+        padding:10px 0 20px;
+      }
+
+      .sideBackdrop{
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.58);
+        z-index:74;
+      }
+
+      body.menu-open .sideBackdrop{display:block}
+
+      .sidebar{
+        display:flex;
+        position:fixed;
+        left:50%;
+        top:78px;
+        transform:translateX(-50%) translateY(10px);
+        width:min(420px,calc(100vw - 22px));
+        height:min(76vh,680px);
+        border-radius:30px;
+        opacity:0;
+        pointer-events:none;
+        transition:.18s ease;
+      }
+
+      body.menu-open .sidebar{
+        opacity:1;
+        pointer-events:auto;
+        transform:translateX(-50%) translateY(0);
+      }
+
+      .menuBtn{display:grid!important}
+      .topbar{
+        top:10px;
+        border-radius:26px;
+        min-height:62px;
+        max-height:62px;
+      }
+      .pageTitle h1{font-size:16px}
+      .pageTitle p{display:none}
+      .topActions .hideMobile{display:none}
+      .welcome h2{font-size:23px}
+      .statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .quickGrid{grid-template-columns:1fr 1fr}
+      .formGrid{grid-template-columns:1fr}
+      table{min-width:680px}
+    }
+
+    @media (max-width:560px){
+      .app{width:min(100% - 18px,440px);padding-top:10px}
+      .topbar{border-radius:24px;padding:9px}
+      .pageTitle h1{font-size:15px}
+      .iconBtn{width:39px;height:39px}
+      .btn{height:39px;padding:0 12px}
+      .topActions #btnNew span,.topActions #btnExport span{display:none}
+      .hero{padding:12px;border-radius:25px}
+      .welcome{padding:14px;min-height:auto;border-radius:22px}
+      .welcome h2{font-size:21px}
+      .welcome p{font-size:12px}
+      .statsGrid{grid-template-columns:1fr 1fr;gap:9px}
+      .statCard{padding:12px;border-radius:21px}
+      .statNumber{font-size:20px}
+      .statLabel{font-size:11px}
+      .card{border-radius:24px}
+      .cardHead{padding:14px 14px 0}
+      .tableWrap{padding:10px 12px 14px}
+      .quickGrid{grid-template-columns:1fr}
+      .modal{padding:10px}
+      .modalCard{border-radius:25px}
+      .detailGrid{grid-template-columns:1fr}
+      .tableTools .control{max-width:none}
+      .toast{right:10px;left:10px;bottom:10px}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sideBackdrop" id="sideBackdrop"></div>
+
+  <div class="app" id="appTop">
+    <aside class="sidebar" id="sidebar" aria-label="Promoter navigation">
+      <div class="sideTop">
+        <div class="mark">CT</div>
+        <div class="brandText">
+          <strong>Classic Trip</strong>
+          <span>Promoter Dashboard</span>
+        </div>
+      </div>
+
+      <div class="sideSearch">
+        <label class="searchBox">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="sideSearch" placeholder="Search menu..." />
+        </label>
+      </div>
+
+      <nav class="sideNav" id="sideNav">
+        <button class="navBtn is-active" data-page="overview"><i class="fa-solid fa-chart-line"></i><span>Overview</span></button>
+        <button class="navBtn" data-page="links"><i class="fa-solid fa-link"></i><span>Referral Links</span></button>
+        <button class="navBtn" data-page="share"><i class="fa-solid fa-share-nodes"></i><span>Share Listings</span></button>
+        <button class="navBtn" data-page="commissions"><i class="fa-solid fa-coins"></i><span>Commissions</span></button>
+        <button class="navBtn" data-page="withdrawals"><i class="fa-solid fa-wallet"></i><span>Withdrawals</span></button>
+        <button class="navBtn" data-page="performance"><i class="fa-solid fa-chart-pie"></i><span>Performance</span></button>
+        <button class="navBtn" data-page="campaigns"><i class="fa-solid fa-bullhorn"></i><span>Campaigns</span></button>
+        <button class="navBtn" data-page="bookings"><i class="fa-solid fa-ticket"></i><span>Referral Bookings</span></button>
+        <button class="navBtn" data-page="payouts"><i class="fa-solid fa-money-bill-transfer"></i><span>Payout History</span></button>
+        <button class="navBtn" data-page="fraud"><i class="fa-solid fa-shield-halved"></i><span>Traffic Review</span></button>
+        <button class="navBtn" data-page="support"><i class="fa-solid fa-headset"></i><span>Support</span></button>
+        <button class="navBtn" data-page="profile"><i class="fa-solid fa-user-gear"></i><span>Profile</span></button>
+      </nav>
+
+      <div class="sideFoot">
+        <div class="miniProfile">
+          <div class="avatar">AP</div>
+          <div class="profileMeta">
+            <strong>Awan Promo</strong>
+            <span>Verified promoter</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topLeft">
+          <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+          <div class="pageTitle">
+            <h1 id="pageHeading">Promoter Dashboard</h1>
+            <p id="pageSub">Manage referral links, commissions, withdrawals, shared listings, performance, payout history, and support.</p>
+          </div>
+        </div>
+
+        <div class="topActions">
+          <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+          <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
+          <button class="btn btnBlue" id="btnNew"><i class="fa-solid fa-plus"></i><span>Create Link</span></button>
+          <button class="btn btnPrimary hideMobile"><i class="fa-solid fa-user-check"></i> Verified</button>
+        </div>
+      </header>
+
+      <div class="content" id="contentTop">
+        <section class="section is-open" id="overview">
+          <div class="hero">
+            <div class="heroGrid">
+              <div class="welcome">
+                <div>
+                  <span class="badge ok"><i class="fa-solid fa-circle-check"></i> Promoter account active</span>
+                  <h2>Welcome Awan. Your referral links generated 61 bookings this month.</h2>
+                  <p>Share any bus, hotel, flight, train, tour, ferry, or car rental listing. When someone books through your link, you earn your 3% promoter commission automatically.</p>
+                </div>
+                <div class="heroActions">
+                  <button class="btn btnPrimary" data-jump="share"><i class="fa-solid fa-share-nodes"></i> Share listing</button>
+                  <button class="btn" data-jump="withdrawals"><i class="fa-solid fa-wallet"></i> Withdraw</button>
+                  <button class="btn" data-jump="performance"><i class="fa-solid fa-chart-pie"></i> Performance</button>
+                </div>
+              </div>
+
+              <div class="livePanel">
+                <div class="liveHeader">
+                  <strong>Promoter summary</strong>
+                  <span class="badge ok"><span class="pulse"></span> Active</span>
+                </div>
+                <div class="liveList">
+                  <div class="liveItem"><span>Withdrawable</span><strong>UGX 940K</strong></div>
+                  <div class="liveItem"><span>This month commission</span><strong>UGX 2.1M</strong></div>
+                  <div class="liveItem"><span>Referral bookings</span><strong>61</strong></div>
+                  <div class="liveItem"><span>Active links</span><strong>24</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="statsGrid">
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid fa-link"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 284</span></div>
+                <div class="statNumber">284</div>
+                <div class="statLabel">Links shared</div>
+              </article>
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid fa-eye"></i></div><span class="trend">+18%</span></div>
+                <div class="statNumber">8.6K</div>
+                <div class="statLabel">Referral visits</div>
+              </article>
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div><span class="trend">61</span></div>
+                <div class="statNumber">61</div>
+                <div class="statLabel">Paid bookings</div>
+              </article>
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid fa-coins"></i></div><span class="trend">3%</span></div>
+                <div class="statNumber">UGX 2.1M</div>
+                <div class="statLabel">Total commission</div>
+              </article>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Recent referral bookings</h3><p>Latest bookings credited to your promoter links.</p></div>
+                <button class="btn" data-jump="bookings"><i class="fa-regular fa-eye"></i> View all</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Booking</th><th>Listing</th><th>Customer</th><th>Ticket value</th><th>Commission</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="recentBookings"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Quick actions</h3><p>Fast promoter actions.</p></div>
+              </div>
+              <div class="cardPad">
+                <div class="quickGrid">
+                  <button class="quickCard" data-modal="create" data-type="referral link"><div class="quickIcon"><i class="fa-solid fa-link"></i></div><strong>Create link</strong><span>Generate a trackable link for any listing.</span></button>
+                  <button class="quickCard" data-jump="share"><div class="quickIcon"><i class="fa-solid fa-share-nodes"></i></div><strong>Share listing</strong><span>Pick top routes or hotels and share with friends.</span></button>
+                  <button class="quickCard" data-modal="create" data-type="withdrawal"><div class="quickIcon"><i class="fa-solid fa-wallet"></i></div><strong>Withdraw</strong><span>Request payout of available commissions.</span></button>
+                  <button class="quickCard" data-jump="performance"><div class="quickIcon"><i class="fa-solid fa-chart-line"></i></div><strong>View stats</strong><span>Track visits, clicks, bookings, and earnings.</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="links">
+          <div class="card" data-tabs>
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Referral links</h3><p>Every link tracks visits, bookings, and commissions back to you.</p></div>
+              <button class="btn btnBlue" data-modal="create" data-type="referral link"><i class="fa-solid fa-plus"></i> Create link</button>
+            </div>
+            <div class="tabs">
+              <button class="tabBtn is-on" data-tab="all">All</button>
+              <button class="tabBtn" data-tab="active">Active</button>
+              <button class="tabBtn" data-tab="paused">Paused</button>
+              <button class="tabBtn" data-tab="review">Review</button>
+            </div>
+            <div class="tabPane is-on" data-pane="all"><div class="tableWrap"><table><thead><tr><th>Link</th><th>Listing</th><th>Category</th><th>Visits</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="linksTable"></tbody></table></div></div>
+            <div class="tabPane" data-pane="active"><div class="tableWrap"><table><thead><tr><th>Link</th><th>Listing</th><th>Category</th><th>Visits</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="links-status" data-filter="Active"></tbody></table></div></div>
+            <div class="tabPane" data-pane="paused"><div class="tableWrap"><table><thead><tr><th>Link</th><th>Listing</th><th>Category</th><th>Visits</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="links-status" data-filter="Paused"></tbody></table></div></div>
+            <div class="tabPane" data-pane="review"><div class="tableWrap"><table><thead><tr><th>Link</th><th>Listing</th><th>Category</th><th>Visits</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="links-status" data-filter="Review"></tbody></table></div></div>
+          </div>
+        </section>
+
+        <section class="section" id="share">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Share listings</h3><p>Choose a listing and generate your referral link instantly.</p></div>
+                <button class="btn btnPrimary" id="btnCopyMain"><i class="fa-solid fa-copy"></i> Copy top link</button>
+              </div>
+              <div class="formPanel">
+                <div class="formGrid">
+                  <div class="field"><label>Listing type</label><div class="control"><i class="fa-solid fa-layer-group"></i><select><option>Bus</option><option>Hotel</option><option>Flight</option><option>Train</option><option>Tour</option><option>Ferry</option><option>Car rental</option></select></div></div>
+                  <div class="field"><label>Listing</label><div class="control"><i class="fa-solid fa-route"></i><select><option>Kampala ⇄ Nairobi Executive</option><option>Nile View Deluxe Room</option><option>Entebbe ⇄ Kigali Morning</option><option>Jinja Nile Adventure</option></select></div></div>
+                  <div class="field full"><label>Your referral link</label><div class="linkBox"><code>classictrip.com/l/kla-nbo?ref=AWANPROMO</code><button class="btn btnBlue" type="button" id="btnCopyLink"><i class="fa-solid fa-copy"></i> Copy</button></div></div>
+                </div>
+                <div class="heroActions">
+                  <button class="btn btnPrimary" type="button"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                  <button class="btn" type="button"><i class="fa-brands fa-facebook"></i> Facebook</button>
+                  <button class="btn" type="button"><i class="fa-solid fa-message"></i> SMS</button>
+                  <button class="btn" type="button"><i class="fa-solid fa-envelope"></i> Email</button>
+                </div>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Listing</th><th>Type</th><th>Company</th><th>Route / location</th><th>Price from</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="shareTable"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Best listings to promote</h3><p>High conversion listings this week.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Kampala ⇄ Nairobi</span><strong>7.1% CVR</strong></div><div class="progress"><i style="width:86%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Nile View Hotel</span><strong>5.9% CVR</strong></div><div class="progress"><i style="width:74%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Jinja Nile Tour</span><strong>4.8% CVR</strong></div><div class="progress"><i style="width:62%"></i></div></div>
+                <div class="notice">CVR means conversion rate: people who click your link and later complete a booking.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="commissions">
+          <div class="card" data-tabs>
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Commissions</h3><p>Your 3% earnings from completed referral bookings.</p></div>
+              <span class="badge ok"><i class="fa-solid fa-coins"></i> UGX 940K withdrawable</span>
+            </div>
+            <div class="tabs">
+              <button class="tabBtn is-on" data-tab="all">All</button>
+              <button class="tabBtn" data-tab="earned">Earned</button>
+              <button class="tabBtn" data-tab="pending">Pending</button>
+              <button class="tabBtn" data-tab="hold">On hold</button>
+              <button class="tabBtn" data-tab="paid">Paid out</button>
+            </div>
+            <div class="tabPane is-on" data-pane="all"><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Ticket value</th><th>Rate</th><th>Earned</th><th>Status</th><th></th></tr></thead><tbody id="commissionsTable"></tbody></table></div></div>
+            <div class="tabPane" data-pane="earned"><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Ticket value</th><th>Rate</th><th>Earned</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="commissions-status" data-filter="Earned"></tbody></table></div></div>
+            <div class="tabPane" data-pane="pending"><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Ticket value</th><th>Rate</th><th>Earned</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="commissions-status" data-filter="Pending"></tbody></table></div></div>
+            <div class="tabPane" data-pane="hold"><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Ticket value</th><th>Rate</th><th>Earned</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="commissions-status" data-filter="Hold"></tbody></table></div></div>
+            <div class="tabPane" data-pane="paid"><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Ticket value</th><th>Rate</th><th>Earned</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="commissions-status" data-filter="Paid out"></tbody></table></div></div>
+          </div>
+        </section>
+
+        <section class="section" id="withdrawals">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Withdrawals</h3><p>Request commission payout to mobile money or bank account.</p></div>
+                <button class="btn btnPrimary" data-modal="create" data-type="withdrawal request"><i class="fa-solid fa-money-bill-transfer"></i> Request withdrawal</button>
+              </div>
+              <div class="statsGrid" style="padding:16px;margin-top:0">
+                <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-wallet"></i></div><span class="trend">Ready</span></div><div class="statNumber">UGX 940K</div><div class="statLabel">Withdrawable</div></article>
+                <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-clock"></i></div><span class="trend">Pending</span></div><div class="statNumber">UGX 310K</div><div class="statLabel">Pending clearance</div></article>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Withdrawal</th><th>Method</th><th>Account</th><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="withdrawalsTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Payout account</h3><p>Where promoter commission is sent.</p></div></div>
+              <form class="formPanel" id="payoutAccountForm">
+                <div class="formGrid">
+                  <div class="field"><label>Method</label><div class="control"><i class="fa-solid fa-wallet"></i><select><option>Mobile Money</option><option>Bank Account</option></select></div></div>
+                  <div class="field"><label>Provider</label><div class="control"><i class="fa-solid fa-building-columns"></i><select><option>MTN Mobile Money</option><option>Airtel Money</option><option>Stanbic Bank</option></select></div></div>
+                  <div class="field full"><label>Account number</label><div class="control"><i class="fa-solid fa-phone"></i><input value="+256 700 112233"></div></div>
+                </div>
+                <button class="btn btnBlue" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save payout account</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="performance">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Performance</h3><p>Clicks, visits, bookings, conversion, and commission trends.</p></div>
+                <span class="badge ok">Growing</span>
+              </div>
+              <div class="chart"><div class="bars" id="performanceBars"></div></div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Funnel</h3><p>From share to paid booking.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Links shared</span><strong>284</strong></div><div class="progress"><i style="width:100%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Visits</span><strong>8,610</strong></div><div class="progress"><i style="width:78%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Checkout starts</span><strong>184</strong></div><div class="progress"><i style="width:34%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Paid bookings</span><strong>61</strong></div><div class="progress"><i style="width:22%"></i></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="campaigns">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Campaigns</h3><p>Group referral links by platform, audience, season, or route.</p></div>
+              <button class="btn btnBlue" data-modal="create" data-type="campaign"><i class="fa-solid fa-plus"></i> Create campaign</button>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Campaign</th><th>Channel</th><th>Links</th><th>Visits</th><th>Bookings</th><th>Commission</th><th>Status</th><th></th></tr></thead>
+                <tbody id="campaignsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="bookings">
+          <div class="card" data-tabs>
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Referral bookings</h3><p>Bookings completed through your links.</p></div>
+              <button class="btn" data-jump="share"><i class="fa-solid fa-share-nodes"></i> Share more</button>
+            </div>
+            <div class="tabs">
+              <button class="tabBtn is-on" data-tab="all">All</button>
+              <button class="tabBtn" data-tab="paid">Paid</button>
+              <button class="tabBtn" data-tab="pending">Pending</button>
+              <button class="tabBtn" data-tab="cancelled">Cancelled</button>
+            </div>
+            <div class="tabPane is-on" data-pane="all"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Listing</th><th>Customer</th><th>Ticket value</th><th>Commission</th><th>Status</th><th></th></tr></thead><tbody id="bookingsTable"></tbody></table></div></div>
+            <div class="tabPane" data-pane="paid"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Listing</th><th>Customer</th><th>Ticket value</th><th>Commission</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="bookings-status" data-filter="Paid"></tbody></table></div></div>
+            <div class="tabPane" data-pane="pending"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Listing</th><th>Customer</th><th>Ticket value</th><th>Commission</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="bookings-status" data-filter="Pending"></tbody></table></div></div>
+            <div class="tabPane" data-pane="cancelled"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Listing</th><th>Customer</th><th>Ticket value</th><th>Commission</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="bookings-status" data-filter="Cancelled"></tbody></table></div></div>
+          </div>
+        </section>
+
+        <section class="section" id="payouts">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Payout history</h3><p>Successful and pending commission payout records.</p></div>
+              <button class="btn" id="btnDownloadPayouts"><i class="fa-solid fa-download"></i> Download</button>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Payout</th><th>Period</th><th>Method</th><th>Amount</th><th>Reference</th><th>Status</th><th></th></tr></thead>
+                <tbody id="payoutsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="fraud">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Traffic review</h3><p>Protect your account by keeping referral traffic clean and real.</p></div>
+                <span class="badge ok">Low risk</span>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Signal</th><th>Source</th><th>Value</th><th>Risk</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="fraudTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Rules</h3><p>Things that can put commission on hold.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Fake clicks</span><span class="badge bad">Blocked</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Self-booking abuse</span><span class="badge warn">Review</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Spam sharing</span><span class="badge warn">Review</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Real customers</span><span class="badge ok">Approved</span></div></div>
+                <div class="notice">In production, suspicious bookings can put commission on hold until admin review.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="support">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Support</h3><p>Promoter account, commission, withdrawal, and referral issues.</p></div>
+                <button class="btn btnPrimary" data-modal="create" data-type="support case"><i class="fa-solid fa-plus"></i> New case</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Case</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead>
+                  <tbody id="supportTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Contact support</h3><p>Send a message to promoter support.</p></div></div>
+              <form class="formPanel" id="supportForm">
+                <div class="formGrid">
+                  <div class="field"><label>Issue type</label><div class="control"><i class="fa-solid fa-circle-question"></i><select><option>Commission missing</option><option>Withdrawal pending</option><option>Link not tracking</option><option>Account verification</option></select></div></div>
+                  <div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select><option>Normal</option><option>High</option><option>Urgent</option></select></div></div>
+                  <div class="field full"><label>Message</label><div class="control"><textarea placeholder="Explain your issue..."></textarea></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send message</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="profile">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Profile</h3><p>Promoter identity, payout details, and verification.</p></div></div>
+              <form class="formPanel" id="profileForm">
+                <div class="formGrid">
+                  <div class="field"><label>Promoter name</label><div class="control"><i class="fa-solid fa-user"></i><input value="Awan Promo" /></div></div>
+                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input value="+256 700 112233" /></div></div>
+                  <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input value="awanpromo@example.com" /></div></div>
+                  <div class="field"><label>Default channel</label><div class="control"><i class="fa-solid fa-share-nodes"></i><select><option>WhatsApp</option><option>Facebook</option><option>TikTok</option><option>Instagram</option><option>SMS</option></select></div></div>
+                  <div class="field full"><label>Bio</label><div class="control"><textarea>Travel promoter sharing the best bus, hotel, flight, tour, ferry, and car rental deals on Classic Trip.</textarea></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
+              </form>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Verification</h3><p>Promoter account trust and payout readiness.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Phone verified</span><span class="badge ok">Verified</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Payout account</span><span class="badge ok">Verified</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Traffic quality</span><span class="badge ok">Low risk</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Withdrawal access</span><span class="badge ok">Enabled</span></div></div>
+                <button class="btn btnBlue" data-modal="edit" data-type="verification"><i class="fa-solid fa-shield-halved"></i> Update verification</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <footer style="width:var(--container,min(1220px,92%));margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));box-shadow:var(--shadow2);padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820">
+    <div>
+      <strong style="color:var(--text)">Classic Trip</strong>
+      <div style="margin-top:4px">Marketplace, dashboards, routes, tickets, promoters, partners, and payments.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn" href="/">Home</a>
+      <a class="btn" href="/routes">Routes</a>
+      <a class="btn" href="/tickets">Tickets</a>
+      <a class="btn" href="/promoters">Promoters</a>
+    </div>
+  </footer>
+
+  <div class="modal" id="crudModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3 id="crudTitle">Create item</h3><p id="crudSub">Manage promoter data cleanly.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody" id="crudBody"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="deleteModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3>Delete record</h3><p>This confirms the delete workflow before any record is changed.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody">
+        <div class="deleteBox">
+          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
+          <strong id="deleteText">Are you sure you want to delete this record?</strong>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In production, promoter actions should be logged for audit and commission tracking.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" data-close-modal>Cancel</button>
+            <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastText">Done</span></div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      const backendDashboardData = <%- JSON.stringify(dashboardData || {}) %>;
+      const $ = (s, root = document) => root.querySelector(s);
+      const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+
+      const els = {
+        pageHeading: $('#pageHeading'),
+        pageSub: $('#pageSub'),
+        toast: $('#toast'),
+        toastText: $('#toastText'),
+        sideSearch: $('#sideSearch'),
+        btnTheme: $('#btnTheme'),
+        themeIcon: $('#themeIcon'),
+        openMenu: $('#openMenu'),
+        sideBackdrop: $('#sideBackdrop'),
+        btnNew: $('#btnNew'),
+        btnExport: $('#btnExport'),
+        btnCopyMain: $('#btnCopyMain'),
+        btnCopyLink: $('#btnCopyLink'),
+        btnDownloadPayouts: $('#btnDownloadPayouts'),
+        crudModal: $('#crudModal'),
+        crudTitle: $('#crudTitle'),
+        crudSub: $('#crudSub'),
+        crudBody: $('#crudBody'),
+        deleteModal: $('#deleteModal'),
+        deleteText: $('#deleteText'),
+        confirmDelete: $('#confirmDelete')
+      };
+
+      const data = {
+        links: [
+          ['LINK-1001','Kampala ⇄ Nairobi Executive','Bus','3,420','244','Active'],
+          ['LINK-1000','Nile View Deluxe Room','Hotel','1,280','62','Active'],
+          ['LINK-0999','Jinja Nile Adventure','Tour','860','41','Active'],
+          ['LINK-0998','Entebbe ⇄ Kigali Morning','Flight','620','18','Review'],
+          ['LINK-0997','Nairobi ⇄ Mombasa Express','Train','540','15','Paused']
+        ],
+        share: [
+          ['Kampala ⇄ Nairobi Executive','Bus','Classic Express','Uganda ⇄ Kenya','UGX 85,000','High conversion'],
+          ['Nile View Deluxe Room','Hotel','Nile Pearl Hotel','Jinja, Uganda','UGX 180,000','Available'],
+          ['Entebbe ⇄ Kigali Morning','Flight','EastSky Air','Uganda ⇄ Rwanda','USD 186','Few seats'],
+          ['Jinja Nile Adventure','Tour','Safari Link','Jinja, Uganda','UGX 155,000','Promotion'],
+          ['Nairobi ⇄ Mombasa Express','Train','Rift Rail','Kenya','KES 3,400','Available']
+        ],
+        commissions: [
+          ['COM-701','#CT-10501','UGX 85,000','3%','UGX 2,550','Earned'],
+          ['COM-700','#CT-10500','UGX 210,000','3%','UGX 6,300','Pending'],
+          ['COM-699','#CT-10499','USD 186','3%','USD 5.58','Earned'],
+          ['COM-698','#CT-10498','KES 3,400','3%','KES 102','Hold'],
+          ['COM-697','#CT-10497','UGX 155,000','3%','UGX 4,650','Paid out']
+        ],
+        withdrawals: [
+          ['WD-401','Mobile Money','+256 700 112233','2026-05-04','UGX 500K','Paid'],
+          ['WD-400','Mobile Money','+256 700 112233','2026-04-28','UGX 300K','Paid'],
+          ['WD-399','Bank','Stanbic ••••2109','2026-04-20','UGX 750K','Paid'],
+          ['WD-398','Mobile Money','+256 700 112233','2026-05-06','UGX 940K','Pending']
+        ],
+        bookings: [
+          ['#CT-10501','Kampala ⇄ Nairobi Executive','Amina K.','UGX 85,000','UGX 2,550','Paid'],
+          ['#CT-10500','Nile View Deluxe Room','John M.','UGX 210,000','UGX 6,300','Pending'],
+          ['#CT-10499','Entebbe ⇄ Kigali Morning','Sarah L.','USD 186','USD 5.58','Paid'],
+          ['#CT-10498','Nairobi ⇄ Mombasa Express','Ali S.','KES 3,400','KES 102','Pending'],
+          ['#CT-10497','Jinja Nile Adventure','Evelyn T.','UGX 155,000','UGX 4,650','Paid'],
+          ['#CT-10496','Lake Victoria Ferry','Okello P.','UGX 40,000','UGX 1,200','Cancelled']
+        ],
+        campaigns: [
+          ['WhatsApp Bus Deals','WhatsApp','12','4,280','318','UGX 1.3M','Running'],
+          ['Weekend Hotel Push','Facebook','5','1,920','64','UGX 410K','Running'],
+          ['Jinja Tour Promo','TikTok','3','860','41','UGX 190K','Paused'],
+          ['Flight Saver Links','Instagram','4','620','18','USD 86','Review']
+        ],
+        payouts: [
+          ['PO-801','May 2026','Mobile Money','UGX 940K','MM-998120','Pending'],
+          ['PO-800','April 2026','Mobile Money','UGX 1.4M','MM-882110','Paid'],
+          ['PO-799','March 2026','Bank','UGX 980K','BNK-20981','Paid'],
+          ['PO-798','February 2026','Mobile Money','UGX 720K','MM-774321','Paid']
+        ],
+        fraud: [
+          ['Click quality','WhatsApp','97% real traffic','Low','Approved'],
+          ['Repeated IPs','Facebook','12 repeats','Low','Approved'],
+          ['Self-booking pattern','Direct link','1 match','Medium','Review'],
+          ['Cancelled bookings','All sources','2 cancelled','Low','Approved']
+        ],
+        support: [
+          ['SUP-901','Withdrawal pending','High','Open','Today'],
+          ['SUP-900','Commission not showing','Normal','Resolved','Yesterday'],
+          ['SUP-899','Referral link issue','Normal','Open','2 days ago']
+        ]
+      };
+
+      Object.assign(data, backendDashboardData);
+
+      const pageMeta = {
+        overview:['Promoter Dashboard','Manage referral links, commissions, withdrawals, shared listings, performance, payout history, and support.'],
+        links:['Referral Links','Create and manage all tracking links.'],
+        share:['Share Listings','Pick listings and share your referral link.'],
+        commissions:['Commissions','Track your 3% earnings from referral bookings.'],
+        withdrawals:['Withdrawals','Request payout and manage payout account.'],
+        performance:['Performance','Review visits, bookings, conversion, and earnings.'],
+        campaigns:['Campaigns','Group links by channel, audience, route, or season.'],
+        bookings:['Referral Bookings','View bookings credited to your links.'],
+        payouts:['Payout History','View paid and pending commission payouts.'],
+        fraud:['Traffic Review','Monitor traffic quality and commission hold risks.'],
+        support:['Support','Get help with links, commissions, and withdrawals.'],
+        profile:['Profile','Manage promoter identity, payout details, and verification.']
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
+      }
+
+      function badge(status){
+        const s = String(status || '').toLowerCase();
+        let cls = 'info';
+        if(['paid','active','verified','settled','approved','running','open','earned','available','high conversion','low','enabled','successful','completed'].some(x=>s.includes(x))) cls='ok';
+        if(['hold','pending','review','waiting','paused','few','promotion','medium','available_balance'].some(x=>s.includes(x))) cls='warn';
+        if(['refund','cancelled','suspended','urgent','denied','rejected','blocked','failed'].some(x=>s.includes(x))) cls='bad';
+        return `<span class="badge ${cls}">${escapeHtml(status || '-')}</span>`;
+      }
+
+      function rowMeta(row) {
+        const last = Array.isArray(row) ? row[row.length - 1] : null;
+        return last && typeof last === 'object' && !Array.isArray(last) ? last : null;
+      }
+
+      function rowCells(row) {
+        const meta = rowMeta(row);
+        return meta ? row.slice(0, -1) : row;
+      }
+
+      function encodeDetail(detail) {
+        try { return encodeURIComponent(JSON.stringify(detail || {})); } catch (error) { return ''; }
+      }
+
+      function parseDetailFromElement(el) {
+        const raw = el?.dataset?.rowDetail || '';
+        if (!raw) return null;
+        try { return JSON.parse(decodeURIComponent(raw)); } catch (error) { return null; }
+      }
+
+      function flattenEntries(obj = {}, prefix = '') {
+        const entries = [];
+        Object.entries(obj || {}).forEach(([key, value]) => {
+          const label = prefix ? `${prefix}.${key}` : key;
+          if (value && typeof value === 'object' && !Array.isArray(value)) entries.push(...flattenEntries(value, label));
+          else entries.push([label, Array.isArray(value) ? value.join(', ') : value]);
+        });
+        return entries;
+      }
+
+      function detailItem(label, value) {
+        const shown = value === undefined || value === null || value === '' ? '-' : value;
+        return `<div class="detailItem"><span>${escapeHtml(label)}</span><b>${escapeHtml(shown)}</b></div>`;
+      }
+
+      function detailGroup(title, value) {
+        const entries = Array.isArray(value) ? value.map((item, index) => [`${title} ${index + 1}`, JSON.stringify(item)]) : flattenEntries(value || {});
+        if (!entries.length) return '';
+        return `<div class="detailGroup"><h4>${escapeHtml(title)}</h4><div class="detailGrid">${entries.map(([label, val]) => detailItem(label, val)).join('')}</div></div>`;
+      }
+
+      function detailMarkup(detail = {}) {
+        const groups = Object.entries(detail || {}).map(([title, value]) => detailGroup(title, value)).join('');
+        return `<div class="detailBlock">${groups || '<div class="notice">No additional backend details were provided for this row.</div>'}</div>`;
+      }
+
+      function openDetailModal(type, label, detail) {
+        els.crudTitle.textContent = `View ${type || 'record'}`;
+        els.crudSub.textContent = label ? `Full promoter-scoped details for ${label}` : 'Full promoter-scoped backend details';
+        els.crudBody.innerHTML = detailMarkup(detail || {});
+        els.crudModal.classList.add('is-open');
+      }
+
+      function downloadText(filename, text, mime = 'text/plain') {
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+
+  function exportDetailPdf(detail, name){
+    const title = String(name || 'dashboard-record');
+    const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=720');
+    if(!win){ if(typeof toast === 'function') toast('Allow popups to export PDF'); else if(typeof showToast === 'function') showToast('Allow popups to export PDF'); return; }
+    const body = detailMarkup(detail || {});
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} PDF</title><style>
+      body{font-family:Inter,Arial,sans-serif;margin:28px;color:#111827;background:#fff}.brand{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #e5e7eb;padding-bottom:14px;margin-bottom:18px}.brand h1{font-size:22px;margin:0}.brand p{margin:4px 0 0;color:#6b7280}.detailGroup{break-inside:avoid;margin:0 0 16px}.detailGroup h4{font-size:14px;margin:0 0 8px;color:#111827}.detailGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.detailItem{border:1px solid #e5e7eb;border-radius:10px;padding:8px;min-width:0}.detailItem span{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:800}.detailItem b{display:block;font-size:12px;word-break:break-word}.detailItem.full{grid-column:1/-1}@media print{button{display:none}body{margin:14mm}}
+    </style></head><body><div class="brand"><div><h1>Classic Trip Dashboard Record</h1><p>${escapeHtml(title)} · ${new Date().toLocaleString()}</p></div><button onclick="window.print()">Print / Save PDF</button></div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    win.document.close();
+  }
+
+      function actions(label, meta){
+        const safeLabel = escapeHtml(label || meta?.label || 'record');
+        const type = escapeHtml(meta?.entity || 'record');
+        const detailAttr = meta?.detail ? ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
+        const detail = meta?.detail || {};
+        const actionSet = new Set(meta?.actions || []);
+        const copySource = detail.referralLink?.listingReferralUrl || detail.referral?.referralUrl || detail.referralLink?.marketplaceReferralUrl || label || meta?.label || '';
+        const shareUrl = detail.referralLink?.whatsappShare || detail.referral?.whatsappShare || '';
+        const copyBtn = actionSet.has('copy') || actionSet.has('share') ? `<button class="tinyBtn" data-copy-value="${escapeHtml(copySource)}" title="Copy reference/link"><i class="fa-regular fa-copy"></i></button>` : '';
+        const shareBtn = shareUrl ? `<a class="tinyBtn" href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener" title="Share on WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : '';
+        const exportBtn = `<button class="tinyBtn" data-export-row="${type}" data-label="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>`;
+        const lockedBtn = `<button class="tinyBtn" disabled title="No safe promoter endpoint exists for this action yet"><i class="fa-solid fa-lock"></i></button>`;
+        return `<div class="rowActions">
+          <button class="tinyBtn" data-modal="view" data-type="${type}" data-label="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
+          ${copyBtn}${shareBtn}${exportBtn}${lockedBtn}
+        </div>`;
+      }
+
+      function emptyRow(cols, text='No matching records found'){
+        return `<tr><td colspan="${cols}" style="text-align:center;color:var(--muted);border-radius:16px;border:1px solid var(--line2);background:var(--table);padding:18px">${escapeHtml(text)}</td></tr>`;
+      }
+
+      function renderRows(tbody, rows, opts = {}){
+        if(!tbody) return;
+        const cols = opts.cols || 7;
+        rows = Array.isArray(rows) ? rows : [];
+        if(!rows.length){ tbody.innerHTML = emptyRow(cols); return; }
+        tbody.innerHTML = rows.map((r)=>{
+          const meta = rowMeta(r);
+          const row = rowCells(r);
+          const cells = row.map((cell, i)=> opts.statusIndex === i ? `<td>${badge(cell)}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
+          return `<tr data-row-text="${escapeHtml(row.join(' '))}">${cells}<td>${actions(row[0], meta)}</td></tr>`;
+        }).join('');
+      }
+
+      function sameStatus(actual, requested) {
+        const a = String(actual || '').toLowerCase();
+        const r = String(requested || '').toLowerCase();
+        if (!r) return true;
+        if (r === 'active') return /active|available|running|earned|paid|successful/.test(a);
+        if (r === 'paid') return /paid|earned|released|completed|successful/.test(a);
+        if (r === 'review') return /review|hold|pending/.test(a);
+        return a.includes(r);
+      }
+
+      function renderBars(selector, items){
+        const root = $(selector);
+        if(!root) return;
+        root.innerHTML = (items || []).map(([label, val]) => `<div class="bar" style="height:${Number(val) || 1}%"><span>${escapeHtml(label)}</span></div>`).join('');
+      }
+
+      function fillOverview(){
+        const profile = data.profile || {};
+        const welcome = $('#overview .welcome h2');
+        if (welcome && profile.name) welcome.textContent = `Welcome ${profile.name}. Your referral links generated ${(data.bookings || []).length} bookings.`;
+        const liveItems = $$('#overview .liveItem');
+        (data.liveActivity || []).slice(0, liveItems.length).forEach((item, index) => {
+          const span = liveItems[index]?.querySelector('span');
+          const strong = liveItems[index]?.querySelector('strong');
+          if (span) span.textContent = item[0];
+          if (strong) strong.textContent = item[1];
+        });
+        const cards = $$('#overview .statsGrid .statCard');
+        (data.overviewStats || []).slice(0, cards.length).forEach((stat, index) => {
+          const card = cards[index];
+          const number = card.querySelector('.statNumber');
+          const label = card.querySelector('.statLabel');
+          const trend = card.querySelector('.trend');
+          const icon = card.querySelector('.statIcon i');
+          if (number) number.textContent = stat.value || '-';
+          if (label) label.textContent = stat.label || 'Metric';
+          if (trend) trend.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${escapeHtml(stat.hint || 'Live')}`;
+          if (icon && stat.icon) icon.className = `fa-solid ${stat.icon}`;
+        });
+      }
+
+      function fillProfile(){
+        const profile = data.profile || {};
+        const inputs = $$('#profileForm input');
+        if (inputs[0]) inputs[0].value = profile.name || inputs[0].value;
+        if (inputs[1]) inputs[1].value = profile.phone || inputs[1].value;
+        if (inputs[2]) inputs[2].value = profile.email || inputs[2].value;
+        if (inputs[3]) inputs[3].value = profile.mainReferralCode || inputs[3].value;
+        const payoutInputs = $$('#payoutAccountForm input');
+        if (payoutInputs[0]) payoutInputs[0].value = profile.payoutAccount?.method || payoutInputs[0].value;
+        if (payoutInputs[1]) payoutInputs[1].value = profile.payoutAccount?.account || payoutInputs[1].value;
+        const profileName = $('.miniProfile .profileMeta strong');
+        const profileStatus = $('.miniProfile .profileMeta span');
+        if (profileName) profileName.textContent = profile.name || profileName.textContent;
+        if (profileStatus) profileStatus.textContent = `${profile.verificationStatus || profile.status || 'active'} promoter`;
+      }
+
+      function renderAll(){
+        fillOverview();
+        fillProfile();
+        renderRows($('#recentBookings'), (data.bookings || []).slice(0,5), {statusIndex:5, cols:7});
+        renderRows($('#linksTable'), data.links || [], {statusIndex:5, cols:7});
+        renderRows($('#shareTable'), data.share || [], {statusIndex:5, cols:7});
+        renderRows($('#commissionsTable'), data.commissions || [], {statusIndex:5, cols:7});
+        renderRows($('#withdrawalsTable'), data.withdrawals || [], {statusIndex:5, cols:7});
+        renderRows($('#bookingsTable'), data.bookings || [], {statusIndex:5, cols:7});
+        renderRows($('#campaignsTable'), data.campaigns || [], {statusIndex:6, cols:8});
+        renderRows($('#payoutsTable'), data.payouts || [], {statusIndex:5, cols:7});
+        renderRows($('#fraudTable'), data.fraud || [], {statusIndex:4, cols:6});
+        renderRows($('#supportTable'), data.support || [], {statusIndex:3, cols:6});
+
+        $$('[data-filter-table]').forEach(tbody => {
+          const table = tbody.dataset.filterTable;
+          const filter = tbody.dataset.filter;
+          let rows = [];
+          if(table === 'links-status') rows = (data.links || []).filter(r => sameStatus(rowCells(r)[5], filter));
+          if(table === 'commissions-status') rows = (data.commissions || []).filter(r => sameStatus(rowCells(r)[5], filter));
+          if(table === 'bookings-status') rows = (data.bookings || []).filter(r => sameStatus(rowCells(r)[5], filter));
+
+          if(table.startsWith('links')) renderRows(tbody, rows, {statusIndex:5, cols:7});
+          if(table.startsWith('commissions')) renderRows(tbody, rows, {statusIndex:5, cols:7});
+          if(table.startsWith('bookings')) renderRows(tbody, rows, {statusIndex:5, cols:7});
+        });
+
+        renderBars('#performanceBars', data.performance?.bars || [['Mon',44],['Tue',58],['Wed',70],['Thu',62],['Fri',84],['Sat',92],['Sun',76]]);
+        enhanceTables();
+      }
+
+      function enhanceTables() {
+        $$('.tableWrap').forEach((wrap, index) => {
+          if (wrap.dataset.enhanced === 'true') return;
+          const table = wrap.querySelector('table');
+          if (!table) return;
+          wrap.dataset.enhanced = 'true';
+          const tools = document.createElement('div');
+          tools.className = 'tableTools';
+          tools.innerHTML = `
+            <div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-table-search placeholder="Search this table"></div>
+            <div class="control"><i class="fa-solid fa-filter"></i><select data-table-status><option value="">All statuses</option><option>active</option><option>paid</option><option>pending</option><option>review</option><option>paused</option><option>available</option><option>cancelled</option></select></div>
+            <div class="control"><i class="fa-regular fa-calendar"></i><input data-table-date type="date"></div>
+            <button class="btn" type="button" data-export-table><i class="fa-solid fa-download"></i> Export CSV</button>`;
+          wrap.parentNode.insertBefore(tools, wrap);
+          const runFilter = () => {
+            const q = tools.querySelector('[data-table-search]').value.toLowerCase().trim();
+            const status = tools.querySelector('[data-table-status]').value.toLowerCase().trim();
+            const date = tools.querySelector('[data-table-date]').value;
+            Array.from(table.tBodies[0]?.rows || []).forEach(row => {
+              const text = row.textContent.toLowerCase();
+              const okQ = !q || text.includes(q);
+              const okS = !status || text.includes(status);
+              const okD = !date || text.includes(date);
+              row.style.display = okQ && okS && okD ? '' : 'none';
+            });
+          };
+          tools.addEventListener('input', runFilter);
+          tools.addEventListener('change', runFilter);
+          tools.querySelector('[data-export-table]').addEventListener('click', () => {
+            const rows = Array.from(table.rows).filter(row => row.style.display !== 'none').map(row => Array.from(row.cells).map(cell => cell.textContent.trim()));
+            const csv = rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+            downloadText(`classic-trip-promoter-table-${index + 1}.csv`, csv, 'text/csv');
+            showToast('Table CSV exported');
+          });
+        });
+      }
+
+      function openPage(page){
+        $$('.section').forEach(s => s.classList.remove('is-open'));
+        const section = $('#' + page);
+        if(section) section.classList.add('is-open');
+
+        $$('.navBtn').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
+        const meta = pageMeta[page] || pageMeta.overview;
+        els.pageHeading.textContent = meta[0];
+        els.pageSub.textContent = meta[1];
+
+        document.body.classList.remove('menu-open');
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+          setTimeout(() => window.scrollTo({ top: 0, behavior: 'auto' }), 30);
+        });
+      }
+
+      function showToast(text){
+        els.toastText.textContent = text;
+        els.toast.classList.add('show');
+        clearTimeout(showToast.t);
+        showToast.t = setTimeout(() => els.toast.classList.remove('show'), 2300);
+      }
+
+      function openCrud(mode, type, label = ''){
+        const nice = String(type || 'record');
+        const readonly = mode === 'view' ? 'readonly' : '';
+        const disabled = mode === 'view' ? 'disabled' : '';
+        const title = mode === 'view' ? `View ${nice}` : mode === 'edit' ? `Edit ${nice}` : `Create ${nice}`;
+        els.crudTitle.textContent = title;
+        els.crudSub.textContent = mode === 'view' ? 'Promoter scoped details and safe actions.' : 'Submit a promoter request. Unsafe direct changes are not faked in the dashboard.';
+        const listings = (data.share || []).map(row => rowCells(row)[0]).filter(Boolean);
+        els.crudBody.innerHTML = `
+          <form class="formPanel" data-dashboard-form>
+            <div class="formGrid">
+              <div class="field"><label>Title / reference</label><div class="control"><i class="fa-solid fa-pen"></i><input value="${escapeHtml(mode === 'create' ? '' : (label || nice))}" placeholder="Enter title" ${readonly}></div></div>
+              <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-toggle-on"></i><select ${disabled}><option>Pending</option><option>Open</option><option>Submitted</option><option>Review</option></select></div></div>
+              <div class="field"><label>Target listing</label><div class="control"><i class="fa-solid fa-layer-group"></i><select ${disabled}>${listings.map(item => `<option>${escapeHtml(item)}</option>`).join('')}</select></div></div>
+              <div class="field"><label>Payout / amount</label><div class="control"><i class="fa-solid fa-coins"></i><input placeholder="UGX 85,000" ${readonly}></div></div>
+              <div class="field full"><label>Notes</label><div class="control"><textarea placeholder="Add promoter request details..." ${readonly}></textarea></div></div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+              <button class="btn" type="button" data-close-modal>Cancel</button>
+              ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Submit request</button>`}
+            </div>
+          </form>
+        `;
+        els.crudModal.classList.add('is-open');
+      }
+
+      function closeModals(){
+        $$('.modal').forEach(m => m.classList.remove('is-open'));
+      }
+
+      $('#sideNav').addEventListener('click', e => {
+        const btn = e.target.closest('.navBtn');
+        if(btn) openPage(btn.dataset.page);
+      });
+
+      $$('[data-jump]').forEach(btn => {
+        btn.addEventListener('click', () => openPage(btn.dataset.jump));
+      });
+
+      document.addEventListener('click', e => {
+        const tabBtn = e.target.closest('.tabBtn');
+        if(tabBtn){
+          const group = tabBtn.closest('[data-tabs]');
+          const tab = tabBtn.dataset.tab;
+          $$('.tabBtn', group).forEach(b => b.classList.toggle('is-on', b === tabBtn));
+          $$('.tabPane', group).forEach(p => p.classList.toggle('is-on', p.dataset.pane === tab));
+          requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
+          return;
+        }
+
+        const copyBtn = e.target.closest('[data-copy-value]');
+        if(copyBtn){
+          e.preventDefault();
+          navigator.clipboard?.writeText(copyBtn.dataset.copyValue || '').catch(() => {});
+          showToast('Copied reference/link');
+          return;
+        }
+
+        const exportRowBtn = e.target.closest('[data-export-row]');
+        if(exportRowBtn){
+          e.preventDefault();
+          const detail = parseDetailFromElement(exportRowBtn) || { label: exportRowBtn.dataset.label || '' };
+          exportDetailPdf(detail, exportRowBtn.dataset.exportRow || exportRowBtn.dataset.label || 'record');
+          showToast('PDF export opened');
+          return;
+        }
+
+        const modalBtn = e.target.closest('[data-modal]');
+        if(modalBtn){
+          e.preventDefault();
+          const detail = parseDetailFromElement(modalBtn);
+          if (modalBtn.dataset.modal === 'view' && detail) openDetailModal(modalBtn.dataset.type, modalBtn.dataset.label || '', detail);
+          else openCrud(modalBtn.dataset.modal, modalBtn.dataset.type, modalBtn.dataset.label || '');
+          return;
+        }
+
+        if(e.target.closest('[data-close-modal]')) closeModals();
+      });
+
+      document.addEventListener('submit', e => {
+        if(e.target.matches('[data-dashboard-form], #supportForm, #profileForm, #payoutAccountForm')){
+          e.preventDefault();
+          closeModals();
+          showToast('Saved successfully');
+        }
+      });
+
+      if(els.confirmDelete){
+        els.confirmDelete.addEventListener('click', () => {
+          closeModals();
+          showToast('Delete is disabled until a safe promoter endpoint exists');
+        });
+      }
+
+      if(els.btnNew) els.btnNew.addEventListener('click', () => openCrud('create', 'referral link'));
+      if(els.btnExport) els.btnExport.addEventListener('click', () => {
+        exportDetailPdf({
+          profile: data.profile || {},
+          stats: data.stats || {},
+          referralLinks: data.links || [],
+          shareListings: data.share || [],
+          commissions: data.commissions || [],
+          withdrawals: data.withdrawals || [],
+          referralBookings: data.bookings || [],
+          payouts: data.payouts || [],
+          campaigns: data.campaigns || []
+        }, 'Promoter dashboard');
+        showToast('PDF export opened');
+      });
+      if(els.btnCopyMain) els.btnCopyMain.addEventListener('click', () => {
+        navigator.clipboard?.writeText(data.profile?.mainReferralUrl || data.profile?.mainReferralCode || '').catch(() => {});
+        showToast('Top referral link copied');
+      });
+      if(els.btnCopyLink) els.btnCopyLink.addEventListener('click', () => {
+        navigator.clipboard?.writeText(data.profile?.mainReferralUrl || data.profile?.mainReferralCode || '').catch(() => {});
+        showToast('Referral link copied');
+      });
+      if(els.btnDownloadPayouts) els.btnDownloadPayouts.addEventListener('click', () => {
+        const rows = [['Payout','Period/Date','Currency','Amount','Reference','Status'], ...(data.payouts || []).map(rowCells)];
+        const csv = rows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+        downloadText(`classic-trip-promoter-payouts-${Date.now()}.csv`, csv, 'text/csv');
+        showToast('Payout history CSV downloaded');
+      });
+      if(els.openMenu) els.openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
+      if(els.sideBackdrop) els.sideBackdrop.addEventListener('click', () => document.body.classList.remove('menu-open'));
+
+      if(els.btnTheme){
+        els.btnTheme.addEventListener('click', () => {
+          const html = document.documentElement;
+          const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+          html.dataset.theme = next;
+          els.themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        });
+      }
+
+      if(els.sideSearch){
+        els.sideSearch.addEventListener('input', () => {
+          const q = els.sideSearch.value.trim().toLowerCase();
+          $$('.navBtn').forEach(btn => {
+            const text = btn.textContent.toLowerCase();
+            btn.style.display = text.includes(q) ? 'flex' : 'none';
+          });
+        });
+      }
+
+      document.addEventListener('keydown', e => {
+        if(e.key === 'Escape'){
+          closeModals();
+          document.body.classList.remove('menu-open');
+        }
+      });
+
+      renderAll();
+      openPage('overview');
+    });
+  </script>
+</body>
+</html>

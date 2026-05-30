@@ -1,0 +1,11 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:18px 0 34px">
+  <section class="card" style="padding:22px;border-radius:30px">
+    <span class="badge badgeWarn"><i class="fa-solid fa-triangle-exclamation"></i> <%= status %></span>
+    <h1 class="heroTitle" style="margin-top:12px"><%= message %></h1>
+    <p class="heroSub">Use the marketplace navigation to continue.</p>
+    <div class="actions"><a class="btn btnPrimary" href="/"><i class="fa-solid fa-house"></i> Home</a><a class="btn btnGhost" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Search</a></div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

@@ -1,0 +1,44 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeInfo"><i class="fa-solid fa-building"></i> Partner profiles</span>
+    <h1 class="heroTitle">Verified companies, promoter-ready campaigns, and public profiles.</h1>
+    <p class="heroSub">Each profile shows services, routes, active listings, support contacts, verification, sponsored campaigns, referral assets, and booking links.</p>
+    <div class="metricRow" style="margin-top:14px">
+      <div class="stat"><b><%= companies.length %></b><span>Total partners</span></div>
+      <div class="stat"><b><%= stats.verified %></b><span>Verified</span></div>
+      <div class="stat"><b><%= stats.bookable %></b><span>Bookable services</span></div>
+      <div class="stat"><b><%= stats.campaigns %></b><span>Campaigns</span></div>
+    </div>
+  </section>
+  <section class="gridCards" style="margin-top:14px">
+    <% companies.forEach(company => { %>
+      <article class="listing">
+        <a href="/companies/<%= company.slug %>">
+          <div class="thumb">
+            <img src="<%= company.coverImage.url %>" alt="<%= company.name %>">
+            <div class="cornerBadge <%= company.verificationStatus === 'verified' ? 'available' : 'promo' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus %></div>
+          </div>
+          <div class="listingBody">
+            <div style="display:flex;align-items:center;gap:10px">
+              <img class="profileLogo" style="width:46px;height:46px;border-radius:16px" src="<%= company.logo.url %>" alt="<%= company.name %> logo">
+              <div>
+                <h3 class="listingTitle"><%= company.name %></h3>
+                <div class="small"><%= company.city %>, <%= company.country %> - <%= company.companyType %></div>
+              </div>
+            </div>
+            <p class="desc"><%= company.description %></p>
+            <div class="meta">
+              <span><%= company.activeListingsCount %> active</span>
+              <span><%= company.bookableListingsCount %> bookable</span>
+              <span><%= company.sponsoredListingsCount %> sponsored</span>
+              <span><i class="fa-solid fa-star"></i> <%= company.ratingAverage %></span>
+            </div>
+          </div>
+        </a>
+      </article>
+    <% }) %>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

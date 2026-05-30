@@ -1,0 +1,141 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<%
+  const previewData = preview || {};
+  const safeAvailability = availability || {};
+  const currency = previewData.currency || listing.currency || 'UGX';
+  const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
+  const requestedOption = typeof selectedOption !== 'undefined' ? selectedOption : '';
+  const requestedScheduleId = typeof selectedScheduleId !== 'undefined' ? selectedScheduleId : '';
+  const safeReferralCode = typeof referralCode !== 'undefined' ? referralCode : '';
+  const safeHoldId = typeof holdId !== 'undefined' ? holdId : '';
+  const addonCatalog = previewData.addons || [];
+  const selectedAddonValues = typeof selectedAddonIds !== 'undefined' ? selectedAddonIds : [];
+  const selectedAddonSet = new Set(selectedAddonValues.map(item => String(item || '').trim()).filter(Boolean));
+  const selectedAddons = addonCatalog.filter(addon => selectedAddonSet.has(addon.id));
+  const selectedAddonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
+  let selectedFieldName = listing.serviceType === 'hotel' ? 'roomId' : 'selected';
+  let selectedFieldValue = requestedOption;
+  let selectedLabel = previewData.selectedPreview || requestedOption || 'Selected inventory';
+  let selectedSchedule = null;
+  let basePrice = Number(listing.priceFrom || 0);
+
+  if (listing.serviceType === 'bus') {
+    const schedules = safeAvailability.schedules || [];
+    selectedSchedule = schedules.find(schedule => schedule.id === requestedScheduleId) || schedules[0] || null;
+    const seats = safeAvailability.seats || [];
+    const selectedSeat = seats.find(seat => seat.seatNumber === requestedOption)
+      || seats.find(seat => seat.status === 'available')
+      || seats[0]
+      || null;
+    selectedFieldName = 'selected';
+    selectedFieldValue = selectedSeat?.seatNumber || requestedOption || '';
+    selectedLabel = selectedFieldValue || 'Seat pending';
+    basePrice = Number(selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(selectedSeat?.priceDelta || 0);
+  }
+
+  if (listing.serviceType === 'hotel') {
+    const rooms = safeAvailability.rooms || [];
+    const selectedRoom = rooms.find(room => room.id === requestedOption)
+      || rooms.find(room => room.inventory > 0)
+      || rooms[0]
+      || null;
+    selectedFieldName = 'roomId';
+    selectedFieldValue = selectedRoom?.id || requestedOption || '';
+    selectedLabel = selectedRoom?.roomType || previewData.selectedPreview || 'Room pending';
+    basePrice = Number(selectedRoom?.nightlyPrice || listing.priceFrom || 0);
+  }
+
+  if (listing.serviceType !== 'bus' && listing.serviceType !== 'hotel') {
+    selectedFieldName = 'selected';
+    selectedFieldValue = requestedOption || previewData.selectedPreview || 'S1';
+    selectedLabel = selectedFieldValue;
+  }
+
+  const serviceFee = Math.round(basePrice * 0.045 + 3500);
+  const computedTotal = basePrice + serviceFee + selectedAddonTotal;
+  const requestedTotal = Number(query?.total || 0);
+  const totalEstimate = requestedTotal > computedTotal ? requestedTotal : computedTotal;
+%>
+<main class="container paymentPage" style="padding:16px 0 30px">
+  <section class="sheet">
+    <div class="sheetTop">
+      <div>
+        <div class="badge badgeOk"><i class="fa-solid fa-lock"></i> Payment page</div>
+        <div class="sheetTitle">Book <%= listing.title %></div>
+        <div class="sheetSub">Selected inventory is carried from the preview. Complete customer and payment details.</div>
+      </div>
+      <div class="sheetTopActions">
+        <a class="iconbtn" title="Back to preview" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i></a>
+      </div>
+    </div>
+
+    <form id="bookingPaymentForm" action="/bookings/guest" method="post" data-booking-form>
+      <input type="hidden" name="listingId" value="<%= listing.id %>">
+      <input type="hidden" name="ref" value="<%= safeReferralCode %>">
+      <input type="hidden" name="holdId" value="<%= safeHoldId %>">
+      <input type="hidden" name="total" value="<%= totalEstimate %>">
+      <% if (selectedSchedule?.id) { %><input type="hidden" name="scheduleId" value="<%= selectedSchedule.id %>"><% } %>
+      <% if (selectedFieldValue) { %><input type="hidden" name="<%= selectedFieldName %>" value="<%= selectedFieldValue %>"><% } %>
+      <% selectedAddons.forEach(addon => { %>
+        <input type="hidden" name="addons" value="<%= addon.id %>">
+      <% }) %>
+    </form>
+
+    <div class="checkoutStep active paymentOnlyStep">
+      <div class="summaryCard">
+        <h3>User information</h3>
+        <div class="checkoutNotice">This is the v22 payment step: the seat, room, or slot is already selected on the preview page, so checkout only collects the customer and payment details.</div>
+        <% if (!selectedFieldValue && listing.bookable) { %>
+          <div class="notice" style="margin-top:10px">No selected inventory was received. Go back to preview and choose an available option.</div>
+        <% } %>
+        <% if (!listing.bookable) { %>
+          <div class="notice" style="margin-top:10px">This service is a provider-ready teaser and cannot be checked out yet.</div>
+        <% } %>
+        <div class="bookingForm" style="margin-top:10px">
+          <input form="bookingPaymentForm" name="fullName" placeholder="Full name" required>
+          <input form="bookingPaymentForm" name="phone" placeholder="Phone number" required>
+          <input form="bookingPaymentForm" class="full" name="email" type="email" placeholder="Email address" required>
+          <select form="bookingPaymentForm" name="idType">
+            <option value="">ID type</option>
+            <option>National ID</option>
+            <option>Passport</option>
+            <option>Student ID</option>
+          </select>
+          <input form="bookingPaymentForm" name="documentNumber" placeholder="ID / passport number">
+          <input form="bookingPaymentForm" class="full" name="passengerName" placeholder="Passenger / guest name">
+          <textarea form="bookingPaymentForm" class="full" name="notes" placeholder="Special request, pickup point, hotel note, baggage note..." style="border-radius:22px;min-height:90px"></textarea>
+        </div>
+      </div>
+
+      <div class="summaryCard">
+        <h3>Payment</h3>
+        <div class="kv">
+          <div><span>Listing</span><b><%= listing.title %></b></div>
+          <div><span>Selected</span><b><%= selectedLabel %></b></div>
+          <div><span>Base price</span><b><%= money(basePrice, currency) %></b></div>
+          <div><span>Service fee</span><b><%= money(serviceFee, currency) %></b></div>
+          <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => addon.name).join(', ') : 'None' %></b></div>
+          <div><span>Total to pay</span><b><%= money(totalEstimate, currency) %></b></div>
+        </div>
+        <div class="payMethods">
+          <% paymentMethods.forEach((method, index) => { %>
+            <label class="payMethod"><input form="bookingPaymentForm" type="radio" name="payChannel" value="<%= method %>" <%= index === 0 ? 'checked' : '' %>> <%= method %></label>
+          <% }) %>
+        </div>
+        <div class="bookingForm" style="margin-top:10px">
+          <select form="bookingPaymentForm" class="full" name="paymentMethod">
+            <% paymentMethods.forEach(method => { %><option><%= method %></option><% }) %>
+          </select>
+          <input form="bookingPaymentForm" class="full" name="paymentReference" placeholder="Mobile money number / card reference / wallet ID">
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
+          <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> Change selection</a>
+          <button form="bookingPaymentForm" class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay & confirm</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="/js/booking.js"></script>
+<%- include('../partials/site-footer') %>

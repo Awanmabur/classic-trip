@@ -1,10 +1,11 @@
-const cloudinary = require("cloudinary").v2;
-const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = require("./env");
+const cloudinary = require('cloudinary').v2;
+const { env } = require('./env');
 
 cloudinary.config({
-  cloud_name: CLOUDINARY_CLOUD_NAME,
-  api_key: CLOUDINARY_API_KEY,
-  api_secret: CLOUDINARY_API_SECRET
+  cloud_name: env.cloudinary.cloudName,
+  api_key: env.cloudinary.apiKey,
+  api_secret: env.cloudinary.apiSecret,
+  secure: true,
 });
 
-module.exports = { cloudinary };
+module.exports = cloudinary;

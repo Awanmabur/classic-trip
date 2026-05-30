@@ -1,0 +1,24 @@
+.empty{padding:18px;border:1px dashed var(--line);border-radius:24px;color:var(--muted);font-weight:800}
+.notice{padding:12px 14px;border-radius:18px;border:1px solid rgba(255,183,3,.26);background:rgba(255,183,3,.1);color:var(--accent);font-weight:900}
+.formBlock{display:grid;gap:12px}
+.selectLike{width:100%;border:0;background:transparent;color:var(--text);font-weight:850}
+.detailGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.routeList{display:grid;gap:10px}
+.routeItem{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;border-radius:20px;background:var(--soft);border:1px solid var(--line)}
+.routeCardGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.routeCard{min-height:210px;align-content:start}
+.routeCard .actions{margin-top:auto}
+.qrBox{display:grid;place-items:center;min-height:180px;border-radius:24px;background:var(--soft);border:1px dashed rgba(255,183,3,.38);text-align:center;font-weight:1000;word-break:break-word}
+.metricRow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.listingPreviewPage .sheet,.paymentPage .sheet{width:100%;margin:0;border-radius:28px;background:linear-gradient(180deg,var(--cardA),var(--cardB));border:1px solid var(--line);box-shadow:var(--shadow2)}
+.listingPreviewPage .sheetBody,.paymentPage .sheetBody{display:grid}
+.listingPreviewPage .modal{position:static;display:grid;background:transparent;padding:0;overflow:visible}
+.listingPreviewPage .modal.open{display:grid;place-items:start stretch}
+.paymentPage .checkoutStep{display:grid}
+.paymentPage .seat,.paymentPage .room,.paymentPage .slot{position:relative;cursor:pointer}
+.paymentPage .seat input,.paymentPage .room input,.paymentPage .slot input{position:absolute;opacity:0;pointer-events:none}
+.paymentPage .seat:has(input:checked),.paymentPage .room:has(input:checked),.paymentPage .slot:has(input:checked){background:linear-gradient(135deg,var(--accent),var(--hot));color:#091126}
+.authFooter{width:var(--container);margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820}
+.authFooter .footerLinks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media(max-width:1180px){.routeCardGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.detailGrid,.metricRow,.routeCardGrid{grid-template-columns:1fr}.routeItem{align-items:flex-start;flex-direction:column}}

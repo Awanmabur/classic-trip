@@ -1,0 +1,51 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container searchHero">
+  <section class="card heroCard">
+    <div class="heroTop">
+      <div>
+        <div class="badge badgeInfo"><i class="fa-solid fa-magnifying-glass"></i> Backend search</div>
+        <h1 class="heroTitle">Search routes, hotels, partners and services.</h1>
+        <p class="heroSub">Results now use the live catalog logic: availability, next departures, partner data, route corridors, pricing and booking readiness are calculated from backend inventory.</p>
+      </div>
+      <%- include('../partials/home/hero-search', { query, categories }) %>
+    </div>
+    <div class="stats">
+      <div class="stat"><b><%= searchMeta?.marketplace?.stats?.liveListings || results.length %></b><span>Matched listings</span></div>
+      <div class="stat"><b><%= searchMeta?.marketplace?.stats?.availableNow || 0 %></b><span>Seats / rooms open</span></div>
+      <div class="stat"><b><%= searchMeta?.marketplace?.stats?.partners || 0 %></b><span>Partners</span></div>
+      <div class="stat"><b><%= searchMeta?.marketplace?.stats?.departuresNext24h || 0 %></b><span>Next 24h</span></div>
+    </div>
+  </section>
+</main>
+<main class="container pageGrid">
+  <%- include('../partials/marketplace-aside', { query, categories, corridorStats }) %>
+  <section>
+    <div class="sectionHead">
+      <div><h2><%= results.length %> results</h2><p>Sponsored listings stay labeled while ranking higher, and sold-out or teaser listings are clearly marked.</p></div>
+      <form class="actions" action="/search" method="get">
+        <% Object.entries(query || {}).forEach(([key, value]) => { if (key !== 'sort' && value) { %><input type="hidden" name="<%= key %>" value="<%= value %>"><% } }) %>
+        <select class="btn btnGhost selectLike" name="sort" onchange="this.form.submit()">
+          <option value="recommended" <%= query?.sort === 'recommended' || !query?.sort ? 'selected' : '' %>>Recommended</option>
+          <option value="soonest" <%= query?.sort === 'soonest' ? 'selected' : '' %>>Soonest</option>
+          <option value="cheapest" <%= query?.sort === 'cheapest' ? 'selected' : '' %>>Cheapest</option>
+          <option value="availability" <%= query?.sort === 'availability' ? 'selected' : '' %>>Most availability</option>
+          <option value="top-rated" <%= query?.sort === 'top-rated' ? 'selected' : '' %>>Top rated</option>
+          <option value="sponsored" <%= query?.sort === 'sponsored' ? 'selected' : '' %>>Sponsored first</option>
+        </select>
+      </form>
+    </div>
+    <% if ((searchMeta?.typeStats || []).some(item => item.count)) { %>
+      <div class="chips" style="margin:0 0 12px">
+        <% searchMeta.typeStats.filter(item => item.count).forEach(item => { %>
+          <a class="chip" href="/search?serviceType=<%= item.type %>"><i class="fa-solid fa-ticket"></i> <%= item.label %>: <%= item.count %> listings, <%= item.remainingSeats %> open</a>
+        <% }) %>
+      </div>
+    <% } %>
+    <div class="gridCards searchResultsGrid">
+      <% results.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %>
+    </div>
+    <% if (!results.length) { %><div class="empty">No results matched. Try another route, service or city.</div><% } %>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

@@ -1,0 +1,53 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeHot"><i class="fa-solid fa-share-nodes"></i> Promoter program</span>
+    <h1 class="heroTitle">Promoters can share services and earn commission.</h1>
+    <p class="heroSub">The backend tracks referral links, clicks, conversions, pending commission, available balance, marketing assets, and withdrawals. Valid promoter bookings earn 3% while the company still receives 90%.</p>
+    <div class="metricRow" style="margin-top:14px">
+      <div class="stat"><b><%= links.length %></b><span>Referral links</span></div>
+      <div class="stat"><b><%= stats.clicks.toLocaleString() %></b><span>Tracked clicks</span></div>
+      <div class="stat"><b><%= stats.conversions %></b><span>Bookings</span></div>
+      <div class="stat"><b><%= stats.conversionRate %>%</b><span>Conversion rate</span></div>
+      <div class="stat"><b><%= money(stats.pendingCommission) %></b><span>Pending</span></div>
+      <div class="stat"><b><%= money(stats.availableCommission) %></b><span>Available</span></div>
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnPrimary" href="/promoter/dashboard"><i class="fa-solid fa-chart-line"></i> Open promoter dashboard</a>
+      <a class="btn btnGhost" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Choose a service to share</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionHead"><div><h2>Best services to promote</h2><p>Bookable listings with strong recommendation scores.</p></div></div>
+    <div class="gridCards"><% topListings.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %></div>
+  </section>
+
+  <section class="section detailGrid">
+    <div class="card" style="padding:14px">
+      <div class="sectionHead"><div><h2>Referral links</h2><p>Every link can attribute clicks, bookings, and commission.</p></div></div>
+      <div class="routeList">
+        <% links.forEach(link => { %>
+          <div class="routeItem">
+            <div><strong><%= link.listing?.title %></strong><div class="small"><%= link.code %> - <%= link.clicks %> clicks - <%= link.conversions %> bookings - <%= link.conversionRate %>% conversion</div></div>
+            <a class="btn btnGhost" href="<%= link.url %>"><i class="fa-solid fa-link"></i> Open</a>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="sectionHead"><div><h2>Marketing materials</h2><p>Partner campaigns that promoters can use now.</p></div></div>
+      <div class="routeList">
+        <% campaigns.forEach(campaign => { %>
+          <div class="routeItem">
+            <div><strong><%= campaign.name %></strong><div class="small"><%= campaign.company?.name || 'Partner' %> - <%= campaign.placement %> - <%= campaign.clicks %> clicks</div></div>
+            <span class="badge badgeHot">Sponsored</span>
+          </div>
+        <% }) %>
+      </div>
+      <div class="notice" style="margin-top:12px">Commission remains pending until boarding, trip completion, or hotel check-in is completed.</div>
+    </div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

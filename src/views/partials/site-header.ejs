@@ -1,0 +1,23 @@
+<nav class="nav">
+  <div class="navIn">
+    <a class="brand" href="/"><span class="mark">CT</span><span>Classic Trip</span></a>
+    <div class="navLinks">
+      <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Home</a>
+      <a href="/search" class="<%= currentPath.startsWith('/search') ? 'active' : '' %>">Search</a>
+      <a href="/routes" class="<%= currentPath.startsWith('/routes') ? 'active' : '' %>">Routes</a>
+      <a href="/services" class="<%= currentPath.startsWith('/services') ? 'active' : '' %>">Services</a>
+      <a href="/companies" class="<%= currentPath.startsWith('/companies') ? 'active' : '' %>">Partners</a>
+      <a href="/promoters" class="<%= currentPath.startsWith('/promoters') || currentPath.startsWith('/promoter-program') ? 'active' : '' %>">Promoters</a>
+      <a href="/tickets" class="<%= currentPath.startsWith('/tickets') ? 'active' : '' %>">Tickets</a>
+      <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>">Guides</a>
+    </div>
+    <div class="navActions">
+      <% if (currentUser) { %>
+        <a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i>Dashboard</a>
+      <% } else { %>
+        <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i>Login</a>
+      <% } %>
+      <a class="btn btnPrimary" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i>Book now</a>
+    </div>
+  </div>
+</nav>

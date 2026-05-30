@@ -1,0 +1,33 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<%
+  const safeListing = listing || { title: booking.serviceType || 'Classic Trip service' };
+  const guest = booking.guestSnapshot || {};
+  const passenger = (booking.passengers || [])[0] || {};
+  const pricing = booking.pricing || { total: 0, currency: 'UGX' };
+%>
+<main class="container" style="padding:16px 0 30px">
+  <section class="ticketPaper">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span><h1 class="heroTitle" style="font-size:30px;margin-top:10px"><%= booking.bookingRef %></h1><p class="heroSub"><%= safeListing.title %></p></div>
+      <span class="ticketCode"><%= booking.bookingStatus %></span>
+    </div>
+    <div class="detailGrid">
+      <div>
+        <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
+        <div class="ticketLine"><span>Email</span><b><%= guest.email || 'Not provided' %></b></div>
+        <div class="ticketLine"><span>Phone</span><b><%= guest.phone || 'Not provided' %></b></div>
+        <div class="ticketLine"><span>Seat / room</span><b><%= passenger.seatOrRoom || 'Selected inventory' %></b></div>
+        <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus %></b></div>
+        <div class="ticketLine"><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
+      </div>
+      <div>
+        <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:200px;height:200px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
+        <form action="/employee/scanner/validate" method="post" style="margin-top:12px" onsubmit="event.preventDefault();fetch('/api/scanner/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({qrCodeValue:'<%= booking.qrCodeValue %>'})}).then(r=>r.json()).then(x=>alert(x.message||x.result))">
+          <button class="btn btnPrimary" style="width:100%"><i class="fa-solid fa-qrcode"></i> Validate QR</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

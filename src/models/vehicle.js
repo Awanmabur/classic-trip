@@ -1,42 +1,32 @@
-const mongoose = require("mongoose");
+const { Schema, mediaSchema, model } = require('./_helpers');
 
-const SeatCellSchema = new mongoose.Schema(
-  {
-    id: { type: String, required: true }, // seatId e.g. "A1"
-    row: { type: Number, required: true },
-    col: { type: Number, required: true },
-    isAisle: { type: Boolean, default: false },
-    isDisabled: { type: Boolean, default: false },
-    label: { type: String, default: "" }
-  },
-  { _id: false }
-);
+const vehicleSeatSchema = new Schema({
+  id: String,
+  seatNumber: String,
+  row: Number,
+  col: Number,
+  isAisle: { type: Boolean, default: false },
+  isDisabled: { type: Boolean, default: false },
+  label: String,
+}, { _id: false });
 
-const ImageSchema = new mongoose.Schema(
-  {
-    url: { type: String, required: true },
-    publicId: { type: String, required: true }
-  },
-  { _id: false }
-);
+const vehicleSchema = new Schema({
+  id: { type: String, index: true },
+  companyId: { type: String, required: true, index: true },
+  listingId: { type: String, index: true },
+  serviceType: { type: String, default: 'bus', index: true },
+  name: { type: String, required: true },
+  plateOrCode: String,
+  layoutName: { type: String, default: '2x2' },
+  rows: Number,
+  cols: Number,
+  totalSeats: Number,
+  seats: [vehicleSeatSchema],
+  amenities: [String],
+  media: [mediaSchema],
+  status: { type: String, enum: ['active', 'maintenance', 'paused', 'archived'], default: 'active', index: true },
+}, { timestamps: true });
 
-const VehicleSchema = new mongoose.Schema(
-  {
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+vehicleSchema.index({ companyId: 1, plateOrCode: 1 });
 
-    type: { type: String, enum: ["bus", "train", "flight", "hotel"], default: "bus", index: true },
-    name: { type: String, required: true, trim: true },
-    plateOrCode: { type: String, trim: true, default: "" },
-
-    layoutName: { type: String, default: "2x2" }, // 2x2,2x3,custom
-    rows: { type: Number, required: true },
-    cols: { type: Number, required: true },
-    seats: { type: [SeatCellSchema], default: [] },
-    totalSeats: { type: Number, default: 0 },
-
-    images: { type: [ImageSchema], default: [] }
-  },
-  { timestamps: true }
-);
-
-module.exports = mongoose.model("Vehicle", VehicleSchema);
+module.exports = model('Vehicle', vehicleSchema);

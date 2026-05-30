@@ -1,0 +1,78 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card profileHero">
+    <div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <img class="profileLogo" src="<%= company.logo.url %>" alt="<%= company.name %> logo">
+        <div>
+          <span class="badge <%= company.verificationStatus === 'verified' ? 'badgeOk' : 'badgeWarn' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus %></span>
+          <h1 class="heroTitle" style="margin-top:8px"><%= company.name %></h1>
+          <p class="heroSub"><%= company.description %></p>
+        </div>
+      </div>
+      <div class="metricRow" style="margin-top:14px">
+        <div class="stat"><b><%= company.activeListingsCount %></b><span>Active listings</span></div>
+        <div class="stat"><b><%= company.bookableListingsCount %></b><span>Bookable now</span></div>
+        <div class="stat"><b><%= routes.length %></b><span>Routes</span></div>
+        <div class="stat"><b><%= company.ratingAverage %></b><span>Rating</span></div>
+        <div class="stat"><b><%= company.sponsoredListingsCount %></b><span>Sponsored</span></div>
+        <div class="stat"><b><%= company.reviewCount %></b><span>Reviews</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding:14px;background:var(--soft)">
+      <h3 style="margin:0 0 8px">Partner support</h3>
+      <div class="kv">
+        <div><span>Phone</span><b><%= company.supportContacts.phone %></b></div>
+        <div><span>Email</span><b><%= company.supportContacts.email %></b></div>
+        <div><span>WhatsApp</span><b><%= company.supportContacts.whatsapp %></b></div>
+      </div>
+      <a class="btn btnPrimary" style="margin-top:12px;width:100%" href="/search?partner=<%= encodeURIComponent(company.name) %>"><i class="fa-solid fa-ticket"></i> View bookable services</a>
+      <a class="btn btnGhost" style="margin-top:8px;width:100%" href="/promoters"><i class="fa-solid fa-share-nodes"></i> Promote this partner</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionHead"><div><h2>Services from <%= company.name %></h2><p>Sponsored badges remain visible on promoted listings.</p></div></div>
+    <div class="gridCards"><% listings.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %></div>
+  </section>
+
+  <section class="section detailGrid">
+    <div class="card" style="padding:14px">
+      <div class="sectionHead"><div><h2>Routes</h2><p>People can see all partner routes before buying tickets.</p></div></div>
+      <div class="routeList">
+        <% if (!routes.length) { %><div class="empty">No live routes yet for this partner.</div><% } %>
+        <% routes.forEach(route => { %>
+          <div class="routeItem">
+            <div><strong><%= route.origin %> to <%= route.destination %></strong><div class="small"><%= route.boardingPoints.join(' - ') %></div></div>
+            <a class="btn btnPrimary" href="/listings/bus/<%= route.listing.slug %>">Book route</a>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="sectionHead"><div><h2>Promoter-ready assets</h2><p>Campaign material for promoters and route boosts.</p></div></div>
+      <% if (!campaigns.length) { %><div class="empty">No active sponsored campaign yet.</div><% } %>
+      <div class="routeList">
+        <% campaigns.forEach(c => { %>
+          <div class="routeItem"><div><strong><%= c.name %></strong><div class="small"><%= c.placement %> - <%= c.clicks %> clicks - <%= c.bookings %> bookings</div></div><span class="badge badgeHot">Sponsored</span></div>
+        <% }) %>
+      </div>
+      <% if (promoterLinks.length) { %>
+        <div class="sectionHead" style="margin-top:16px"><div><h2>Referral links</h2><p>Trackable links promoters can share.</p></div></div>
+        <div class="routeList">
+          <% promoterLinks.forEach(link => { %>
+            <div class="routeItem"><div><strong><%= link.listing?.title %></strong><div class="small"><%= link.code %> - <%= link.clicks %> clicks - <%= link.conversions %> bookings</div></div><a class="btn btnGhost" href="<%= link.url %>">Open link</a></div>
+          <% }) %>
+        </div>
+      <% } %>
+      <div class="sectionHead" style="margin-top:16px"><div><h2>Verification</h2><p>Public trust records for this partner.</p></div></div>
+      <div class="routeList">
+        <% company.documents.forEach(doc => { %>
+          <div class="routeItem"><div><strong><%= doc.label %></strong><div class="small"><%= doc.resourceType %> - stored through Cloudinary folder rules</div></div><span class="badge badgeOk">On file</span></div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

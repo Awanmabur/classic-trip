@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Page Not Found | <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body data-page="not-found">
+  <%- include("../partials/nav") %>
+
+  <section class="section">
+    <div class="container narrow">
+      <div class="card authCard">
+        <div class="badge">404</div>
+        <h1>The page you requested could not be found.</h1>
+        <p class="lead">The link may be outdated, or the page may have moved while the app was being cleaned up.</p>
+        <a class="btn btn--primary" href="/">Return home</a>
+      </div>
+    </div>
+  </section>
+
+  <%- include("../partials/footer") %>
+</body>
+</html>

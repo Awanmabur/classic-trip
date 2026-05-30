@@ -1,0 +1,36 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeInfo"><i class="fa-solid fa-layer-group"></i> Service catalog</span>
+    <h1 class="heroTitle">All Classic Trip services in one marketplace.</h1>
+    <p class="heroSub">Bus and hotel services are fully bookable in v1. Flights, trains, ferries, tours, transfers, events, cargo, visa support, insurance, and packages are visible as provider-ready inventory.</p>
+    <div class="metricRow" style="margin-top:14px">
+      <div class="stat"><b><%= stats.reduce((total, item) => total + item.listingsCount, 0) %></b><span>Total services</span></div>
+      <div class="stat"><b><%= stats.reduce((total, item) => total + item.bookableListingsCount, 0) %></b><span>Bookable now</span></div>
+      <div class="stat"><b><%= stats.reduce((total, item) => total + item.sponsoredListingsCount, 0) %></b><span>Sponsored</span></div>
+      <div class="stat"><b><%= grouped.length %></b><span>Categories</span></div>
+    </div>
+  </section>
+
+  <% grouped.forEach(group => { %>
+    <section class="section">
+      <div class="sectionHead">
+        <div>
+          <h2><i class="fa-solid <%= group.icon %>"></i> <%= group.label %></h2>
+          <p><%= group.bookable ? 'Live checkout, payment provider, QR ticket and dashboard flow.' : 'Provider-ready teaser with partner profiles, campaigns, and expansion data.' %></p>
+        </div>
+        <div class="actions">
+          <span class="badge badgeInfo"><%= group.stats?.activeListingsCount || 0 %> active</span>
+          <% if (group.bookable) { %><span class="badge badgeOk"><%= group.stats?.bookableListingsCount || 0 %> bookable</span><% } %>
+          <a class="btn btnGhost" href="/search?serviceType=<%= group.key %>">See all</a>
+        </div>
+      </div>
+      <div class="gridCards">
+        <% group.listings.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %>
+      </div>
+      <% if (!group.listings.length) { %><div class="empty">No active listings yet. The backend category is ready for partner onboarding.</div><% } %>
+    </section>
+  <% }) %>
+</main>
+<%- include('../partials/site-footer') %>

@@ -1,0 +1,58 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeOk"><i class="fa-solid fa-route"></i> Route directory</span>
+    <h1 class="heroTitle">Every available bus route and partner corridor.</h1>
+    <p class="heroSub">Customers can browse routes, compare partners, open the listing, select a seat, pay through the configured payment provider, and receive a QR ticket.</p>
+    <form class="card searchBox" action="/routes" method="get" style="margin-top:14px">
+      <div class="formGrid">
+        <div class="field"><label>Search</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="<%= query.q || '' %>" placeholder="Kampala, Nairobi, partner"></div></div>
+        <div class="field"><label>From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="origin" value="<%= query.origin || '' %>" placeholder="Origin"></div></div>
+        <div class="field"><label>To</label><div class="control"><i class="fa-solid fa-route"></i><input name="destination" value="<%= query.destination || '' %>" placeholder="Destination"></div></div>
+        <div class="field"><label>Corridor</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="corridor" class="selectLike"><option value="">All</option><% corridorStats.forEach(stat => { %><option value="<%= stat.corridor %>" <%= query.corridor === stat.corridor ? 'selected' : '' %>><%= stat.corridor %></option><% }) %></select></div></div>
+      </div>
+      <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Find routes</button>
+    </form>
+  </section>
+
+  <section class="section">
+    <div class="sectionHead">
+      <div><h2>Corridors</h2><p>High-level route availability from the backend.</p></div>
+      <a class="btn btnGhost" href="/routes">Reset</a>
+    </div>
+    <div class="routeCardGrid">
+      <% corridorStats.slice(0, 12).forEach(stat => { %>
+        <article class="promoCard routeCard">
+          <div class="promoIcon"><i class="fa-solid fa-road"></i></div>
+          <h3><%= stat.corridor %></h3>
+          <p><%= stat.routes %> routes, <%= stat.seats %> available seats, from <%= money(stat.minPrice || 0) %>.</p>
+          <a class="btn btnGhost" href="/routes?corridor=<%= encodeURIComponent(stat.corridor) %>">Open corridor</a>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionHead">
+      <div><h2><%= routes.length %> live route results</h2><p>Four cards per row on desktop, with the buying path visible.</p></div>
+    </div>
+    <div class="routeCardGrid">
+      <% routes.forEach(route => { %>
+        <article class="promoCard routeCard">
+          <div class="promoIcon"><i class="fa-solid fa-bus"></i></div>
+          <span class="badge badgeInfo"><%= route.corridor %></span>
+          <h3><%= route.origin %> to <%= route.destination %></h3>
+          <p><%= route.listing?.partner || route.listing?.companyName %> - <%= route.scheduleCount %> schedules - <%= route.availableSeats %> seats.</p>
+          <% if (route.nextDepartAt) { %><div class="small">Next: <%= new Date(route.nextDepartAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %></div><% } %>
+          <div class="actions">
+            <a class="btn btnGhost" href="<%= route.listingUrl %>"><i class="fa-regular fa-eye"></i> View</a>
+            <% if (route.bookingUrl) { %><a class="btn btnPrimary" href="<%= route.bookingUrl %>"><i class="fa-solid fa-ticket"></i> Book</a><% } %>
+          </div>
+        </article>
+      <% }) %>
+      <% if (!routes.length) { %><div class="empty">No route matched those filters. Try another origin, destination, or corridor.</div><% } %>
+    </div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

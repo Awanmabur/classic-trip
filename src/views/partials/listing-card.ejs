@@ -1,0 +1,22 @@
+<article class="listing">
+  <a href="/listings/<%= listing.serviceType %>/<%= listing.slug %>">
+    <div class="thumb">
+      <img src="<%= listing.img || listing.media?.[0]?.url %>" alt="<%= listing.title %>">
+      <% if (listing.isSponsored) { %><div class="cornerBadge promo"><i class="fa-solid fa-bullhorn"></i> Sponsored</div><% } else if (listing.remainingInventory <= 0) { %><div class="cornerBadge full"><i class="fa-solid fa-circle-xmark"></i> No inventory</div><% } else if (listing.bookable) { %><div class="cornerBadge available"><i class="fa-solid fa-circle-check"></i> <%= listing.remainingInventory || listing.availability || 'Live' %> left</div><% } else { %><div class="cornerBadge"><i class="fa-regular fa-clock"></i> Teaser</div><% } %>
+      <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= listing.rating || listing.ratingAverage || 'New' %></span><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> <%= listing.typeLabel || listing.type %></span></div>
+    </div>
+  </a>
+  <div class="listingBody">
+    <h3 class="listingTitle"><a href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><%= listing.title %></a></h3>
+    <div class="meta"><span><i class="fa-solid fa-building"></i> <%= listing.partner || listing.companyName %></span><span><i class="fa-solid fa-route"></i> <%= listing.routeLabel || `${listing.from} to ${listing.to}` %></span></div>
+    <div class="meta"><span><i class="fa-solid fa-layer-group"></i> <%= listing.unitsLabel || 'Live availability' %></span><span><i class="fa-regular fa-clock"></i> <%= listing.nextDepartLabel || listing.time || 'Flexible schedule' %></span></div>
+    <p class="desc"><%= listing.sub || listing.policy %></p>
+    <div class="priceRow">
+      <div><div class="price"><%= money(listing.priceFrom || listing.price, listing.currency) %></div><div class="small"><%= listing.bookableReason || (listing.bookable ? 'Starting price' : 'Read-only preview') %></div></div>
+      <div class="actions">
+        <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-regular fa-eye"></i> View</a>
+        <% if (listing.bookable) { %><a class="btn btnPrimary" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-ticket"></i> Book</a><% } else { %><a class="btn btnGhost" href="/services"><i class="fa-regular fa-clock"></i> Soon</a><% } %>
+      </div>
+    </div>
+  </div>
+</article>

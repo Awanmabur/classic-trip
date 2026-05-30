@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title><%= title %> | <%= APP_NAME %></title>
+  <%- include("../partials/head") %>
+</head>
+<body data-page="error">
+  <%- include("../partials/nav") %>
+
+  <section class="section">
+    <div class="container narrow">
+      <div class="card authCard">
+        <div class="badge"><%= statusCode || 500 %></div>
+        <h1><%= title %></h1>
+        <p class="lead"><%= message %></p>
+        <a class="btn btn--primary" href="/">Return home</a>
+      </div>
+    </div>
+  </section>
+
+  <%- include("../partials/footer") %>
+</body>
+</html>

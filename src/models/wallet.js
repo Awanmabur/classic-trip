@@ -1,12 +1,13 @@
-const mongoose = require("mongoose");
+const { Schema, model } = require('./_helpers');
 
-const WalletSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique: true, required: true, index: true },
-    balance: { type: Number, default: 0 }, // in smallest currency unit of currencyCode, but for now keep "normal" amount
-    currency: { type: String, default: "UGX" }
-  },
-  { timestamps: true }
-);
+const walletSchema = new Schema({
+  id: { type: String, index: true },
+  ownerType: { type: String, required: true, index: true },
+  ownerId: { type: String, required: true, index: true },
+  currency: { type: String, default: 'UGX' },
+  availableBalance: { type: Number, default: 0 },
+  pendingBalance: { type: Number, default: 0 },
+}, { timestamps: true });
 
-module.exports = mongoose.model("Wallet", WalletSchema);
+walletSchema.index({ ownerType: 1, ownerId: 1 }, { unique: true });
+module.exports = model('Wallet', walletSchema);

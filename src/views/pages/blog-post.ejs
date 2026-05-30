@@ -1,0 +1,6 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <article class="card heroCard"><span class="badge badgeInfo"><%= blog.tag %></span><h1 class="heroTitle"><%= blog.title %></h1><p class="heroSub"><%= blog.excerpt %></p><div class="visualHero" style="border-radius:24px;overflow:hidden;margin-top:12px"><img src="<%= blog.image %>" alt="<%= blog.title %>"></div><p class="heroSub" style="font-size:16px;max-width:78ch"><%= blog.body %></p><a class="btn btnGhost" href="/blogs">Back to guides</a></article>
+</main>
+<%- include('../partials/site-footer') %>

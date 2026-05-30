@@ -1,0 +1,11 @@
+<form class="card searchBox" action="/search" method="get" data-search-form>
+  <div class="formGrid">
+    <div class="field"><label>From / city</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="origin" value="<%= query?.origin || '' %>" placeholder="Kampala"></div></div>
+    <div class="field"><label>To / destination</label><div class="control"><i class="fa-solid fa-route"></i><input name="destination" value="<%= query?.destination || '' %>" placeholder="Nairobi"></div></div>
+    <div class="field"><label>Service</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="serviceType" class="selectLike"><option value="">All</option><% (categories || []).forEach(c => { %><option value="<%= c.key %>" <%= query?.serviceType === c.key ? 'selected' : '' %>><%= c.label %></option><% }) %></select></div></div>
+    <div class="field"><label>Date</label><div class="control"><i class="fa-regular fa-calendar"></i><input name="date" type="date" value="<%= query?.date || '' %>"></div></div>
+    <div class="field"><label>Availability</label><div class="control"><i class="fa-solid fa-circle-check"></i><select name="available" class="selectLike"><option value="">Any</option><option value="true" <%= query?.available === 'true' ? 'selected' : '' %>>Open inventory</option></select></div></div>
+    <div class="field"><label>Sort</label><div class="control"><i class="fa-solid fa-arrow-down-wide-short"></i><select name="sort" class="selectLike"><option value="recommended" <%= query?.sort === 'recommended' || !query?.sort ? 'selected' : '' %>>Recommended</option><option value="soonest" <%= query?.sort === 'soonest' ? 'selected' : '' %>>Soonest</option><option value="cheapest" <%= query?.sort === 'cheapest' ? 'selected' : '' %>>Cheapest</option><option value="availability" <%= query?.sort === 'availability' ? 'selected' : '' %>>Most open</option></select></div></div>
+  </div>
+  <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+</form>

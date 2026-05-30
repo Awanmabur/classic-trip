@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classic Trip | Super Admin Dashboard</title>
+  <meta name="description" content="Classic Trip Super Admin Dashboard for platform bookings, partners, inventory, payments, analytics, reports, ads, support, and settings." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root{
+      --container:min(1420px,94%);
+      --sidebar:286px;
+      --topbar:52px;
+      --r:24px;
+      --r2:18px;
+      --pill:999px;
+      --primary:#4f8cff;
+      --primary2:#2f6bff;
+      --accent:#ffb703;
+      --hot:#ff3d00;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 22px 70px rgba(0,0,0,.26);
+      --shadow2:0 14px 38px rgba(0,0,0,.18);
+    }
+
+    html[data-theme="dark"]{
+      --bg0:#02040a;
+      --bg1:#050814;
+      --cardA:rgba(255,255,255,.07);
+      --cardB:rgba(255,255,255,.035);
+      --soft:rgba(255,255,255,.048);
+      --line:rgba(255,255,255,.10);
+      --line2:rgba(255,255,255,.065);
+      --text:#f6f8ff;
+      --muted:rgba(246,248,255,.64);
+      --muted2:rgba(246,248,255,.42);
+      --panel:rgba(5,8,18,.88);
+      --input:rgba(255,255,255,.05);
+      --table:rgba(255,255,255,.032);
+      --active:rgba(255,183,3,.22);
+      --activeLine:rgba(255,183,3,.40);
+    }
+
+    html[data-theme="light"]{
+      --bg0:#eef2ff;
+      --bg1:#e6edf7;
+      --cardA:rgba(255,255,255,.92);
+      --cardB:rgba(255,255,255,.78);
+      --soft:rgba(15,23,42,.045);
+      --line:rgba(15,23,42,.105);
+      --line2:rgba(15,23,42,.065);
+      --text:#0f172a;
+      --muted:rgba(15,23,42,.62);
+      --muted2:rgba(15,23,42,.43);
+      --panel:rgba(255,255,255,.90);
+      --input:rgba(15,23,42,.045);
+      --table:rgba(15,23,42,.03);
+      --active:rgba(255,183,3,.24);
+      --activeLine:rgba(255,183,3,.42);
+      --shadow:0 22px 70px rgba(15,23,42,.11);
+      --shadow2:0 14px 38px rgba(15,23,42,.08);
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(700px 440px at 10% -10%, rgba(79,140,255,.012), transparent 72%),
+        radial-gradient(660px 420px at 92% -8%, rgba(255,183,3,.008), transparent 74%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:-1;
+      opacity:.016;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='130'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='130' height='130' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+    }
+
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    :focus,:focus-visible{outline:none!important;box-shadow:none!important}
+
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:20px}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:20px;border:2px solid transparent;background-clip:content-box}
+    html[data-theme="light"] ::-webkit-scrollbar-track{background:rgba(15,23,42,.04)}
+    html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.16);border:2px solid transparent;background-clip:content-box}
+
+    .app{
+      width:var(--container);
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:var(--sidebar) minmax(0,1fr);
+      gap:16px;
+      padding:16px 0 24px;
+    }
+
+    .sideBackdrop{display:none}
+
+    .sidebar{
+      position:sticky;
+      top:16px;
+      height:calc(100vh - 32px);
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      border-radius:30px;
+      box-shadow:var(--shadow2);
+      backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      z-index:80;
+    }
+
+    .sideTop{
+      padding:15px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .mark{
+      width:40px;
+      height:40px;
+      border-radius:15px;
+      display:grid;
+      place-items:center;
+      color:#081026;
+      background:linear-gradient(135deg,rgba(79,140,255,.96),rgba(255,183,3,.96));
+      font-weight:1000;
+      box-shadow:0 12px 28px rgba(79,140,255,.14);
+      flex:0 0 auto;
+    }
+
+    .brandText{min-width:0}
+    .brandText strong{
+      display:block;
+      font-size:14px;
+      letter-spacing:-.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .brandText span{
+      display:block;
+      font-size:11px;
+      color:var(--muted);
+      font-weight:800;
+      margin-top:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .sideSearch{padding:12px 14px 8px}
+
+    .searchBox,.control{
+      border:1px solid var(--line);
+      background:var(--input);
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:9px 12px;
+      min-width:0;
+    }
+
+    .searchBox input,.control input,.control select,.control textarea{
+      width:100%;
+      border:0;
+      background:transparent;
+      color:var(--text);
+      min-width:0;
+      font-weight:800;
+      font-size:12px;
+    }
+
+    .searchBox input::placeholder,.control input::placeholder,.control textarea::placeholder{color:var(--muted2)}
+
+    .sideNav{
+      padding:13px 12px;
+      display:grid;
+      gap:16px;
+      overflow:auto;
+      flex:1;
+    }
+
+    .navBtn{
+      width:100%;
+      min-width:0;
+      border:1px solid transparent;
+      background:transparent;
+      color:var(--muted);
+      border-radius:999px;
+      padding:14px 16px;
+      min-height:50px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      font-size:15px;
+      font-weight:900;
+      text-align:left;
+      white-space:nowrap;
+      overflow:hidden;
+      transition:.15s ease;
+    }
+
+    .navBtn span{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      display:block;
+    }
+
+    .navBtn i{
+      width:20px;
+      height:20px;
+      display:grid;
+      place-items:center;
+      font-size:14px;
+      color:var(--muted);
+      flex:0 0 auto;
+    }
+
+    .navBtn:hover{
+      background:rgba(79,140,255,.08);
+      border-color:rgba(79,140,255,.20);
+      color:var(--text);
+      transform:translateY(-1px);
+    }
+
+    .navBtn.is-active{
+      background:linear-gradient(135deg,rgba(255,183,3,.56),rgba(255,61,0,.28));
+      border-color:rgba(255,183,3,.72);
+      color:var(--accent);
+      border-radius:18px;
+      box-shadow:0 14px 34px rgba(255,183,3,.20);
+    }
+
+    .navBtn.is-active i{color:var(--accent)}
+
+    .sideFoot{
+      border-top:1px solid var(--line);
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+
+    .miniProfile{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:9px;
+      border-radius:22px;
+      background:var(--soft);
+      border:1px solid var(--line2);
+    }
+
+    .avatar{
+      width:36px;
+      height:36px;
+      border-radius:14px;
+      background:linear-gradient(135deg,rgba(79,140,255,.92),rgba(255,61,0,.82));
+      display:grid;
+      place-items:center;
+      color:#fff;
+      font-weight:1000;
+      flex:0 0 auto;
+      font-size:12px;
+    }
+
+    .profileMeta strong{display:block;font-size:12px}
+    .profileMeta span{display:block;color:var(--muted);font-size:10px;font-weight:800;margin-top:2px}
+
+    .main{
+      min-width:0;
+      display:grid;
+      gap:16px;
+    }
+
+    .topbar{
+      position:sticky;
+      top:16px;
+      z-index:50;
+      height:var(--topbar);
+      min-height:var(--topbar);
+      max-height:var(--topbar);
+      overflow:hidden;
+      border:1px solid var(--line);
+      border-radius:24px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+      box-shadow:var(--shadow2);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:6px 10px;
+    }
+
+    .topLeft{
+      min-width:0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .menuBtn{display:none!important}
+
+    .pageTitle{min-width:0}
+    .pageTitle h1{
+      margin:0;
+      font-size:17px;
+      line-height:1.1;
+      letter-spacing:-.4px;
+    }
+
+    .pageTitle p{
+      margin:3px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:620px;
+    }
+
+    .topActions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:nowrap;
+      justify-content:flex-end;
+    }
+
+    .btn,.iconBtn,.chip{
+      border:1px solid var(--line);
+      background:var(--soft);
+      color:var(--text);
+      border-radius:999px;
+      height:36px;
+      padding:0 12px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:950;
+      font-size:12px;
+      white-space:nowrap;
+      transition:.15s ease;
+    }
+
+    .btn:hover,.iconBtn:hover,.chip:hover{
+      transform:translateY(-1px);
+      border-color:rgba(79,140,255,.26);
+      background:rgba(79,140,255,.08);
+    }
+
+    .iconBtn{
+      width:36px;
+      padding:0;
+      flex:0 0 auto;
+    }
+
+    .btnPrimary{
+      border-color:transparent;
+      color:#071226;
+      background:linear-gradient(135deg,var(--accent),var(--hot));
+      box-shadow:0 14px 34px rgba(255,61,0,.13);
+    }
+
+    .btnBlue{
+      border-color:transparent;
+      background:linear-gradient(135deg,rgba(79,140,255,.94),rgba(47,107,255,.94));
+      color:#eef5ff;
+      box-shadow:0 14px 34px rgba(79,140,255,.12);
+    }
+
+    .btnDanger{
+      background:rgba(239,68,68,.12);
+      color:#ff8b8b;
+      border-color:rgba(239,68,68,.22);
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:var(--soft);
+      padding:6px 9px;
+      font-size:11px;
+      font-weight:950;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+
+    .badge.ok{background:rgba(34,197,94,.105);border-color:rgba(34,197,94,.22);color:#42d77a}
+    .badge.warn{background:rgba(255,183,3,.105);border-color:rgba(255,183,3,.22);color:#ffc847}
+    .badge.bad{background:rgba(239,68,68,.105);border-color:rgba(239,68,68,.22);color:#ff8b8b}
+    .badge.info{background:rgba(79,140,255,.115);border-color:rgba(79,140,255,.22);color:#7fb0ff}
+
+    .section{display:none; animation:fadeIn .22s ease both}
+    .section.is-open{display:block}
+
+    @keyframes fadeIn{
+      from{opacity:0;transform:translateY(8px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    .hero,.card{
+      border:1px solid var(--line);
+      border-radius:30px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow2);
+      overflow:hidden;
+    }
+
+    .hero{padding:16px}
+
+    .heroGrid{
+      display:grid;
+      grid-template-columns:minmax(0,1.1fr) 360px;
+      gap:14px;
+      align-items:stretch;
+    }
+
+    .welcome{
+      min-height:196px;
+      border-radius:25px;
+      padding:18px;
+      border:1px solid var(--line2);
+      background:rgba(255,255,255,.028);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:20px;
+    }
+
+    html[data-theme="light"] .welcome{background:rgba(15,23,42,.025)}
+
+    .welcome h2{
+      margin:12px 0 0;
+      font-size:28px;
+      line-height:1.06;
+      letter-spacing:-.8px;
+      max-width:680px;
+    }
+
+    .welcome p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+      max-width:760px;
+    }
+
+    .heroActions{display:flex;gap:9px;flex-wrap:wrap}
+
+    .livePanel{
+      border-radius:25px;
+      padding:16px;
+      border:1px solid var(--line2);
+      background:rgba(255,255,255,.028);
+      display:grid;
+      gap:12px;
+    }
+
+    html[data-theme="light"] .livePanel{background:rgba(15,23,42,.025)}
+
+    .liveHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .liveHeader strong{font-size:14px}
+    .pulse{
+      width:9px;height:9px;border-radius:50%;
+      background:var(--ok);
+      box-shadow:0 0 0 8px rgba(34,197,94,.12);
+    }
+
+    .liveList{display:grid;gap:10px}
+    .liveItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px;
+      border-radius:18px;
+      background:var(--soft);
+      border:1px solid var(--line2);
+    }
+    .liveItem span:first-child{font-size:12px;color:var(--muted);font-weight:850}
+    .liveItem strong{font-size:13px}
+
+    .statsGrid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .statCard{
+      border:1px solid var(--line);
+      border-radius:24px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow2);
+      padding:14px;
+      min-width:0;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .statTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+
+    .statIcon{
+      width:38px;height:38px;border-radius:15px;
+      display:grid;place-items:center;
+      background:rgba(79,140,255,.115);
+      color:#7fb0ff;
+      border:1px solid rgba(79,140,255,.20);
+      flex:0 0 auto;
+    }
+
+    .trend{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:11px;font-weight:950;
+      color:#42d77a;
+      padding:5px 8px;border-radius:999px;
+      background:rgba(34,197,94,.10);
+      border:1px solid rgba(34,197,94,.18);
+    }
+
+    .statNumber{
+      font-size:23px;
+      font-weight:1000;
+      letter-spacing:-.7px;
+      margin-top:12px;
+    }
+
+    .statLabel{
+      margin-top:3px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:850;
+    }
+
+    .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:14px}
+    .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+
+    .cardPad{padding:16px}
+    .cardHead{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding:16px 16px 0;
+      flex-wrap:wrap;
+    }
+
+    .cardTitle h3{
+      margin:0;
+      font-size:16px;
+      letter-spacing:-.25px;
+    }
+    .cardTitle p{
+      margin:3px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+    }
+
+    .filterRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      padding:12px 16px 0;
+    }
+
+    .innerTabs{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:12px 16px 0;
+      scroll-margin-top:calc(var(--topbar) + 10px);
+    }
+
+    .tabBtn{
+      border:1px solid var(--line);
+      background:var(--soft);
+      color:var(--muted);
+      border-radius:999px;
+      min-height:36px;
+      padding:0 14px;
+      display:inline-flex;
+      align-items:center;
+      gap:9px;
+      font-size:12.5px;
+      font-weight:950;
+      white-space:nowrap;
+      transition:.15s ease;
+    }
+
+    .tabBtn:hover{transform:translateY(-1px);background:rgba(79,140,255,.08);border-color:rgba(79,140,255,.24);color:var(--text)}
+    .tabBtn.is-on{background:linear-gradient(135deg,rgba(255,183,3,.26),rgba(255,61,0,.12));border-color:var(--activeLine);color:var(--accent);box-shadow:0 10px 22px rgba(255,183,3,.07)}
+    .tabPane{display:none!important;padding-top:2px}
+    .tabPane.is-open{display:block!important;animation:fadeIn .18s ease both}
+
+    .chip{
+      height:33px;
+      padding:0 11px;
+      color:var(--muted);
+    }
+
+    .chip.is-on{
+      background:var(--active);
+      border-color:var(--activeLine);
+      color:var(--accent);
+    }
+
+    .tableWrap{overflow:auto;padding:12px 16px 16px}
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0 8px;
+      min-width:760px;
+    }
+
+    th{
+      text-align:left;
+      color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      padding:0 10px;
+      white-space:nowrap;
+    }
+
+    td{
+      background:var(--table);
+      border-top:1px solid var(--line2);
+      border-bottom:1px solid var(--line2);
+      padding:10px;
+      font-size:12px;
+      font-weight:800;
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+
+    td:first-child{border-left:1px solid var(--line2);border-radius:16px 0 0 16px}
+    td:last-child{border-right:1px solid var(--line2);border-radius:0 16px 16px 0}
+
+    .nameCell{display:flex;align-items:center;gap:10px}
+
+    .miniLogo{
+      width:34px;height:34px;border-radius:13px;
+      display:grid;place-items:center;
+      background:rgba(79,140,255,.115);
+      color:#7fb0ff;
+      border:1px solid rgba(79,140,255,.20);
+      flex:0 0 auto;
+      font-weight:1000;
+    }
+
+    .nameCell strong{display:block;font-size:12px}
+    .nameCell span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+
+    .rowActions{display:flex;gap:6px;justify-content:flex-end}
+
+    .tinyBtn{
+      width:33px;height:33px;border-radius:999px;
+      display:grid;place-items:center;
+      border:1px solid var(--line);
+      background:var(--soft);
+      color:var(--text);
+      transition:.15s ease;
+      font-size:12px;
+    }
+    .tinyBtn:hover{transform:translateY(-1px);background:rgba(79,140,255,.08);border-color:rgba(79,140,255,.25)}
+    .tinyBtn.danger{color:#ff8b8b;background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.20)}
+
+    .quickGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+    .quickCard{
+      border:1px solid var(--line2);
+      background:var(--soft);
+      border-radius:22px;
+      padding:13px;
+      display:grid;
+      gap:9px;
+      min-height:112px;
+      transition:.15s ease;
+      color:var(--text);
+      text-align:left;
+    }
+
+    .quickCard:hover{transform:translateY(-2px);border-color:rgba(79,140,255,.23);background:rgba(79,140,255,.07)}
+
+    .quickIcon{
+      width:36px;height:36px;border-radius:14px;
+      display:grid;place-items:center;
+      background:rgba(255,183,3,.12);
+      color:var(--accent);
+      border:1px solid rgba(255,183,3,.20);
+    }
+
+    .quickCard strong{font-size:13px}
+    .quickCard span{font-size:11px;color:var(--muted);font-weight:800;line-height:1.45}
+
+    .chart{padding:16px;display:grid;gap:10px}
+
+    .bars{
+      display:flex;
+      align-items:end;
+      gap:9px;
+      height:190px;
+      padding:12px;
+      border-radius:22px;
+      border:1px solid var(--line2);
+      background:var(--soft);
+    }
+
+    .bar{
+      flex:1;
+      min-width:22px;
+      border-radius:14px 14px 8px 8px;
+      background:linear-gradient(180deg,rgba(79,140,255,.95),rgba(255,183,3,.72));
+      position:relative;
+      transition:.18s ease;
+    }
+
+    .bar:hover{filter:brightness(1.06);transform:translateY(-3px)}
+    .bar span{
+      position:absolute;
+      left:50%;
+      bottom:-26px;
+      transform:translateX(-50%);
+      color:var(--muted);
+      font-size:10px;
+      font-weight:900;
+    }
+
+    .splitGrid{display:grid;gap:10px;padding:16px}
+
+    .splitItem{
+      display:grid;
+      gap:8px;
+      padding:12px;
+      border:1px solid var(--line2);
+      border-radius:20px;
+      background:var(--soft);
+    }
+
+    .splitTop{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      font-size:12px;font-weight:900;
+    }
+
+    .progress{
+      height:9px;
+      border-radius:999px;
+      background:rgba(255,255,255,.07);
+      overflow:hidden;
+      border:1px solid var(--line2);
+    }
+
+    html[data-theme="light"] .progress{background:rgba(15,23,42,.06)}
+    .progress i{
+      display:block;height:100%;border-radius:999px;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+    }
+
+    .formPanel{padding:16px;display:grid;gap:12px}
+    .formGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .field label{display:block;color:var(--muted);font-size:11px;font-weight:950;margin:0 0 6px}
+    .control{min-height:43px;border-radius:18px;padding:9px 12px}
+    .control textarea{resize:vertical;min-height:92px;padding:4px 0}
+    .full{grid-column:1/-1}
+
+    .notice{
+      padding:13px;
+      border-radius:22px;
+      border:1px solid rgba(255,183,3,.22);
+      background:rgba(255,183,3,.10);
+      color:var(--text);
+      font-size:12px;
+      font-weight:850;
+      line-height:1.55;
+    }
+
+    .analyticsPanel{
+      display:grid;
+      gap:14px;
+    }
+
+    .metricList{display:grid;gap:10px;padding:16px}
+    .metricRow{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:center;
+      padding:12px;
+      border:1px solid var(--line2);
+      border-radius:20px;
+      background:var(--soft);
+    }
+    .metricRow strong{font-size:12px}
+    .metricRow span{font-size:11px;color:var(--muted);font-weight:800}
+
+    .reportGrid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:14px;
+      margin-top:14px;
+    }
+
+    .reportCard{
+      padding:16px;
+      border-radius:26px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow2);
+      display:grid;
+      gap:12px;
+    }
+
+    .reportCard h4{margin:0;font-size:15px}
+    .reportCard p{margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55}
+
+    .modal{
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:160;
+      background:rgba(0,0,0,.62);
+      padding:18px;
+      place-items:center;
+    }
+
+    .modal.is-open{display:grid}
+
+    .modalCard{
+      width:min(850px,96vw);
+      max-height:92vh;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:30px;
+      background:linear-gradient(180deg,var(--panel),rgba(9,13,26,.96));
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+    }
+
+    html[data-theme="light"] .modalCard{
+      background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(255,255,255,.90));
+    }
+
+    .modalHead{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .modalHead h3{margin:0;font-size:18px}
+    .modalHead p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:800}
+    .modalBody{padding:16px}
+
+
+    .detailBlock{display:grid;gap:12px}
+    .detailGroup{border:1px solid var(--line2);background:var(--table);border-radius:20px;padding:12px;display:grid;gap:9px}
+    .detailGroup h4{margin:0;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+    .detailGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .detailItem{min-width:0;border:1px solid var(--line2);background:var(--soft);border-radius:14px;padding:8px 10px;display:grid;gap:3px}
+    .detailItem span{font-size:10px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.05em}
+    .detailItem b{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+    .tableTools{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0;align-items:center}
+    .tableTools .control{min-width:170px;flex:1 1 170px;max-width:280px}
+    .tableTools .btn{min-height:38px}
+    .tinyBtn[disabled]{opacity:.48;cursor:not-allowed;filter:grayscale(.4)}
+    @media(max-width:980px){.detailGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.detailGrid{grid-template-columns:1fr}.tableTools .control{max-width:none}}
+
+    .deleteBox{
+      display:grid;
+      gap:12px;
+      padding:16px;
+      border-radius:24px;
+      background:rgba(239,68,68,.10);
+      border:1px solid rgba(239,68,68,.22);
+    }
+
+    .toast{
+      position:fixed;
+      right:18px;
+      bottom:18px;
+      z-index:200;
+      display:none;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:linear-gradient(180deg,var(--cardA),var(--cardB));
+      box-shadow:var(--shadow);
+      padding:12px 14px;
+      font-weight:900;
+      font-size:13px;
+      backdrop-filter:blur(16px);
+    }
+
+    .toast.show{display:flex;gap:10px;align-items:center;animation:toastIn .2s ease both}
+    @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+    @media (max-width:1180px){
+      :root{--sidebar:250px}
+      .heroGrid{grid-template-columns:1fr}
+      .statsGrid,.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid2{grid-template-columns:1fr}
+      .grid3,.reportGrid{grid-template-columns:1fr}
+      .pageTitle p{max-width:420px}
+    }
+
+    @media (max-width:760px){
+      .app{
+        width:min(100% - 22px,760px);
+        grid-template-columns:1fr;
+        padding:12px 0 20px;
+      }
+
+      .sideBackdrop{
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.58);
+        z-index:74;
+      }
+
+      body.menu-open .sideBackdrop{display:block}
+
+      .sidebar{
+        display:flex;
+        position:fixed;
+        left:50%;
+        top:78px;
+        transform:translateX(-50%) translateY(10px);
+        width:min(420px,calc(100vw - 22px));
+        height:min(76vh,680px);
+        border-radius:30px;
+        opacity:0;
+        pointer-events:none;
+        transition:.18s ease;
+      }
+
+      body.menu-open .sidebar{
+        opacity:1;
+        pointer-events:auto;
+        transform:translateX(-50%) translateY(0);
+      }
+
+      .menuBtn{display:grid!important}
+      .topbar{
+        top:10px;
+        border-radius:22px;
+        min-height:56px;
+      }
+      .pageTitle h1{font-size:16px}
+      .pageTitle p{display:none}
+      .topActions .hideMobile{display:none}
+      .welcome h2{font-size:23px}
+      .statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .quickGrid{grid-template-columns:1fr 1fr}
+      .formGrid{grid-template-columns:1fr}
+      table{min-width:680px}
+    }
+
+    @media (max-width:560px){
+      .app{width:min(100% - 18px,440px);padding-top:10px}
+      .topbar{border-radius:24px;padding:10px}
+      .pageTitle h1{font-size:15px}
+      .iconBtn{width:36px;height:36px}
+      .btn{height:36px;padding:0 11px}
+      .topActions #btnNew span,.topActions #btnExport span{display:none}
+      .hero{padding:12px;border-radius:25px}
+      .welcome{padding:14px;min-height:auto;border-radius:22px}
+      .welcome h2{font-size:21px}
+      .welcome p{font-size:12px}
+      .statsGrid{grid-template-columns:1fr 1fr;gap:9px}
+      .statCard{padding:12px;border-radius:21px}
+      .statNumber{font-size:20px}
+      .statLabel{font-size:11px}
+      .card{border-radius:24px}
+      .cardHead{padding:14px 14px 0}
+      .tableWrap{padding:10px 12px 14px}
+      .quickGrid{grid-template-columns:1fr}
+      .bars{height:150px;gap:6px}
+      .modal{padding:10px}
+      .modalCard{border-radius:25px}
+      .toast{right:10px;left:10px;bottom:10px}
+    }
+
+    /* v8 polish: compact partner tabs, softer active sidebar height, exact 10px page gap */
+    .main{
+      gap:10px;
+    }
+
+    .section{
+      margin-top:0;
+      scroll-margin-top:calc(var(--topbar) + 10px);
+    }
+
+    .sideNav{
+      gap:16px;
+    }
+
+    .navBtn{
+      min-height:44px;
+      padding:11px 15px;
+    }
+
+    .navBtn.is-active{
+      min-height:44px;
+      padding-top:11px;
+      padding-bottom:11px;
+      background:linear-gradient(135deg,rgba(255,183,3,.48),rgba(255,61,0,.22));
+      border-color:rgba(255,183,3,.66);
+      box-shadow:0 10px 26px rgba(255,183,3,.16);
+    }
+
+    #partners .innerTabs{
+      gap:7px;
+      padding-top:10px;
+    }
+
+    #partners .innerTabs .tabBtn{
+      min-height:32px;
+      padding:0 11px;
+      gap:7px;
+      font-size:11.5px;
+    }
+
+    #partners .innerTabs .tabBtn i{
+      font-size:11px;
+    }
+
+    @media (max-width:760px){
+      .main{gap:10px;}
+      .navBtn,.navBtn.is-active{min-height:43px;padding:10px 14px;}
+      #partners .innerTabs .tabBtn{min-height:31px;padding:0 10px;font-size:11px;}
+    }
+
+
+    /* v9 final polish: smaller sidebar, softer rounded active item, exact 10px content gap */
+    body{
+      background:
+        radial-gradient(620px 390px at 8% -8%, rgba(79,140,255,.045), transparent 68%),
+        radial-gradient(600px 360px at 94% -8%, rgba(255,183,3,.025), transparent 70%),
+        linear-gradient(180deg,var(--bg0),var(--bg1)) !important;
+    }
+
+    .main{
+      gap:10px !important;
+    }
+
+    .section{
+      margin-top:0 !important;
+      scroll-margin-top:calc(var(--topbar) + 10px) !important;
+    }
+
+    .sideNav{
+      gap:13px !important;
+      padding:12px 12px !important;
+    }
+
+    .navBtn{
+      font-size:13.5px !important;
+      gap:12px !important;
+      min-height:40px !important;
+      padding:9px 14px !important;
+      border-radius:17px !important;
+    }
+
+    .navBtn i{
+      font-size:13px !important;
+    }
+
+    .navBtn.is-active{
+      min-height:40px !important;
+      padding:9px 14px !important;
+      border-radius:17px !important;
+      background:rgba(255,183,3,.24) !important;
+      border-color:rgba(255,183,3,.46) !important;
+      box-shadow:0 8px 20px rgba(255,183,3,.11) !important;
+      color:var(--accent) !important;
+    }
+
+    @media (max-width:760px){
+      .main{gap:10px !important;}
+      .navBtn,.navBtn.is-active{
+        min-height:40px !important;
+        padding:9px 14px !important;
+        font-size:13.5px !important;
+        border-radius:17px !important;
+      }
+    }
+
+
+
+    /* v10: tighter sidebar gap and smaller rounded active state */
+    .sideNav{
+      gap:8px !important;
+      padding:10px 11px !important;
+    }
+
+    .navBtn{
+      min-height:36px !important;
+      padding:7px 12px !important;
+      gap:10px !important;
+      font-size:13px !important;
+      border-radius:15px !important;
+    }
+
+    .navBtn i{
+      width:18px !important;
+      height:18px !important;
+      font-size:12.5px !important;
+    }
+
+    .navBtn.is-active{
+      min-height:36px !important;
+      padding:7px 12px !important;
+      border-radius:15px !important;
+      background:rgba(255,183,3,.18) !important;
+      border-color:rgba(255,183,3,.36) !important;
+      box-shadow:0 5px 14px rgba(255,183,3,.08) !important;
+    }
+
+    @media (max-width:760px){
+      .sideNav{
+        gap:8px !important;
+        padding:10px 11px !important;
+      }
+      .navBtn,.navBtn.is-active{
+        min-height:36px !important;
+        padding:7px 12px !important;
+        font-size:13px !important;
+        border-radius:15px !important;
+      }
+    }
+
+
+    /* v11: smoother active sidebar rounded edges */
+    .navBtn.is-active{
+      border-radius:999px !important;
+    }
+
+    @media (max-width:760px){
+      .navBtn.is-active{
+        border-radius:999px !important;
+      }
+    }
+
+
+    /* v12: stable page opening, smoother input/select surfaces, rounded sidebar hover */
+    .main{
+      gap:10px !important;
+    }
+
+    .topbar{
+      margin-bottom:0 !important;
+    }
+
+    .section{
+      margin-top:0 !important;
+      scroll-margin-top:calc(var(--topbar) + 10px) !important;
+    }
+
+    .searchBox,
+    .control{
+      border-radius:24px !important;
+      background:var(--input) !important;
+    }
+
+    .control:focus-within,
+    .searchBox:focus-within{
+      background:rgba(79,140,255,.075) !important;
+      border-color:rgba(79,140,255,.24) !important;
+    }
+
+    .control select,
+    .control input,
+    .control textarea,
+    .searchBox input{
+      background:transparent !important;
+      color:var(--text) !important;
+      border-radius:18px !important;
+    }
+
+    .control select{
+      appearance:none;
+      -webkit-appearance:none;
+      cursor:pointer;
+    }
+
+    .control select option{
+      background:var(--bg1) !important;
+      color:var(--text) !important;
+    }
+
+    html[data-theme="light"] .control select option{
+      background:#ffffff !important;
+      color:#0f172a !important;
+    }
+
+    .navBtn:hover{
+      border-radius:999px !important;
+      background:rgba(79,140,255,.12) !important;
+      border-color:rgba(79,140,255,.30) !important;
+    }
+
+    .navBtn.is-active{
+      border-radius:999px !important;
+    }
+
+    @media (max-width:760px){
+      .main{gap:10px !important;}
+      .searchBox,.control{border-radius:22px !important;}
+      .navBtn:hover,.navBtn.is-active{border-radius:999px !important;}
+    }
+
+
+    /* v13: force every opened page to sit exactly like Overview under the sticky nav */
+    .main{
+      display:flex !important;
+      flex-direction:column !important;
+      gap:10px !important;
+      align-content:start !important;
+    }
+
+    .topbar{
+      flex:0 0 var(--topbar) !important;
+      margin:0 !important;
+    }
+
+    .section{
+      margin:0 !important;
+      padding:0 !important;
+      scroll-margin-top:calc(var(--topbar) + 10px) !important;
+    }
+
+    .section.is-open{
+      display:block !important;
+    }
+
+    @media (max-width:760px){
+      .main{gap:10px !important;}
+      .section{margin:0 !important;padding:0 !important;}
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="sideBackdrop" id="sideBackdrop"></div>
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Super admin navigation">
+      <div class="sideTop">
+        <div class="mark">CT</div>
+        <div class="brandText">
+          <strong>Classic Trip</strong>
+          <span>Super Admin Console</span>
+        </div>
+      </div>
+
+      <div class="sideSearch">
+        <label class="searchBox">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="sideSearch" placeholder="Search menu..." />
+        </label>
+      </div>
+
+      <nav class="sideNav" id="sideNav">
+        <button class="navBtn is-active" data-page="overview"><i class="fa-solid fa-chart-line"></i><span>Overview</span></button>
+        <button class="navBtn" data-page="analytics"><i class="fa-solid fa-chart-pie"></i><span>Analytics</span></button>
+        <button class="navBtn" data-page="bookings"><i class="fa-solid fa-ticket"></i><span>Bookings</span></button>
+        <button class="navBtn" data-page="partners"><i class="fa-solid fa-building"></i><span>Partners / Companies</span></button>
+        <button class="navBtn" data-page="listings"><i class="fa-solid fa-layer-group"></i><span>Listings & Inventory</span></button>
+        <button class="navBtn" data-page="payments"><i class="fa-solid fa-wallet"></i><span>Payments & Split Fees</span></button>
+        <button class="navBtn" data-page="promoters"><i class="fa-solid fa-bullhorn"></i><span>Promoters</span></button>
+        <button class="navBtn" data-page="customers"><i class="fa-solid fa-users"></i><span>Customers</span></button>
+        <button class="navBtn" data-page="support"><i class="fa-solid fa-headset"></i><span>Support & Disputes</span></button>
+        <button class="navBtn" data-page="ads"><i class="fa-solid fa-rectangle-ad"></i><span>Ads & Promotions</span></button>
+        <button class="navBtn" data-page="reports"><i class="fa-solid fa-file-lines"></i><span>Reports</span></button>
+        <button class="navBtn" data-page="audit"><i class="fa-solid fa-clipboard-list"></i><span>Audit Logs</span></button>
+        <button class="navBtn" data-page="admins"><i class="fa-solid fa-user-shield"></i><span>Admins & Roles</span></button>
+        <button class="navBtn" data-page="kyc"><i class="fa-solid fa-id-card"></i><span>KYC / Verification</span></button>
+        <button class="navBtn" data-page="refunds"><i class="fa-solid fa-rotate-left"></i><span>Refunds</span></button>
+        <button class="navBtn" data-page="notifications"><i class="fa-solid fa-bell"></i><span>Notifications</span></button>
+        <button class="navBtn" data-page="system"><i class="fa-solid fa-server"></i><span>System Health</span></button>
+        <button class="navBtn" data-page="settings"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
+      </nav>
+
+      <div class="sideFoot">
+        <div class="miniProfile">
+          <div class="avatar">SA</div>
+          <div class="profileMeta">
+            <strong>Super Admin</strong>
+            <span>Full platform access</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topLeft">
+          <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+          <div class="pageTitle">
+            <h1 id="pageHeading">Super Admin Dashboard</h1>
+            <p id="pageSub">Manage partners, bookings, payments, commissions, promotions, and support in one place.</p>
+          </div>
+        </div>
+
+        <div class="topActions">
+          <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+          <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
+          <button class="btn btnBlue" id="btnNew"><i class="fa-solid fa-plus"></i><span>Create</span></button>
+          <button class="btn btnPrimary hideMobile"><i class="fa-solid fa-user-shield"></i> Admin</button>
+        </div>
+      </header>
+
+      <section class="section is-open" id="overview">
+        <div class="hero">
+          <div class="heroGrid">
+            <div class="welcome">
+              <div>
+                <span class="badge info"><i class="fa-solid fa-shield-halved"></i> Live platform control</span>
+                <h2>Welcome back. Your marketplace is running smoothly.</h2>
+                <p>Track every booking, partner listing, customer ticket, payout split, promoter commission, ad campaign, refund, and dispute from this single super admin dashboard.</p>
+              </div>
+              <div class="heroActions">
+                <button class="btn btnPrimary" data-jump="payments"><i class="fa-solid fa-money-bill-transfer"></i> Review payouts</button>
+                <button class="btn" data-jump="support"><i class="fa-solid fa-headset"></i> Support queue</button>
+                <button class="btn" data-jump="analytics"><i class="fa-solid fa-chart-pie"></i> Analytics</button>
+              </div>
+            </div>
+
+            <div class="livePanel">
+              <div class="liveHeader">
+                <strong>Live activity</strong>
+                <span class="badge ok"><span class="pulse"></span> Online</span>
+              </div>
+              <div class="liveList">
+                <div class="liveItem"><span>Bookings today</span><strong>1,284</strong></div>
+                <div class="liveItem"><span>Seats / rooms on hold</span><strong>97</strong></div>
+                <div class="liveItem"><span>Pending partner approvals</span><strong>18</strong></div>
+                <div class="liveItem"><span>Open disputes</span><strong>11</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="statsGrid">
+            <article class="statCard">
+              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 12%</span></div>
+              <div class="statNumber">UGX 248.6M</div>
+              <div class="statLabel">Gross booking value</div>
+            </article>
+            <article class="statCard">
+              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-building"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 8%</span></div>
+              <div class="statNumber">642</div>
+              <div class="statLabel">Active partners</div>
+            </article>
+            <article class="statCard">
+              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-bullhorn"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 19%</span></div>
+              <div class="statNumber">UGX 7.4M</div>
+              <div class="statLabel">Promoter commissions</div>
+            </article>
+            <article class="statCard">
+              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-percent"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 7%</span></div>
+              <div class="statNumber">UGX 17.4M</div>
+              <div class="statLabel">Platform fee revenue</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3>Recent bookings</h3>
+                <p>Latest customer orders across transport, stays, and experiences.</p>
+              </div>
+              <button class="btn" data-jump="bookings"><i class="fa-regular fa-eye"></i> View all</button>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Booking</th><th>Category</th><th>Customer</th><th>Partner</th><th>Status</th><th>Total</th><th></th></tr></thead>
+                <tbody id="recentBookings"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Quick actions</h3><p>Fast platform control actions.</p></div>
+            </div>
+            <div class="cardPad">
+              <div class="quickGrid">
+                <button class="quickCard" data-modal="create" data-type="partner"><div class="quickIcon"><i class="fa-solid fa-check"></i></div><strong>Approve partner</strong><span>Review documents and activate their dashboard.</span></button>
+                <button class="quickCard" data-modal="edit" data-type="payment"><div class="quickIcon"><i class="fa-solid fa-ban"></i></div><strong>Freeze payout</strong><span>Hold suspicious payouts while finance reviews.</span></button>
+                <button class="quickCard" data-modal="create" data-type="ad"><div class="quickIcon"><i class="fa-solid fa-rectangle-ad"></i></div><strong>Create ad slot</strong><span>Open paid visibility for routes or hotels.</span></button>
+                <button class="quickCard" data-modal="create" data-type="notice"><div class="quickIcon"><i class="fa-solid fa-paper-plane"></i></div><strong>Send notice</strong><span>Notify customers, partners, or promoters.</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="analytics">
+        <div class="analyticsPanel">
+          <div class="grid4">
+            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-eye"></i></div><span class="trend">+24%</span></div><div class="statNumber">98.4K</div><div class="statLabel">Marketplace visits</div></article>
+            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-cart-shopping"></i></div><span class="trend">+9%</span></div><div class="statNumber">4.8%</div><div class="statLabel">Booking conversion</div></article>
+            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-money-bill-wave"></i></div><span class="trend">+13%</span></div><div class="statNumber">UGX 62K</div><div class="statLabel">Average order value</div></article>
+            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-headset"></i></div><span class="trend">-6%</span></div><div class="statNumber">2h 18m</div><div class="statLabel">Avg support response</div></article>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Category performance</h3><p>Bookings by service category this week.</p></div>
+                <span class="badge ok">Growing</span>
+              </div>
+              <div class="chart"><div class="bars" id="categoryBars"></div></div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Country route demand</h3><p>Top active cross-border and local markets.</p></div></div>
+              <div class="metricList">
+                <div class="metricRow"><div><strong>Uganda ⇄ Kenya</strong><span>Kampala, Nairobi, Jinja, Kisumu</span></div><b>34%</b></div>
+                <div class="metricRow"><div><strong>Uganda ⇄ Rwanda</strong><span>Kampala, Kigali, Mbarara, Kabale</span></div><b>21%</b></div>
+                <div class="metricRow"><div><strong>Kenya ⇄ Tanzania</strong><span>Nairobi, Mombasa, Arusha, Dar</span></div><b>18%</b></div>
+                <div class="metricRow"><div><strong>South Sudan ⇄ Uganda</strong><span>Juba, Nimule, Gulu, Kampala</span></div><b>12%</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Partner quality analytics</h3><p>Operational signals that need admin attention.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>On-time bus departures</span><strong>91%</strong></div><div class="progress"><i style="width:91%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Hotel room confirmation speed</span><strong>87%</strong></div><div class="progress"><i style="width:87%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Ticket delivery success</span><strong>96%</strong></div><div class="progress"><i style="width:96%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Refund SLA compliance</span><strong>76%</strong></div><div class="progress"><i style="width:76%"></i></div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Promoter funnel</h3><p>Referral link activity from share to paid booking.</p></div></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Shared links</span><strong>18,420</strong></div><div class="progress"><i style="width:100%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Link visits</span><strong>8,610</strong></div><div class="progress"><i style="width:72%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Checkout starts</span><strong>1,284</strong></div><div class="progress"><i style="width:34%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Paid bookings</span><strong>748</strong></div><div class="progress"><i style="width:22%"></i></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="bookings"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>All bookings</h3><p>Monitor tickets, reservations, rooms, seats, held items, refunds, and confirmations.</p></div><button class="btn btnBlue" data-modal="create" data-type="booking"><i class="fa-solid fa-plus"></i> Create booking</button></div><div class="innerTabs" data-tab-group="bookings-tabs"><button type="button" class="tabBtn is-on" data-tab-target="bookings-all"><i class="fa-solid fa-ticket"></i> All</button><button type="button" class="tabBtn" data-tab-target="bookings-bus"><i class="fa-solid fa-bus"></i> Bus</button><button type="button" class="tabBtn" data-tab-target="bookings-hotel"><i class="fa-solid fa-hotel"></i> Hotel</button><button type="button" class="tabBtn" data-tab-target="bookings-flight"><i class="fa-solid fa-plane"></i> Flight</button><button type="button" class="tabBtn" data-tab-target="bookings-train"><i class="fa-solid fa-train"></i> Train</button><button type="button" class="tabBtn" data-tab-target="bookings-hold"><i class="fa-regular fa-clock"></i> On hold</button><button type="button" class="tabBtn" data-tab-target="bookings-refunded"><i class="fa-solid fa-rotate-left"></i> Refunded</button></div><div class="tabPane is-open" id="bookings-all"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTable"></tbody></table></div></div><div class="tabPane" id="bookings-bus"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsBusTable"></tbody></table></div></div><div class="tabPane" id="bookings-hotel"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHotelTable"></tbody></table></div></div><div class="tabPane" id="bookings-flight"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsFlightTable"></tbody></table></div></div><div class="tabPane" id="bookings-train"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTrainTable"></tbody></table></div></div><div class="tabPane" id="bookings-hold"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHoldTable"></tbody></table></div></div><div class="tabPane" id="bookings-refunded"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsRefundedTable"></tbody></table></div></div></div></section>
+
+      <section class="section" id="partners"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Partner companies</h3><p>Approve, suspend, verify, and monitor companies.</p></div><button class="btn btnPrimary" data-modal="create" data-type="partner"><i class="fa-solid fa-building-circle-check"></i> Add partner</button></div><div class="innerTabs" data-tab-group="partners-tabs"><button type="button" class="tabBtn is-on" data-tab-target="partners-all"><i class="fa-solid fa-building"></i> All</button><button type="button" class="tabBtn" data-tab-target="partners-bus"><i class="fa-solid fa-bus"></i> Bus</button><button type="button" class="tabBtn" data-tab-target="partners-hotel"><i class="fa-solid fa-hotel"></i> Hotel</button><button type="button" class="tabBtn" data-tab-target="partners-airline"><i class="fa-solid fa-plane"></i> Airline</button><button type="button" class="tabBtn" data-tab-target="partners-train"><i class="fa-solid fa-train"></i> Train</button><button type="button" class="tabBtn" data-tab-target="partners-pending"><i class="fa-regular fa-hourglass-half"></i> Pending</button></div><div class="tabPane is-open" id="partners-all"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersTable"></tbody></table></div></div><div class="tabPane" id="partners-bus"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersBusTable"></tbody></table></div></div><div class="tabPane" id="partners-hotel"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersHotelTable"></tbody></table></div></div><div class="tabPane" id="partners-airline"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersAirlineTable"></tbody></table></div></div><div class="tabPane" id="partners-train"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersTrainTable"></tbody></table></div></div><div class="tabPane" id="partners-pending"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersPendingTable"></tbody></table></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Partner onboarding</h3><p>Checks before approval.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Business license</span><span class="badge ok">Required</span></div><div class="progress"><i style="width:88%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Payout account</span><span class="badge warn">Review</span></div><div class="progress"><i style="width:72%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Service inventory</span><span class="badge info">Setup</span></div><div class="progress"><i style="width:64%"></i></div></div><div class="notice">Partners should not receive payouts until business verification, payout account, and service inventory are approved.</div></div></div></div></section>
+
+      <section class="section" id="listings"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Listings & inventory</h3><p>Routes, rooms, houses, flights, trains, cars, tours, ferries, seat maps, room maps, and price rules.</p></div><button class="btn btnBlue" data-modal="create" data-type="listing"><i class="fa-solid fa-plus"></i> Create listing</button></div><div class="innerTabs" data-tab-group="inventory"><button type="button" class="tabBtn is-on" data-tab-target="inventory-all"><i class="fa-solid fa-layer-group"></i> All inventory</button><button type="button" class="tabBtn" data-tab-target="inventory-routes"><i class="fa-solid fa-bus"></i> Routes & seats</button><button type="button" class="tabBtn" data-tab-target="inventory-stays"><i class="fa-solid fa-hotel"></i> Hotels & rooms</button><button type="button" class="tabBtn" data-tab-target="inventory-pricing"><i class="fa-solid fa-tags"></i> Price rules</button><button type="button" class="tabBtn" data-tab-target="inventory-review"><i class="fa-solid fa-triangle-exclamation"></i> Needs review</button></div><div class="tabPane is-open" id="inventory-all"><div class="tableWrap"><table><thead><tr><th>Listing</th><th>Type</th><th>Partner</th><th>Inventory</th><th>Country route</th><th>Badge</th><th>Price from</th><th></th></tr></thead><tbody id="listingsTable"></tbody></table></div></div><div class="tabPane" id="inventory-routes"><div class="tableWrap"><table><thead><tr><th>Route</th><th>Vehicle</th><th>Partner</th><th>Seats</th><th>Schedule</th><th>Status</th><th>Price</th><th></th></tr></thead><tbody id="routeInventoryTable"></tbody></table></div></div><div class="tabPane" id="inventory-stays"><div class="tableWrap"><table><thead><tr><th>Property</th><th>Room type</th><th>Partner</th><th>Rooms</th><th>City</th><th>Status</th><th>Price</th><th></th></tr></thead><tbody id="stayInventoryTable"></tbody></table></div></div><div class="tabPane" id="inventory-pricing"><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Dynamic route pricing</span><span class="badge ok">Enabled</span></div><div class="progress"><i style="width:82%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Holiday surge rules</span><span class="badge warn">Review</span></div><div class="progress"><i style="width:54%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Low stock price alerts</span><span class="badge info">Active</span></div><div class="progress"><i style="width:68%"></i></div></div><button class="btn btnBlue" data-modal="edit" data-type="price rule"><i class="fa-solid fa-pen-to-square"></i> Edit price rule</button></div></div><div class="tabPane" id="inventory-review"><div class="tableWrap"><table><thead><tr><th>Item</th><th>Partner</th><th>Reason</th><th>Risk</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody id="reviewInventoryTable"></tbody></table></div></div></div></section>
+
+      <section class="section" id="payments"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Payments & split settlement</h3><p>Track customer payments, platform fees, promoter commissions, and partner payouts.</p></div><button class="btn btnPrimary" data-modal="create" data-type="payout"><i class="fa-solid fa-money-bill-transfer"></i> Run payout</button></div><div class="tableWrap"><table><thead><tr><th>Transaction</th><th>Booking</th><th>Customer paid</th><th>Partner</th><th>Platform 7%</th><th>Promoter 3%</th><th>Status</th><th></th></tr></thead><tbody id="paymentsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Finance rules</h3><p>Current split logic used by the marketplace.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Partner payout</span><strong>90%</strong></div><div class="progress"><i style="width:90%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Platform revenue</span><strong>7%</strong></div><div class="progress"><i style="width:7%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Promoter commission</span><strong>3%</strong></div><div class="progress"><i style="width:3%"></i></div></div><button class="btn btnBlue" data-modal="edit" data-type="finance rules"><i class="fa-solid fa-gear"></i> Edit finance rules</button></div></div></div></section>
+
+      <section class="section" id="promoters"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Promoters</h3><p>Manage referral links, commissions, suspicious traffic, and withdrawals.</p></div><button class="btn btnBlue" data-modal="create" data-type="campaign"><i class="fa-solid fa-link"></i> Generate campaign</button></div><div class="tableWrap"><table><thead><tr><th>Promoter</th><th>Links shared</th><th>Bookings</th><th>Commission</th><th>Withdrawable</th><th>Status</th><th></th></tr></thead><tbody id="promotersTable"></tbody></table></div></div></section>
+
+      <section class="section" id="customers"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Customers</h3><p>View customer booking history, receipts, saved items, refunds, and support activity.</p></div><button class="btn" data-modal="create" data-type="customer note"><i class="fa-solid fa-user-plus"></i> Add note</button></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Email / phone</th><th>Bookings</th><th>Spent</th><th>Last activity</th><th>Status</th><th></th></tr></thead><tbody id="customersTable"></tbody></table></div></div></section>
+
+      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select><option>Customers</option><option>Partners</option><option>Promoters</option><option>Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select><option>Normal</option><option>High</option><option>Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea placeholder="Write notice message..."></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div></div></section>
+
+      <section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
+
+      <section class="section" id="reports">
+        <div class="card">
+          <div class="cardHead">
+            <div class="cardTitle"><h3>Reports center</h3><p>Download clean reports for finance, partners, bookings, promoters, ads, refunds, and support.</p></div>
+            <button class="btn btnBlue" data-modal="create" data-type="custom report"><i class="fa-solid fa-file-circle-plus"></i> Custom report</button>
+          </div>
+          <div class="reportGrid">
+            <article class="reportCard"><span class="badge ok">Ready</span><h4>Finance report</h4><p>Payments, payouts, commissions, refunds, platform fees, and settlement balances.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge info">Ready</span><h4>Partner report</h4><p>Company performance by category, country, route, listing inventory, and payout health.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge warn">Review</span><h4>Promoter report</h4><p>Referral sales, suspicious clicks, conversion rate, commission, and withdrawal history.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge ok">Ready</span><h4>Bookings report</h4><p>Confirmed, held, cancelled, refunded, unpaid, Gmail-sent, and WhatsApp-sent bookings.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge info">Ready</span><h4>Ads report</h4><p>Boost spend, impressions, clicks, bookings, ROAS, and partner promotion performance.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge bad">Urgent</span><h4>Disputes report</h4><p>Open support cases, refunds, failed payment disputes, partner issues, and SLA tracking.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="section" id="audit"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Audit logs</h3><p>Track every sensitive action by admins, employees, partners, and automated jobs.</p></div><button class="btn" data-modal="view" data-type="audit export"><i class="fa-solid fa-download"></i> Export logs</button></div><div class="innerTabs" data-tab-group="audit-tabs"><button type="button" class="tabBtn is-on" data-tab-target="audit-admin"><i class="fa-solid fa-user-shield"></i> Admin actions</button><button type="button" class="tabBtn" data-tab-target="audit-finance"><i class="fa-solid fa-wallet"></i> Finance actions</button><button type="button" class="tabBtn" data-tab-target="audit-security"><i class="fa-solid fa-lock"></i> Security alerts</button></div><div class="tabPane is-open" id="audit-admin"><div class="tableWrap"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>IP / device</th><th>Result</th><th></th></tr></thead><tbody id="auditTable"></tbody></table></div></div><div class="tabPane" id="audit-finance"><div class="tableWrap"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Amount</th><th>Risk</th><th>Result</th><th></th></tr></thead><tbody id="financeAuditTable"></tbody></table></div></div><div class="tabPane" id="audit-security"><div class="tableWrap"><table><thead><tr><th>Time</th><th>Alert</th><th>User</th><th>Device</th><th>Severity</th><th>Status</th><th></th></tr></thead><tbody id="securityAuditTable"></tbody></table></div></div></div></section>
+
+      <section class="section" id="admins"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Admins & roles</h3><p>Manage super admins, finance admins, support leads, content reviewers, and access permissions.</p></div><button class="btn btnBlue" data-modal="create" data-type="admin user"><i class="fa-solid fa-user-plus"></i> Invite admin</button></div><div class="tableWrap"><table><thead><tr><th>Admin</th><th>Role</th><th>Access</th><th>2FA</th><th>Last seen</th><th>Status</th><th></th></tr></thead><tbody id="adminsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Permission groups</h3><p>Role-based access control for safe operations.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Finance controls</span><span class="badge warn">Restricted</span></div></div><div class="splitItem"><div class="splitTop"><span>Partner approval</span><span class="badge ok">Managers</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log access</span><span class="badge info">Super admin</span></div></div><div class="splitItem"><div class="splitTop"><span>Delete / suspend</span><span class="badge bad">Requires 2FA</span></div></div></div></div></div></section>
+
+      <section class="section" id="kyc"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>KYC / Verification</h3><p>Review partner company documents, payout accounts, employee IDs, and compliance flags.</p></div><button class="btn btnPrimary" data-modal="create" data-type="verification task"><i class="fa-solid fa-id-card-clip"></i> New review</button></div><div class="innerTabs" data-tab-group="kyc-tabs"><button type="button" class="tabBtn is-on" data-tab-target="kyc-pending"><i class="fa-regular fa-hourglass-half"></i> Pending</button><button type="button" class="tabBtn" data-tab-target="kyc-approved"><i class="fa-solid fa-circle-check"></i> Approved</button><button type="button" class="tabBtn" data-tab-target="kyc-rejected"><i class="fa-solid fa-circle-xmark"></i> Rejected</button><button type="button" class="tabBtn" data-tab-target="kyc-bank"><i class="fa-solid fa-building-columns"></i> Bank mismatch</button><button type="button" class="tabBtn" data-tab-target="kyc-expired"><i class="fa-solid fa-file-circle-exclamation"></i> Expired docs</button></div><div class="tabPane is-open" id="kyc-pending"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycTable"></tbody></table></div></div><div class="tabPane" id="kyc-approved"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycApprovedTable"></tbody></table></div></div><div class="tabPane" id="kyc-rejected"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycRejectedTable"></tbody></table></div></div><div class="tabPane" id="kyc-bank"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycBankTable"></tbody></table></div></div><div class="tabPane" id="kyc-expired"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycExpiredTable"></tbody></table></div></div></div></section>
+
+      <section class="section" id="refunds"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Refunds & cancellations</h3><p>Approve customer refunds, cancellation fees, failed ticket reversals, and partner chargebacks.</p></div><button class="btn btnPrimary" data-modal="create" data-type="refund"><i class="fa-solid fa-rotate-left"></i> Create refund</button></div><div class="tableWrap"><table><thead><tr><th>Refund</th><th>Booking</th><th>Customer</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="refundsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Refund policy health</h3><p>Keep refunds controlled but fast for customers.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Auto refundable</span><strong>64%</strong></div><div class="progress"><i style="width:64%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Partner approval needed</span><strong>28%</strong></div><div class="progress"><i style="width:28%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Fraud / duplicate review</span><strong>8%</strong></div><div class="progress"><i style="width:8%"></i></div></div></div></div></div></section>
+
+      <section class="section" id="notifications"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Notifications</h3><p>Manage email, SMS, WhatsApp, push, booking receipts, payout alerts, and partner notices.</p></div><button class="btn btnBlue" data-modal="create" data-type="notification"><i class="fa-solid fa-paper-plane"></i> Send notification</button></div><div class="innerTabs" data-tab-group="notify-tabs"><button type="button" class="tabBtn is-on" data-tab-target="notify-campaigns"><i class="fa-solid fa-bullhorn"></i> Campaigns</button><button type="button" class="tabBtn" data-tab-target="notify-templates"><i class="fa-solid fa-envelope-open-text"></i> Templates</button></div><div class="tabPane is-open" id="notify-campaigns"><div class="tableWrap"><table><thead><tr><th>Message</th><th>Channel</th><th>Audience</th><th>Sent</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody id="notificationsTable"></tbody></table></div></div><div class="tabPane" id="notify-templates"><div class="reportGrid"><article class="reportCard"><span class="badge ok">Active</span><h4>Booking receipt</h4><p>Email/SMS template after successful payment.</p><button class="btn" data-modal="edit" data-type="template" data-label="Booking receipt">Edit</button></article><article class="reportCard"><span class="badge ok">Active</span><h4>Payout approved</h4><p>Notice to partners and promoters when funds are released.</p><button class="btn" data-modal="edit" data-type="template" data-label="Payout approved">Edit</button></article><article class="reportCard"><span class="badge warn">Review</span><h4>Refund update</h4><p>Customer message for refund progress and cancellation rules.</p><button class="btn" data-modal="edit" data-type="template" data-label="Refund update">Edit</button></article></div></div></div></section>
+
+      <section class="section" id="system"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>System health</h3><p>Monitor API, database, payment gateway, ticket delivery, queues, and background jobs.</p></div><span class="badge ok"><i class="fa-solid fa-circle-check"></i> Healthy</span></div><div class="metricList"><div class="metricRow"><div><strong>Booking API</strong><span>Average response 118ms</span></div><b class="badge ok">Online</b></div><div class="metricRow"><div><strong>Payment webhook</strong><span>Last event 2 minutes ago</span></div><b class="badge ok">Online</b></div><div class="metricRow"><div><strong>Ticket delivery queue</strong><span>7 jobs waiting</span></div><b class="badge warn">Busy</b></div><div class="metricRow"><div><strong>Database replicas</strong><span>All replicas synchronized</span></div><b class="badge ok">Online</b></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Operational checklist</h3><p>Daily super admin checks.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Failed payments reviewed</span><span class="badge warn">4 left</span></div></div><div class="splitItem"><div class="splitTop"><span>Pending payouts checked</span><span class="badge ok">Done</span></div></div><div class="splitItem"><div class="splitTop"><span>New partners verified</span><span class="badge warn">18 left</span></div></div><div class="splitItem"><div class="splitTop"><span>Critical support tickets</span><span class="badge bad">11 open</span></div></div></div></div></div></section>
+
+      <section class="section" id="settings"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Platform settings</h3><p>Global marketplace configuration.</p></div></div><form class="formPanel" id="settingsForm"><div class="formGrid"><div class="field"><label>Platform fee</label><div class="control"><i class="fa-solid fa-percent"></i><input value="7%" /></div></div><div class="field"><label>Promoter commission</label><div class="control"><i class="fa-solid fa-percent"></i><input value="3%" /></div></div><div class="field"><label>Hold timer</label><div class="control"><i class="fa-regular fa-clock"></i><input value="10 minutes" /></div></div><div class="field"><label>Default currency</label><div class="control"><i class="fa-solid fa-coins"></i><select><option>UGX</option><option>KES</option><option>RWF</option><option>TZS</option><option>USD</option></select></div></div><div class="field full"><label>Support message</label><div class="control"><textarea>Classic Trip support is available for tickets, payments, refunds, partner onboarding, and promoter payouts.</textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save settings</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Security controls</h3><p>Admin and platform protection settings.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Admin 2FA</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Partner KYC required</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Suspicious payout hold</span><span class="badge warn">Manual review</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log</span><span class="badge info">Active</span></div></div></div></div></div></section>
+    </main>
+  </div>
+
+  <footer style="width:var(--container,min(1220px,92%));margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));box-shadow:var(--shadow2);padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820">
+    <div>
+      <strong style="color:var(--text)">Classic Trip</strong>
+      <div style="margin-top:4px">Marketplace, dashboards, routes, tickets, promoters, partners, and payments.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn" href="/">Home</a>
+      <a class="btn" href="/routes">Routes</a>
+      <a class="btn" href="/tickets">Tickets</a>
+      <a class="btn" href="/promoters">Promoters</a>
+    </div>
+  </footer>
+
+  <div class="modal" id="crudModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3 id="crudTitle">Create item</h3><p id="crudSub">Manage platform data cleanly.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody" id="crudBody"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="deleteModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3>Delete record</h3><p>This confirms the delete workflow before any record is changed.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody">
+        <div class="deleteBox">
+          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
+          <strong id="deleteText">Are you sure you want to delete this record?</strong>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In the real system, this should either soft-delete the record or require admin confirmation with audit logs.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" data-close-modal>Cancel</button>
+            <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastText">Done</span></div>
+
+  <script>
+
+window.addEventListener('DOMContentLoaded', function () {
+  const backendDashboardData = <%- JSON.stringify(dashboardData || {}) %>;
+  const csrfToken = <%- JSON.stringify(csrfToken || '') %>;
+  const $ = (s, root = document) => root.querySelector(s);
+  const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+
+  const els = {
+    pageHeading: $('#pageHeading'),
+    pageSub: $('#pageSub'),
+    toast: $('#toast'),
+    toastText: $('#toastText'),
+    sideSearch: $('#sideSearch'),
+    btnTheme: $('#btnTheme'),
+    themeIcon: $('#themeIcon'),
+    openMenu: $('#openMenu'),
+    sideBackdrop: $('#sideBackdrop'),
+    crudModal: $('#crudModal'),
+    crudTitle: $('#crudTitle'),
+    crudSub: $('#crudSub'),
+    crudBody: $('#crudBody'),
+    deleteModal: $('#deleteModal'),
+    deleteText: $('#deleteText'),
+    confirmDelete: $('#confirmDelete')
+  };
+
+  const data = {
+    recentBookings: [
+      ['#CT-10482','Bus','Amina K.','Classic Express','Paid','UGX 25,000'],
+      ['#CT-10481','Hotel','John M.','Nile Pearl Hotel','Confirmed','UGX 180,000'],
+      ['#CT-10480','Flight','Sarah L.','EastSky Air','Ticketed','USD 142'],
+      ['#CT-10479','Train','David O.','Rift Rail','On hold','KES 2,800'],
+      ['#CT-10478','Tour','Moses A.','Safari Link','Paid','UGX 320,000'],
+      ['#CT-10477','Car','Grace N.','City Wheels','Pending','UGX 90,000']
+    ],
+    bookings: [
+      ['#CT-10501','Kampala ⇄ Nairobi bus','Brian K.','2026-05-06','07:48 left','Paid','UGX 85,000'],
+      ['#CT-10500','Kampala hotel room','Peace A.','2026-05-06','None','Confirmed','UGX 210,000'],
+      ['#CT-10499','Entebbe ⇄ Kigali flight','Mariam L.','2026-05-06','None','Ticketed','USD 186'],
+      ['#CT-10498','Nairobi ⇄ Mombasa train','Ali S.','2026-05-05','03:16 left','On hold','KES 3,400'],
+      ['#CT-10497','Jinja Nile tour','Evelyn T.','2026-05-05','None','Paid','UGX 155,000'],
+      ['#CT-10496','Ferry transfer','Okello P.','2026-05-05','None','Refund requested','UGX 40,000']
+    ],
+    partners: [
+      ['Classic Express','Bus','Uganda','42','Verified','UGX 84.2M'],
+      ['Nile Pearl Hotel','Hotel','Uganda','18','Verified','UGX 58.7M'],
+      ['EastSky Air','Airline','Kenya','25','Review','USD 18.6K'],
+      ['Rift Rail','Train','Kenya','11','Verified','KES 7.8M'],
+      ['Safari Link','Tour','Tanzania','31','Pending','TZS 24.4M']
+    ],
+    listings: [
+      ['Kampala ⇄ Nairobi Executive','Bus','Classic Express','44 seats','Uganda ⇄ Kenya','Promotion','UGX 85,000'],
+      ['Nile View Deluxe Room','Hotel','Nile Pearl Hotel','12 rooms','Uganda','Available','UGX 180,000'],
+      ['Entebbe ⇄ Kigali Morning','Flight','EastSky Air','118 seats','Uganda ⇄ Rwanda','Available','USD 186'],
+      ['Nairobi ⇄ Mombasa Express','Train','Rift Rail','300 seats','Kenya','Few seats','KES 3,400'],
+      ['Jinja Nile Adventure','Tour','Safari Link','24 slots','Uganda','Promotion','UGX 155,000'],
+      ['Lake Victoria Ferry','Ferry','WaterLine','No seats','Uganda ⇄ Tanzania','No seats','UGX 40,000']
+    ],
+    payments: [
+      ['TX-78012','#CT-10501','UGX 85,000','UGX 76,500','UGX 5,950','UGX 2,550','Settled'],
+      ['TX-78011','#CT-10500','UGX 210,000','UGX 189,000','UGX 14,700','UGX 6,300','Pending'],
+      ['TX-78010','#CT-10499','USD 186','USD 167.40','USD 13.02','USD 5.58','Settled'],
+      ['TX-78009','#CT-10498','KES 3,400','KES 3,060','KES 238','KES 102','Hold'],
+      ['TX-78008','#CT-10496','UGX 40,000','UGX 36,000','UGX 2,800','UGX 1,200','Refund']
+    ],
+    promoters: [
+      ['Awan Promo','284','61','UGX 2.1M','UGX 940K','Active'],
+      ['Travel Deals UG','418','84','UGX 3.4M','UGX 1.8M','Active'],
+      ['Nairobi Routes','102','19','KES 44K','KES 19K','Review'],
+      ['Hotel Saver','74','12','UGX 610K','UGX 210K','Active']
+    ],
+    customers: [
+      ['Amina K.','amina@example.com','18','UGX 1.7M','Today','Active'],
+      ['John M.','+256 700 112233','9','UGX 820K','Yesterday','Active'],
+      ['Sarah L.','sarah@example.com','12','USD 1.1K','Today','VIP'],
+      ['David O.','+254 711 992200','3','KES 12K','2 days ago','Active'],
+      ['Peace A.','peace@example.com','6','UGX 460K','Today','Active']
+    ],
+    support: [
+      ['SUP-301','Brian K.','Ticket not received','Urgent','Open','5 min ago'],
+      ['SUP-300','Mariam L.','Wrong passenger name','High','In review','18 min ago'],
+      ['SUP-299','Hotel Partner','Payout delay','Normal','Open','1 hour ago'],
+      ['SUP-298','Evelyn T.','Refund request','High','Waiting partner','2 hours ago']
+    ],
+    ads: [
+      ['Kampala ⇄ Nairobi top boost','Classic Express','Search top','UGX 800K','4,280','318','Running'],
+      ['Weekend hotel deal','Nile Pearl Hotel','Home banner','UGX 420K','2,110','94','Running'],
+      ['Train holiday push','Rift Rail','Category card','KES 80K','1,280','53','Paused'],
+      ['Safari tours campaign','Safari Link','Blog / Discover','TZS 1.2M','3,640','138','Running']
+    ],
+    routeInventory: [
+      ['Kampala ⇄ Nairobi','Executive coach','Classic Express','44 / 52','Daily 08:00','Available','UGX 85,000'],
+      ['Juba ⇄ Kampala','VIP coach','Nile Bus','12 / 48','Mon, Wed, Fri','Few seats','UGX 120,000'],
+      ['Nairobi ⇄ Mombasa','SGR train','Rift Rail','300 / 360','Daily 14:20','Available','KES 3,400']
+    ],
+    stayInventory: [
+      ['Nile Pearl Hotel','Deluxe room','Nile Pearl Hotel','12 rooms','Kampala','Available','UGX 180,000'],
+      ['Kigali Central Stay','Family suite','Kigali Stay','4 rooms','Kigali','Few rooms','RWF 62,000'],
+      ['Mombasa Beach Inn','Ocean room','Coast Hotels','0 rooms','Mombasa','No rooms','KES 8,500']
+    ],
+    reviewInventory: [
+      ['Lake Victoria Ferry','WaterLine','No seats but still bookable','High','Today','Needs review'],
+      ['Holiday express bus','Classic Express','Price changed 4 times','Medium','Yesterday','Review'],
+      ['Mombasa Beach Inn','Coast Hotels','Room stock mismatch','High','Today','Needs review']
+    ],
+    audit: [
+      ['10:42','Super Admin','Edited finance rules','Platform fee','Kampala / Chrome','Success'],
+      ['09:18','Finance Admin','Held payout','TX-78009','Kampala / Edge','Review'],
+      ['08:54','Support Lead','Approved refund','RF-9021','Nairobi / Chrome','Success'],
+      ['Yesterday','Content Admin','Suspended listing','Lake Victoria Ferry','Kampala / Chrome','Success']
+    ],
+    financeAudit: [
+      ['10:03','Finance Admin','Payout batch created','UGX 42.7M','Low','Success'],
+      ['09:18','Finance Admin','Payout frozen','KES 102K','Medium','Review'],
+      ['Yesterday','System Job','Refund reversal','UGX 40,000','Low','Success']
+    ],
+    securityAudit: [
+      ['11:02','New device login','Finance Admin','Windows Chrome','Medium','Verified'],
+      ['06:34','Failed 2FA attempts','Support Agent','Android Chrome','High','Blocked'],
+      ['Yesterday','Permission changed','Content Admin','Windows Edge','Medium','Success']
+    ],
+    admins: [
+      ['Awan Mabur','Super Admin','Full access','Enabled','Online','Active'],
+      ['Finance Team','Finance Admin','Payments only','Enabled','12 min ago','Active'],
+      ['Support Lead','Support Manager','Support + refunds','Enabled','1 hour ago','Active'],
+      ['Content Reviewer','Inventory Admin','Listings only','Required','Yesterday','Review']
+    ],
+    kyc: [
+      ['EastSky Air','Business license','Kenya','Bank verified','Medium','Review'],
+      ['WaterLine','Transport permit','Uganda','Bank mismatch','High','Pending'],
+      ['Kigali Stay','Tax certificate','Rwanda','Verified','Low','Approved'],
+      ['Coast Hotels','Company registration','Kenya','Verified','Low','Approved']
+    ],
+    refunds: [
+      ['RF-9021','#CT-10496','Okello P.','Ferry cancelled','UGX 40,000','Waiting partner'],
+      ['RF-9020','#CT-10498','Ali S.','Missed train','KES 3,400','Review'],
+      ['RF-9019','#CT-10481','John M.','Hotel unavailable','UGX 180,000','Approved'],
+      ['RF-9018','#CT-10477','Grace N.','Duplicate payment','UGX 90,000','Paid']
+    ],
+    notifications: [
+      ['Holiday route boost','WhatsApp','Customers','18,420','96%','Sent'],
+      ['Partner payout alert','Email','Partners','642','99%','Sent'],
+      ['Refund update notice','SMS','Customers','214','91%','Running'],
+      ['Promoter campaign tips','Email','Promoters','3,880','88%','Draft']
+    ]
+  };
+
+  Object.assign(data, backendDashboardData);
+
+  const pageMeta = {
+    overview: ['Super Admin Dashboard', 'Manage partners, bookings, payments, commissions, promotions, and support in one place.'],
+    analytics: ['Analytics', 'Clean platform insights for traffic, conversions, route demand, partner quality, and promoter performance.'],
+    bookings: ['Bookings', 'Monitor customer orders, seats, rooms, ticket delivery, holds, refunds, and receipts.'],
+    partners: ['Partners / Companies', 'Approve companies, verify documents, manage dashboards, and monitor performance.'],
+    listings: ['Listings & Inventory', 'Control routes, hotels, flights, trains, tours, ferries, cars, seats, rooms, and prices.'],
+    payments: ['Payments & Split Fees', 'Review payment settlements, 7% platform fee, 3% promoter commission, and partner payouts.'],
+    promoters: ['Promoters', 'Manage referral links, commission balances, payout requests, and campaign performance.'],
+    customers: ['Customers', 'View customer profiles, bookings, receipts, saved items, refunds, and support tickets.'],
+    support: ['Support & Disputes', 'Handle payment problems, missing tickets, refund cases, and partner disputes.'],
+    ads: ['Ads & Promotions', 'Manage paid boosts, sponsored cards, top placement, and partner ad campaigns.'],
+    reports: ['Reports', 'Download finance, partner, customer, promoter, ad, and booking performance reports.'],
+    audit: ['Audit Logs', 'Track all sensitive admin, finance, support, partner, and system actions.'],
+    admins: ['Admins & Roles', 'Manage staff access, roles, permissions, 2FA, and restricted controls.'],
+    kyc: ['KYC / Verification', 'Review company documents, payout accounts, business licenses, and compliance flags.'],
+    refunds: ['Refunds', 'Manage cancellations, reversals, chargebacks, refund approval, and partner responsibility.'],
+    notifications: ['Notifications', 'Send and manage email, SMS, WhatsApp, push messages, receipts, and templates.'],
+    system: ['System Health', 'Monitor platform uptime, queues, payment webhooks, ticket delivery, and database status.'],
+    settings: ['Settings', 'Control platform fee rules, hold timer, currency, security, and admin configuration.']
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
+  }
+
+  function badgeFor(status) {
+    const text = escapeHtml(status);
+    const s = String(status).toLowerCase();
+    let cls = 'info';
+    if (/(paid|settled|verified|active|confirmed|ticketed|available|running|vip)/.test(s)) cls = 'ok';
+    if (/(hold|review|pending|waiting|few)/.test(s)) cls = 'warn';
+    if (/(refund|urgent|no seats|paused)/.test(s)) cls = 'bad';
+    return `<span class="badge ${cls}">${text}</span>`;
+  }
+
+  function rowMeta(row) {
+    const last = Array.isArray(row) ? row[row.length - 1] : null;
+    return last && typeof last === 'object' && !Array.isArray(last) ? last : null;
+  }
+
+  function rowCells(row) {
+    const meta = rowMeta(row);
+    return meta ? row.slice(0, -1) : row;
+  }
+
+  function encodeDetail(detail) {
+    try { return encodeURIComponent(JSON.stringify(detail || {})); } catch (error) { return ''; }
+  }
+
+  function bookingPreviewUrl(){
+    const listingRows = Array.isArray(data.listings) ? data.listings : [];
+    const row = listingRows.map(rowMeta).find(meta => meta?.detail?.service?.slug || meta?.slug || meta?.id);
+    const detail = row?.detail || {};
+    const serviceType = detail.service?.type || row?.serviceType || 'bus';
+    const slug = detail.service?.slug || row?.slug || row?.id;
+    return slug ? `/listings/${encodeURIComponent(serviceType)}/${encodeURIComponent(slug)}` : '/search';
+  }
+
+  function openBookingPreview(){
+    window.location.href = bookingPreviewUrl();
+  }
+
+  function rowActions(label, type, meta = null) {
+    const safeLabel = escapeHtml(label);
+    const safeType = escapeHtml(type);
+    const detailAttr = meta?.detail ? ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
+    const idAttr = meta?.id ? ` data-row-id="${escapeHtml(meta.id)}"` : '';
+    if (meta?.entity === 'partner') {
+      const slug = encodeURIComponent(meta.slug || meta.id || label);
+      const status = String(meta.status || '').toLowerCase();
+      const approve = status !== 'verified' ? `<form method="POST" action="/admin/companies/${slug}/approve" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Approve"><i class="fa-solid fa-circle-check"></i></button></form>` : '';
+      const reject = !/(verified|suspended|rejected)/.test(status) ? `<form method="POST" action="/admin/companies/${slug}/reject" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Reject"><i class="fa-solid fa-ban"></i></button></form>` : '';
+      const suspend = status !== 'suspended' ? `<form method="POST" action="/admin/companies/${slug}/suspend" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Suspend"><i class="fa-solid fa-pause"></i></button></form>` : '';
+      return `<div class="rowActions">
+        <button class="tinyBtn" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
+        <button class="tinyBtn" data-copy-value="${safeLabel}" title="Copy reference"><i class="fa-regular fa-copy"></i></button>
+        <button class="tinyBtn" data-export-row="${safeType}" data-label="${safeLabel}"${detailAttr} title="Export row"><i class="fa-solid fa-file-export"></i></button>
+        ${approve}${reject}${suspend}
+      </div>`;
+    }
+    return `<div class="rowActions">
+      <button class="tinyBtn" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
+      <button class="tinyBtn" data-copy-value="${safeLabel}" title="Copy reference"><i class="fa-regular fa-copy"></i></button>
+      <button class="tinyBtn" data-export-row="${safeType}" data-label="${safeLabel}"${detailAttr} title="Export row"><i class="fa-solid fa-file-export"></i></button>
+      <button class="tinyBtn" disabled title="No safe write endpoint is available for this action yet"><i class="fa-solid fa-lock"></i></button>
+    </div>`;
+  }
+
+  function parseDetailFromElement(el) {
+    const raw = el?.dataset?.rowDetail || '';
+    if (!raw) return null;
+    try { return JSON.parse(decodeURIComponent(raw)); } catch (error) { return null; }
+  }
+
+  function flattenEntries(obj = {}, prefix = '') {
+    const entries = [];
+    Object.entries(obj || {}).forEach(([key, value]) => {
+      const label = prefix ? `${prefix}.${key}` : key;
+      if (value && typeof value === 'object' && !Array.isArray(value)) entries.push(...flattenEntries(value, label));
+      else entries.push([label, Array.isArray(value) ? value.join(', ') : value]);
+    });
+    return entries;
+  }
+
+  function detailItem(label, value) {
+    const shown = value === undefined || value === null || value === '' ? '-' : value;
+    return `<div class="detailItem"><span>${escapeHtml(label)}</span><b>${escapeHtml(shown)}</b></div>`;
+  }
+
+  function detailGroup(title, value) {
+    const entries = Array.isArray(value) ? value.map((item, index) => [`${title} ${index + 1}`, JSON.stringify(item)]) : flattenEntries(value || {});
+    if (!entries.length) return '';
+    return `<div class="detailGroup"><h4>${escapeHtml(title)}</h4><div class="detailGrid">${entries.map(([label, val]) => detailItem(label, val)).join('')}</div></div>`;
+  }
+
+  function detailMarkup(detail = {}) {
+    const groups = Object.entries(detail || {}).map(([title, value]) => detailGroup(title, value)).join('');
+    return `<div class="detailBlock">${groups || '<div class="notice">No additional backend details were provided for this row.</div>'}</div>`;
+  }
+
+  function openDetailModal(type, label, detail) {
+    if (!els.crudModal || !els.crudTitle || !els.crudBody) return;
+    els.crudTitle.textContent = `View ${type || 'record'}`;
+    if (els.crudSub) els.crudSub.textContent = label ? `Full backend details for ${label}` : 'Full backend details';
+    els.crudBody.innerHTML = detailMarkup(detail || {});
+    els.crudModal.classList.add('is-open');
+  }
+
+  function downloadText(filename, text, mime = 'text/plain') {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+
+  function exportDetailPdf(detail, name){
+    const title = String(name || 'dashboard-record');
+    const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=720');
+    if(!win){ if(typeof toast === 'function') toast('Allow popups to export PDF'); else if(typeof showToast === 'function') showToast('Allow popups to export PDF'); return; }
+    const body = detailMarkup(detail || {});
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} PDF</title><style>
+      body{font-family:Inter,Arial,sans-serif;margin:28px;color:#111827;background:#fff}.brand{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #e5e7eb;padding-bottom:14px;margin-bottom:18px}.brand h1{font-size:22px;margin:0}.brand p{margin:4px 0 0;color:#6b7280}.detailGroup{break-inside:avoid;margin:0 0 16px}.detailGroup h4{font-size:14px;margin:0 0 8px;color:#111827}.detailGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.detailItem{border:1px solid #e5e7eb;border-radius:10px;padding:8px;min-width:0}.detailItem span{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:800}.detailItem b{display:block;font-size:12px;word-break:break-word}.detailItem.full{grid-column:1/-1}@media print{button{display:none}body{margin:14mm}}
+    </style></head><body><div class="brand"><div><h1>Classic Trip Dashboard Record</h1><p>${escapeHtml(title)} · ${new Date().toLocaleString()}</p></div><button onclick="window.print()">Print / Save PDF</button></div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    win.document.close();
+  }
+
+  function exportRows(filename, rows) {
+    const csv = rows.map(row => rowCells(row).map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    downloadText(filename, csv, 'text/csv');
+  }
+
+  function setHtml(selector, html) {
+    const node = $(selector);
+    if (node) node.innerHTML = html;
+  }
+
+  function fillOverviewStats() {
+    const stats = Array.isArray(data.overviewStats) ? data.overviewStats : [];
+    const grid = $('#overview .statsGrid');
+    if (grid && stats.length > grid.querySelectorAll('.statCard').length) {
+      stats.slice(grid.querySelectorAll('.statCard').length).forEach((stat) => {
+        const card = document.createElement('article');
+        card.className = 'statCard';
+        card.innerHTML = `<div class="statTop"><div class="statIcon"><i class="fa-solid ${escapeHtml(stat.icon || 'fa-chart-simple')}"></i></div><span class="trend"><i class="fa-solid fa-circle-info"></i> ${escapeHtml(stat.hint || 'Live')}</span></div><div class="statNumber">${escapeHtml(stat.value || '-')}</div><div class="statLabel">${escapeHtml(stat.label || 'Metric')}</div>`;
+        grid.appendChild(card);
+      });
+    }
+    const cards = $$('#overview .statsGrid .statCard');
+    stats.slice(0, cards.length).forEach((stat, index) => {
+      const card = cards[index];
+      const number = card.querySelector('.statNumber');
+      const label = card.querySelector('.statLabel');
+      const trend = card.querySelector('.trend');
+      const icon = card.querySelector('.statIcon i');
+      if (number) number.textContent = stat.value || '-';
+      if (label) label.textContent = stat.label || 'Metric';
+      if (trend) trend.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${escapeHtml(stat.hint || 'Live')}`;
+      if (icon && stat.icon) icon.className = `fa-solid ${stat.icon}`;
+    });
+    const liveItems = $$('#overview .liveItem');
+    (data.liveActivity || []).slice(0, liveItems.length).forEach((item, index) => {
+      const node = liveItems[index];
+      const span = node.querySelector('span');
+      const strong = node.querySelector('strong');
+      if (span) span.textContent = item[0];
+      if (strong) strong.textContent = item[1];
+    });
+  }
+
+  function enhanceTables() {
+    $$('.tableWrap').forEach((wrap, index) => {
+      if (wrap.dataset.enhanced === 'true') return;
+      const table = wrap.querySelector('table');
+      if (!table) return;
+      wrap.dataset.enhanced = 'true';
+      const tools = document.createElement('div');
+      tools.className = 'tableTools';
+      tools.innerHTML = `
+        <div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-table-search placeholder="Search this table"></div>
+        <div class="control"><i class="fa-solid fa-filter"></i><select data-table-status><option value="">All statuses</option><option>active</option><option>confirmed</option><option>pending</option><option>review</option><option>refund</option><option>suspended</option></select></div>
+        <div class="control"><i class="fa-regular fa-calendar"></i><input data-table-date type="date"></div>
+        <button class="btn" type="button" data-export-table><i class="fa-solid fa-download"></i> Export CSV</button>`;
+      wrap.parentNode.insertBefore(tools, wrap);
+      const runFilter = () => {
+        const q = tools.querySelector('[data-table-search]').value.toLowerCase().trim();
+        const status = tools.querySelector('[data-table-status]').value.toLowerCase().trim();
+        const date = tools.querySelector('[data-table-date]').value;
+        Array.from(table.tBodies[0]?.rows || []).forEach(row => {
+          const text = row.textContent.toLowerCase();
+          const okQ = !q || text.includes(q);
+          const okS = !status || text.includes(status);
+          const okD = !date || text.includes(date);
+          row.style.display = okQ && okS && okD ? '' : 'none';
+        });
+      };
+      tools.addEventListener('input', runFilter);
+      tools.addEventListener('change', runFilter);
+      tools.querySelector('[data-export-table]').addEventListener('click', () => {
+        const rows = Array.from(table.rows).filter(row => row.style.display !== 'none').map(row => Array.from(row.cells).map(cell => cell.textContent.trim()));
+        const csv = rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+        downloadText(`classic-trip-table-${index + 1}.csv`, csv, 'text/csv');
+        toast('Table CSV exported');
+      });
+    });
+  }
+
+  function fillRecent() {
+    setHtml('#recentBookings', data.recentBookings.map(b => {
+      const meta = rowMeta(b);
+      const row = rowCells(b);
+      return `<tr>
+        <td><div class="nameCell"><div class="miniLogo">#</div><div><strong>${escapeHtml(row[0])}</strong><span>${escapeHtml(meta?.detail?.booking?.createdAt ? new Date(meta.detail.booking.createdAt).toLocaleString() : 'Recent')}</span></div></div></td>
+        <td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${badgeFor(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${rowActions(row[0], 'booking', meta)}</td>
+      </tr>`;
+    }).join(''));
+  }
+
+  function fillTable(selector, rows, type = 'booking') {
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length) {
+      setHtml(selector, '<tr><td colspan="8"><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-circle-info"></i></div><div><strong>No records found</strong><span>This tab has no matching records yet.</span></div></div></td></tr>');
+      return;
+    }
+    setHtml(selector, rows.map(r => {
+      const meta = rowMeta(r);
+      const row = rowCells(r);
+      const initial = escapeHtml(String(row[0] || '?').charAt(0));
+      if (type === 'partners') return `<tr><td><div class="nameCell"><div class="miniLogo">${initial}</div><div><strong>${escapeHtml(row[0])}</strong><span>Partner account</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${badgeFor(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${rowActions(row[0], 'partner', meta)}</td></tr>`;
+      if (type === 'listings') return `<tr><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-layer-group"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Inventory listing</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${escapeHtml(row[6])}</td><td>${rowActions(row[0], 'listing', meta)}</td></tr>`;
+      if (type === 'payments') return `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${badgeFor(row[6])}</td><td>${rowActions(row[0], 'payment', meta)}</td></tr>`;
+      if (type === 'promoters') return `<tr><td><div class="nameCell"><div class="miniLogo">${initial}</div><div><strong>${escapeHtml(row[0])}</strong><span>Referral account</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'promoter', meta)}</td></tr>`;
+      if (type === 'customers') return `<tr><td><div class="nameCell"><div class="miniLogo">${initial}</div><div><strong>${escapeHtml(row[0])}</strong><span>Customer profile</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'customer', meta)}</td></tr>`;
+      if (type === 'support') return `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${badgeFor(row[3])}</td><td>${badgeFor(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${rowActions(row[0], 'support ticket', meta)}</td></tr>`;
+      if (type === 'ads') return `<tr><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-rectangle-ad"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Promotion campaign</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${badgeFor(row[6])}</td><td>${rowActions(row[0], 'ad campaign', meta)}</td></tr>`;
+      if (type === 'audit') return `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[2], 'audit log', meta)}</td></tr>`;
+      if (type === 'admins') return `<tr><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-user-shield"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Team member</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${badgeFor(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'admin user', meta)}</td></tr>`;
+      if (type === 'kyc') return `<tr><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-id-card"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Verification case</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${badgeFor(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'verification case', meta)}</td></tr>`;
+      if (type === 'refunds') return `<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'refund', meta)}</td></tr>`;
+      if (type === 'notifications') return `<tr><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-bell"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Message campaign</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'notification', meta)}</td></tr>`;
+      return `<tr><td><div class="nameCell"><div class="miniLogo">#</div><div><strong>${escapeHtml(row[0])}</strong><span>Booking order</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${escapeHtml(row[6])}</td><td>${rowActions(row[0], 'booking', meta)}</td></tr>`;
+    }).join(''));
+  }
+
+  function fillBars(id, rows) {
+    setHtml('#' + id, rows.map(([d, h]) => `<div class="bar" style="height:${h}%"><span>${escapeHtml(d)}</span></div>`).join(''));
+  }
+
+  function closeMenu() {
+    document.body.classList.remove('menu-open');
+  }
+
+  function activateTab(button, shouldScroll = true) {
+    if (!button) return;
+    const group = button.closest('.innerTabs[data-tab-group]');
+    const targetId = button.dataset ? button.dataset.tabTarget : '';
+    if (!group || !targetId) return;
+
+    const scope = group.closest('.card') || group.closest('.section') || document;
+    const tabButtons = Array.from(group.querySelectorAll('.tabBtn[data-tab-target]'));
+    const paneIds = tabButtons.map(btn => btn.dataset.tabTarget).filter(Boolean);
+
+    tabButtons.forEach(btn => {
+      const active = btn === button;
+      btn.classList.toggle('is-on', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.setAttribute('tabindex', active ? '0' : '-1');
+    });
+
+    paneIds.forEach(id => {
+      const pane = document.getElementById(id);
+      if (!pane || !scope.contains(pane)) return;
+      const open = id === targetId;
+      pane.classList.toggle('is-open', open);
+      pane.hidden = !open;
+      pane.setAttribute('aria-hidden', open ? 'false' : 'true');
+      pane.style.display = open ? 'block' : 'none';
+    });
+
+    if (shouldScroll) {
+      const topbar = $('.topbar');
+      const offset = (topbar ? topbar.getBoundingClientRect().height : 52) + 10;
+      const y = window.scrollY + group.getBoundingClientRect().top - offset;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    }
+  }
+
+  function placePageUnderTopNav(behavior = 'auto') {
+    const app = $('.app');
+    const top = Math.max(0, app ? app.offsetTop : 0);
+    window.scrollTo({ top, behavior });
+    document.documentElement.scrollTop = top;
+    document.body.scrollTop = top;
+  }
+
+  function showPage(page) {
+    $$('.section').forEach(section => section.classList.remove('is-open'));
+    const target = $('#' + page);
+    if (target) target.classList.add('is-open');
+    $$('.navBtn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === page));
+    const meta = pageMeta[page] || pageMeta.overview;
+    if (els.pageHeading) els.pageHeading.textContent = meta[0];
+    if (els.pageSub) els.pageSub.textContent = meta[1];
+    closeMenu();
+    placePageUnderTopNav('auto');
+    requestAnimationFrame(() => {
+      placePageUnderTopNav('auto');
+      requestAnimationFrame(() => placePageUnderTopNav('auto'));
+    });
+    setTimeout(() => placePageUnderTopNav('auto'), 40);
+  }
+
+  function toast(text) {
+    if (!els.toast || !els.toastText) return;
+    els.toastText.textContent = text;
+    els.toast.classList.add('show');
+    clearTimeout(window.__ctToastTimer);
+    window.__ctToastTimer = setTimeout(() => els.toast.classList.remove('show'), 2100);
+  }
+
+  function openCrud(mode, type, label = '') {
+    if (mode === 'delete') {
+      if (els.deleteText) els.deleteText.textContent = `Are you sure you want to delete ${label || 'this ' + type}?`;
+      if (els.deleteModal) els.deleteModal.classList.add('is-open');
+      return;
+    }
+
+    if (!els.crudModal || !els.crudTitle || !els.crudBody) return;
+    const cleanType = type || 'record';
+    const title = mode === 'view' ? `View ${cleanType}` : mode === 'edit' ? `Edit ${cleanType}` : `Create ${cleanType}`;
+    els.crudTitle.textContent = title.charAt(0).toUpperCase() + title.slice(1);
+    if (els.crudSub) els.crudSub.textContent = label ? `Selected: ${label}` : 'Fill the details below. This modal uses the dashboard data model.';
+
+    const readonly = mode === 'view' ? 'readonly' : '';
+    const disabled = mode === 'view' ? 'disabled' : '';
+    if (mode === 'create' && /partner|company/i.test(cleanType)) {
+      els.crudSub.textContent = 'Create the partner account, upload logo or document to Cloudinary, then approve it from the table.';
+      els.crudBody.innerHTML = `
+        <form class="formPanel" id="crudForm" method="POST" action="/admin/companies" enctype="multipart/form-data">
+          <input type="hidden" name="_csrf" value="${csrfToken}">
+          <div class="formGrid">
+            <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Classic Express" required></div></div>
+            <div class="field"><label>Company type</label><div class="control"><i class="fa-solid fa-briefcase"></i><select name="companyType"><option value="transport">Transport</option><option value="hotel">Hotel</option><option value="airline">Airline</option><option value="train">Train</option><option value="tour">Tour</option><option value="car_rental">Car rental</option></select></div></div>
+            <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Rwanda</option><option>Tanzania</option><option>South Sudan</option></select></div></div>
+            <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" placeholder="Kampala"></div></div>
+            <div class="field"><label>Support email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" placeholder="ops@example.com"></div></div>
+            <div class="field"><label>Support phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" placeholder="+256700000000"></div></div>
+            <div class="field"><label>Upload type</label><div class="control"><i class="fa-solid fa-folder-open"></i><select name="mediaTarget"><option value="companyLogo">Company logo</option><option value="companyDocument">Business document</option></select></div></div>
+            <div class="field"><label>Cloudinary file</label><div class="control"><i class="fa-solid fa-cloud-arrow-up"></i><input type="file" name="imageFile" accept="image/*,application/pdf"></div></div>
+            <div class="field full"><label>Description</label><div class="control"><textarea name="description" placeholder="Business profile, routes, hotels, or services offered."></textarea></div></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+            <button class="btn" type="button" data-close-modal>Cancel</button>
+            <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Create partner</button>
+          </div>
+        </form>`;
+      els.crudModal.classList.add('is-open');
+      return;
+    }
+    els.crudBody.innerHTML = `
+      <form class="formPanel" id="crudForm">
+        <div class="formGrid">
+          <div class="field"><label>Name / title</label><div class="control"><i class="fa-solid fa-pen"></i><input ${readonly} value="${escapeHtml(label)}" placeholder="Enter ${escapeHtml(cleanType)} name"></div></div>
+          <div class="field"><label>Type</label><div class="control"><i class="fa-solid fa-layer-group"></i><select ${disabled}><option>${escapeHtml(cleanType)}</option><option>Bus</option><option>Hotel</option><option>Flight</option><option>Train</option><option>Tour</option><option>Ad</option></select></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select ${disabled}><option>Active</option><option>Pending</option><option>Review</option><option>Suspended</option></select></div></div>
+          <div class="field"><label>Amount / value</label><div class="control"><i class="fa-solid fa-coins"></i><input ${readonly} placeholder="UGX 0"></div></div>
+          <div class="field full"><label>Admin note</label><div class="control"><textarea ${readonly} placeholder="Write internal note...">${mode === 'view' ? 'This record is opened in view mode. Use edit to change it.' : ''}</textarea></div></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn" type="button" data-close-modal>Cancel</button>
+          ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-modal="edit" data-type="${escapeHtml(cleanType)}" data-label="${escapeHtml(label)}"><i class="fa-regular fa-pen-to-square"></i> Edit</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save</button>`}
+        </div>
+      </form>`;
+    els.crudModal.classList.add('is-open');
+  }
+
+  function bindEvents() {
+    document.addEventListener('click', function (e) {
+      const tabBtn = e.target.closest('.innerTabs .tabBtn[data-tab-target]');
+      if (!tabBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      activateTab(tabBtn);
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+      const tabBtn = e.target.closest && e.target.closest('.innerTabs .tabBtn[data-tab-target]');
+      if (!tabBtn || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      activateTab(tabBtn);
+    });
+
+    document.addEventListener('click', function (e) {
+      const nav = e.target.closest('.navBtn');
+      if (nav && nav.dataset.page) {
+        e.preventDefault();
+        nav.blur();
+        showPage(nav.dataset.page);
+        return;
+      }
+
+      const jump = e.target.closest('[data-jump]');
+      if (jump && jump.dataset.jump) {
+        e.preventDefault();
+        showPage(jump.dataset.jump);
+        return;
+      }
+
+      const tabBtn = e.target.closest('.tabBtn');
+      if (tabBtn) {
+        e.preventDefault();
+        activateTab(tabBtn);
+        return;
+      }
+
+      const chip = e.target.closest('.chip');
+      if (chip) {
+        const row = chip.parentElement;
+        if (row) row.querySelectorAll('.chip').forEach(c => c.classList.remove('is-on'));
+        chip.classList.add('is-on');
+        toast('Filter applied: ' + chip.textContent.trim());
+      }
+
+      const copyBtn = e.target.closest('[data-copy-value]');
+      if (copyBtn) {
+        e.preventDefault();
+        navigator.clipboard?.writeText(copyBtn.dataset.copyValue || '').catch(() => {});
+        toast('Copied reference');
+        return;
+      }
+
+      const exportRowBtn = e.target.closest('[data-export-row]');
+      if (exportRowBtn) {
+        e.preventDefault();
+        const detail = parseDetailFromElement(exportRowBtn) || { label: exportRowBtn.dataset.label || '' };
+        exportDetailPdf(detail, exportRowBtn.dataset.exportRow || exportRowBtn.dataset.label || 'record');
+        toast('PDF export opened');
+        return;
+      }
+
+      const modalBtn = e.target.closest('[data-modal]');
+      if (modalBtn) {
+        e.preventDefault();
+        const detail = parseDetailFromElement(modalBtn);
+        if (modalBtn.dataset.modal === 'view' && detail) openDetailModal(modalBtn.dataset.type, modalBtn.dataset.label || '', detail);
+        else openCrud(modalBtn.dataset.modal, modalBtn.dataset.type, modalBtn.dataset.label || '');
+        return;
+      }
+
+      if (e.target.closest('[data-close-modal]')) {
+        $$('.modal').forEach(m => m.classList.remove('is-open'));
+        return;
+      }
+
+      if (e.target.closest('#btnExport')) toast('Export started');
+    });
+
+    document.addEventListener('submit', function (e) {
+      if (e.target.matches('#crudForm,#noticeForm,#settingsForm')) {
+        if (e.target.matches('#crudForm') && e.target.hasAttribute('action')) return;
+        e.preventDefault();
+        $$('.modal').forEach(m => m.classList.remove('is-open'));
+        toast('Saved successfully');
+      }
+    });
+
+    if (els.openMenu) els.openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
+    if (els.sideBackdrop) els.sideBackdrop.addEventListener('click', closeMenu);
+
+    if (els.btnTheme) {
+      els.btnTheme.addEventListener('click', function () {
+        const root = document.documentElement;
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        if (els.themeIcon) els.themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        toast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
+      });
+    }
+
+    const btnNew = $('#btnNew');
+    if (btnNew) btnNew.addEventListener('click', () => openCrud('create', 'partner'));
+
+    if (els.confirmDelete) {
+      els.confirmDelete.addEventListener('click', function () {
+        if (els.deleteModal) els.deleteModal.classList.remove('is-open');
+        toast('Deleted successfully');
+      });
+    }
+
+    if (els.sideSearch) {
+      els.sideSearch.addEventListener('input', function (e) {
+        const q = e.target.value.toLowerCase().trim();
+        $$('#sideNav .navBtn').forEach(btn => {
+          btn.style.display = btn.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+        });
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeMenu();
+        $$('.modal').forEach(m => m.classList.remove('is-open'));
+      }
+    });
+  }
+
+  function init() {
+    fillOverviewStats();
+    fillRecent();
+    fillTable('#bookingsTable', data.bookings);
+    fillTable('#bookingsBusTable', data.bookings.filter(r => /bus/i.test(r[1])));
+    fillTable('#bookingsHotelTable', data.bookings.filter(r => /hotel/i.test(r[1])));
+    fillTable('#bookingsFlightTable', data.bookings.filter(r => /flight/i.test(r[1])));
+    fillTable('#bookingsTrainTable', data.bookings.filter(r => /train/i.test(r[1])));
+    fillTable('#bookingsHoldTable', data.bookings.filter(r => /hold/i.test(r[5]) || /left/i.test(r[4])));
+    fillTable('#bookingsRefundedTable', data.bookings.filter(r => /refund/i.test(r[5])));
+    fillTable('#partnersTable', data.partners, 'partners');
+    fillTable('#partnersBusTable', data.partners.filter(r => /bus/i.test(r[1])), 'partners');
+    fillTable('#partnersHotelTable', data.partners.filter(r => /hotel/i.test(r[1])), 'partners');
+    fillTable('#partnersAirlineTable', data.partners.filter(r => /airline/i.test(r[1])), 'partners');
+    fillTable('#partnersTrainTable', data.partners.filter(r => /train/i.test(r[1])), 'partners');
+    fillTable('#partnersPendingTable', data.partners.filter(r => /pending|review/i.test(r[4])), 'partners');
+    fillTable('#listingsTable', data.listings, 'listings');
+    fillTable('#paymentsTable', data.payments, 'payments');
+    fillTable('#promotersTable', data.promoters, 'promoters');
+    fillTable('#customersTable', data.customers, 'customers');
+    fillTable('#supportTable', data.support, 'support');
+    fillTable('#adsTable', data.ads, 'ads');
+    fillTable('#routeInventoryTable', data.routeInventory, 'listings');
+    fillTable('#stayInventoryTable', data.stayInventory, 'listings');
+    fillTable('#reviewInventoryTable', data.reviewInventory, 'refunds');
+    fillTable('#auditTable', data.audit, 'audit');
+    fillTable('#financeAuditTable', data.financeAudit, 'audit');
+    fillTable('#securityAuditTable', data.securityAudit, 'audit');
+    fillTable('#adminsTable', data.admins, 'admins');
+    fillTable('#kycTable', data.kyc.filter(r => /pending|review/i.test(r[5])), 'kyc');
+    fillTable('#kycApprovedTable', data.kyc.filter(r => /approved|verified/i.test(r[5])), 'kyc');
+    fillTable('#kycRejectedTable', data.kyc.filter(r => /rejected|failed/i.test(r[5])), 'kyc');
+    fillTable('#kycBankTable', data.kyc.filter(r => /bank|mismatch/i.test(r[3]) || /bank|mismatch/i.test(r[5])), 'kyc');
+    fillTable('#kycExpiredTable', data.kyc.filter(r => /expired/i.test(r[1]) || /expired/i.test(r[5])), 'kyc');
+    fillTable('#refundsTable', data.refunds, 'refunds');
+    fillTable('#notificationsTable', data.notifications, 'notifications');
+    fillBars('categoryBars', [['Bus',86],['Hotel',72],['Flight',61],['Train',48],['Tour',36],['Car',28],['Ferry',22]]);
+
+    $$('.innerTabs').forEach(group => {
+      group.querySelectorAll('.tabBtn').forEach(btn => {
+        btn.type = 'button';
+        btn.setAttribute('role', 'tab');
+        btn.onclick = function(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          activateTab(btn);
+          return false;
+        };
+      });
+      const firstActive = group.querySelector('.tabBtn.is-on') || group.querySelector('.tabBtn');
+      if (firstActive) activateTab(firstActive, false);
+    });
+
+    enhanceTables();
+    bindEvents();
+    showPage('overview');
+    window.ClassicTripDashboardReady = true;
+  }
+
+  try {
+    init();
+  } catch (error) {
+    console.error('Classic Trip dashboard failed to initialize:', error);
+    toast('Dashboard script error fixed in console');
+  }
+});
+
+</script>
+</body>
+</html>

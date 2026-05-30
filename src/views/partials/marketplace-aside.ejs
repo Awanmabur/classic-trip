@@ -1,0 +1,36 @@
+<aside class="card side marketplaceAside">
+  <div>
+    <div class="sideTitle">Categories</div>
+    <div class="muted" style="font-size:13px;font-weight:800">Filter marketplace listings</div>
+  </div>
+  <div class="sideNav">
+    <a class="btn btnGhost <%= !query?.serviceType && !query?.bookable ? 'active' : '' %>" href="/search"><i class="fa-solid fa-border-all"></i> All</a>
+    <% (categories || []).forEach(category => { %>
+      <a class="btn btnGhost <%= query?.serviceType === category.key ? 'active' : '' %>" href="/search?serviceType=<%= encodeURIComponent(category.key) %>"><i class="fa-solid <%= category.icon %>"></i> <%= category.label %></a>
+    <% }) %>
+    <a class="btn btnGhost <%= query?.bookable ? 'active' : '' %>" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Bookable</a>
+    <a class="btn btnGhost <%= query?.available ? 'active' : '' %>" href="/search?available=true&sort=availability"><i class="fa-solid fa-circle-check"></i> Open inventory</a>
+    <a class="btn btnGhost <%= query?.sort === 'sponsored' ? 'active' : '' %>" href="/search?sort=sponsored"><i class="fa-solid fa-bullhorn"></i> Sponsored</a>
+  </div>
+
+  <div>
+    <div class="sideTitle">Country routes</div>
+    <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Browse by corridor, then open the listing or ticket page.</div>
+    <div class="routeFilters">
+      <a class="btn btnGhost <%= !query?.route && !query?.corridor ? 'active' : '' %>" href="/search?serviceType=bus"><i class="fa-solid fa-earth-africa"></i> All East Africa</a>
+      <% (corridorStats || []).slice(0, 18).forEach(stat => { %>
+        <a class="btn btnGhost <%= query?.route === stat.corridor || query?.corridor === stat.corridor ? 'active' : '' %>" href="/search?serviceType=bus&corridor=<%= encodeURIComponent(stat.corridor) %>"><%= stat.label || stat.corridor %> - <%= stat.seats || 0 %> open</a>
+      <% }) %>
+    </div>
+  </div>
+
+  <div class="summaryCard">
+    <h3>Tenant model</h3>
+    <p class="muted" style="margin:0 0 10px;font-size:12px;font-weight:760">Partners control listings, layouts, prices, policies, staff and payouts.</p>
+    <div class="actions">
+      <a class="btn btnGhost" href="/routes"><i class="fa-solid fa-route"></i> All routes</a>
+      <a class="btn btnGhost" href="/companies"><i class="fa-solid fa-building"></i> Partners</a>
+      <a class="btn btnGhost" href="/promoters"><i class="fa-solid fa-share-nodes"></i> Promoters</a>
+    </div>
+  </div>
+</aside>

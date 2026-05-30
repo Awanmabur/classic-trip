@@ -1,0 +1,294 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<%
+  const safeAvailability = availability || {};
+  const previewData = preview || {};
+  const currency = previewData.currency || listing.currency || 'UGX';
+  const serviceFee = previewData.serviceFee ?? Math.round((listing.priceFrom || 0) * 0.045 + 3500);
+  const totalEstimate = previewData.totalEstimate ?? ((listing.priceFrom || 0) + serviceFee);
+  const serviceIcon = previewData.serviceIcon || 'fa-ticket';
+  const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 32);
+  const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 12);
+  const firstSeat = previewData.firstSeat || (previewSeats.find(seat => seat.status === 'available') || previewSeats[0] || {}).seatNumber || '';
+  const firstRoom = previewData.firstRoom || (previewRooms.find(room => room.inventory > 0) || previewRooms[0] || {}).id || '';
+  const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || 'Room pending') : (firstSeat || 'Slot S1'));
+  const selectedValue = listing.serviceType === 'hotel' ? firstRoom : firstSeat;
+  const addons = previewData.addons || [];
+  const partnerName = previewData.partnerName || listing.partner || company?.name || 'Classic Trip partner';
+  const supportPhone = previewData.supportPhone || company?.supportPhone || company?.phone || '+256 700 000 000';
+  const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureTime || listing.time || 'Flexible schedule';
+  const ticketAccess = previewData.ticketAccess || 'Email, SMS, WhatsApp';
+  const policy = previewData.policy || (listing.bookable ? 'Instant checkout' : 'Provider teaser');
+  const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
+%>
+<main class="container listingPreviewPage" style="padding:16px 0 30px">
+  <div class="modal open previewModal" id="viewModal">
+    <div class="sheet">
+      <div class="sheetTop">
+        <div>
+          <div class="badge badgeInfo" id="modalType"><i class="fa-solid <%= serviceIcon %>"></i> <%= listing.type || listing.serviceType %></div>
+          <div class="sheetTitle" id="modalTitle"><%= listing.title %></div>
+          <div class="sheetSub" id="modalSub"><%= partnerName %> - <%= listing.from %> to <%= listing.to %> - <%= scheduleLabel %></div>
+        </div>
+        <div class="sheetTopActions">
+          <a class="iconbtn" title="Partner profile" href="/companies/<%= listing.companySlug %>"><i class="fa-solid fa-building"></i></a>
+          <a class="iconbtn" title="Share" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-share-nodes"></i></a>
+          <a class="iconbtn" title="Close preview" href="/search"><i class="fa-solid fa-xmark"></i></a>
+        </div>
+      </div>
+
+      <div class="sheetBody" id="sheetBody">
+        <div class="visual">
+          <div class="visualHero">
+            <img id="modalImg" src="<%= listing.img || listing.media?.[0]?.url %>" alt="<%= listing.title %>">
+            <div class="visualText">
+              <h3 id="modalHeroTitle">View structure</h3>
+              <p id="modalHeroSub"><%= listing.sub || 'Select available seats, rooms, units, or slots before checkout.' %></p>
+            </div>
+          </div>
+
+          <div class="selector">
+            <div class="selectorTop">
+              <div>
+                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your room' : listing.serviceType === 'bus' ? 'Choose your seat' : 'Choose your slot' %></b>
+                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint">Select an available seat, room, or slot before continuing to payment. Taken items cannot be selected.</div>
+              </div>
+              <div class="legend">
+                <span class="leg"><i class="dot free"></i> Available</span>
+                <span class="leg"><i class="dot selected"></i> Selected</span>
+                <span class="leg"><i class="dot hold"></i> Held</span>
+                <span class="leg"><i class="dot taken"></i> Taken</span>
+              </div>
+            </div>
+            <div class="layoutBox" id="layoutBox">
+              <% if (listing.serviceType === 'bus') { %>
+                <div class="vehicleFront">DRIVER - FRONT</div>
+                <% for (let i = 0; i < previewSeats.length; i += 4) { const row = previewSeats.slice(i, i + 4); %>
+                  <div class="seatRow">
+                    <% row.slice(0, 2).forEach((seat, seatIndex) => { const unavailable = seat.status === 'taken' || seat.status === 'locked'; %>
+                      <button class="seat <%= seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : (seat.seatNumber === firstSeat || (i === 0 && seatIndex === 0)) ? 'selected' : '' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.seatNumber %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><%= seat.seatNumber %></button>
+                    <% }) %>
+                    <span class="aisle"></span>
+                    <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked'; %>
+                      <button class="seat <%= seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : '' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.seatNumber %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><%= seat.seatNumber %></button>
+                    <% }) %>
+                  </div>
+                <% } %>
+              <% } else if (listing.serviceType === 'hotel') { %>
+                <div class="vehicleFront">ROOM / HOUSE UNITS</div>
+                <div class="roomGrid">
+                  <% previewRooms.forEach((room, index) => { %>
+                    <button class="room <%= room.inventory <= 0 ? 'taken' : room.id === firstRoom || index === 0 ? 'selected' : '' %>" type="button" data-choice="<%= room.id %>" data-label="<%= room.roomType %>" data-price="<%= room.nightlyPrice || listing.priceFrom %>" onclick="selectPreviewOption(this)" <%= room.inventory <= 0 ? 'disabled' : '' %>><span><%= room.roomType.split(' ')[0] %></span><small><%= room.inventory %> left</small></button>
+                  <% }) %>
+                </div>
+              <% } else { %>
+                <div class="vehicleFront">PROVIDER STRUCTURE PREVIEW</div>
+                <div class="trainGrid">
+                  <% ['S1','S2','S3','S4','S5','S6','S7','S8'].forEach((slot, index) => { %>
+                    <button class="slot <%= index === 0 ? 'selected' : index === 5 ? 'holding' : index === 7 ? 'taken' : '' %>" type="button" data-choice="<%= slot %>" data-label="<%= slot %>" onclick="selectPreviewOption(this)" <%= index === 7 ? 'disabled' : '' %>><%= slot %></button>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidePanel">
+          <div class="summaryCard">
+            <h3>Booking summary</h3>
+            <div class="timer" id="timerBox"><span><i class="fa-regular fa-clock"></i> Hold expires in</span><b id="timer">10:00</b></div>
+            <div class="kv" style="margin-top:10px">
+              <div><span>Selected</span><b id="selectedOut"><%= selectedPreview %></b></div>
+              <div><span>Base price</span><b id="baseOut"><%= money(listing.priceFrom, currency) %></b></div>
+              <div><span>Service fee</span><b id="feeOut"><%= money(serviceFee, currency) %></b></div>
+              <div><span>Add-ons</span><b id="addonOut"><%= money(0, currency) %></b></div>
+              <div><span>Total</span><b id="totalOut"><%= money(totalEstimate, currency) %></b></div>
+            </div>
+          </div>
+
+          <div class="summaryCard">
+            <h3>Addons</h3>
+            <div class="addons" id="addons">
+              <% addons.forEach(addon => { %>
+                <label class="addon"><span><input type="checkbox" value="<%= addon.id %>" data-price="<%= addon.price %>" onchange="togglePreviewAddon()"> <%= addon.name %></span><b><%= money(addon.price, currency) %></b></label>
+              <% }) %>
+            </div>
+          </div>
+
+          <div class="summaryCard">
+            <h3>Partner and rules</h3>
+            <div class="kv">
+              <div><span>Partner</span><b><%= partnerName %></b></div>
+              <div><span>Support</span><b><%= supportPhone %></b></div>
+              <div><span>Ticket access</span><b><%= ticketAccess %></b></div>
+              <div><span>Policy</span><b><%= policy %></b></div>
+            </div>
+            <p class="muted" style="font-weight:800;margin:10px 0 0"><%= listing.cancellationRules || 'Cancellation and refund rules depend on the partner policy, service time, and payment status.' %></p>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+            <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+            <% if (listing.bookable) { %>
+              <button class="btn btnBlue" id="holdButton" type="button" onclick="holdSelection(event)"><i class="fa-solid fa-clock"></i> Hold 10 mins</button>
+              <button class="btn btnPrimary" type="button" onclick="goPaymentPage()"><i class="fa-solid fa-lock"></i> Proceed payment</button>
+            <% } else { %>
+              <a class="btn btnGhost" href="/services"><i class="fa-regular fa-clock"></i> Coming soon</a>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+  let activeHoldId = '';
+  let activeSelection = <%- JSON.stringify(selectedValue || '') %>;
+  let activeSelectionLabel = <%- JSON.stringify(selectedPreview || '') %>;
+  let activeRoomId = <%- JSON.stringify(firstRoom || '') %>;
+  let holdTimerId = null;
+  const previewPricing = {
+    serviceType: <%- JSON.stringify(listing.serviceType) %>,
+    currency: <%- JSON.stringify(currency) %>,
+    basePrice: Number('<%= listing.priceFrom || 0 %>'),
+    scheduleId: <%- JSON.stringify((safeAvailability.schedules || [])[0]?.id || '') %>
+  };
+  const previewAddonOptions = <%- JSON.stringify(addons) %>;
+  function moneyPreview(amount) {
+    return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+  }
+  function selectedButton() {
+    return document.querySelector('[data-choice].selected');
+  }
+  function selectedBasePrice(button) {
+    if (!button) return previewPricing.basePrice;
+    if (button.dataset.price) return Number(button.dataset.price) || previewPricing.basePrice;
+    return previewPricing.basePrice + (Number(button.dataset.priceDelta) || 0);
+  }
+  function activeAddons() {
+    return Array.from(document.querySelectorAll('#addons input:checked')).map((input) => {
+      const catalogItem = previewAddonOptions.find((addon) => addon.id === input.value) || {};
+      return {
+        id: input.value,
+        name: catalogItem.name || input.closest('.addon')?.textContent?.trim() || input.value,
+        price: Number(input.dataset.price || catalogItem.price || 0)
+      };
+    });
+  }
+  function refreshPreviewTotals(button) {
+    const base = selectedBasePrice(button || selectedButton());
+    const fee = Math.round(base * 0.045 + 3500);
+    const addonTotal = activeAddons().reduce((sum, addon) => sum + addon.price, 0);
+    const total = base + fee + addonTotal;
+    document.getElementById('selectedOut').textContent = activeSelectionLabel || activeSelection || 'Select option';
+    document.getElementById('baseOut').textContent = moneyPreview(base);
+    document.getElementById('feeOut').textContent = moneyPreview(fee);
+    document.getElementById('addonOut').textContent = moneyPreview(addonTotal);
+    document.getElementById('totalOut').textContent = moneyPreview(total);
+    return { base, fee, addonTotal, total };
+  }
+  function togglePreviewAddon() {
+    refreshPreviewTotals();
+  }
+  function selectPreviewOption(button) {
+    if (!button || button.disabled) return;
+    document.querySelectorAll('[data-choice]').forEach(item => item.classList.remove('selected'));
+    button.classList.add('selected');
+    activeSelection = button.dataset.choice || '';
+    activeSelectionLabel = button.dataset.label || activeSelection;
+    if (previewPricing.serviceType === 'hotel') activeRoomId = activeSelection;
+    activeHoldId = '';
+    clearInterval(holdTimerId);
+    document.querySelectorAll('[data-choice].holding').forEach(item => item.classList.remove('holding'));
+    const holdButton = document.getElementById('holdButton');
+    if (holdButton) {
+      holdButton.disabled = false;
+      holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
+    }
+    const timer = document.getElementById('timer');
+    if (timer) timer.textContent = '10:00';
+    refreshPreviewTotals(button);
+  }
+  function startHoldTimer(lockedUntil) {
+    clearInterval(holdTimerId);
+    const timer = document.getElementById('timer');
+    const deadline = new Date(lockedUntil || Date.now() + 600000).getTime();
+    function tick() {
+      const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const seconds = String(remaining % 60).padStart(2, '0');
+      if (timer) timer.textContent = `${minutes}:${seconds}`;
+      if (remaining <= 0) {
+        clearInterval(holdTimerId);
+        activeHoldId = '';
+        selectedButton()?.classList.remove('holding');
+        const holdButton = document.getElementById('holdButton');
+        if (holdButton) {
+          holdButton.disabled = false;
+          holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
+        }
+        if (timer) timer.textContent = 'Expired';
+      }
+    }
+    tick();
+    holdTimerId = setInterval(tick, 1000);
+  }
+  async function holdSelection(event) {
+    if (!activeSelection) {
+      alert('Select an available seat, room, or slot first.');
+      return;
+    }
+    const timer = document.getElementById('timer');
+    const holdButton = event?.currentTarget;
+    if (holdButton) {
+      holdButton.disabled = true;
+      holdButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Holding';
+    }
+    try {
+      const response = await fetch('/api/listings/<%= listing.id %>/hold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduleId: previewPricing.scheduleId,
+          selected: previewPricing.serviceType === 'hotel' ? '' : activeSelection,
+          roomId: previewPricing.serviceType === 'hotel' ? activeRoomId : ''
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to hold selection');
+      activeHoldId = result.hold.id;
+      selectedButton()?.classList.add('holding');
+      startHoldTimer(result.hold.lockedUntil);
+      if (holdButton) holdButton.innerHTML = '<i class="fa-solid fa-check"></i> Held 10 mins';
+    } catch (error) {
+      if (timer) timer.textContent = 'Failed';
+      if (holdButton) {
+        holdButton.disabled = false;
+        holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
+      }
+      alert(error.message);
+    }
+  }
+  function goPaymentPage() {
+    const params = new URLSearchParams();
+    const ref = <%- JSON.stringify(referralCode || '') %>;
+    const selected = previewPricing.serviceType === 'hotel' ? '' : activeSelection;
+    const roomId = previewPricing.serviceType === 'hotel' ? activeRoomId : '';
+    const scheduleId = previewPricing.scheduleId;
+    if (!activeSelection) {
+      alert('Select an available option first.');
+      return;
+    }
+    if (ref) params.set('ref', ref);
+    if (activeHoldId) params.set('holdId', activeHoldId);
+    if (scheduleId) params.set('scheduleId', scheduleId);
+    if (roomId) params.set('roomId', roomId);
+    if (selected) params.set('selected', selected);
+    const totals = refreshPreviewTotals();
+    params.set('total', String(totals.total));
+    activeAddons().forEach((addon) => params.append('addons', addon.id));
+    const query = params.toString();
+    window.location.href = `/book/<%= listing.serviceType %>/<%= listing.slug %>${query ? '?' + query : ''}`;
+  }
+  refreshPreviewTotals();
+</script>
+<%- include('../partials/site-footer') %>
