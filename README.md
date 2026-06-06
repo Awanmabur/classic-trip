@@ -19,6 +19,7 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
   - `/booking/success/:bookingRef`
   - `/tickets` guest ticket lookup
   - `/tickets/:bookingRef`
+  - `/tickets/:bookingRef.pdf`
   - `/blogs`
   - `/health`
 - Role dashboard routes using the uploaded visual prototypes:
@@ -32,14 +33,16 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
 - Mongoose model files for all major blueprint entities.
 - Cloudinary upload service with production folder targets for company logos, covers, documents, listing images, blogs and tickets.
 - Google OAuth wiring with Passport Google OAuth 2.0. It is disabled until Google environment variables are set.
-- Guest checkout with mock payment, booking reference, QR ticket value and one-time scanner validation.
+- Guest checkout with mock payment, booking reference, QR ticket value, downloadable PDF ticket and one-time scanner validation.
+- Notification adapters for SMTP email plus HTTP SMS/WhatsApp providers, with safe queued fallback when provider credentials are not configured.
 - Wallet, ledger and commission split logic:
   - With valid promoter referral: promoter 3%, platform 7%, company 90%.
   - Without referral: platform 10%, company 90%.
 - Seat lock and room reservation services for temporary holds.
 - Promotion/sponsored listing logic where sponsored listings remain visibly labeled.
-- Jobs placeholders for commission release, promotion expiry, booking reminders, expired locks and payout reports.
-- Test stubs for commission and booking flow.
+- Scheduled jobs for commission release, promotion expiry, booking reminders, expired locks and payout reports. They run in production or when `ENABLE_JOBS=true`.
+- Release roadmap API for v1, teaser, architecture-ready, and future platform features.
+- Integration and unit coverage for booking flow, commission splits, company management, platform hardening, scheduled jobs, ticket PDFs, webhooks and promoter link archive behavior.
 
 ## First run
 
@@ -94,8 +97,17 @@ Real production values are required for:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_CALLBACK_URL`
+- `SMS_API_URL`
+- `SMS_API_TOKEN`
+- `WHATSAPP_API_URL`
+- `WHATSAPP_API_TOKEN`
+- `ENABLE_JOBS`
 - Real payment provider keys when replacing the mock provider.
 
-## Build order continued from here
+Production ticket PDFs are generated with PDFKit at `/tickets/:bookingRef.pdf`. Cloudinary upload support is available in the PDF service once Cloudinary credentials are configured.
 
-The package starts with the platform foundation, preserved design, expanded data and all core modules. The next continuation should connect the dashboard tables/forms to the dynamic store and then move from the in-memory demo store to Mongo-backed CRUD screens, starting with company listing management, company verification and real Cloudinary uploads.
+## Current implementation status
+
+The audited blueprint gaps have been completed through the current Express/EJS architecture. Dashboard forms now persist through backend services, support and partner onboarding are wired, refunds reverse ledger entries, scheduled jobs do real work, payment adapters are configurable, and ticket PDFs are generated locally with Cloudinary upload support when production credentials are present.
+
+See `FINAL_CHANGE_REPORT.md` for the full implementation summary and verification results.

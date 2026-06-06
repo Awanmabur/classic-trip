@@ -1,0 +1,37 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeInfo"><i class="fa-solid fa-credit-card"></i> Company billing</span>
+    <h1 class="heroTitle"><%= company?.name || 'Company' %> plan and upgrades.</h1>
+    <p class="heroSub">Review your active plan, choose an upgrade, and pay through the same secure checkout used during onboarding.</p>
+    <% if (billing.subscription) { %>
+      <div class="metricRow" style="margin-top:14px">
+        <div class="stat"><b><%= billing.subscription.planName %></b><span>Current plan</span></div>
+        <div class="stat"><b><%= billing.subscription.status %></b><span>Status</span></div>
+        <div class="stat"><b><%= new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() %></b><span>Period end</span></div>
+      </div>
+    <% } else { %>
+      <div class="notice" style="margin-top:14px">No active plan yet. Select a plan below to activate billing.</div>
+    <% } %>
+  </section>
+
+  <section class="gridCards" style="margin-top:14px">
+    <% billing.plans.forEach(plan => { const active = billing.subscription?.planId === plan.id; %>
+      <article class="listing" style="padding:16px;display:flex;flex-direction:column;gap:12px;border-color:<%= active ? 'rgba(61,220,151,.65)' : plan.recommended ? 'rgba(79,140,255,.55)' : '' %>">
+        <div>
+          <span class="badge <%= active ? 'badgeOk' : plan.recommended ? 'badgeInfo' : 'badgeInfo' %>"><i class="fa-solid <%= active ? 'fa-circle-check' : 'fa-layer-group' %>"></i> <%= active ? 'Active' : plan.badge %></span>
+          <h2 style="margin:12px 0 4px"><%= plan.name %></h2>
+          <p class="muted" style="margin:0"><%= plan.tagline %></p>
+        </div>
+        <div class="price"><%= money(plan.amount, plan.currency) %><span style="font-size:13px;color:var(--muted)"> / <%= plan.interval %></span></div>
+        <form action="/company/billing/upgrade" method="post" style="margin-top:auto">
+          <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+          <input type="hidden" name="planId" value="<%= plan.id %>">
+          <button class="btn <%= active ? 'btnGhost' : 'btnPrimary' %>" type="submit" <%= active ? 'disabled' : '' %>><i class="fa-solid fa-lock"></i> <%= active ? 'Current plan' : 'Upgrade to ' + plan.name %></button>
+        </form>
+      </article>
+    <% }) %>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

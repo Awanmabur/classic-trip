@@ -1,0 +1,36 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="card heroCard">
+    <span class="badge badgeInfo"><i class="fa-solid fa-layer-group"></i> Partner plans</span>
+    <h1 class="heroTitle">Select a plan, onboard your company, and continue straight to payment.</h1>
+    <p class="heroSub">Every plan includes partner dashboard access, secure payment collection, ticket workflows, staff tools, support cases, and payout reporting.</p>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnPrimary" href="/partner/onboarding?plan=<%= selectedPlanId %>"><i class="fa-solid fa-arrow-right"></i> Start onboarding</a>
+      <a class="btn btnGhost" href="/company/billing"><i class="fa-solid fa-building"></i> Upgrade existing company</a>
+    </div>
+  </section>
+
+  <section class="gridCards" style="margin-top:14px">
+    <% plans.forEach(plan => { %>
+      <article class="listing" style="padding:16px;display:flex;flex-direction:column;gap:12px;border-color:<%= plan.recommended ? 'rgba(79,140,255,.55)' : '' %>">
+        <div>
+          <span class="badge <%= plan.recommended ? 'badgeOk' : 'badgeInfo' %>"><i class="fa-solid <%= plan.recommended ? 'fa-star' : 'fa-circle-check' %>"></i> <%= plan.badge %></span>
+          <h2 style="margin:12px 0 4px"><%= plan.name %></h2>
+          <p class="muted" style="margin:0"><%= plan.tagline %></p>
+        </div>
+        <div class="price"><%= money(plan.amount, plan.currency) %><span style="font-size:13px;color:var(--muted)"> / <%= plan.interval %></span></div>
+        <div class="kv">
+          <div><span>Listings</span><b><%= plan.limits.listings || 'Unlimited' %></b></div>
+          <div><span>Staff</span><b><%= plan.limits.staff || 'Unlimited' %></b></div>
+          <div><span>Campaigns</span><b><%= plan.limits.campaigns || 'Unlimited' %></b></div>
+        </div>
+        <ul class="muted" style="margin:0;padding-left:18px;font-weight:800;line-height:1.8">
+          <% plan.features.forEach(feature => { %><li><%= feature %></li><% }) %>
+        </ul>
+        <a class="btn <%= plan.recommended ? 'btnPrimary' : 'btnGhost' %>" href="/partner/onboarding?plan=<%= plan.id %>" style="margin-top:auto"><i class="fa-solid fa-lock"></i> Choose <%= plan.name %></a>
+      </article>
+    <% }) %>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

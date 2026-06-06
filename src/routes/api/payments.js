@@ -1,8 +1,11 @@
 const express = require('express');
 const paymentController = require('../../controllers/api/paymentController');
+const paymentService = require('../../services/payment/paymentService');
 const { paymentLimiter } = require('../../middlewares/rateLimit');
+const { paymentRules } = require('../../validators/paymentValidator');
+const { validateRequest } = require('../../middlewares/validate');
 const router = express.Router();
-router.get('/providers', (req, res) => res.json({ providers: ['mock', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'], active: 'mock' }));
-router.post('/initiate', paymentLimiter, paymentController.initiate);
-router.post('/mock/checkout', paymentLimiter, paymentController.initiate);
+router.get('/providers', (req, res) => res.json({ providers: paymentService.providerSummary() }));
+router.post('/initiate', paymentLimiter, paymentRules, validateRequest, paymentController.initiate);
+router.post('/mock/checkout', paymentLimiter, paymentRules, validateRequest, paymentController.initiate);
 module.exports = router;

@@ -11,4 +11,13 @@ function approveRefund(req, res, next) {
   }
 }
 
-module.exports = { list, approveRefund };
+function rejectRefund(req, res, next) {
+  try {
+    workflowService.rejectRefund(req.params.id, req.session?.user?.id || 'admin-system', req.body.reason || 'Rejected by admin review');
+    res.redirect('/admin/refunds');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { list, approveRefund, rejectRefund };

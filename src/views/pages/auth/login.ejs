@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Login, Signup, Partner & Support</title>
   <meta name="description" content="Classic Trip login, signup, partner onboarding and support pages for customers, promoters, partners and company admins." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js" defer></script>
   <style>
     :root{
       --container:min(1160px,92%);
@@ -223,18 +225,18 @@
             </div>
           </div>
           <div class="formCard" style="margin-top:12px">
-            <form class="form active" id="partnerForm">
+            <form class="form active" id="partnerForm" action="/partner-requests" method="post">
               <div class="row2">
-                <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input placeholder="Company / brand name" required></div></div>
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select required><option>Bus company</option><option>Hotel / apartment</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option><option>Ferry / boat</option></select></div></div>
+                <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Company / brand name" required></div></div>
+                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select name="companyType" required><option>Bus company</option><option>Hotel / apartment</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option><option>Ferry / boat</option></select></div></div>
               </div>
               <div class="row2">
-                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
-                <div class="field"><label>Contact person</label><div class="control"><i class="fa-regular fa-user"></i><input placeholder="Manager name" required></div></div>
+                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
+                <div class="field"><label>Contact person</label><div class="control"><i class="fa-regular fa-user"></i><input name="contactName" placeholder="Manager name" required></div></div>
               </div>
               <div class="row2">
-                <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" placeholder="Business email" required></div></div>
-                <div class="field"><label>WhatsApp phone</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input placeholder="WhatsApp number" required></div></div>
+                <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input name="email" type="email" placeholder="Business email" required></div></div>
+                <div class="field"><label>WhatsApp phone</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" placeholder="WhatsApp number" required></div></div>
               </div>
               <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Request partner access</button>
             </form>
@@ -255,16 +257,16 @@
               <button class="supportTile" type="button"><i class="fa-solid fa-receipt"></i>Payment issue<span>Receipts, refunds and failed payments</span></button>
               <button class="supportTile" type="button"><i class="fa-solid fa-building"></i>Partner help<span>Listings, staff and dashboards</span></button>
             </div>
-            <form class="form active" id="supportForm">
+            <form class="form active" id="supportForm" action="/support" method="post">
               <div class="row2">
-                <div class="field"><label>Name</label><div class="control"><i class="fa-regular fa-user"></i><input placeholder="Your name" required></div></div>
-                <div class="field"><label>Email or phone</label><div class="control"><i class="fa-regular fa-envelope"></i><input placeholder="Email / WhatsApp" required></div></div>
+                <div class="field"><label>Name</label><div class="control"><i class="fa-regular fa-user"></i><input name="name" placeholder="Your name" required></div></div>
+                <div class="field"><label>Email or phone</label><div class="control"><i class="fa-regular fa-envelope"></i><input name="contact" placeholder="Email / WhatsApp" required></div></div>
               </div>
               <div class="row2">
-                <div class="field"><label>Topic</label><div class="control"><i class="fa-solid fa-circle-question"></i><select><option>Booking support</option><option>Payment / receipt</option><option>Refund / cancellation</option><option>Promoter commission</option><option>Partner onboarding</option><option>Technical issue</option></select></div></div>
-                <div class="field"><label>Booking reference</label><div class="control"><i class="fa-solid fa-hashtag"></i><input placeholder="Optional ticket ID"></div></div>
+                <div class="field"><label>Topic</label><div class="control"><i class="fa-solid fa-circle-question"></i><select name="category"><option>Booking support</option><option>Payment / receipt</option><option>Refund / cancellation</option><option>Promoter commission</option><option>Partner onboarding</option><option>Technical issue</option></select></div></div>
+                <div class="field"><label>Booking reference</label><div class="control"><i class="fa-solid fa-hashtag"></i><input name="bookingRef" placeholder="Optional ticket ID"></div></div>
               </div>
-              <div class="field"><label>Message</label><div class="control" style="height:auto;border-radius:22px;padding:12px 14px;align-items:flex-start"><i class="fa-regular fa-message" style="margin-top:4px"></i><input placeholder="Briefly explain the issue" required></div></div>
+              <div class="field"><label>Message</label><div class="control" style="height:auto;border-radius:22px;padding:12px 14px;align-items:flex-start"><i class="fa-regular fa-message" style="margin-top:4px"></i><input name="message" placeholder="Briefly explain the issue" required></div></div>
               <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Send support request</button>
             </form>
           </div>
@@ -277,8 +279,8 @@
 
         <div class="panel" id="forgotPanel">
           <div class="formCard">
-            <form class="form active" id="forgotForm">
-              <div class="field"><label>Recover your account</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="text" placeholder="Email or phone number" required></div></div>
+            <form class="form active" id="forgotForm" action="/forgot-password" method="post">
+              <div class="field"><label>Recover your account</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone number" required></div></div>
               <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Send reset link</button>
               <button class="social" type="button" data-open-panel="login"><i class="fa-solid fa-arrow-left"></i>Back to login</button>
             </form>
@@ -363,7 +365,7 @@
     }));
 
     document.querySelectorAll('form').forEach(form => form.addEventListener('submit', (e)=>{
-      if(form.id === 'loginForm' || form.id === 'signupForm') return;
+      if(['loginForm','signupForm','partnerForm','supportForm','forgotForm'].includes(form.id)) return;
       e.preventDefault();
       successBox.classList.add('show');
       showToast('Saved. Backend authentication is connected.');

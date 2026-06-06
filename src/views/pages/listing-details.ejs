@@ -153,6 +153,14 @@
     scheduleId: <%- JSON.stringify((safeAvailability.schedules || [])[0]?.id || '') %>
   };
   const previewAddonOptions = <%- JSON.stringify(addons) %>;
+  function notify(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(window.__listingToast);
+    window.__listingToast = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
   function moneyPreview(amount) {
     return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
   }
@@ -234,7 +242,7 @@
   }
   async function holdSelection(event) {
     if (!activeSelection) {
-      alert('Select an available seat, room, or slot first.');
+      notify('Select an available seat, room, or slot first.');
       return;
     }
     const timer = document.getElementById('timer');
@@ -265,7 +273,7 @@
         holdButton.disabled = false;
         holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
       }
-      alert(error.message);
+      notify(error.message);
     }
   }
   function goPaymentPage() {
@@ -275,7 +283,7 @@
     const roomId = previewPricing.serviceType === 'hotel' ? activeRoomId : '';
     const scheduleId = previewPricing.scheduleId;
     if (!activeSelection) {
-      alert('Select an available option first.');
+      notify('Select an available option first.');
       return;
     }
     if (ref) params.set('ref', ref);

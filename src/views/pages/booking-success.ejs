@@ -16,7 +16,7 @@
       <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
       <div class="ticketLine"><span>Selected</span><b><%= passenger.seatOrRoom || 'Selected inventory' %></b></div>
       <div class="ticketLine"><span>Total paid</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
-      <div class="actions"><a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-ticket"></i> Open ticket</a><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> My bookings</a></div>
+      <div class="actions"><a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-ticket"></i> Open ticket</a><a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> My bookings</a></div>
     </div>
     <aside class="ticketPaper">
       <h3 style="margin:0">QR preview</h3>

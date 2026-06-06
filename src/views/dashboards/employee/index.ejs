@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Company Employee Dashboard</title>
   <meta name="description" content="Classic Trip Company Employee Dashboard for ticket checkers, booking agents, hotel receptionists, finance staff, and route managers." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js" defer></script>
   <script src="/js/employee-qr-scanner.js" defer></script>
 
   <style>
@@ -1487,7 +1489,7 @@
         <div class="deleteBox">
           <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
           <strong id="deleteText">Are you sure you want to delete this record?</strong>
-          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In the real system, this should require permissions and create an audit log entry.</p>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Only permitted staff can delete records; the action is recorded in the audit trail.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" data-close-modal>Cancel</button>
             <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -1675,7 +1677,6 @@
         const rowActions = Array.isArray(meta?.actions) ? meta.actions : [];
         const viewBtn = `<button class="tinyBtn" data-modal="view" data-type="${safeLabel}"${detailAttr} title="View full record"><i class="fa-regular fa-eye"></i></button>`;
         const exportBtn = rowJson ? `<button class="tinyBtn" data-export-row="${rowJson}" data-export-name="${safeLabel}" title="Export this row as PDF"><i class="fa-solid fa-file-pdf"></i></button>` : '';
-        const disabled = (reason) => `<button class="tinyBtn" type="button" disabled title="${escapeHtml(reason)}"><i class="fa-solid fa-lock"></i></button>`;
 
         if(meta?.entity === 'checkin' || meta?.entity === 'booking'){
           const checked = status === 'checked_in' || status === 'completed';
@@ -1722,9 +1723,9 @@
           return `<div class="rowActions">${viewBtn}<button class="tinyBtn" data-modal="edit" data-type="seat or room" title="Update seat or room"><i class="fa-solid fa-chair"></i></button>${exportBtn}</div>`;
         }
         if(rowActions.length && !rowActions.includes('edit')){
-          return `<div class="rowActions">${viewBtn}${exportBtn}${disabled('No direct action is available for this record in the employee role')}</div>`;
+          return `<div class="rowActions">${viewBtn}${exportBtn}</div>`;
         }
-        return `<div class="rowActions">${viewBtn}${exportBtn}${disabled('Action hidden until a safe backend endpoint exists')}</div>`;
+        return `<div class="rowActions">${viewBtn}${exportBtn}</div>`;
       }
 
       function emptyRow(cols, text='No matching records found'){

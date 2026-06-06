@@ -32,7 +32,7 @@ async function create(req, res, next) {
       throw error;
     }
     const bookingRef = cleanText(req.body.bookingRef || '').replace(/^#/, '');
-    const booking = bookingRef ? store.findBookingByAny(bookingRef) : null;
+    const booking = bookingRef ? store.findBooking(bookingRef) : null;
     const ticket = {
       id: nextId('support', store.state.supportTickets),
       ownerType: 'customer',

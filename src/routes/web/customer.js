@@ -4,9 +4,13 @@ const bookingController = require('../../controllers/customer/bookingController'
 const refundController = require('../../controllers/customer/refundController');
 const profileController = require('../../controllers/customer/profileController');
 const reviewController = require('../../controllers/customer/reviewController');
+const actionController = require('../../controllers/customer/actionController');
+const supportController = require('../../controllers/customer/supportController');
 const reportController = require('../../controllers/reportController');
 const { requireAuth } = require('../../middlewares/auth');
 const { requireRole } = require('../../middlewares/roles');
+const { supportRules } = require('../../validators/supportValidator');
+const { validateRequest } = require('../../middlewares/validate');
 const router = express.Router();
 
 router.use('/account', requireAuth, requireRole('customer', 'super_admin'));
@@ -17,7 +21,12 @@ router.get('/account/profile', dashboardController.index);
 router.get('/account/reports/:type.csv', reportController.customer);
 router.post('/account/bookings/:bookingRef/cancel', bookingController.cancel);
 router.post('/account/refunds', refundController.requestRefund);
+router.post('/account/support', supportRules, validateRequest, supportController.create);
 router.post('/account/profile', profileController.update);
 router.post('/account/reviews', reviewController.create);
+router.post('/account/saved', actionController.saveTrip);
+router.post('/account/wallet/top-up', actionController.topUpWallet);
+router.post('/account/promoter', actionController.becomePromoter);
+router.post('/account/security', actionController.updateSecurity);
 
 module.exports = router;

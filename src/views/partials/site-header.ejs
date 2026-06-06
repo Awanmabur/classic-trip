@@ -7,6 +7,7 @@
       <a href="/routes" class="<%= currentPath.startsWith('/routes') ? 'active' : '' %>">Routes</a>
       <a href="/services" class="<%= currentPath.startsWith('/services') ? 'active' : '' %>">Services</a>
       <a href="/companies" class="<%= currentPath.startsWith('/companies') ? 'active' : '' %>">Partners</a>
+      <a href="/pricing" class="<%= currentPath.startsWith('/pricing') || currentPath.startsWith('/partner/onboarding') || currentPath.startsWith('/billing') ? 'active' : '' %>">Plans</a>
       <a href="/promoters" class="<%= currentPath.startsWith('/promoters') || currentPath.startsWith('/promoter-program') ? 'active' : '' %>">Promoters</a>
       <a href="/tickets" class="<%= currentPath.startsWith('/tickets') ? 'active' : '' %>">Tickets</a>
       <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>">Guides</a>
@@ -17,7 +18,7 @@
       <% } else { %>
         <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i>Login</a>
       <% } %>
-      <a class="btn btnPrimary" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i>Book now</a>
+      <a class="btn btnPrimary" href="/pricing"><i class="fa-solid fa-store"></i>Start selling</a>
     </div>
   </div>
 </nav>

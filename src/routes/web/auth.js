@@ -4,13 +4,18 @@ const google = require('../../config/google');
 const authController = require('../../controllers/auth/authController');
 const googleController = require('../../controllers/auth/googleController');
 const { authLimiter } = require('../../middlewares/rateLimit');
+const { loginRules, registerRules } = require('../../validators/authValidator');
+const { validateRequest } = require('../../middlewares/validate');
 
 const router = express.Router();
 
 router.get('/login', authController.showLogin);
 router.get('/register', authController.showLogin);
-router.post('/login', authLimiter, authController.login);
-router.post('/register', authLimiter, authController.register);
+router.post('/login', authLimiter, loginRules, validateRequest, authController.login);
+router.post('/register', authLimiter, registerRules, validateRequest, authController.register);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.get('/reset-password/:token', authController.showResetPassword);
+router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post('/logout', authController.logout);
 router.get('/logout', authController.logout);
 

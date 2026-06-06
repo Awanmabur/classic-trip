@@ -1,0 +1,64 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container paymentPage" style="padding:16px 0 30px">
+  <section class="sheet">
+    <div class="sheetTop">
+      <div>
+        <div class="badge badgeOk"><i class="fa-solid fa-lock"></i> Plan payment</div>
+        <div class="sheetTitle">Pay for <%= order.companyName %> <%= order.planName %>.</div>
+        <div class="sheetSub">Order <%= order.orderRef %> is tied to your partner onboarding or upgrade.</div>
+      </div>
+      <a class="iconbtn" href="/pricing" title="Plans"><i class="fa-solid fa-layer-group"></i></a>
+    </div>
+
+    <div class="checkoutStep active paymentOnlyStep">
+      <div class="summaryCard">
+        <h3>Order summary</h3>
+        <div class="kv">
+          <div><span>Company</span><b><%= company?.name || order.companyName %></b></div>
+          <div><span>Plan</span><b><%= plan.name %></b></div>
+          <div><span>Billing</span><b><%= plan.interval %></b></div>
+          <div><span>Status</span><b><%= order.paymentStatus %></b></div>
+          <div><span>Total</span><b><%= money(order.amount, order.currency) %></b></div>
+        </div>
+        <ul class="muted" style="margin:12px 0 0;padding-left:18px;font-weight:800;line-height:1.8">
+          <% plan.features.forEach(feature => { %><li><%= feature %></li><% }) %>
+        </ul>
+      </div>
+
+      <div class="summaryCard">
+        <h3>Payment method</h3>
+        <% if (order.paymentStatus === 'successful') { %>
+          <div class="notice">This order is already paid and the plan is active.</div>
+          <div style="display:flex;justify-content:flex-end;margin-top:12px">
+            <a class="btn btnPrimary" href="/billing/success/<%= order.orderRef %>"><i class="fa-solid fa-circle-check"></i> View success</a>
+          </div>
+        <% } else { %>
+          <form action="/billing/checkout/<%= order.orderRef %>/pay" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+            <div class="bookingForm">
+              <select class="full" name="provider">
+                <% providers.forEach(item => { %>
+                  <option value="<%= item.provider %>" <%= item.provider === defaultProvider ? 'selected' : '' %>><%= item.provider %><%= item.configured ? '' : ' (configure env)' %></option>
+                <% }) %>
+              </select>
+              <select class="full" name="paymentMethod">
+                <option>Mobile Money</option>
+                <option>Card</option>
+                <option>Bank transfer</option>
+                <option>Wallet</option>
+              </select>
+              <input class="full" name="paymentReference" placeholder="Phone number, card reference, or account ID">
+            </div>
+            <p class="muted" style="font-size:12px;font-weight:800">Mock provider confirms immediately for development. External providers return pending until a signed webhook confirms payment.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
+              <a class="btn btnGhost" href="/partner/onboarding?plan=<%= order.planId %>"><i class="fa-solid fa-arrow-left"></i> Edit details</a>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Pay <%= money(order.amount, order.currency) %></button>
+            </div>
+          </form>
+        <% } %>
+      </div>
+    </div>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

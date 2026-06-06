@@ -72,7 +72,10 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
   const bookingRef = payload.bookingRef || payload.reference || payload.meta?.bookingRef;
   const booking = store.findBooking(bookingRef);
   if (!booking) {
-    const error = new Error('Booking not found for payment webhook');
+    const billingService = require('../billing/billingService');
+    const billingResult = await billingService.processPaymentWebhook(payload);
+    if (billingResult) return billingResult;
+    const error = new Error('Booking or subscription order not found for payment webhook');
     error.status = 404;
     throw error;
   }
@@ -103,6 +106,7 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
   if (status === 'successful' && ['draft', 'pending'].includes(booking.bookingStatus)) booking.bookingStatus = 'confirmed';
   if (status === 'failed') booking.bookingStatus = 'cancelled';
   if (status === 'refunded') booking.bookingStatus = 'refunded';
+  if (status === 'successful') store.settleBookingPayment(booking.bookingRef);
 
   await persistPaymentAndBooking(payment, booking);
   await notificationService.paymentUpdated(booking, payment);

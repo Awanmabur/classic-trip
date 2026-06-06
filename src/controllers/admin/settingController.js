@@ -1,2 +1,7 @@
-function update(req, res) { res.redirect('/admin/settings'); }
+const actionController = require('./actionController');
+
+function update(req, res, next) {
+  return actionController.updateFinanceRules(req, res, next);
+}
+
 module.exports = { update };

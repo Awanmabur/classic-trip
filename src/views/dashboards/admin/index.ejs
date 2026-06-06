@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Super Admin Dashboard</title>
   <meta name="description" content="Classic Trip Super Admin Dashboard for platform bookings, partners, inventory, payments, analytics, reports, ads, support, and settings." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js" defer></script>
 
   <style>
     :root{
@@ -1512,7 +1514,7 @@
 
       <section class="section" id="customers"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Customers</h3><p>View customer booking history, receipts, saved items, refunds, and support activity.</p></div><button class="btn" data-modal="create" data-type="customer note"><i class="fa-solid fa-user-plus"></i> Add note</button></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Email / phone</th><th>Bookings</th><th>Spent</th><th>Last activity</th><th>Status</th><th></th></tr></thead><tbody id="customersTable"></tbody></table></div></div></section>
 
-      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select><option>Customers</option><option>Partners</option><option>Promoters</option><option>Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select><option>Normal</option><option>High</option><option>Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea placeholder="Write notice message..."></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div></div></section>
+      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="/admin/notices"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div></div></section>
 
       <section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
 
@@ -1523,12 +1525,12 @@
             <button class="btn btnBlue" data-modal="create" data-type="custom report"><i class="fa-solid fa-file-circle-plus"></i> Custom report</button>
           </div>
           <div class="reportGrid">
-            <article class="reportCard"><span class="badge ok">Ready</span><h4>Finance report</h4><p>Payments, payouts, commissions, refunds, platform fees, and settlement balances.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
-            <article class="reportCard"><span class="badge info">Ready</span><h4>Partner report</h4><p>Company performance by category, country, route, listing inventory, and payout health.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
-            <article class="reportCard"><span class="badge warn">Review</span><h4>Promoter report</h4><p>Referral sales, suspicious clicks, conversion rate, commission, and withdrawal history.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
-            <article class="reportCard"><span class="badge ok">Ready</span><h4>Bookings report</h4><p>Confirmed, held, cancelled, refunded, unpaid, Gmail-sent, and WhatsApp-sent bookings.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
-            <article class="reportCard"><span class="badge info">Ready</span><h4>Ads report</h4><p>Boost spend, impressions, clicks, bookings, ROAS, and partner promotion performance.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
-            <article class="reportCard"><span class="badge bad">Urgent</span><h4>Disputes report</h4><p>Open support cases, refunds, failed payment disputes, partner issues, and SLA tracking.</p><button class="btn btnBlue"><i class="fa-solid fa-download"></i> Download</button></article>
+            <article class="reportCard"><span class="badge ok">Ready</span><h4>Finance report</h4><p>Payments, payouts, commissions, refunds, platform fees, and settlement balances.</p><a class="btn btnBlue" href="/admin/reports/payments.csv"><i class="fa-solid fa-download"></i> Download</a></article>
+            <article class="reportCard"><span class="badge info">Ready</span><h4>Partner report</h4><p>Company performance by category, country, route, listing inventory, and payout health.</p><a class="btn btnBlue" href="/admin/reports/partners.csv"><i class="fa-solid fa-download"></i> Download</a></article>
+            <article class="reportCard"><span class="badge warn">Review</span><h4>Promoter report</h4><p>Referral sales, suspicious clicks, conversion rate, commission, and withdrawal history.</p><a class="btn btnBlue" href="/admin/reports/promoters.csv"><i class="fa-solid fa-download"></i> Download</a></article>
+            <article class="reportCard"><span class="badge ok">Ready</span><h4>Bookings report</h4><p>Confirmed, held, cancelled, refunded, unpaid, Gmail-sent, and WhatsApp-sent bookings.</p><a class="btn btnBlue" href="/admin/reports/bookings.csv"><i class="fa-solid fa-download"></i> Download</a></article>
+            <article class="reportCard"><span class="badge info">Ready</span><h4>Ads report</h4><p>Boost spend, impressions, clicks, bookings, ROAS, and partner promotion performance.</p><a class="btn btnBlue" href="/admin/reports/promotions.csv"><i class="fa-solid fa-download"></i> Download</a></article>
+            <article class="reportCard"><span class="badge bad">Urgent</span><h4>Disputes report</h4><p>Open support cases, refunds, failed payment disputes, partner issues, and SLA tracking.</p><a class="btn btnBlue" href="/admin/reports/support.csv"><i class="fa-solid fa-download"></i> Download</a></article>
           </div>
         </div>
       </section>
@@ -1546,7 +1548,7 @@
 
       <section class="section" id="system"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>System health</h3><p>Monitor API, database, payment gateway, ticket delivery, queues, and background jobs.</p></div><span class="badge ok"><i class="fa-solid fa-circle-check"></i> Healthy</span></div><div class="metricList"><div class="metricRow"><div><strong>Booking API</strong><span>Average response 118ms</span></div><b class="badge ok">Online</b></div><div class="metricRow"><div><strong>Payment webhook</strong><span>Last event 2 minutes ago</span></div><b class="badge ok">Online</b></div><div class="metricRow"><div><strong>Ticket delivery queue</strong><span>7 jobs waiting</span></div><b class="badge warn">Busy</b></div><div class="metricRow"><div><strong>Database replicas</strong><span>All replicas synchronized</span></div><b class="badge ok">Online</b></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Operational checklist</h3><p>Daily super admin checks.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Failed payments reviewed</span><span class="badge warn">4 left</span></div></div><div class="splitItem"><div class="splitTop"><span>Pending payouts checked</span><span class="badge ok">Done</span></div></div><div class="splitItem"><div class="splitTop"><span>New partners verified</span><span class="badge warn">18 left</span></div></div><div class="splitItem"><div class="splitTop"><span>Critical support tickets</span><span class="badge bad">11 open</span></div></div></div></div></div></section>
 
-      <section class="section" id="settings"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Platform settings</h3><p>Global marketplace configuration.</p></div></div><form class="formPanel" id="settingsForm"><div class="formGrid"><div class="field"><label>Platform fee</label><div class="control"><i class="fa-solid fa-percent"></i><input value="7%" /></div></div><div class="field"><label>Promoter commission</label><div class="control"><i class="fa-solid fa-percent"></i><input value="3%" /></div></div><div class="field"><label>Hold timer</label><div class="control"><i class="fa-regular fa-clock"></i><input value="10 minutes" /></div></div><div class="field"><label>Default currency</label><div class="control"><i class="fa-solid fa-coins"></i><select><option>UGX</option><option>KES</option><option>RWF</option><option>TZS</option><option>USD</option></select></div></div><div class="field full"><label>Support message</label><div class="control"><textarea>Classic Trip support is available for tickets, payments, refunds, partner onboarding, and promoter payouts.</textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save settings</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Security controls</h3><p>Admin and platform protection settings.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Admin 2FA</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Partner KYC required</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Suspicious payout hold</span><span class="badge warn">Manual review</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log</span><span class="badge info">Active</span></div></div></div></div></div></section>
+      <section class="section" id="settings"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Platform settings</h3><p>Global marketplace configuration.</p></div></div><form class="formPanel" id="settingsForm" method="POST" action="/admin/settings"><div class="formGrid"><div class="field"><label>Platform fee</label><div class="control"><i class="fa-solid fa-percent"></i><input name="platformFeePercent" value="7" /></div></div><div class="field"><label>Promoter commission</label><div class="control"><i class="fa-solid fa-percent"></i><input name="promoterCommissionPercent" value="3" /></div></div><div class="field"><label>Hold timer</label><div class="control"><i class="fa-regular fa-clock"></i><input name="holdMinutes" value="10" /></div></div><div class="field"><label>Default currency</label><div class="control"><i class="fa-solid fa-coins"></i><select name="defaultCurrency"><option>UGX</option><option>KES</option><option>RWF</option><option>TZS</option><option>USD</option></select></div></div><div class="field full"><label>Support message</label><div class="control"><textarea name="supportMessage">Classic Trip support is available for tickets, payments, refunds, partner onboarding, and promoter payouts.</textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save settings</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Security controls</h3><p>Admin and platform protection settings.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Admin 2FA</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Partner KYC required</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Suspicious payout hold</span><span class="badge warn">Manual review</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log</span><span class="badge info">Active</span></div></div></div></div></div></section>
     </main>
   </div>
 
@@ -1583,7 +1585,7 @@
         <div class="deleteBox">
           <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
           <strong id="deleteText">Are you sure you want to delete this record?</strong>
-          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In the real system, this should either soft-delete the record or require admin confirmation with audit logs.</p>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Soft delete keeps the record recoverable and writes the action to audit logs.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" data-close-modal>Cancel</button>
             <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -1829,7 +1831,6 @@ window.addEventListener('DOMContentLoaded', function () {
       <button class="tinyBtn" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
       <button class="tinyBtn" data-copy-value="${safeLabel}" title="Copy reference"><i class="fa-regular fa-copy"></i></button>
       <button class="tinyBtn" data-export-row="${safeType}" data-label="${safeLabel}"${detailAttr} title="Export row"><i class="fa-solid fa-file-export"></i></button>
-      <button class="tinyBtn" disabled title="No safe write endpoint is available for this action yet"><i class="fa-solid fa-lock"></i></button>
     </div>`;
   }
 
@@ -2090,6 +2091,187 @@ window.addEventListener('DOMContentLoaded', function () {
     window.__ctToastTimer = setTimeout(() => els.toast.classList.remove('show'), 2100);
   }
 
+  function optionFromRows(rows, fallback = 'Select item', valueIndex = 0, labelIndex = 0) {
+    const options = (rows || []).map(row => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      return {
+        value: meta.id || cells[valueIndex] || cells[labelIndex],
+        label: cells[labelIndex] || meta.label || meta.id,
+      };
+    }).filter(item => item.value);
+    return options.length ? options : [{ value: '', label: fallback }];
+  }
+
+  function selectOptions(items, selected = '') {
+    return (items || []).map(item => {
+      const value = typeof item === 'string' ? item : item.value;
+      const label = typeof item === 'string' ? item : item.label;
+      return `<option value="${escapeHtml(value)}"${String(value) === String(selected) ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    }).join('');
+  }
+
+  function adminFieldHtml(field, readonly = false, disabled = false) {
+    const ro = readonly ? 'readonly' : '';
+    const dis = disabled ? 'disabled' : '';
+    const required = field.required ? 'required' : '';
+    if (field.type === 'hidden') return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || '')}">`;
+    if (field.type === 'textarea') {
+      return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}>${escapeHtml(field.value || '')}</textarea></div></div>`;
+    }
+    if (field.type === 'select') {
+      return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}>${selectOptions(field.options, field.value || '')}</select></div></div>`;
+    }
+    return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}></div></div>`;
+  }
+
+  function adminFormConfig(type, label = '') {
+    const key = String(type || '').toLowerCase();
+    const listings = optionFromRows(data.listings, 'Select listing');
+    const companies = optionFromRows(data.partners, 'Select partner');
+    const bookings = (data.bookings || []).map(row => rowCells(row)[0]).filter(Boolean);
+    const bookingOptions = bookings.length ? bookings : [''];
+    const payments = optionFromRows(data.payments, 'Select transaction');
+    const customers = optionFromRows(data.customers, 'Select customer');
+    const promoters = optionFromRows(data.promoters, 'Select promoter');
+
+    if (key === 'booking') return {
+      action: '/admin/bookings', submit: 'Create booking',
+      fields: [
+        { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, required:true },
+        { name:'fullName', label:'Customer name', icon:'fa-user', required:true, placeholder:'Jane Customer' },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', required:true, placeholder:'customer@example.com' },
+        { name:'phone', label:'Phone', icon:'fa-phone', required:true, placeholder:'+256700000000' },
+        { name:'selected', label:'Seat / room', icon:'fa-chair', placeholder:'A1' },
+        { name:'addons', label:'Add-ons', icon:'fa-plus', placeholder:'luggage,meal' }
+      ]
+    };
+    if (key === 'listing') return {
+      action: '/admin/listings', submit: 'Create listing',
+      fields: [
+        { name:'companyId', label:'Partner', type:'select', icon:'fa-building', options:companies, required:true },
+        { name:'title', label:'Title', icon:'fa-pen', required:true, placeholder:'Kampala to Nairobi coach' },
+        { name:'serviceType', label:'Service type', type:'select', icon:'fa-layer-group', options:['bus','hotel','flight','train','tour','car_rental','ferry'] },
+        { name:'from', label:'From', icon:'fa-location-dot', placeholder:'Kampala' },
+        { name:'to', label:'To / location', icon:'fa-location-dot', placeholder:'Nairobi' },
+        { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
+        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
+        { name:'description', label:'Description', type:'textarea', full:true, placeholder:'Listing details' }
+      ]
+    };
+    if (key === 'payment') return {
+      action: '/admin/payments/freeze', submit: 'Freeze payout/payment',
+      fields: [
+        { name:'transactionId', label:'Transaction', type:'select', icon:'fa-receipt', options:payments, required:true },
+        { name:'reason', label:'Reason', type:'textarea', full:true, required:true, placeholder:'Why this payout needs review' }
+      ]
+    };
+    if (key === 'payout') return {
+      action: '/admin/payouts/run', submit: 'Run payout',
+      fields: [
+        { name:'transactionId', label:'Pending payout', type:'select', icon:'fa-wallet', options:payments },
+        { name:'note', label:'Finance note', type:'textarea', full:true, placeholder:'Optional payout batch note' }
+      ]
+    };
+    if (key === 'finance rules') return {
+      action: '/admin/finance-rules', submit: 'Save finance rules',
+      fields: [
+        { name:'partnerPayoutPercent', label:'Partner payout %', type:'number', icon:'fa-percent', value:'90' },
+        { name:'platformFeePercent', label:'Platform fee %', type:'number', icon:'fa-percent', value:'7' },
+        { name:'promoterCommissionPercent', label:'Promoter commission %', type:'number', icon:'fa-percent', value:'3' },
+        { name:'holdMinutes', label:'Hold timer minutes', type:'number', icon:'fa-clock', value:'10' },
+        { name:'defaultCurrency', label:'Default currency', type:'select', icon:'fa-coins', options:['UGX','KES','RWF','TZS','USD'] }
+      ]
+    };
+    if (key === 'price rule') return {
+      action: '/admin/price-rules', submit: 'Save price rule',
+      fields: [
+        { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings },
+        { name:'ruleName', label:'Rule name', icon:'fa-tags', required:true, placeholder:'Holiday surge' },
+        { name:'percent', label:'Price change %', type:'number', icon:'fa-percent', placeholder:'10' },
+        { name:'startsAt', label:'Starts', type:'date', icon:'fa-calendar' },
+        { name:'endsAt', label:'Ends', type:'date', icon:'fa-calendar' },
+        { name:'note', label:'Note', type:'textarea', full:true, placeholder:'Pricing rule details' }
+      ]
+    };
+    if (key === 'campaign' || key === 'ad' || key === 'ad campaign') return {
+      action: '/admin/promotions', submit: 'Create campaign',
+      fields: [
+        { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, required:true },
+        { name:'promoterId', label:'Promoter', type:'select', icon:'fa-bullhorn', options:promoters },
+        { name:'name', label:'Campaign name', icon:'fa-rectangle-ad', required:true, placeholder:'Featured East Africa routes' },
+        { name:'placement', label:'Placement', type:'select', icon:'fa-location-crosshairs', options:['marketplace_top','route_card','hotel_card','banner','promoter_share'] },
+        { name:'budget', label:'Budget', type:'number', icon:'fa-coins', placeholder:'250000' },
+        { name:'status', label:'Status', type:'select', icon:'fa-toggle-on', options:['active','draft','paused'] }
+      ]
+    };
+    if (key === 'customer note') return {
+      action: '/admin/customer-notes', submit: 'Add note',
+      fields: [
+        { name:'customerId', label:'Customer', type:'select', icon:'fa-user', options:customers, required:true },
+        { name:'subject', label:'Subject', icon:'fa-pen', value:label || 'Customer note' },
+        { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
+        { name:'message', label:'Note', type:'textarea', full:true, required:true, placeholder:'Internal customer note' }
+      ]
+    };
+    if (key === 'notice' || key === 'notification') return {
+      action: key === 'notice' ? '/admin/notices' : '/admin/notifications',
+      submit: key === 'notice' ? 'Create notice' : 'Send notification',
+      fields: [
+        { name:'audience', label:'Audience', type:'select', icon:'fa-users', options:['customers','partners','promoters','admins'] },
+        { name:'channels', label:'Channels', type:'select', icon:'fa-paper-plane', options:['email','sms','whatsapp','email,sms'] },
+        { name:'subject', label:'Subject', icon:'fa-heading', required:true, placeholder:'Service update' },
+        { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
+        { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Write the notice message' }
+      ]
+    };
+    if (key === 'custom report') return {
+      action: '/admin/reports/custom', submit: 'Download report',
+      fields: [
+        { name:'type', label:'Report type', type:'select', icon:'fa-file-lines', options:['bookings','payments','partners','promoters','customers','support','promotions','refunds'] },
+        { name:'dateFrom', label:'From', type:'date', icon:'fa-calendar' },
+        { name:'dateTo', label:'To', type:'date', icon:'fa-calendar' }
+      ]
+    };
+    if (key === 'admin user') return {
+      action: '/admin/admin-users', submit: 'Invite admin',
+      fields: [
+        { name:'fullName', label:'Full name', icon:'fa-user', required:true, placeholder:'Finance Lead' },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', required:true, placeholder:'admin@example.com' },
+        { name:'phone', label:'Phone', icon:'fa-phone', placeholder:'+256700000000' },
+        { name:'role', label:'Role', type:'select', icon:'fa-user-shield', options:['admin','finance_admin','support_admin','content_admin','super_admin'] },
+        { name:'permissionsLabel', label:'Permissions label', icon:'fa-key', placeholder:'Finance controls' }
+      ]
+    };
+    if (key === 'verification task') return {
+      action: '/admin/verification-tasks', submit: 'Create review',
+      fields: [
+        { name:'companyId', label:'Company', type:'select', icon:'fa-building', options:companies, required:true },
+        { name:'subject', label:'Review title', icon:'fa-id-card', required:true, placeholder:'Payout account review' },
+        { name:'priority', label:'Risk', type:'select', icon:'fa-triangle-exclamation', options:['high','medium','low'] },
+        { name:'message', label:'Review note', type:'textarea', full:true, required:true, placeholder:'What needs verification' }
+      ]
+    };
+    if (key === 'refund') return {
+      action: '/admin/refunds', submit: 'Create refund',
+      fields: [
+        { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options:bookingOptions, required:true },
+        { name:'amount', label:'Amount', type:'number', icon:'fa-coins', placeholder:'25000' },
+        { name:'reason', label:'Reason', type:'textarea', full:true, required:true, placeholder:'Refund reason' }
+      ]
+    };
+    if (key === 'template') return {
+      action: '/admin/templates', submit: 'Save template',
+      fields: [
+        { name:'templateKey', label:'Template key', icon:'fa-envelope-open-text', value:label || 'template' },
+        { name:'subject', label:'Subject', icon:'fa-heading', value:label || '' },
+        { name:'status', label:'Status', type:'select', icon:'fa-toggle-on', options:['active','review','paused'] },
+        { name:'body', label:'Template body', type:'textarea', full:true, required:true, placeholder:'Message body' }
+      ]
+    };
+    return null;
+  }
+
   function openCrud(mode, type, label = '') {
     if (mode === 'delete') {
       if (els.deleteText) els.deleteText.textContent = `Are you sure you want to delete ${label || 'this ' + type}?`;
@@ -2103,8 +2285,8 @@ window.addEventListener('DOMContentLoaded', function () {
     els.crudTitle.textContent = title.charAt(0).toUpperCase() + title.slice(1);
     if (els.crudSub) els.crudSub.textContent = label ? `Selected: ${label}` : 'Fill the details below. This modal uses the dashboard data model.';
 
-    const readonly = mode === 'view' ? 'readonly' : '';
-    const disabled = mode === 'view' ? 'disabled' : '';
+    const readonly = mode === 'view';
+    const disabled = mode === 'view';
     if (mode === 'create' && /partner|company/i.test(cleanType)) {
       els.crudSub.textContent = 'Create the partner account, upload logo or document to Cloudinary, then approve it from the table.';
       els.crudBody.innerHTML = `
@@ -2129,18 +2311,24 @@ window.addEventListener('DOMContentLoaded', function () {
       els.crudModal.classList.add('is-open');
       return;
     }
+    const config = adminFormConfig(cleanType, label);
+    if (!config) {
+      els.crudBody.innerHTML = `
+        <div class="notice">This admin action is handled by row-level controls, report exports, or a dedicated dashboard page.</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btnBlue" type="button" data-close-modal>Done</button>
+        </div>`;
+      els.crudModal.classList.add('is-open');
+      return;
+    }
+    const fields = config.fields.map(field => adminFieldHtml(field, readonly, disabled)).join('');
     els.crudBody.innerHTML = `
-      <form class="formPanel" id="crudForm">
-        <div class="formGrid">
-          <div class="field"><label>Name / title</label><div class="control"><i class="fa-solid fa-pen"></i><input ${readonly} value="${escapeHtml(label)}" placeholder="Enter ${escapeHtml(cleanType)} name"></div></div>
-          <div class="field"><label>Type</label><div class="control"><i class="fa-solid fa-layer-group"></i><select ${disabled}><option>${escapeHtml(cleanType)}</option><option>Bus</option><option>Hotel</option><option>Flight</option><option>Train</option><option>Tour</option><option>Ad</option></select></div></div>
-          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select ${disabled}><option>Active</option><option>Pending</option><option>Review</option><option>Suspended</option></select></div></div>
-          <div class="field"><label>Amount / value</label><div class="control"><i class="fa-solid fa-coins"></i><input ${readonly} placeholder="UGX 0"></div></div>
-          <div class="field full"><label>Admin note</label><div class="control"><textarea ${readonly} placeholder="Write internal note...">${mode === 'view' ? 'This record is opened in view mode. Use edit to change it.' : ''}</textarea></div></div>
-        </div>
+      <form class="formPanel" id="crudForm" method="POST" action="${escapeHtml(config.action)}">
+        <input type="hidden" name="_csrf" value="${csrfToken}">
+        <div class="formGrid">${fields}</div>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btn" type="button" data-close-modal>Cancel</button>
-          ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-modal="edit" data-type="${escapeHtml(cleanType)}" data-label="${escapeHtml(label)}"><i class="fa-regular fa-pen-to-square"></i> Edit</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save</button>`}
+          ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> ${escapeHtml(config.submit || 'Save')}</button>`}
         </div>
       </form>`;
     els.crudModal.classList.add('is-open');
@@ -2229,7 +2417,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('submit', function (e) {
       if (e.target.matches('#crudForm,#noticeForm,#settingsForm')) {
-        if (e.target.matches('#crudForm') && e.target.hasAttribute('action')) return;
+        if (e.target.hasAttribute('action')) return;
         e.preventDefault();
         $$('.modal').forEach(m => m.classList.remove('is-open'));
         toast('Saved successfully');

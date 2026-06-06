@@ -126,6 +126,35 @@ test('booking creates pending earnings and scanner releases company and promoter
   expect(approved.status).toBe('completed');
 });
 
+test('archived promoter links stop future attribution', () => {
+  const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
+  const link = promoterService.createLink({
+    promoterId: 'user-promoter-archive',
+    listingId: listing.id,
+    code: `ARCHIVE-${Date.now()}`,
+  });
+
+  const archived = promoterService.archiveLink({
+    promoterId: link.promoterId,
+    linkId: link.id,
+    actorId: link.promoterId,
+  });
+
+  const click = store.recordReferralClick(link.code, listing.id);
+  const booking = store.createBooking({
+    listingId: listing.id,
+    fullName: 'Archived Link Guest',
+    email: 'archived-link@example.com',
+    phone: '+256700555667',
+    ref: link.code,
+  });
+
+  expect(archived.status).toBe('archived');
+  expect(promoterService.linksForPromoter(link.promoterId).some((item) => item.id === link.id)).toBe(false);
+  expect(click.linkId).toBeNull();
+  expect(booking.promoterAttribution).toBeNull();
+});
+
 test('sponsored campaign is active and counts new bookings', () => {
   let listing = store.state.listings.find((item) => item.bookable && !store.state.promotionCampaigns.some((campaign) => campaign.listingId === item.id && campaign.status === 'active'));
   if (!listing) {

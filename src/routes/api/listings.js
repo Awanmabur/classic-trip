@@ -2,6 +2,7 @@ const express = require('express');
 const store = require('../../services/data/demoStore');
 const seatLockService = require('../../services/booking/seatLockService');
 const roomReservationService = require('../../services/booking/roomReservationService');
+const releaseRoadmapService = require('../../services/release/releaseRoadmapService');
 const { mongoose } = require('../../config/db');
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.get('/', (req, res) => {
   res.json({ data, meta: store.marketplaceInfo(data) });
 });
 router.get('/featured', (req, res) => res.json({ data: store.state.listings.filter((item) => item.isFeatured).slice(0, 24) }));
+router.get('/release-roadmap', (req, res) => res.json(releaseRoadmapService.roadmap()));
 router.get('/:id/availability', (req, res) => {
   const availability = store.getAvailability(req.params.id);
   if (!availability) return res.status(404).json({ error: 'listing_not_found' });

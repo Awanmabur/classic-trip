@@ -1,0 +1,30 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 30px">
+  <section class="detailGrid">
+    <div class="ticketPaper">
+      <% const paid = order.paymentStatus === 'successful'; %>
+      <span class="badge <%= paid ? 'badgeOk' : 'badgeInfo' %>"><i class="fa-solid <%= paid ? 'fa-circle-check' : 'fa-clock' %>"></i> <%= paid ? 'Plan active' : 'Payment pending' %></span>
+      <h1 class="heroTitle" style="font-size:30px"><%= paid ? 'Your partner plan is active.' : 'Payment is waiting for confirmation.' %></h1>
+      <div class="ticketLine"><span>Order</span><b><%= order.orderRef %></b></div>
+      <div class="ticketLine"><span>Company</span><b><%= company?.name || order.companyName %></b></div>
+      <div class="ticketLine"><span>Plan</span><b><%= plan.name %></b></div>
+      <div class="ticketLine"><span>Total</span><b><%= money(order.amount, order.currency) %></b></div>
+      <div class="ticketLine"><span>Status</span><b><%= order.paymentStatus %></b></div>
+      <% if (subscription) { %><div class="ticketLine"><span>Renewal date</span><b><%= new Date(subscription.currentPeriodEnd).toLocaleDateString() %></b></div><% } %>
+      <div class="actions">
+        <a class="btn btnPrimary" href="/login#partner"><i class="fa-regular fa-user"></i> Continue to login</a>
+        <a class="btn btnGhost" href="/company/dashboard"><i class="fa-solid fa-gauge-high"></i> Company dashboard</a>
+      </div>
+    </div>
+    <aside class="ticketPaper">
+      <h3 style="margin:0">Next steps</h3>
+      <p class="muted"><%= paid ? 'Complete company verification, add listings, invite staff, and configure payouts from the partner dashboard.' : 'When the provider webhook confirms payment, Classic Trip activates the plan automatically.' %></p>
+      <div class="kv">
+        <div><span>Verification</span><b><%= company?.verificationStatus || 'pending' %></b></div>
+        <div><span>Onboarding</span><b><%= company?.settings?.onboardingStep || 'plan_payment' %></b></div>
+      </div>
+    </aside>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

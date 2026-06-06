@@ -27,6 +27,10 @@ async function update(req, res, next) {
       payoutProvider: cleanText(req.body.payoutProvider || user.promoterProfile?.payoutProvider || ''),
       payoutAccount: cleanText(req.body.payoutAccount || user.promoterProfile?.payoutAccount || ''),
     };
+    user.payoutAccount = {
+      method: user.promoterProfile.payoutMethod || user.promoterProfile.payoutProvider || user.payoutAccount?.method || 'Mobile Money',
+      account: user.promoterProfile.payoutAccount || user.payoutAccount?.account || user.phone || '',
+    };
     user.updatedAt = new Date().toISOString();
     if (req.session?.user) Object.assign(req.session.user, user);
     await persist(user);
@@ -36,4 +40,29 @@ async function update(req, res, next) {
   }
 }
 
-module.exports = { update };
+async function updateVerification(req, res, next) {
+  try {
+    const sessionUser = req.session?.user || {};
+    const user = store.state.users.find((item) => item.id === sessionUser.id) || sessionUser;
+    user.role = 'promoter';
+    user.verificationStatus = cleanText(req.body.verificationStatus || 'pending').toLowerCase();
+    user.verificationDocumentType = cleanText(req.body.documentType || req.body.verificationDocumentType || 'national_id');
+    user.verificationReference = cleanText(req.body.documentReference || req.body.verificationReference || '');
+    user.payoutAccount = {
+      method: cleanText(req.body.payoutMethod || user.payoutAccount?.method || 'Mobile Money'),
+      account: cleanText(req.body.payoutAccount || user.payoutAccount?.account || user.phone || ''),
+    };
+    user.promoterProfile = {
+      ...(user.promoterProfile || {}),
+      verificationNote: cleanText(req.body.message || req.body.notes || ''),
+    };
+    user.updatedAt = new Date().toISOString();
+    if (req.session?.user) Object.assign(req.session.user, user);
+    await persist(user);
+    res.redirect('/promoter/dashboard#settings');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { update, updateVerification };

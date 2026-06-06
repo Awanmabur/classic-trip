@@ -168,14 +168,7 @@
   }
 
   function disableDeadActions() {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-modal="edit"], [data-modal="delete"], [data-delete]'), function (btn) {
-      if (btn.closest('form')) return;
-      if (btn.dataset.ctActionChecked === 'true') return;
-      btn.dataset.ctActionChecked = 'true';
-      btn.classList.add('ctDisabledAction');
-      btn.setAttribute('title', 'Disabled: no safe backend endpoint is attached for this exact action/state.');
-      btn.setAttribute('aria-disabled', 'true');
-    });
+    return false;
   }
 
   function initEnhancer() {
@@ -213,20 +206,9 @@
         link.remove();
       }
     });
-    document.addEventListener('click', function (event) {
-      var disabled = event.target.closest('.ctDisabledAction');
-      if (disabled && disabled.getAttribute('aria-disabled') === 'true') {
-        event.preventDefault();
-        event.stopPropagation();
-        if (window.alert) window.alert(disabled.getAttribute('title'));
-      }
-    }, true);
     document.addEventListener('submit', function (event) {
       var form = event.target && event.target.closest ? event.target.closest('form[data-dashboard-form]') : null;
       if (!form || form.getAttribute('action')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (window.alert) window.alert('Disabled: this modal does not have a backend endpoint for saving this record yet.');
     }, true);
   }
 

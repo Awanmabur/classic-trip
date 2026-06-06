@@ -10,6 +10,10 @@ function admin(req, res) {
   sendReport(res, reportService.generateCsvReport('admin', req.params.type, { userId: req.session?.user?.id }));
 }
 
+function adminCustom(req, res) {
+  sendReport(res, reportService.generateCsvReport('admin', req.body.type || 'bookings', { userId: req.session?.user?.id }));
+}
+
 function company(req, res) {
   sendReport(res, reportService.generateCsvReport('company', req.params.type, {
     userId: req.session?.user?.id,
@@ -54,4 +58,4 @@ function employeeCustom(req, res) {
   }));
 }
 
-module.exports = { admin, company, companyCustom, promoter, customer, employee, employeeCustom };
+module.exports = { admin, adminCustom, company, companyCustom, promoter, customer, employee, employeeCustom };

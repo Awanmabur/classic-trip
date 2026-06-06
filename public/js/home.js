@@ -13,6 +13,13 @@
     function money(n, c='UGX'){return `${c} ${Math.round(n).toLocaleString()}`}
     function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
     function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
+    function copyText(text, message){
+      if(navigator.clipboard?.writeText){
+        navigator.clipboard.writeText(text).then(()=>toast(message)).catch(()=>toast('Share link ready to copy from the address bar.'));
+      } else {
+        toast('Share link ready to copy from the address bar.');
+      }
+    }
 
 
     const blogs = {
@@ -32,7 +39,7 @@
       $('#blogModalImg').src = b.img;
       $('#blogHeroTitle').textContent = b.title;
       $('#blogHeroIntro').textContent = b.intro;
-      $('#blogArticleBody').innerHTML = `<div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> ${b.date}</span><span><i class="fa-regular fa-clock"></i> ${b.read}</span><span><i class="fa-solid ${b.icon}"></i> ${b.tag}</span></div>` + b.body.map((p,i)=>`${i===1?'<h4>What this means in the real app</h4>':''}<p>${p}</p>`).join('');
+      $('#blogArticleBody').innerHTML = `<div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> ${b.date}</span><span><i class="fa-regular fa-clock"></i> ${b.read}</span><span><i class="fa-solid ${b.icon}"></i> ${b.tag}</span></div>` + b.body.map((p,i)=>`${i===1?'<h4>Before you book</h4>':''}<p>${p}</p>`).join('');
       $('#blogModal').classList.add('open');
       document.body.style.overflow='hidden';
     }
@@ -42,7 +49,7 @@
       const ev = window.event; if(ev) ev.stopPropagation();
       const b = blogs[id]; const title = b ? b.title : 'Classic Trip blog';
       if(navigator.share){ navigator.share({title, text:`Read this on Classic Trip: ${title}`}).catch(()=>{}); }
-      else toast('Blog share link copied in the real app.');
+      else copyText(`${window.location.origin}${window.location.pathname}#blog-${id}`, 'Blog share link copied.');
     }
 
     const backendBookings = (window.CLASSIC_TRIP_DATA && window.CLASSIC_TRIP_DATA.bookings) || [];
@@ -63,14 +70,15 @@
       if(navigator.share){
         navigator.share({title, text:`Check this on Classic Trip: ${title}`}).catch(()=>{});
       } else {
-        toast('Share link copied in the real app.');
+        const href = item?.url || (item ? `/listings/${item.serviceType}/${item.slug}` : window.location.pathname);
+        copyText(new URL(href, window.location.origin).href, 'Share link copied.');
       }
     }
 
     function renderSaved(){
       const wrap = $('#savedCards'); if(!wrap) return;
       const savedItems = ['bus','hotel','flight','train','more'].flatMap(group=>listings.filter(x=>x.group===group).slice(0, group === 'more' ? 2 : 1)).filter(Boolean);
-      wrap.innerHTML = savedItems.map(x=>`<article class="ticketCard"><div class="ticketTop"><div><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${x.type}</span><h3 class="ticketTitle" style="margin-top:8px">${x.title}</h3><div class="ticketMeta"><span><i class="fa-solid fa-building"></i> ${x.partner}</span><span><i class="fa-regular fa-clock"></i> ${x.time}</span><span><i class="fa-solid fa-star"></i> ${x.rating}</span></div></div><div class="ticketCode">Saved</div></div><div class="kv"><div><span>From</span><b>${x.from}</b></div><div><span>To</span><b>${x.to}</b></div><div><span>Price</span><b>${money(x.price,x.currency)}</b></div></div><div class="ticketActions"><button class="btn btnGhost" onclick="toast('Removed from saved in the real app.')"><i class="fa-regular fa-heart"></i> Saved</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${x.id}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${x.id}', event)"><i class="fa-regular fa-eye"></i> View</button>`}</div></article>`).join('');
+      wrap.innerHTML = savedItems.map(x=>`<article class="ticketCard"><div class="ticketTop"><div><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${x.type}</span><h3 class="ticketTitle" style="margin-top:8px">${x.title}</h3><div class="ticketMeta"><span><i class="fa-solid fa-building"></i> ${x.partner}</span><span><i class="fa-regular fa-clock"></i> ${x.time}</span><span><i class="fa-solid fa-star"></i> ${x.rating}</span></div></div><div class="ticketCode">Saved</div></div><div class="kv"><div><span>From</span><b>${x.from}</b></div><div><span>To</span><b>${x.to}</b></div><div><span>Price</span><b>${money(x.price,x.currency)}</b></div></div><div class="ticketActions"><button class="btn btnGhost" onclick="toast('Saved pick kept in your account.')"><i class="fa-regular fa-heart"></i> Saved</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${x.id}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${x.id}', event)"><i class="fa-regular fa-eye"></i> View</button>`}</div></article>`).join('');
     }
     function renderBookings(){
       const wrap = $('#bookingCards'); if(!wrap) return;
@@ -424,7 +432,7 @@
 
     async function holdSelection(){
       if(!selected.length) return toast('Choose at least one available option first.');
-      if(!current.bookable) return toast('This service is visible now and checkout opens after provider integration.');
+      if(!current.bookable) return toast('Booking is not open for this service yet.');
       try {
         const response = await fetch(`/api/listings/${current.id}/hold`, {
           method:'POST',
@@ -459,7 +467,7 @@
     function goPaymentPage(){
       const choice = getChoice();
       if(!choice.length) return toast('Select or hold a seat/room/slot first.');
-      if(!current.bookable) return toast('This service is visible now and checkout opens after provider integration.');
+      if(!current.bookable) return toast('Booking is not open for this service yet.');
       const totals = getTotals(choice);
       $('#checkoutListing').textContent = current.title;
       $('#checkoutSelected').textContent = choice.join(', ');

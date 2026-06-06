@@ -18,6 +18,8 @@ const notificationSchema = new Schema({
   meta: Schema.Types.Mixed,
   status: { type: String, default: 'queued', index: true },
   deliveryStatus: { type: String, default: 'queued', index: true },
+  deliveryProvider: String,
+  deliveryResponse: Schema.Types.Mixed,
   sentCount: { type: Number, default: 0 },
   deliveredCount: { type: Number, default: 0 },
   failedCount: { type: Number, default: 0 },

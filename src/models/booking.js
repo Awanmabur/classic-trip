@@ -31,6 +31,7 @@ const bookingSchema = new Schema({
   bookingStatus: { type: String, default: 'draft', index: true },
   settlementStatus: { type: String, default: 'pending', index: true },
   qrCodeValue: { type: String, index: true },
+  ticketPdf: Schema.Types.Mixed,
   lockedUntil: Date,
   checkInStatus: { type: String, default: 'not_checked', index: true },
   checkedInAt: Date,

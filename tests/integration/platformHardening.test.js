@@ -3,8 +3,11 @@ const app = require('../../src/app');
 const store = require('../../src/services/data/demoStore');
 const bookingService = require('../../src/services/booking/bookingService');
 const companyService = require('../../src/services/company/companyService');
+const billingService = require('../../src/services/billing/billingService');
 const webhookService = require('../../src/services/payment/webhookService');
+const walletService = require('../../src/services/wallet/walletService');
 const workflowService = require('../../src/services/support/workflowService');
+const scheduler = require('../../src/jobs/scheduler');
 
 async function login(email) {
   const agent = request.agent(app);
@@ -92,6 +95,7 @@ test('booking confirmation and refund approval queue customer notifications', as
 
   expect(store.state.notifications.length).toBe(beforeBookingNotifications + 3);
   expect(store.state.notifications.some((item) => item.referenceId === booking.id && item.channel === 'whatsapp')).toBe(true);
+  expect(store.state.notifications.filter((item) => item.referenceId === booking.id).every((item) => ['queued', 'skipped', 'sent'].includes(item.deliveryStatus))).toBe(true);
 
   const refund = workflowService.requestRefund({
     bookingRef: booking.bookingRef,
@@ -105,6 +109,53 @@ test('booking confirmation and refund approval queue customer notifications', as
   expect(store.state.notifications.some((item) => item.referenceId === refund.id && item.title.includes('Refund approved'))).toBe(true);
 });
 
+test('ticket PDF endpoint returns a real downloadable PDF', async () => {
+  const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus' && item.status === 'active');
+  const booking = await bookingService.createGuestBooking({
+    listingId: listing.id,
+    fullName: 'PDF Guest',
+    email: 'pdf@example.com',
+    phone: '+256700555021',
+  });
+
+  const response = await request(app)
+    .get(`/tickets/${booking.bookingRef}.pdf`)
+    .buffer(true)
+    .parse((res, callback) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      res.on('end', () => callback(null, Buffer.concat(chunks)));
+    })
+    .expect(200);
+
+  expect(response.headers['content-type']).toContain('application/pdf');
+  expect(response.headers['content-disposition']).toContain(`${booking.bookingRef}.pdf`);
+  expect(response.body.slice(0, 4).toString()).toBe('%PDF');
+});
+
+test('scheduled jobs can be registered and run safely', async () => {
+  const started = scheduler.startScheduledJobs({ force: true, active: false });
+  expect(started.started).toBe(true);
+  expect(started.jobs).toContain('cleanupExpiredLocks');
+
+  const result = await scheduler.runJob('cleanupExpiredLocks');
+  expect(result.ok).toBe(true);
+  expect(result.result).toHaveProperty('seats');
+  expect(scheduler.jobStatus().some((job) => job.name === 'cleanupExpiredLocks' && job.scheduled)).toBe(true);
+  scheduler.stopScheduledJobs();
+});
+
+test('future services stay searchable but not bookable until release is enabled', async () => {
+  const roadmap = await request(app).get('/api/listings/release-roadmap').expect(200);
+  expect(roadmap.body.launchNow.some((item) => item.key === 'bus')).toBe(true);
+  expect(roadmap.body.architectureReady.some((item) => item.key === 'train')).toBe(true);
+  expect(roadmap.body.plannedPlatformFeatures.some((item) => item.key === 'mobile_app')).toBe(true);
+
+  const trainResults = await request(app).get('/api/listings?serviceType=train').expect(200);
+  expect(trainResults.body.data.length).toBeGreaterThan(0);
+  expect(trainResults.body.data.every((item) => item.bookable === false)).toBe(true);
+});
+
 test('company CSV report downloads through the protected dashboard route', async () => {
   const company = await login('company@classictrip.test');
   const response = await company.get('/company/reports/bookings.csv').expect(200);
@@ -112,6 +163,113 @@ test('company CSV report downloads through the protected dashboard route', async
   expect(response.headers['content-type']).toContain('text/csv');
   expect(response.headers['content-disposition']).toContain('company-bookings');
   expect(response.text.split('\n')[0]).toContain('Booking');
+});
+
+test('partner onboarding selects a plan, pays, and activates subscription end to end', async () => {
+  const suffix = Date.now();
+  const plans = await request(app).get('/pricing').expect(200);
+  expect(plans.text).toContain('/partner/onboarding?plan=growth');
+
+  const onboarding = await request(app)
+    .post('/partner/onboarding')
+    .type('form')
+    .send({
+      planId: 'growth',
+      contactName: 'Billing Owner',
+      email: `billing-owner-${suffix}@classictrip.test`,
+      phone: '+256700555300',
+      name: `Billing Partner ${suffix}`,
+      companyType: 'bus',
+      country: 'Uganda',
+      city: 'Kampala',
+      description: 'Regional coach operator onboarding through billing checkout',
+    })
+    .expect(302);
+
+  expect(onboarding.headers.location).toMatch(/^\/billing\/checkout\/CTPLAN-/);
+  const orderRef = onboarding.headers.location.split('/').pop();
+  const checkout = await request(app).get(onboarding.headers.location).expect(200);
+  expect(checkout.text).toContain(orderRef);
+  expect(checkout.text).toContain('Pay UGX 249,000');
+
+  const paid = await request(app)
+    .post(`/billing/checkout/${orderRef}/pay`)
+    .type('form')
+    .send({ provider: 'mock', paymentMethod: 'Mobile Money', paymentReference: '+256700555300' })
+    .expect(302);
+
+  expect(paid.headers.location).toBe(`/billing/success/${orderRef}`);
+  const success = await request(app).get(paid.headers.location).expect(200);
+  expect(success.text).toContain('Your partner plan is active');
+
+  const order = billingService.findOrder(orderRef);
+  const subscription = billingService.activeSubscription(order.companyId);
+  const company = store.findCompany(order.companyId);
+  expect(order.paymentStatus).toBe('successful');
+  expect(subscription.planId).toBe('growth');
+  expect(company.settings.subscription.planName).toBe('Growth');
+  expect(store.state.payments.some((payment) => payment.bookingRef === orderRef && payment.metadata?.referenceType === 'subscription_order')).toBe(true);
+});
+
+test('signed payment webhook can activate a pending subscription order', async () => {
+  const suffix = Date.now();
+  const { order } = await billingService.createOnboardingOrder({
+    planId: 'starter',
+    contactName: 'Webhook Billing',
+    email: `billing-webhook-${suffix}@classictrip.test`,
+    phone: '+256700555301',
+    name: `Webhook Billing Partner ${suffix}`,
+    companyType: 'hotel',
+    country: 'Uganda',
+    city: 'Entebbe',
+  });
+  const payload = {
+    orderRef: order.orderRef,
+    provider: 'mock',
+    providerReference: `SUB-${suffix}`,
+    amount: order.amount,
+    currency: order.currency,
+    status: 'successful',
+    idempotencyKey: `sub-event-${order.id}`,
+  };
+  const signature = webhookService.signPayload(payload);
+
+  const response = await request(app)
+    .post('/api/webhooks/payments')
+    .set('x-classic-trip-signature', signature)
+    .send(payload)
+    .expect(200);
+
+  expect(response.body.valid).toBe(true);
+  expect(response.body.processed).toBe(true);
+  expect(billingService.activeSubscription(order.companyId).planId).toBe('starter');
+  expect(billingService.findOrder(order.orderRef).paymentStatus).toBe('successful');
+});
+
+test('company billing upgrade creates a checkout order and activates upgraded plan', async () => {
+  const agent = await login('company@classictrip.test');
+  const dashboard = await agent.get('/company/dashboard').expect(200);
+  expect(dashboard.text).toContain('Plans & Billing');
+  expect(dashboard.text).toContain('/company/billing/upgrade');
+
+  const upgrade = await agent
+    .post('/company/billing/upgrade')
+    .type('form')
+    .send({ planId: 'scale' })
+    .expect(302);
+
+  expect(upgrade.headers.location).toMatch(/^\/billing\/checkout\/CTPLAN-/);
+  const orderRef = upgrade.headers.location.split('/').pop();
+  await agent.get(upgrade.headers.location).expect(200);
+  await agent
+    .post(`/billing/checkout/${orderRef}/pay`)
+    .type('form')
+    .send({ provider: 'mock', paymentMethod: 'Card', paymentReference: '4242' })
+    .expect(302);
+
+  const subscription = billingService.activeSubscription('company-01');
+  expect(subscription.planId).toBe('scale');
+  expect(store.findCompany('company-01').settings.subscription.planName).toBe('Scale');
 });
 
 test('company listing edit and archive routes update marketplace visibility', async () => {
@@ -397,4 +555,86 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   const report = await agent.get('/employee/reports/checkins.csv').expect(200);
   expect(report.headers['content-type']).toContain('text/csv');
   expect(report.text.split('\n')[0]).toContain('Booking');
+});
+
+test('customer dashboard actions persist saved trips wallet security and promoter onboarding', async () => {
+  const user = store.upsertUser({
+    id: 'user-customer-dashboard-e2e',
+    role: 'customer',
+    fullName: 'Dashboard Customer',
+    email: 'dashboard-customer@classictrip.test',
+    phone: '+256700555801',
+    status: 'active',
+    isVerified: true,
+  });
+  const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
+  const agent = await login(user.email);
+  await agent.get('/account').expect(200);
+
+  await agent.post('/account/saved').type('form').send({ listingId: listing.id, notes: 'Save for later' }).expect(302);
+  expect(store.state.savedListings.some((row) => row.userId === user.id && row.listingId === listing.id)).toBe(true);
+
+  const beforeWallet = walletService.getOrCreateWallet('customer', user.id).availableBalance;
+  await agent.post('/account/wallet/top-up').type('form').send({ amount: 12345, currency: 'UGX', method: 'mobile_money', paymentReference: 'TEST-TOPUP-1' }).expect(302);
+  expect(walletService.getWallet('customer', user.id).availableBalance).toBe(beforeWallet + 12345);
+
+  await agent.post('/account/security').type('form').send({ twoFactorEnabled: 'on', loginAlertsEnabled: 'on', recoveryEmail: 'recovery@example.com' }).expect(302);
+  expect(user.twoFactorEnabled).toBe(true);
+  expect(user.recoveryEmail).toBe('recovery@example.com');
+
+  await agent.post('/account/promoter').type('form').send({ referralCode: 'DASH-E2E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555801' }).expect(302);
+  expect(user.role).toBe('promoter');
+  expect(user.referralCode).toBe('DASH-E2E');
+  expect(walletService.getWallet('promoter', user.id)).toBeTruthy();
+  await agent.get('/promoter/dashboard').expect(200);
+});
+
+test('promoter dashboard campaign and verification forms persist to dashboard data', async () => {
+  const promoter = store.state.users.find((item) => item.email === 'samuel@classictrip.test') || store.upsertUser({
+    id: 'user-promoter-dashboard-e2e',
+    role: 'promoter',
+    fullName: 'Dashboard Promoter',
+    email: 'dashboard-promoter@classictrip.test',
+    phone: '+256700555802',
+    status: 'active',
+    isVerified: true,
+    referralCode: 'DASHPROMO',
+  });
+  const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
+  const agent = await login(promoter.email);
+  await agent.get('/promoter/dashboard').expect(200);
+
+  await agent.post('/promoter/campaigns').type('form').send({ listingId: listing.id, name: 'Promoter E2E campaign', placement: 'social', budget: 50000 }).expect(302);
+  expect(store.state.promotionCampaigns.some((row) => row.promoterId === promoter.id && row.name === 'Promoter E2E campaign')).toBe(true);
+
+  await agent.post('/promoter/verification').type('form').send({ documentType: 'national_id', documentReference: 'NIN-E2E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555802' }).expect(302);
+  expect(promoter.verificationStatus).toBe('pending');
+  expect(promoter.verificationReference).toBe('NIN-E2E');
+  expect(promoter.payoutAccount.account).toBe('+256700555802');
+});
+
+test('admin dashboard actions create operational records and exports', async () => {
+  const agent = await login('admin@classictrip.test');
+  const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
+  const wallet = walletService.creditAvailable('promoter', 'user-promoter-001', 25000, { currency: 'UGX', referenceType: 'test_seed', referenceId: 'admin-payout-e2e' });
+  const withdrawal = walletService.requestWithdrawal('promoter', 'user-promoter-001', 1000, { currency: wallet.currency, referenceType: 'withdrawal', referenceId: 'admin-payout-e2e' }).transaction;
+
+  await agent.post('/admin/promotions').type('form').send({ listingId: listing.id, name: 'Admin E2E campaign', placement: 'marketplace_top', budget: 75000 }).expect(302);
+  expect(store.state.promotionCampaigns.some((row) => row.name === 'Admin E2E campaign')).toBe(true);
+
+  await agent.post('/admin/notices').type('form').send({ audience: 'customers', priority: 'high', message: 'Admin dashboard notice test' }).expect(302);
+  expect(store.state.supportTickets.some((row) => row.category === 'platform_notice' && row.message === 'Admin dashboard notice test')).toBe(true);
+
+  await agent.post('/admin/admin-users').type('form').send({ fullName: 'Finance E2E', email: 'finance-e2e@classictrip.test', role: 'finance_admin' }).expect(302);
+  expect(store.state.users.some((row) => row.email === 'finance-e2e@classictrip.test' && row.role === 'finance_admin')).toBe(true);
+
+  await agent.post('/admin/payouts/run').type('form').send({ transactionId: withdrawal.id, note: 'E2E payout run' }).expect(302);
+  expect(withdrawal.status).toBe('completed');
+
+  await agent.post('/admin/settings').type('form').send({ platformFeePercent: 8, promoterCommissionPercent: 4, partnerPayoutPercent: 88, holdMinutes: 12, defaultCurrency: 'UGX' }).expect(302);
+  expect(store.state.platformSettings.financeRules.platformFeePercent).toBe(8);
+
+  const report = await agent.post('/admin/reports/custom').type('form').send({ type: 'support' }).expect(200);
+  expect(report.headers['content-type']).toContain('text/csv');
+  expect(report.text.split('\n')[0]).toContain('Case');
 });

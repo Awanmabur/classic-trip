@@ -1,6 +1,7 @@
 const store = require('../../services/data/demoStore');
 const qrService = require('../../services/qr/qrService');
 const bookingService = require('../../services/booking/bookingService');
+const ticketPdfService = require('../../services/pdf/ticketPdfService');
 
 function normalize(value) {
   return String(value || '').toLowerCase().trim();
@@ -123,6 +124,21 @@ async function ticketPage(req, res, next) {
   return res.render('pages/ticket', { seo: { title: `${booking.bookingRef} ticket | Classic Trip` }, booking, listing, qrDataUrl });
 }
 
+async function ticketPdf(req, res, next) {
+  try {
+    const booking = store.findBooking(req.params.bookingRef);
+    if (!booking) return next();
+    const listing = store.findListing(booking.listingId);
+    const buffer = await ticketPdfService.buildTicketPdfBuffer(booking, listing);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${booking.bookingRef}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function ticketLookupPage(req, res) {
   const bookingRef = req.query.bookingRef || '';
   const contact = req.query.contact || '';
@@ -147,4 +163,4 @@ async function bookingSuccess(req, res, next) {
   return res.render('pages/booking-success', { seo: { title: 'Booking confirmed | Classic Trip' }, booking, listing, qrDataUrl });
 }
 
-module.exports = { servicesPage, routesPage, companiesPage, companyProfile, promotersPage, listingDetails, bookingForm, ticketPage, ticketLookupPage, bookingSuccess };
+module.exports = { servicesPage, routesPage, companiesPage, companyProfile, promotersPage, listingDetails, bookingForm, ticketPage, ticketPdf, ticketLookupPage, bookingSuccess };

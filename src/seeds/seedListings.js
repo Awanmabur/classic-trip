@@ -219,7 +219,7 @@ function buildListing(serviceType, companySlug, from, to, suffix, corridor, pric
     status: company.verificationStatus === 'verified' ? 'active' : 'draft',
     bookable: isBookable,
     releaseStatus: isBookable ? 'live' : serviceType === 'flight' ? 'teaser' : 'planned',
-    policy: isBookable ? 'Instant - refundable rules apply' : 'Provider integration coming soon',
+    policy: isBookable ? 'Instant - refundable rules apply' : 'Availability preview - booking not open yet',
     layout,
     taken: takenFor(layout, index),
     availability: serviceType === 'hotel' ? 12 - (index % 5) : 48 - (index % 17),

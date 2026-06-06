@@ -13,4 +13,17 @@ function create(req, res, next) {
   }
 }
 
-module.exports = { create };
+function archive(req, res, next) {
+  try {
+    promoterService.archiveLink({
+      promoterId: req.session?.user?.id || 'user-promoter-001',
+      linkId: req.params.id,
+      actorId: req.session?.user?.id || 'user-promoter-001',
+    });
+    res.redirect('/promoter/links');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { create, archive };

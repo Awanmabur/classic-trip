@@ -7,6 +7,13 @@ function showLogin(req, res) {
   });
 }
 
+function showResetPassword(req, res) {
+  res.render('pages/auth/reset-password', {
+    seo: { title: 'Reset password | Classic Trip' },
+    token: req.params.token || '',
+  });
+}
+
 async function login(req, res, next) {
   try {
     const user = await authService.verifyLogin(req.body.identity || req.body.email, req.body.password);
@@ -39,4 +46,27 @@ function logout(req, res) {
   req.session.destroy(() => res.redirect('/'));
 }
 
-module.exports = { showLogin, login, register, logout };
+async function forgotPassword(req, res, next) {
+  try {
+    await authService.requestPasswordReset(req.body.identity);
+    return res.redirect('/login#forgot');
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    if (req.body.password !== req.body.confirmPassword) {
+      const error = new Error('Passwords do not match');
+      error.status = 422;
+      throw error;
+    }
+    await authService.resetPassword(req.body.token || req.params.token, req.body.password);
+    return res.redirect('/login');
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { showLogin, showResetPassword, login, register, forgotPassword, resetPassword, logout };

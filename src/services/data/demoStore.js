@@ -460,6 +460,10 @@ function normalize(value) {
   return String(value || '').toLowerCase().trim();
 }
 
+function isActivePromoterLink(link = {}) {
+  return !['archived', 'deleted', 'disabled'].includes(normalize(link.status));
+}
+
 function cleanNumber(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -584,11 +588,13 @@ function listingSearchText(listing = {}) {
 
 function listingCatalogItem(listing = {}) {
   const availability = listingAvailabilitySnapshot(listing);
+  const company = findCompany(listing.companyId || listing.companySlug);
   const nextDate = asDate(availability.nextDepartAt);
   const serviceType = listing.serviceType || listing.group || 'bus';
   const price = cleanNumber(listing.priceFrom || listing.price);
   const corridor = listingCorridorCode(listing);
   const bookable = Boolean(listing.bookable && listing.status === 'active' && availability.remaining > 0);
+  const policyText = normalize(`${listing.policy || ''} ${listing.cancellationRules || ''}`);
   return {
     ...frontendListing(listing),
     serviceType,
@@ -614,6 +620,8 @@ function listingCatalogItem(listing = {}) {
     scheduleId: availability.scheduleId || '',
     nextDepartLabel: nextDate ? nextDate.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : listing.time || 'Flexible schedule',
     bookable,
+    instantConfirmation: Boolean(company?.settings?.instantConfirmation !== false && bookable),
+    refundable: /refund|free cancellation|cancellation/.test(policyText),
     bookingUrl: bookable ? `/listings/${serviceType}/${listing.slug}` : '',
     bookableReason: bookable ? 'Instant checkout' : availability.remaining <= 0 ? 'Sold out or pending inventory' : 'Provider preview',
   };
@@ -939,14 +947,14 @@ function dashboardData(role = 'admin', context = {}) {
   const bookings = state.bookings.slice();
   const companyBookings = bookings.filter((booking) => booking.companyId === companyId);
   const customerBookings = bookings.filter((booking) => booking.customerUserId === customerId || booking.guestSnapshot?.email === 'customer@classictrip.test');
-  const promoterLinks = state.promoterLinks.filter((link) => link.promoterId === promoterId);
+  const promoterLinks = state.promoterLinks.filter((link) => link.promoterId === promoterId && isActivePromoterLink(link));
   const promoterBookings = bookings.filter((booking) => booking.promoterAttribution?.promoterId === promoterId);
   const companyListings = state.listings.filter((listing) => listing.companyId === companyId);
 
   if (role === 'admin') return adminDashboardData(bookings);
   if (role === 'company') return enrichCompanyDashboard(companyDashboardData(companyId, companyListings, companyBookings), companyId, companyBookings);
   if (role === 'employee') return employeeDashboardData(companyId, companyBookings, context);
-  if (role === 'customer') return customerDashboardData(customerBookings);
+  if (role === 'customer') return customerDashboardData(customerBookings, customerId);
   if (role === 'promoter') return promoterDashboardData(promoterLinks, promoterBookings, promoterId);
   return {};
 }
@@ -1799,8 +1807,10 @@ function handoverDetail(handover = {}, companyId = '') {
   };
 }
 
-function customerDashboardData(bookings) {
-  const customerUser = state.users.find((user) => user.id === 'user-customer-001' || user.role === 'customer') || {};
+function customerDashboardData(bookings, customerId = 'user-customer-001') {
+  const customerUser = state.users.find((user) => user.id === customerId)
+    || state.users.find((user) => user.id === 'user-customer-001' || user.role === 'customer')
+    || {};
   const customerWallets = state.wallets.filter((wallet) => wallet.ownerType === 'customer' && (!wallet.ownerId || wallet.ownerId === customerUser.id));
   const wallet = customerWallets[0] || {};
   const activeBookings = bookings.filter((booking) => ['confirmed', 'pending', 'ticketed', 'checked_in'].includes(normalize(booking.bookingStatus)) && !/refund|cancel/.test(normalize(booking.bookingStatus)));
@@ -2171,11 +2181,14 @@ function searchListings(query = {}) {
   const partner = normalize(query.partner || '');
   const min = Number(query.min || query.priceMin || 0);
   const max = Number(query.max || query.priceMax || 0);
+  const minRating = Number(query.rating || query.minRating || 0);
   const date = query.date ? new Date(query.date) : null;
   const verified = query.verified === 'true' || query.verified === true;
   const bookable = query.bookable === 'true' || query.bookable === true;
   const sponsored = query.sponsored === 'true' || query.sponsored === true;
   const availableOnly = query.available === 'true' || query.availableOnly === 'true' || query.availableOnly === true;
+  const instant = query.instant === 'true' || query.instantConfirmation === 'true' || query.instant === true || query.instantConfirmation === true;
+  const refundable = query.refundable === 'true' || query.refundable === true;
   const sort = normalize(query.sort || 'recommended');
 
   let results = buildListingCatalog();
@@ -2194,6 +2207,7 @@ function searchListings(query = {}) {
   if (partner) results = results.filter((item) => normalize(`${item.partner} ${item.companyName}`).includes(partner));
   if (min) results = results.filter((item) => item.priceFrom >= min);
   if (max) results = results.filter((item) => item.priceFrom <= max);
+  if (minRating) results = results.filter((item) => Number(item.ratingAverage || item.rating || 0) >= minRating);
   if (date && !Number.isNaN(date.getTime())) {
     const target = date.toISOString().slice(0, 10);
     results = results.filter((item) => !item.nextDepartAt || new Date(item.nextDepartAt).toISOString().slice(0, 10) === target);
@@ -2202,18 +2216,29 @@ function searchListings(query = {}) {
   if (bookable) results = results.filter((item) => item.bookable);
   if (sponsored) results = results.filter((item) => item.isSponsored);
   if (availableOnly) results = results.filter((item) => item.remainingInventory > 0);
+  if (instant) results = results.filter((item) => item.instantConfirmation);
+  if (refundable) results = results.filter((item) => item.refundable);
 
   results = results.slice().sort((a, b) => {
     if (sort === 'cheapest') return a.priceFrom - b.priceFrom;
     if (sort === 'top-rated') return b.ratingAverage - a.ratingAverage;
     if (sort === 'most-booked') return b.reviewCount - a.reviewCount;
     if (sort === 'sponsored') return Number(b.isSponsored) - Number(a.isSponsored) || b.ratingAverage - a.ratingAverage;
+    if (sort === 'best-value') return bestValueScore(b) - bestValueScore(a);
     if (sort === 'soonest') return (asDate(a.nextDepartAt)?.getTime() || Number.MAX_SAFE_INTEGER) - (asDate(b.nextDepartAt)?.getTime() || Number.MAX_SAFE_INTEGER);
     if (sort === 'availability') return b.remainingInventory - a.remainingInventory;
     if (sort === 'fastest') return String(a.duration).localeCompare(String(b.duration));
     return recommendedScore(b) - recommendedScore(a);
   });
   return results;
+}
+
+function bestValueScore(item) {
+  const rating = (Number(item.ratingAverage || item.rating || 0)) * 16;
+  const availability = Math.min(cleanNumber(item.remainingInventory || item.availability), 50) / 2;
+  const price = item.priceFrom ? Math.max(0, 80 - item.priceFrom / 10000) : 0;
+  const trust = (item.isVerified ? 12 : 0) + (item.instantConfirmation ? 8 : 0) + (item.refundable ? 6 : 0);
+  return rating + availability + price + trust;
 }
 
 function recommendedScore(item) {
@@ -2289,7 +2314,7 @@ function upsertUser(user) {
 
 function recordReferralClick(code, listingId, req) {
   if (!code) return null;
-  const link = state.promoterLinks.find((item) => normalize(item.code) === normalize(code) || normalize(item.code.split('-').slice(0, -1).join('-')) === normalize(code));
+  const link = state.promoterLinks.find((item) => isActivePromoterLink(item) && (normalize(item.code) === normalize(code) || normalize(item.code.split('-').slice(0, -1).join('-')) === normalize(code)));
   const click = {
     id: `ref-click-${state.referralClicks.length + 1}`,
     linkId: link?.id || null,
@@ -2303,6 +2328,47 @@ function recordReferralClick(code, listingId, req) {
   state.referralClicks.push(click);
   if (link) link.clicks += 1;
   return click;
+}
+
+function settleBookingPayment(bookingRef) {
+  const booking = findBooking(bookingRef);
+  if (!booking || booking.settlementStatus === 'settled') return booking;
+  if (booking.paymentStatus !== 'successful') return booking;
+  const listing = findListing(booking.listingId);
+  const promoterLink = booking.promoterAttribution?.linkId
+    ? state.promoterLinks.find((link) => link.id === booking.promoterAttribution.linkId)
+    : null;
+  const split = booking.pricing?.split || calculateCommission(booking.pricing?.total || 0, Boolean(booking.promoterAttribution));
+  const walletService = require('../wallet/walletService');
+  const commissionService = require('../commission/commissionService');
+
+  commissionService.createCommission(booking, Boolean(booking.promoterAttribution), split);
+  walletService.creditAvailable('platform', 'platform', split.platformFee, {
+    currency: booking.pricing.currency,
+    transactionType: 'platform_fee',
+    referenceType: 'booking',
+    referenceId: booking.id,
+  });
+  walletService.creditPending('company', booking.companyId, split.companyAmount, {
+    currency: booking.pricing.currency,
+    transactionType: 'company_earning_pending',
+    referenceType: 'booking',
+    referenceId: booking.id,
+  });
+  if (booking.promoterAttribution?.promoterId) {
+    walletService.creditPending('promoter', booking.promoterAttribution.promoterId, split.promoterAmount, {
+      currency: booking.pricing.currency,
+      transactionType: 'promoter_commission_pending',
+      referenceType: 'booking',
+      referenceId: booking.id,
+    });
+    if (promoterLink) promoterLink.conversions = Number(promoterLink.conversions || 0) + 1;
+  }
+  const activeCampaign = listing ? state.promotionCampaigns.find((campaign) => campaign.listingId === listing.id && campaign.status === 'active') : null;
+  if (activeCampaign) activeCampaign.bookings = Number(activeCampaign.bookings || 0) + 1;
+  booking.settlementStatus = 'settled';
+  booking.settledAt = new Date().toISOString();
+  return booking;
 }
 
 function createBooking(payload = {}, req = null) {
@@ -2329,7 +2395,7 @@ function createBooking(payload = {}, req = null) {
     throw error;
   }
   const refCode = payload.ref || req?.cookies?.ct_ref || req?.session?.referralCode || '';
-  const promoterLink = refCode ? state.promoterLinks.find((link) => normalize(link.code) === normalize(refCode) || normalize(link.code.split('-').slice(0, -1).join('-')) === normalize(refCode)) : null;
+  const promoterLink = refCode ? state.promoterLinks.find((link) => isActivePromoterLink(link) && (normalize(link.code) === normalize(refCode) || normalize(link.code.split('-').slice(0, -1).join('-')) === normalize(refCode))) : null;
   const isSelfReferral = promoterLink && req?.session?.user?.id === promoterLink.promoterId;
   const hasValidReferral = Boolean(promoterLink && !isSelfReferral);
   let scheduleId = payload.scheduleId || schedulesForListing(listing.id)[0]?.id || null;
@@ -2391,6 +2457,7 @@ function createBooking(payload = {}, req = null) {
   const total = clientTotal > computedTotal ? clientTotal : computedTotal;
   const split = calculateCommission(total, hasValidReferral);
   const bookingRef = generateBookingRef(listing.serviceType);
+  const initialPaymentStatus = payload.paymentStatus || (payload.deferPayment ? 'pending' : 'successful');
   const booking = {
     id: `booking-${state.bookings.length + 1}`,
     bookingRef,
@@ -2408,41 +2475,34 @@ function createBooking(payload = {}, req = null) {
     addons: selectedAddons,
     pricing: { subtotal, fees, addonTotal, total, currency: listing.currency || 'UGX', split, addons: selectedAddons },
     promoterAttribution: hasValidReferral ? { promoterId: promoterLink.promoterId, linkId: promoterLink.id, code: promoterLink.code } : null,
-    paymentStatus: 'successful',
-    bookingStatus: 'confirmed',
+    paymentStatus: initialPaymentStatus,
+    bookingStatus: initialPaymentStatus === 'successful' ? 'confirmed' : 'pending',
     qrCodeValue: `CLASSIC-TRIP:${bookingRef}:${listing.id}:${Date.now()}`,
     lockedUntil: addMinutes(new Date(), 10).toISOString(),
     createdAt: new Date().toISOString(),
   };
   state.bookings.unshift(booking);
-  const walletService = require('../wallet/walletService');
-  const commissionService = require('../commission/commissionService');
   const fraudService = require('../fraud/fraudService');
-  commissionService.createCommission(booking, hasValidReferral, split);
   booking.risk = fraudService.scoreBookingRisk(booking);
-  walletService.creditAvailable('platform', 'platform', split.platformFee, {
-    currency: booking.pricing.currency,
-    transactionType: 'platform_fee',
-    referenceType: 'booking',
-    referenceId: booking.id,
-  });
-  walletService.creditPending('company', listing.companyId, split.companyAmount, {
-    currency: booking.pricing.currency,
-    transactionType: 'company_earning_pending',
-    referenceType: 'booking',
-    referenceId: booking.id,
-  });
-  if (hasValidReferral) {
-    walletService.creditPending('promoter', promoterLink.promoterId, split.promoterAmount, {
-      currency: booking.pricing.currency,
-      transactionType: 'promoter_commission_pending',
-      referenceType: 'booking',
-      referenceId: booking.id,
+  if (fraudService.needsManualReview(booking.risk)) {
+    state.supportTickets.unshift({
+      id: `support-${state.supportTickets.length + 1}`,
+      ownerType: 'platform',
+      ownerId: 'fraud',
+      companyId: booking.companyId,
+      bookingRef: booking.bookingRef,
+      category: 'Fraud review',
+      subject: `Fraud review ${booking.bookingRef}`,
+      message: `Risk score ${booking.risk.score}: ${booking.risk.reasons.join(', ') || 'manual review required'}`,
+      priority: 'high',
+      status: 'open',
+      assignedTo: 'fraud-review',
+      createdBy: 'fraud-service',
+      createdAt: new Date().toISOString(),
+      meta: { bookingId: booking.id, risk: booking.risk },
     });
-    promoterLink.conversions += 1;
   }
-  const activeCampaign = state.promotionCampaigns.find((campaign) => campaign.listingId === listing.id && campaign.status === 'active');
-  if (activeCampaign) activeCampaign.bookings = Number(activeCampaign.bookings || 0) + 1;
+  if (booking.paymentStatus === 'successful') settleBookingPayment(booking.bookingRef);
   return booking;
 }
 
@@ -3035,6 +3095,7 @@ module.exports = {
   findUserByIdentity,
   upsertUser,
   recordReferralClick,
+  settleBookingPayment,
   createBooking,
   findBooking,
   searchBooking,

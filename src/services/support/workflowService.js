@@ -1,5 +1,6 @@
 const store = require('../data/demoStore');
 const walletService = require('../wallet/walletService');
+const ledgerService = require('../wallet/ledgerService');
 
 function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -40,6 +41,74 @@ function requestRefund({ bookingRef, requesterId = 'guest', amount, reason = 'Cu
   return refund;
 }
 
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function refundRatio(booking, refund) {
+  const total = Number(booking?.pricing?.total || 0);
+  if (!total) return 1;
+  return Math.max(0, Math.min(1, Number(refund.amount || 0) / total));
+}
+
+function applyRefundReversals(booking, refund, adminId) {
+  const ratio = refundRatio(booking, refund);
+  const fullRefund = ratio >= 0.999;
+  const split = booking.pricing?.split || {};
+  const currency = refund.currency || booking.pricing?.currency || 'UGX';
+  const reversals = [];
+
+  const reverse = (ownerType, ownerId, amount, transactionType) => {
+    if (!ownerId || amount <= 0) return null;
+    const result = walletService.reverseEarning(ownerType, ownerId, amount, {
+      currency,
+      transactionType,
+      referenceType: 'refund',
+      referenceId: refund.id,
+      sourceReferenceType: 'booking',
+      sourceReferenceId: booking.id,
+      approvedBy: adminId,
+    });
+    reversals.push({
+      ownerType,
+      ownerId,
+      amount,
+      transactionId: result.transaction?.id,
+      status: result.transaction?.status,
+      pendingDebit: result.transaction?.pendingDebit || 0,
+      availableDebit: result.transaction?.availableDebit || 0,
+      uncoveredAmount: result.transaction?.uncoveredAmount || 0,
+    });
+    return result;
+  };
+
+  reverse('platform', 'platform', roundMoney(Number(split.platformFee || 0) * ratio), 'refund_platform_debit');
+  reverse('company', booking.companyId, roundMoney(Number(split.companyAmount || 0) * ratio), 'refund_company_debit');
+  if (booking.promoterAttribution?.promoterId) {
+    reverse('promoter', booking.promoterAttribution.promoterId, roundMoney(Number(split.promoterAmount || 0) * ratio), 'refund_promoter_debit');
+  }
+
+  const commissions = store.state.commissions.filter((item) => item.bookingId === booking.id);
+  commissions.forEach((commission) => {
+    commission.refundedAmount = roundMoney((Number(commission.refundedAmount || 0)) + (Number(commission.promoterAmount || 0) * ratio));
+    commission.refundId = refund.id;
+    commission.refundedAt = new Date().toISOString();
+    commission.status = fullRefund ? 'cancelled' : 'partially_refunded';
+  });
+
+  if (fullRefund) {
+    ledgerService.updateTransactions(
+      { referenceType: 'booking', referenceId: booking.id, status: 'pending' },
+      { status: 'reversed', refundId: refund.id }
+    );
+  }
+
+  refund.reversals = reversals;
+  refund.refundRatio = ratio;
+  refund.fullRefund = fullRefund;
+  return reversals;
+}
+
 function approveRefund(refundId, adminId = 'admin-system') {
   const refund = store.state.refundRequests.find((item) => item.id === refundId || item.bookingRef === refundId);
   if (!refund) {
@@ -53,16 +122,53 @@ function approveRefund(refundId, adminId = 'admin-system') {
   refund.approvedBy = adminId;
   refund.approvedAt = new Date().toISOString();
   if (booking) {
-    booking.bookingStatus = 'refunded';
-    booking.paymentStatus = 'refunded';
+    applyRefundReversals(booking, refund, adminId);
+    const fullRefund = refund.fullRefund !== false;
+    booking.bookingStatus = fullRefund ? 'refunded' : 'partially_refunded';
+    booking.paymentStatus = fullRefund ? 'refunded' : 'partially_refunded';
+    booking.refundedAt = new Date().toISOString();
+    booking.refundId = refund.id;
     walletService.creditAvailable('customer', booking.customerUserId || refund.requesterId || booking.guestSnapshot?.email || 'guest', refund.amount, {
       currency: refund.currency || booking.pricing?.currency || 'UGX',
       transactionType: 'refund_credit',
       referenceType: 'refund',
       referenceId: refund.id,
     });
+    const ticket = store.state.supportTickets.find((item) => item.subject === `Refund request ${booking.bookingRef}`);
+    if (ticket) {
+      ticket.status = 'closed';
+      ticket.resolution = 'Refund approved';
+      ticket.resolvedBy = adminId;
+      ticket.resolvedAt = new Date().toISOString();
+    }
     const notificationService = require('../notification/notificationService');
     notificationService.refundApproved(booking, refund).catch(() => {});
+  }
+  return refund;
+}
+
+function rejectRefund(refundId, adminId = 'admin-system', reason = 'Refund rejected after review') {
+  const refund = store.state.refundRequests.find((item) => item.id === refundId || item.bookingRef === refundId);
+  if (!refund) {
+    const error = new Error('Refund request not found');
+    error.status = 404;
+    throw error;
+  }
+  if (refund.status === 'approved') {
+    const error = new Error('Approved refunds cannot be rejected');
+    error.status = 409;
+    throw error;
+  }
+  refund.status = 'rejected';
+  refund.reviewedBy = adminId;
+  refund.reviewedAt = new Date().toISOString();
+  refund.rejectionReason = cleanText(reason);
+  const ticket = store.state.supportTickets.find((item) => item.subject === `Refund request ${refund.bookingRef}`);
+  if (ticket) {
+    ticket.status = 'closed';
+    ticket.resolution = refund.rejectionReason;
+    ticket.resolvedBy = adminId;
+    ticket.resolvedAt = new Date().toISOString();
   }
   return refund;
 }
@@ -114,4 +220,4 @@ function moderateReview(reviewId, status = 'hidden') {
   return review;
 }
 
-module.exports = { requestRefund, approveRefund, createReview, moderateReview };
+module.exports = { requestRefund, approveRefund, rejectRefund, createReview, moderateReview };

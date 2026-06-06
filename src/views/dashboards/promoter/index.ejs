@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Promoter Dashboard</title>
   <meta name="description" content="Classic Trip Promoter Dashboard for referral links, commissions, withdrawals, shared listings, performance, and payout history." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js" defer></script>
 
   <style>
     :root{
@@ -1263,11 +1265,11 @@
             </div>
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Payout account</h3><p>Where promoter commission is sent.</p></div></div>
-              <form class="formPanel" id="payoutAccountForm">
+              <form class="formPanel" id="payoutAccountForm" action="/promoter/profile" method="post">
                 <div class="formGrid">
-                  <div class="field"><label>Method</label><div class="control"><i class="fa-solid fa-wallet"></i><select><option>Mobile Money</option><option>Bank Account</option></select></div></div>
-                  <div class="field"><label>Provider</label><div class="control"><i class="fa-solid fa-building-columns"></i><select><option>MTN Mobile Money</option><option>Airtel Money</option><option>Stanbic Bank</option></select></div></div>
-                  <div class="field full"><label>Account number</label><div class="control"><i class="fa-solid fa-phone"></i><input value="+256 700 112233"></div></div>
+                  <div class="field"><label>Method</label><div class="control"><i class="fa-solid fa-wallet"></i><select name="payoutMethod"><option>Mobile Money</option><option>Bank Account</option></select></div></div>
+                  <div class="field"><label>Provider</label><div class="control"><i class="fa-solid fa-building-columns"></i><select name="payoutProvider"><option>MTN Mobile Money</option><option>Airtel Money</option><option>Stanbic Bank</option></select></div></div>
+                  <div class="field full"><label>Account number</label><div class="control"><i class="fa-solid fa-phone"></i><input name="payoutAccount" value="+256 700 112233"></div></div>
                 </div>
                 <button class="btn btnBlue" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save payout account</button>
               </form>
@@ -1388,11 +1390,11 @@
             </div>
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Contact support</h3><p>Send a message to promoter support.</p></div></div>
-              <form class="formPanel" id="supportForm">
+              <form class="formPanel" id="supportForm" action="/promoter/support" method="post">
                 <div class="formGrid">
-                  <div class="field"><label>Issue type</label><div class="control"><i class="fa-solid fa-circle-question"></i><select><option>Commission missing</option><option>Withdrawal pending</option><option>Link not tracking</option><option>Account verification</option></select></div></div>
-                  <div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select><option>Normal</option><option>High</option><option>Urgent</option></select></div></div>
-                  <div class="field full"><label>Message</label><div class="control"><textarea placeholder="Explain your issue..."></textarea></div></div>
+                  <div class="field"><label>Issue type</label><div class="control"><i class="fa-solid fa-circle-question"></i><select name="category"><option>Commission missing</option><option>Withdrawal pending</option><option>Link not tracking</option><option>Account verification</option></select></div></div>
+                  <div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option>Normal</option><option>High</option><option>Urgent</option></select></div></div>
+                  <div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Explain your issue..." required></textarea></div></div>
                 </div>
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send message</button>
               </form>
@@ -1404,13 +1406,13 @@
           <div class="grid2">
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Profile</h3><p>Promoter identity, payout details, and verification.</p></div></div>
-              <form class="formPanel" id="profileForm">
+              <form class="formPanel" id="profileForm" action="/promoter/profile" method="post">
                 <div class="formGrid">
-                  <div class="field"><label>Promoter name</label><div class="control"><i class="fa-solid fa-user"></i><input value="Awan Promo" /></div></div>
-                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input value="+256 700 112233" /></div></div>
-                  <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input value="awanpromo@example.com" /></div></div>
-                  <div class="field"><label>Default channel</label><div class="control"><i class="fa-solid fa-share-nodes"></i><select><option>WhatsApp</option><option>Facebook</option><option>TikTok</option><option>Instagram</option><option>SMS</option></select></div></div>
-                  <div class="field full"><label>Bio</label><div class="control"><textarea>Travel promoter sharing the best bus, hotel, flight, tour, ferry, and car rental deals on Classic Trip.</textarea></div></div>
+                  <div class="field"><label>Promoter name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= currentUser?.fullName || 'Awan Promo' %>" required /></div></div>
+                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= currentUser?.phone || '+256 700 112233' %>" /></div></div>
+                  <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" value="<%= currentUser?.email || 'awanpromo@example.com' %>" /></div></div>
+                  <div class="field"><label>Default channel</label><div class="control"><i class="fa-solid fa-share-nodes"></i><select name="defaultChannel"><option>WhatsApp</option><option>Facebook</option><option>TikTok</option><option>Instagram</option><option>SMS</option></select></div></div>
+                  <div class="field full"><label>Bio</label><div class="control"><textarea name="bio">Travel promoter sharing the best bus, hotel, flight, tour, ferry, and car rental deals on Classic Trip.</textarea></div></div>
                 </div>
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
               </form>
@@ -1457,17 +1459,17 @@
   <div class="modal" id="deleteModal">
     <div class="modalCard">
       <div class="modalHead">
-        <div><h3>Delete record</h3><p>This confirms the delete workflow before any record is changed.</p></div>
+        <div><h3>Archive referral link</h3><p>This retires the link while keeping audit and commission history intact.</p></div>
         <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modalBody">
         <div class="deleteBox">
-          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
-          <strong id="deleteText">Are you sure you want to delete this record?</strong>
-          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In production, promoter actions should be logged for audit and commission tracking.</p>
+          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Archive action</span>
+          <strong id="deleteText">Are you sure you want to archive this referral link?</strong>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Archived links stop receiving new clicks or booking attribution, while existing commissions remain auditable.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" data-close-modal>Cancel</button>
-            <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
+            <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-box-archive"></i> Archive</button>
           </div>
         </div>
       </div>
@@ -1566,6 +1568,7 @@
           ['SUP-899','Referral link issue','Normal','Open','2 days ago']
         ]
       };
+      let pendingArchive = null;
 
       Object.assign(data, backendDashboardData);
 
@@ -1676,7 +1679,8 @@
 
       function actions(label, meta){
         const safeLabel = escapeHtml(label || meta?.label || 'record');
-        const type = escapeHtml(meta?.entity || 'record');
+        const rawType = meta?.entity || 'record';
+        const type = escapeHtml(rawType);
         const detailAttr = meta?.detail ? ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
         const detail = meta?.detail || {};
         const actionSet = new Set(meta?.actions || []);
@@ -1685,10 +1689,11 @@
         const copyBtn = actionSet.has('copy') || actionSet.has('share') ? `<button class="tinyBtn" data-copy-value="${escapeHtml(copySource)}" title="Copy reference/link"><i class="fa-regular fa-copy"></i></button>` : '';
         const shareBtn = shareUrl ? `<a class="tinyBtn" href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener" title="Share on WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : '';
         const exportBtn = `<button class="tinyBtn" data-export-row="${type}" data-label="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>`;
-        const lockedBtn = `<button class="tinyBtn" disabled title="No safe promoter endpoint exists for this action yet"><i class="fa-solid fa-lock"></i></button>`;
+        const archiveUrl = rawType === 'referral_link' && meta?.id ? `/promoter/links/${encodeURIComponent(meta.id)}/archive` : '';
+        const archiveBtn = archiveUrl ? `<button class="tinyBtn danger" data-delete-url="${escapeHtml(archiveUrl)}" data-delete-label="${safeLabel}" title="Archive link"><i class="fa-solid fa-box-archive"></i></button>` : '';
         return `<div class="rowActions">
           <button class="tinyBtn" data-modal="view" data-type="${type}" data-label="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
-          ${copyBtn}${shareBtn}${exportBtn}${lockedBtn}
+          ${copyBtn}${shareBtn}${exportBtn}${archiveBtn}
         </div>`;
       }
 
@@ -1858,26 +1863,116 @@
         showToast.t = setTimeout(() => els.toast.classList.remove('show'), 2300);
       }
 
+      function csrfField(){
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        return token ? `<input type="hidden" name="_csrf" value="${escapeHtml(token)}">` : '';
+      }
+
+      function listingOptions(){
+        const rows = (data.share || []).map(row => {
+          const meta = rowMeta(row);
+          const cells = rowCells(row);
+          return { value: meta.id || cells[0], label: cells[0] || meta.label || meta.id };
+        }).filter(item => item.value);
+        return rows.length ? rows : [{ value:'', label:'Select listing' }];
+      }
+
+      function selectOptions(items, selected = ''){
+        return (items || []).map(item => {
+          const value = typeof item === 'string' ? item : item.value;
+          const label = typeof item === 'string' ? item : item.label;
+          return `<option value="${escapeHtml(value)}"${String(value) === String(selected) ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+        }).join('');
+      }
+
+      function fieldHtml(field, readonly = false, disabled = false){
+        const ro = readonly ? 'readonly' : '';
+        const dis = disabled ? 'disabled' : '';
+        const required = field.required ? 'required' : '';
+        if(field.type === 'textarea'){
+          return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}>${escapeHtml(field.value || '')}</textarea></div></div>`;
+        }
+        if(field.type === 'select'){
+          return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}>${selectOptions(field.options, field.value || '')}</select></div></div>`;
+        }
+        return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}></div></div>`;
+      }
+
+      function promoterFormConfig(type){
+        const key = String(type || '').toLowerCase();
+        const listings = listingOptions();
+        if(key.includes('referral')) return {
+          action:'/promoter/links',
+          submit:'Create link',
+          fields:[
+            { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, required:true },
+            { name:'code', label:'Referral code', icon:'fa-link', placeholder:'MY-CODE' }
+          ]
+        };
+        if(key.includes('withdrawal')) return {
+          action:'/promoter/withdrawals',
+          submit:'Request withdrawal',
+          fields:[
+            { name:'amount', label:'Amount', type:'number', icon:'fa-coins', required:true, placeholder:'85000' },
+            { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
+            { name:'method', label:'Method', type:'select', icon:'fa-wallet', options:['Mobile Money','Bank','Wallet'] }
+          ]
+        };
+        if(key.includes('campaign')) return {
+          action:'/promoter/campaigns',
+          submit:'Create campaign',
+          fields:[
+            { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, required:true },
+            { name:'name', label:'Campaign name', icon:'fa-bullhorn', required:true, placeholder:'Weekend referral push' },
+            { name:'placement', label:'Placement', type:'select', icon:'fa-rectangle-ad', options:['promoter_share','whatsapp','social','email','marketplace_boost'] },
+            { name:'budget', label:'Budget', type:'number', icon:'fa-coins', placeholder:'50000' },
+            { name:'status', label:'Status', type:'select', icon:'fa-toggle-on', options:['active','draft','paused'] }
+          ]
+        };
+        if(key.includes('support')) return {
+          action:'/promoter/support',
+          submit:'Create case',
+          fields:[
+            { name:'category', label:'Category', type:'select', icon:'fa-tags', options:['Commission','Withdrawal','Referral links','Campaigns','Account'] },
+            { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
+            { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Tell support what you need' }
+          ]
+        };
+        if(key.includes('verification')) return {
+          action:'/promoter/verification',
+          submit:'Update verification',
+          fields:[
+            { name:'documentType', label:'Document type', type:'select', icon:'fa-id-card', options:['national_id','passport','business_license','tax_id'] },
+            { name:'documentReference', label:'Document reference', icon:'fa-hashtag', placeholder:'ID number or file reference' },
+            { name:'payoutMethod', label:'Payout method', type:'select', icon:'fa-wallet', options:['Mobile Money','Bank','Wallet'], value:data.profile?.payoutAccount?.method || 'Mobile Money' },
+            { name:'payoutAccount', label:'Payout account', icon:'fa-building-columns', value:data.profile?.payoutAccount?.account || '', placeholder:'Phone or account number' },
+            { name:'message', label:'Verification note', type:'textarea', full:true, placeholder:'Anything the verification team should know' }
+          ]
+        };
+        return null;
+      }
+
       function openCrud(mode, type, label = ''){
         const nice = String(type || 'record');
-        const readonly = mode === 'view' ? 'readonly' : '';
-        const disabled = mode === 'view' ? 'disabled' : '';
+        const readonly = mode === 'view';
+        const disabled = mode === 'view';
         const title = mode === 'view' ? `View ${nice}` : mode === 'edit' ? `Edit ${nice}` : `Create ${nice}`;
+        const config = promoterFormConfig(nice);
         els.crudTitle.textContent = title;
-        els.crudSub.textContent = mode === 'view' ? 'Promoter scoped details and safe actions.' : 'Submit a promoter request. Unsafe direct changes are not faked in the dashboard.';
-        const listings = (data.share || []).map(row => rowCells(row)[0]).filter(Boolean);
+        els.crudSub.textContent = mode === 'view' ? 'Promoter scoped details and safe actions.' : 'Submit this promoter workflow to Classic Trip.';
+        if(!config && mode !== 'view'){
+          els.crudBody.innerHTML = `<div class="notice">This promoter action is available from row details or reports.</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btnBlue" type="button" data-close-modal>Done</button></div>`;
+          els.crudModal.classList.add('is-open');
+          return;
+        }
+        const fields = config ? config.fields.map(field => fieldHtml(field, readonly, disabled)).join('') : '';
         els.crudBody.innerHTML = `
-          <form class="formPanel" data-dashboard-form>
-            <div class="formGrid">
-              <div class="field"><label>Title / reference</label><div class="control"><i class="fa-solid fa-pen"></i><input value="${escapeHtml(mode === 'create' ? '' : (label || nice))}" placeholder="Enter title" ${readonly}></div></div>
-              <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-toggle-on"></i><select ${disabled}><option>Pending</option><option>Open</option><option>Submitted</option><option>Review</option></select></div></div>
-              <div class="field"><label>Target listing</label><div class="control"><i class="fa-solid fa-layer-group"></i><select ${disabled}>${listings.map(item => `<option>${escapeHtml(item)}</option>`).join('')}</select></div></div>
-              <div class="field"><label>Payout / amount</label><div class="control"><i class="fa-solid fa-coins"></i><input placeholder="UGX 85,000" ${readonly}></div></div>
-              <div class="field full"><label>Notes</label><div class="control"><textarea placeholder="Add promoter request details..." ${readonly}></textarea></div></div>
-            </div>
+          <form class="formPanel" data-dashboard-form method="POST" action="${escapeHtml(config?.action || '')}">
+            ${csrfField()}
+            <div class="formGrid">${fields}</div>
             <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
               <button class="btn" type="button" data-close-modal>Cancel</button>
-              ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Submit request</button>`}
+              ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> ${escapeHtml(config.submit || 'Submit')}</button>`}
             </div>
           </form>
         `;
@@ -1925,6 +2020,18 @@
           return;
         }
 
+        const deleteBtn = e.target.closest('[data-delete-url]');
+        if(deleteBtn){
+          e.preventDefault();
+          pendingArchive = {
+            url: deleteBtn.dataset.deleteUrl,
+            label: deleteBtn.dataset.deleteLabel || 'this referral link'
+          };
+          if(els.deleteText) els.deleteText.textContent = `Archive ${pendingArchive.label}?`;
+          if(els.deleteModal) els.deleteModal.classList.add('is-open');
+          return;
+        }
+
         const modalBtn = e.target.closest('[data-modal]');
         if(modalBtn){
           e.preventDefault();
@@ -1938,7 +2045,8 @@
       });
 
       document.addEventListener('submit', e => {
-        if(e.target.matches('[data-dashboard-form], #supportForm, #profileForm, #payoutAccountForm')){
+        if(e.target.matches('[data-dashboard-form]')){
+          if(e.target.hasAttribute('action')) return;
           e.preventDefault();
           closeModals();
           showToast('Saved successfully');
@@ -1947,8 +2055,25 @@
 
       if(els.confirmDelete){
         els.confirmDelete.addEventListener('click', () => {
-          closeModals();
-          showToast('Delete is disabled until a safe promoter endpoint exists');
+          if(!pendingArchive?.url){
+            closeModals();
+            showToast('No referral link selected');
+            return;
+          }
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = pendingArchive.url;
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+          if(csrf){
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_csrf';
+            input.value = csrf;
+            form.appendChild(input);
+          }
+          document.body.appendChild(form);
+          els.confirmDelete.disabled = true;
+          form.submit();
         });
       }
 

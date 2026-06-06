@@ -45,7 +45,7 @@ async function action(req, res, next) {
       'updateEmployeeProfile', 'requestCompanyPayout', 'createCompanyNotice', 'updateCompanySettings'
     ]);
     if (!allowed.has(actionName)) {
-      return res.status(400).json({ ok: false, message: 'This dashboard action is not wired to a safe endpoint yet.', action: actionName });
+      return res.status(400).json({ ok: false, message: 'Unsupported dashboard action.', action: actionName });
     }
     if (!['admin', 'company', 'employee'].includes(role)) {
       return res.status(403).json({ ok: false, message: 'This dashboard action is not available for your role.' });

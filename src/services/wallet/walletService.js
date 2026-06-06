@@ -80,6 +80,34 @@ function debitAvailable(ownerType, ownerId, amount, meta = {}) {
   return wallet;
 }
 
+function reverseEarning(ownerType, ownerId, amount, meta = {}) {
+  const value = normalizeAmount(amount);
+  const wallet = getOrCreateWallet(ownerType, ownerId, meta.currency || 'UGX');
+  const pendingDebit = Math.min(wallet.pendingBalance, value);
+  const availableDebit = Math.min(wallet.availableBalance, value - pendingDebit);
+  const uncoveredAmount = Math.max(0, value - pendingDebit - availableDebit);
+  wallet.pendingBalance -= pendingDebit;
+  wallet.availableBalance -= availableDebit;
+  const transaction = ledgerService.recordTransaction({
+    walletId: wallet.id,
+    ownerType,
+    ownerId,
+    transactionType: meta.transactionType || 'refund_debit',
+    direction: 'debit',
+    amount: value,
+    currency: wallet.currency,
+    status: uncoveredAmount > 0 ? 'partial' : (meta.status || 'completed'),
+    referenceType: meta.referenceType,
+    referenceId: meta.referenceId,
+    sourceReferenceType: meta.sourceReferenceType,
+    sourceReferenceId: meta.sourceReferenceId,
+    pendingDebit,
+    availableDebit,
+    uncoveredAmount,
+  });
+  return { wallet, transaction };
+}
+
 function movePendingToAvailable(ownerType, ownerId, amount, meta = {}) {
   const value = normalizeAmount(amount);
   const wallet = getOrCreateWallet(ownerType, ownerId, meta.currency || 'UGX');
@@ -131,6 +159,7 @@ module.exports = {
   creditPending,
   creditAvailable,
   debitAvailable,
+  reverseEarning,
   movePendingToAvailable,
   requestWithdrawal,
   approveWithdrawal,

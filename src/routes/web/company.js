@@ -12,9 +12,12 @@ const mediaController = require('../../controllers/company/mediaController');
 const checkinController = require('../../controllers/company/checkinController');
 const actionController = require('../../controllers/company/actionController');
 const publicListingController = require('../../controllers/public/listingController');
+const billingController = require('../../controllers/public/billingController');
 const reportController = require('../../controllers/reportController');
 const { requireAuth } = require('../../middlewares/auth');
 const { requireRole } = require('../../middlewares/roles');
+const { upgradeRules } = require('../../validators/billingValidator');
+const { validateRequest } = require('../../middlewares/validate');
 const upload = require('../../middlewares/upload');
 const router = express.Router();
 
@@ -36,6 +39,7 @@ router.get('/company/profile', (req, res, next) => {
   req.params.slug = company?.slug || req.session?.user?.companySlug || 'classic-express';
   return publicListingController.companyProfile(req, res, next);
 });
+router.get('/company/billing', billingController.renderCompanyBilling);
 router.get('/company/reports/:type.csv', reportController.company);
 router.post('/company/reports/custom', reportController.companyCustom);
 router.post('/company/listings', upload.single('imageFile'), listingController.create);
@@ -62,6 +66,7 @@ router.post('/company/media', upload.single('imageFile'), mediaController.upload
 router.post('/company/employees/invite', employeeController.invite);
 router.post('/company/promotions', promotionController.create);
 router.post('/company/settings', actionController.updateSettings);
+router.post('/company/billing/upgrade', upgradeRules, validateRequest, billingController.createUpgrade);
 router.post('/company/payouts', actionController.requestPayout);
 router.post('/company/support/notices', actionController.createNotice);
 router.post('/company/support/:id', actionController.updateSupport);

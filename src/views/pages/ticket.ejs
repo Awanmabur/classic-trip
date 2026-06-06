@@ -10,7 +10,10 @@
   <section class="ticketPaper">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span><h1 class="heroTitle" style="font-size:30px;margin-top:10px"><%= booking.bookingRef %></h1><p class="heroSub"><%= safeListing.title %></p></div>
-      <span class="ticketCode"><%= booking.bookingStatus %></span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+        <span class="ticketCode"><%= booking.bookingStatus %></span>
+      </div>
     </div>
     <div class="detailGrid">
       <div>
@@ -23,11 +26,52 @@
       </div>
       <div>
         <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:200px;height:200px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
-        <form action="/employee/scanner/validate" method="post" style="margin-top:12px" onsubmit="event.preventDefault();fetch('/api/scanner/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({qrCodeValue:'<%= booking.qrCodeValue %>'})}).then(r=>r.json()).then(x=>alert(x.message||x.result))">
+        <form id="validateTicketForm" action="/employee/scanner/validate" method="post" style="margin-top:12px">
+          <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
           <button class="btn btnPrimary" style="width:100%"><i class="fa-solid fa-qrcode"></i> Validate QR</button>
         </form>
       </div>
     </div>
   </section>
 </main>
+<script>
+  (function () {
+    const form = document.getElementById('validateTicketForm');
+    const qrCodeValue = <%- JSON.stringify(booking.qrCodeValue || '') %>;
+    const button = form?.querySelector('button');
+
+    function notify(message) {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(window.__ticketToast);
+      window.__ticketToast = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating';
+      }
+      try {
+        const response = await fetch('/api/scanner/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qrCodeValue })
+        });
+        const result = await response.json().catch(() => ({}));
+        notify(result.message || result.result || (response.ok ? 'Ticket validated.' : 'Unable to validate ticket.'));
+      } catch (error) {
+        notify(error.message || 'Unable to validate ticket.');
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = '<i class="fa-solid fa-qrcode"></i> Validate QR';
+        }
+      }
+    });
+  })();
+</script>
 <%- include('../partials/site-footer') %>

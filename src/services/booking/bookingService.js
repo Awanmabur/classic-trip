@@ -1,5 +1,6 @@
 const store = require('../data/demoStore');
 const { mongoose } = require('../../config/db');
+const { env } = require('../../config/env');
 
 function mongoReady() {
   return mongoose.connection.readyState === 1;
@@ -63,11 +64,59 @@ async function persistBooking(booking, payload, transactionStartIndex) {
 }
 
 async function createGuestBooking(payload, req) {
+  const provider = payload.provider || payload.paymentProvider || env.paymentProvider;
   const transactionStartIndex = store.state.walletTransactions.length;
-  const booking = store.createBooking(payload, req);
+  const booking = store.createBooking({
+    ...payload,
+    deferPayment: provider !== 'mock',
+  }, req);
+  const paymentService = require('../payment/paymentService');
+  try {
+    const payment = await paymentService.initiatePayment({
+      ...payload,
+      provider,
+      bookingRef: booking.bookingRef,
+      amount: booking.pricing?.total,
+      currency: booking.pricing?.currency,
+      customer: booking.guestSnapshot,
+    });
+    booking.paymentProvider = payment.provider;
+    booking.paymentRef = payment.providerReference;
+    booking.checkoutUrl = payment.checkoutUrl || '';
+    booking.paymentStatus = payment.status || booking.paymentStatus;
+    if (booking.paymentStatus === 'successful') {
+      booking.bookingStatus = 'confirmed';
+      store.settleBookingPayment(booking.bookingRef);
+    }
+  } catch (error) {
+    booking.paymentStatus = 'failed';
+    booking.bookingStatus = 'cancelled';
+    throw error;
+  }
   await persistBooking(booking, payload, transactionStartIndex);
   const notificationService = require('../notification/notificationService');
-  await notificationService.bookingConfirmed(booking);
+  if (booking.bookingStatus === 'confirmed') {
+    await notificationService.bookingConfirmed(booking);
+  } else {
+    await notificationService.queueNotification({
+      userId: booking.customerUserId || null,
+      channels: ['email', 'sms'],
+      title: `Payment pending ${booking.bookingRef}`,
+      message: `Your Classic Trip booking ${booking.bookingRef} is waiting for payment confirmation.`,
+      recipient: {
+        email: booking.guestSnapshot?.email,
+        phone: booking.guestSnapshot?.phone,
+        name: booking.guestSnapshot?.fullName,
+      },
+      referenceType: 'booking',
+      referenceId: booking.id,
+      meta: { bookingRef: booking.bookingRef, checkoutUrl: booking.checkoutUrl },
+    });
+  }
+  const ticketPdfService = require('../pdf/ticketPdfService');
+  const listing = store.findListing(booking.listingId);
+  booking.ticketPdf = await ticketPdfService.uploadTicketPdf(booking, listing);
+  await persistBooking(booking, payload, store.state.walletTransactions.length);
   return booking;
 }
 

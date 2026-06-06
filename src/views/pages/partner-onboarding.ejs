@@ -1,0 +1,61 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container paymentPage" style="padding:16px 0 30px">
+  <section class="sheet">
+    <div class="sheetTop">
+      <div>
+        <div class="badge badgeOk"><i class="fa-solid fa-building-circle-check"></i> Partner onboarding</div>
+        <div class="sheetTitle">Create your company and continue to plan payment.</div>
+        <div class="sheetSub">Choose a plan, add business details, then complete checkout on the next page.</div>
+      </div>
+      <a class="iconbtn" href="/pricing" title="Back to plans"><i class="fa-solid fa-arrow-left"></i></a>
+    </div>
+
+    <form id="partnerOnboardingForm" action="/partner/onboarding" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+      <div class="checkoutStep active paymentOnlyStep">
+        <div class="summaryCard">
+          <h3>1. Select plan</h3>
+          <div class="gridCards" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+            <% plans.forEach(plan => { %>
+              <label class="listing" style="padding:12px;cursor:pointer;border-color:<%= plan.id === selectedPlanId ? 'rgba(79,140,255,.65)' : '' %>">
+                <input type="radio" name="planId" value="<%= plan.id %>" <%= plan.id === selectedPlanId ? 'checked' : '' %> required>
+                <span class="badge <%= plan.recommended ? 'badgeOk' : 'badgeInfo' %>"><%= plan.badge %></span>
+                <h3 style="margin:10px 0 4px"><%= plan.name %></h3>
+                <p class="muted" style="margin:0;font-size:12px"><%= plan.tagline %></p>
+                <strong style="display:block;margin-top:8px"><%= money(plan.amount, plan.currency) %> / <%= plan.interval %></strong>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+
+        <div class="summaryCard">
+          <h3>2. Company details</h3>
+          <div class="bookingForm" style="margin-top:10px">
+            <input name="contactName" placeholder="Contact person" required>
+            <input name="email" type="email" placeholder="Work email" required>
+            <input name="phone" placeholder="Phone / WhatsApp" required>
+            <input class="full" name="name" placeholder="Company name" required>
+            <select name="companyType" required>
+              <option value="">Company type</option>
+              <option value="bus">Bus / coach operator</option>
+              <option value="hotel">Hotel / stay partner</option>
+              <option value="flight">Flight / airline partner</option>
+              <option value="tour">Tour / package partner</option>
+              <option value="car_rental">Car rental</option>
+              <option value="event">Event ticketing</option>
+            </select>
+            <input name="country" placeholder="Country" value="Uganda">
+            <input name="city" placeholder="City / branch">
+            <textarea class="full" name="description" placeholder="What services will you sell on Classic Trip?" style="border-radius:22px;min-height:90px"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
+            <a class="btn btnGhost" href="/pricing"><i class="fa-solid fa-table-list"></i> Compare plans</a>
+            <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Continue to payment</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

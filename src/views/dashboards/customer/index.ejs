@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Customer Dashboard</title>
   <meta name="description" content="Classic Trip Customer Dashboard for bookings, saved trips, receipts, refunds, support, reviews, wallet, and profile." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js" defer></script>
 
   <style>
     :root{
@@ -1281,11 +1283,11 @@
             </div>
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Contact support</h3><p>Send a message to Classic Trip support.</p></div></div>
-              <form class="formPanel" id="supportForm">
+              <form class="formPanel" id="supportForm" action="/account/support" method="post">
                 <div class="formGrid">
-                  <div class="field"><label>Booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select><option>#CT-10501</option><option>#CT-10497</option><option>#CT-10489</option></select></div></div>
-                  <div class="field"><label>Issue type</label><div class="control"><i class="fa-solid fa-circle-question"></i><select><option>Ticket not received</option><option>Refund request</option><option>Wrong passenger details</option><option>Payment problem</option></select></div></div>
-                  <div class="field full"><label>Message</label><div class="control"><textarea placeholder="Explain your issue..."></textarea></div></div>
+                  <div class="field"><label>Booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="bookingRef"><option value="">General support</option><% (dashboardData.bookings || []).slice(0, 8).forEach(row => { %><option value="<%= row[0] %>">#<%= row[0] %></option><% }) %></select></div></div>
+                  <div class="field"><label>Issue type</label><div class="control"><i class="fa-solid fa-circle-question"></i><select name="category"><option>Ticket not received</option><option>Refund request</option><option>Wrong passenger details</option><option>Payment problem</option></select></div></div>
+                  <div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Explain your issue..." required></textarea></div></div>
                 </div>
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send message</button>
               </form>
@@ -1359,13 +1361,13 @@
           <div class="grid2">
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Profile</h3><p>Manage passenger details used for bookings.</p></div></div>
-              <form class="formPanel" id="profileForm">
+              <form class="formPanel" id="profileForm" action="/account/profile" method="post">
                 <div class="formGrid">
-                  <div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input value="Amina K." /></div></div>
-                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input value="+256 700 112233" /></div></div>
-                  <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input value="amina@example.com" /></div></div>
-                  <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input value="Kampala" /></div></div>
-                  <div class="field full"><label>Saved passenger details</label><div class="control"><textarea>Amina K. • Adult passenger • Passport/ID ending 2091</textarea></div></div>
+                  <div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= currentUser?.fullName || 'Amina K.' %>" required /></div></div>
+                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= currentUser?.phone || '+256 700 112233' %>" /></div></div>
+                  <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" value="<%= currentUser?.email || 'amina@example.com' %>" /></div></div>
+                  <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" value="<%= currentUser?.city || 'Kampala' %>" /></div></div>
+                  <div class="field full"><label>Saved passenger details</label><div class="control"><textarea name="savedPassengerDetails"><%= currentUser?.savedPassengerDetails || 'Amina K. - Adult passenger - Passport/ID ending 2091' %></textarea></div></div>
                 </div>
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
               </form>
@@ -1442,7 +1444,7 @@
         <div class="deleteBox">
           <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
           <strong id="deleteText">Are you sure you want to delete this record?</strong>
-          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">In the real system, deleting customer data should follow privacy and audit rules.</p>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Customer data changes must follow privacy rules and be recorded in the audit trail.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" data-close-modal>Cancel</button>
             <button class="btn btnDanger" id="confirmDelete"><i class="fa-solid fa-trash"></i> Delete</button>
@@ -1675,14 +1677,12 @@
         const type = escapeHtml(meta?.entity || 'record');
         const detailAttr = meta?.detail ? ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
         const actionSet = new Set(meta?.actions || []);
-        const disabledReason = 'No safe customer endpoint exists for this action yet';
         const ticketBtn = actionSet.has('ticket') ? `<button class="tinyBtn" data-jump="ticket" title="Open current ticket"><i class="fa-solid fa-qrcode"></i></button>` : '';
         const copyBtn = `<button class="tinyBtn" data-copy-value="${safeLabel}" title="Copy reference"><i class="fa-regular fa-copy"></i></button>`;
         const exportBtn = `<button class="tinyBtn" data-export-row="${type}" data-label="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>`;
-        const lockedBtn = `<button class="tinyBtn" disabled title="${escapeHtml(disabledReason)}"><i class="fa-solid fa-lock"></i></button>`;
         return `<div class="rowActions">
           <button class="tinyBtn" data-modal="view" data-type="${type}" data-label="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
-          ${ticketBtn}${copyBtn}${exportBtn}${lockedBtn}
+          ${ticketBtn}${copyBtn}${exportBtn}
         </div>`;
       }
 
@@ -1886,26 +1886,140 @@
         showToast.t = setTimeout(() => els.toast.classList.remove('show'), 2300);
       }
 
+      function csrfField(){
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        return token ? `<input type="hidden" name="_csrf" value="${escapeHtml(token)}">` : '';
+      }
+
+      function bookingOptions(){
+        const rows = (data.bookings || []).map(row => rowCells(row)[0]).filter(Boolean);
+        return rows.length ? rows : [''];
+      }
+
+      function selectOptions(items, selected = ''){
+        return (items || []).map(item => {
+          const value = typeof item === 'string' ? item : item.value;
+          const label = typeof item === 'string' ? item : item.label;
+          return `<option value="${escapeHtml(value)}"${String(value) === String(selected) ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+        }).join('');
+      }
+
+      function fieldHtml(field, readonly = false, disabled = false){
+        const ro = readonly ? 'readonly' : '';
+        const dis = disabled ? 'disabled' : '';
+        const required = field.required ? 'required' : '';
+        const value = field.value || '';
+        if(field.type === 'textarea'){
+          return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}>${escapeHtml(value)}</textarea></div></div>`;
+        }
+        if(field.type === 'select'){
+          return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}>${selectOptions(field.options, value)}</select></div></div>`;
+        }
+        if(field.type === 'checkbox'){
+          return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-toggle-on'}"></i><select name="${escapeHtml(field.name)}" ${dis}><option value="on"${field.checked ? ' selected' : ''}>Enabled</option><option value="">Disabled</option></select></div></div>`;
+        }
+        return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}></div></div>`;
+      }
+
+      function customerFormConfig(type){
+        const key = String(type || '').toLowerCase();
+        const bookingRefs = bookingOptions();
+        if(key.includes('refund')) return {
+          action: '/account/refunds',
+          submit: 'Request refund',
+          fields: [
+            { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options: bookingRefs, required:true },
+            { name:'amount', label:'Refund amount', type:'number', icon:'fa-coins', placeholder:'25000' },
+            { name:'reason', label:'Reason', type:'textarea', full:true, required:true, placeholder:'Explain the refund request' }
+          ]
+        };
+        if(key.includes('support')) return {
+          action: '/account/support',
+          submit: 'Create case',
+          fields: [
+            { name:'bookingRef', label:'Related booking', type:'select', icon:'fa-ticket', options: bookingRefs },
+            { name:'category', label:'Category', type:'select', icon:'fa-tags', options:['Ticket issue','Payment issue','Refund follow-up','Account help'] },
+            { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
+            { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Tell support what happened' }
+          ]
+        };
+        if(key === 'review') return {
+          action: '/account/reviews',
+          submit: 'Submit review',
+          fields: [
+            { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options: bookingRefs, required:true },
+            { name:'rating', label:'Rating', type:'select', icon:'fa-star', options:['5','4','3','2','1'], required:true },
+            { name:'comment', label:'Review', type:'textarea', full:true, required:true, placeholder:'Share your trip experience' }
+          ]
+        };
+        if(key.includes('saved')) return {
+          action: '/account/saved',
+          submit: 'Save trip',
+          fields: [
+            { name:'listingId', label:'Listing ID or slug', icon:'fa-layer-group', required:true, placeholder:'bus-kampala-nairobi' },
+            { name:'notes', label:'Notes', type:'textarea', full:true, placeholder:'Why you want to save this trip' }
+          ]
+        };
+        if(key.includes('wallet')) return {
+          action: '/account/wallet/top-up',
+          submit: 'Top up wallet',
+          fields: [
+            { name:'amount', label:'Amount', type:'number', icon:'fa-coins', required:true, placeholder:'50000' },
+            { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
+            { name:'method', label:'Method', type:'select', icon:'fa-credit-card', options:['mobile_money','card','bank_transfer','cash'] },
+            { name:'paymentReference', label:'Payment reference', icon:'fa-receipt', placeholder:'MM-123456' },
+            { name:'notes', label:'Notes', type:'textarea', full:true, placeholder:'Optional payment note' }
+          ]
+        };
+        if(key.includes('promoter')) return {
+          action: '/account/promoter',
+          submit: 'Create promoter account',
+          fields: [
+            { name:'referralCode', label:'Referral code', icon:'fa-link', placeholder:'MY-CODE' },
+            { name:'defaultChannel', label:'Main channel', type:'select', icon:'fa-share-nodes', options:['social','whatsapp','email','agent_network'] },
+            { name:'payoutMethod', label:'Payout method', type:'select', icon:'fa-wallet', options:['Mobile Money','Bank','Wallet'] },
+            { name:'payoutAccount', label:'Payout account', icon:'fa-id-card', placeholder:'Phone or account number' },
+            { name:'bio', label:'Promoter note', type:'textarea', full:true, placeholder:'Where you plan to share Classic Trip listings' }
+          ]
+        };
+        if(key.includes('security')) return {
+          action: '/account/security',
+          submit: 'Update security',
+          fields: [
+            { name:'twoFactorEnabled', label:'Two-factor authentication', type:'checkbox', icon:'fa-shield-halved', checked:Boolean(data.profile?.twoFactorEnabled) },
+            { name:'loginAlertsEnabled', label:'Login alerts', type:'checkbox', icon:'fa-bell', checked:true },
+            { name:'recoveryEmail', label:'Recovery email', type:'email', icon:'fa-envelope', value:data.profile?.email || '', placeholder:'you@example.com' },
+            { name:'passwordChanged', label:'Mark password changed', type:'checkbox', icon:'fa-key' }
+          ]
+        };
+        return null;
+      }
+
       function openCrud(mode, type, label = ''){
         const nice = String(type || 'record');
-        if(mode === 'create' && nice.toLowerCase().includes('booking')){ openBookingPreview(); return; }
-        const readonly = mode === 'view' ? 'readonly' : '';
-        const disabled = mode === 'view' ? 'disabled' : '';
+        if(mode === 'create' && nice.toLowerCase().includes('booking')){
+          window.location.href = '/search?bookable=true';
+          return;
+        }
+        const readonly = mode === 'view';
+        const disabled = mode === 'view';
         const title = mode === 'view' ? `View ${nice}` : mode === 'edit' ? `Edit ${nice}` : `Create ${nice}`;
+        const config = customerFormConfig(nice);
         els.crudTitle.textContent = title;
-        els.crudSub.textContent = mode === 'view' ? 'Customer scoped details and safe actions.' : 'This form is wired as a safe customer request workflow; no fake destructive action is performed.';
+        els.crudSub.textContent = mode === 'view' ? 'Customer scoped details and safe actions.' : 'Submit this customer workflow to Classic Trip.';
+        if(!config && mode !== 'view'){
+          els.crudBody.innerHTML = `<div class="notice">This customer action opens from the marketplace or row details.</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btnBlue" type="button" data-close-modal>Done</button></div>`;
+          els.crudModal.classList.add('is-open');
+          return;
+        }
+        const fields = config ? config.fields.map(field => fieldHtml(field, readonly, disabled)).join('') : '';
         els.crudBody.innerHTML = `
-          <form class="formPanel" data-dashboard-form>
-            <div class="formGrid">
-              <div class="field"><label>Title / reference</label><div class="control"><i class="fa-solid fa-pen"></i><input value="${escapeHtml(mode === 'create' ? '' : (label || nice))}" placeholder="Enter title" ${readonly}></div></div>
-              <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-toggle-on"></i><select ${disabled}><option>Pending</option><option>Open</option><option>Submitted</option><option>Review</option></select></div></div>
-              <div class="field"><label>Related booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select ${disabled}>${(data.bookings || []).map(row => `<option>${escapeHtml(rowCells(row)[0])}</option>`).join('')}</select></div></div>
-              <div class="field"><label>Contact method</label><div class="control"><i class="fa-solid fa-envelope"></i><select ${disabled}><option>Email</option><option>Phone</option><option>WhatsApp</option><option>Dashboard notification</option></select></div></div>
-              <div class="field full"><label>Notes</label><div class="control"><textarea placeholder="Add customer note or request details..." ${readonly}></textarea></div></div>
-            </div>
+          <form class="formPanel" data-dashboard-form method="POST" action="${escapeHtml(config?.action || '')}">
+            ${csrfField()}
+            <div class="formGrid">${fields}</div>
             <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
               <button class="btn" type="button" data-close-modal>Cancel</button>
-              ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Submit request</button>`}
+              ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> ${escapeHtml(config.submit || 'Submit')}</button>`}
             </div>
           </form>
         `;
@@ -1971,7 +2085,8 @@
       });
 
       document.addEventListener('submit', e => {
-        if(e.target.matches('[data-dashboard-form], #supportForm, #profileForm')){
+        if(e.target.matches('[data-dashboard-form]')){
+          if(e.target.hasAttribute('action')) return;
           e.preventDefault();
           closeModals();
           showToast('Saved successfully');

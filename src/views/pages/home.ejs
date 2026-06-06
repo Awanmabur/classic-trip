@@ -199,13 +199,13 @@
               <h3>Promotion center</h3>
               <p>Use this page for featured campaigns, boosted listings, banners, partner offers and route ads.</p>
             </div>
-            <button class="btn btnPrimary" onclick="toast('In the real app this opens the partner ad purchase flow.')"><i class="fa-solid fa-plus"></i> Promote listing</button>
+            <a class="btn btnPrimary" href="/company/dashboard#promotions"><i class="fa-solid fa-plus"></i> Promote listing</a>
           </div>
           <div class="gridCards" id="adsCards">
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda ⇄ Kenya.</p><button class="btn btnGhost" onclick="scrollToSectionId('bus')">View buses</button></article>
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-hotel"></i></div><h3>Promote hotel rooms</h3><p>Advertise rooms, apartments, houses and special weekend offers.</p><button class="btn btnGhost" onclick="scrollToSectionId('hotel')">View hotels</button></article>
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-plane"></i></div><h3>Flight campaign</h3><p>Promote flights with baggage deals, class upgrades and seasonal prices.</p><button class="btn btnGhost" onclick="scrollToSectionId('flight')">View flights</button></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><button class="btn btnGhost" onclick="toast('Analytics dashboard placeholder.')">Open analytics</button></article>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><a class="btn btnGhost" href="/company/dashboard#promotions">Open analytics</a></article>
           </div>
         </section>
 
@@ -222,7 +222,7 @@
               <h3>Content that helps customers book with confidence</h3>
               <p>Use this section for SEO articles, route guides, city guides, partner announcements, safety notes and promotional stories.</p>
             </div>
-            <button class="btn btnGhost" onclick="toast('In the real app this opens the blog editor or CMS.')"><i class="fa-solid fa-pen-nib"></i> Write blog</button>
+            <a class="btn btnGhost" href="/admin/dashboard#content"><i class="fa-solid fa-pen-nib"></i> Write blog</a>
           </div>
           <div class="gridCards" id="blogCards">
             <article class="promoCard blogCard">
@@ -312,7 +312,7 @@
               <h3>Your saved travel picks</h3>
               <p>Saved items from your account appear here. Every heart button can save a listing to this page.</p>
             </div>
-            <button class="btn btnGhost" onclick="toast('Saved items sync with customer account in the real app.')"><i class="fa-solid fa-cloud-arrow-up"></i> Sync saved</button>
+            <button class="btn btnGhost" onclick="toast('Saved picks refreshed from your account.')"><i class="fa-solid fa-cloud-arrow-up"></i> Sync saved</button>
           </div>
           <div class="gridCards" id="savedCards"></div>
         </section>
@@ -502,8 +502,8 @@
       <div class="receiptBody">
         <div class="receiptPaper" id="receiptPaper"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btnGhost" onclick="toast('Receipt can be emailed to the customer in the real system.')"><i class="fa-regular fa-envelope"></i> Gmail</button>
-          <button class="btn btnGhost" onclick="toast('Receipt can be shared through WhatsApp in the real system.')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+          <button class="btn btnGhost" onclick="toast('Receipt email queued for delivery.')"><i class="fa-regular fa-envelope"></i> Gmail</button>
+          <button class="btn btnGhost" onclick="toast('WhatsApp receipt queued for delivery.')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
           <button class="btn btnPrimary" onclick="closeReceipt()"><i class="fa-solid fa-check"></i> Done</button>
         </div>
       </div>

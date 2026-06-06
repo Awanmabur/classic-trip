@@ -10,6 +10,9 @@
     <% }) %>
     <a class="btn btnGhost <%= query?.bookable ? 'active' : '' %>" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Bookable</a>
     <a class="btn btnGhost <%= query?.available ? 'active' : '' %>" href="/search?available=true&sort=availability"><i class="fa-solid fa-circle-check"></i> Open inventory</a>
+    <a class="btn btnGhost <%= query?.instant || query?.instantConfirmation ? 'active' : '' %>" href="/search?instant=true&bookable=true"><i class="fa-solid fa-bolt"></i> Instant confirmation</a>
+    <a class="btn btnGhost <%= query?.refundable ? 'active' : '' %>" href="/search?refundable=true"><i class="fa-solid fa-rotate-left"></i> Refundable</a>
+    <a class="btn btnGhost <%= query?.rating === '4' || query?.minRating === '4' ? 'active' : '' %>" href="/search?minRating=4&sort=top-rated"><i class="fa-solid fa-star"></i> 4+ rated</a>
     <a class="btn btnGhost <%= query?.sort === 'sponsored' ? 'active' : '' %>" href="/search?sort=sponsored"><i class="fa-solid fa-bullhorn"></i> Sponsored</a>
   </div>
 

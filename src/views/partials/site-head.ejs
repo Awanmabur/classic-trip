@@ -6,6 +6,7 @@
   <title><%= seo?.title || 'Classic Trip' %></title>
   <meta name="description" content="<%= seo?.description || 'Classic Trip multi-tenant travel marketplace.' %>" />
   <meta name="theme-color" content="#070a12" />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -15,5 +16,6 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/pages/search.css">
   <link rel="stylesheet" href="/css/pages/booking.css">
+  <script src="/js/csrf.js" defer></script>
 </head>
 <body>

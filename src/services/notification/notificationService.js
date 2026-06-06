@@ -41,7 +41,7 @@ async function queueNotification({
   const cleanTitle = cleanText(title || 'Classic Trip update');
   const cleanMessage = cleanText(message || '');
   const rows = [];
-  const deliveries = [];
+  const deliveryTasks = [];
   const uniqueChannels = Array.from(new Set(Array.isArray(channels) ? channels : [channels])).filter(Boolean);
 
   for (const channel of uniqueChannels) {
@@ -56,17 +56,35 @@ async function queueNotification({
       referenceId,
       meta,
       status: 'queued',
+      deliveryStatus: 'queued',
+      sentCount: 0,
+      deliveredCount: 0,
+      failedCount: 0,
       createdAt: new Date().toISOString(),
     };
     store.state.notifications.push(row);
     rows.push(row);
 
-    if (channel === 'email') deliveries.push(sendEmail({ to: recipient.email, title: cleanTitle, message: cleanMessage, meta }));
-    if (channel === 'sms') deliveries.push(sendSms({ to: recipient.phone, title: cleanTitle, message: cleanMessage, meta }));
-    if (channel === 'whatsapp') deliveries.push(sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: cleanMessage, meta }));
+    if (channel === 'email') deliveryTasks.push({ row, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: cleanMessage, meta }) });
+    if (channel === 'sms') deliveryTasks.push({ row, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
+    if (channel === 'whatsapp') deliveryTasks.push({ row, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
   }
 
-  await Promise.all(deliveries);
+  const deliveries = await Promise.allSettled(deliveryTasks.map((item) => item.promise));
+  deliveries.forEach((delivery, index) => {
+    const row = deliveryTasks[index].row;
+    const result = delivery.status === 'fulfilled'
+      ? delivery.value
+      : { status: 'failed', reason: delivery.reason?.message || 'Delivery failed' };
+    row.status = result.status || 'queued';
+    row.deliveryStatus = row.status;
+    row.deliveryProvider = result.provider || row.channel;
+    row.deliveryResponse = result.response || result.reason || result.providerReference || '';
+    row.sentCount = row.status === 'sent' ? 1 : 0;
+    row.deliveredCount = row.status === 'sent' ? 1 : 0;
+    row.failedCount = row.status === 'failed' ? 1 : 0;
+    if (row.status === 'sent') row.sentAt = new Date().toISOString();
+  });
   await persistNotifications(rows);
   return rows;
 }

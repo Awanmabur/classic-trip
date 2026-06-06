@@ -6,6 +6,11 @@ async function findOrCreateGoogleUser(profile, role = 'customer') {
   const fullName = profile.displayName || 'Google User';
   let user = email ? store.findUserByIdentity(email) : null;
   if (user) {
+    if (user.status === 'suspended' || user.status === 'blocked') {
+      const error = new Error('This account is not allowed to sign in');
+      error.status = 403;
+      throw error;
+    }
     user.authProviders = user.authProviders || {};
     user.authProviders.google = { enabled: true, googleId: profile.id };
     user.googleId = profile.id;

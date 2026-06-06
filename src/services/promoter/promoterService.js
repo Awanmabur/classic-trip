@@ -36,8 +36,28 @@ function createLink({ promoterId = 'user-promoter-001', listingId, code } = {}) 
   return link;
 }
 
-function linksForPromoter(promoterId = 'user-promoter-001') {
-  return store.state.promoterLinks.filter((link) => link.promoterId === promoterId).map(store.publicPromoterLink);
+function archiveLink({ promoterId = 'user-promoter-001', linkId, actorId = promoterId } = {}) {
+  const key = String(linkId || '').trim();
+  const link = store.state.promoterLinks.find((item) => (
+    (item.id === key || item.code === key || item.referralCode === key) &&
+    item.promoterId === promoterId
+  ));
+  if (!link) {
+    const error = new Error('Promoter link not found');
+    error.status = 404;
+    throw error;
+  }
+  link.status = 'archived';
+  link.archivedAt = new Date().toISOString();
+  link.archivedBy = actorId;
+  link.updatedAt = link.archivedAt;
+  return link;
 }
 
-module.exports = { createLink, linksForPromoter };
+function linksForPromoter(promoterId = 'user-promoter-001') {
+  return store.state.promoterLinks
+    .filter((link) => link.promoterId === promoterId && String(link.status || '').toLowerCase() !== 'archived')
+    .map(store.publicPromoterLink);
+}
+
+module.exports = { createLink, archiveLink, linksForPromoter };
