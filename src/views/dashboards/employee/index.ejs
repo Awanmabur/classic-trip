@@ -1432,8 +1432,8 @@
                 <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
                 <div class="formGrid">
                   <div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="Grace N." /></div></div>
-                  <div class="field"><label>Role</label><div class="control"><i class="fa-solid fa-user-tie"></i><select name="roleTitle"><option>Booking Agent</option><option>Ticket Checker</option><option>Hotel Receptionist</option><option>Finance Staff</option><option>Route Manager</option></select></div></div>
-                  <div class="field"><label>Branch</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="branch" value="Kampala Bus Park" /></div></div>
+                  <div class="field"><label>Company-assigned role</label><div class="control"><i class="fa-solid fa-user-tie"></i><input data-role-title value="Booking Agent" readonly /></div></div>
+                  <div class="field"><label>Assigned branch</label><div class="control"><i class="fa-solid fa-location-dot"></i><input data-branch value="Kampala Bus Park" readonly /></div></div>
                   <div class="field"><label>Shift</label><div class="control"><i class="fa-regular fa-clock"></i><input value="Morning shift • 8:00 AM - 6:00 PM" /></div></div>
                   <div class="field full"><label>Notes</label><div class="control"><textarea name="notes">Can create bookings, check in passengers, view payments, and create support tasks. Cannot approve refunds or edit service prices.</textarea></div></div>
                 </div>
@@ -1800,8 +1800,8 @@
         const unnamedShift = profileForm?.querySelector('input:not([type="hidden"]):not([name])');
         if(unnamedShift) unnamedShift.name = 'shift';
         const fullNameInput = profileForm?.querySelector('[name="fullName"]');
-        const roleInput = profileForm?.querySelector('[name="roleTitle"]');
-        const branchInput = profileForm?.querySelector('[name="branch"]');
+        const roleInput = profileForm?.querySelector('[data-role-title]');
+        const branchInput = profileForm?.querySelector('[data-branch]');
         const shiftInput = profileForm?.querySelector('[name="shift"]');
         const notesInput = profileForm?.querySelector('[name="notes"]');
         if(fullNameInput) fullNameInput.value = name;
@@ -2540,8 +2540,13 @@
         }
       });
 
+      function initialPageFromLocation(){
+        const hash = String(location.hash || '').replace('#', '');
+        return pageMeta[hash] ? hash : 'overview';
+      }
+
       renderAll();
-      openPage('overview');
+      openPage(initialPageFromLocation());
     });
   </script>
 </body>

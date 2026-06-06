@@ -2734,6 +2734,7 @@ function listingDetail(listing = {}) {
       listingId: listing.id,
       slug: listing.slug,
       title: listing.title,
+      sub: listing.sub || listing.description || '',
       serviceType: listing.serviceType,
       type: listing.type,
       status: listing.status,

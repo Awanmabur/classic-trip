@@ -458,8 +458,9 @@ async function createHandover(companyId, payload = {}, actorId = 'employee-syste
   return row;
 }
 
-async function updateEmployeeProfile(companyId, payload = {}, actorId = 'employee-system') {
+async function updateEmployeeProfile(companyId, payload = {}, actorId = 'employee-system', options = {}) {
   ensureCollections();
+  const canManageProfileAssignments = Boolean(options.canManageProfileAssignments);
   let user = store.state.users.find((item) => item.id === actorId);
   if (!user) {
     user = store.upsertUser({
@@ -483,24 +484,29 @@ async function updateEmployeeProfile(companyId, payload = {}, actorId = 'employe
       id: nextId('company-employee', store.state.companyEmployees),
       companyId,
       userId: user.id,
-      roleTitle: cleanText(payload.roleTitle || 'Ticket Checker'),
-      branch: cleanText(payload.branch || 'Main branch'),
-      permissions: parseList(payload.permissions || 'check_in,view_bookings'),
+      roleTitle: cleanText(canManageProfileAssignments ? payload.roleTitle || 'Ticket Checker' : 'Ticket Checker'),
+      branch: cleanText(canManageProfileAssignments ? payload.branch || 'Main branch' : 'Main branch'),
+      permissions: canManageProfileAssignments ? parseList(payload.permissions || 'check_in,view_bookings') : ['check_in', 'view_bookings'],
       status: 'active',
       createdAt: new Date().toISOString(),
     };
     store.state.companyEmployees.push(employee);
   }
-  if (payload.roleTitle) employee.roleTitle = cleanText(payload.roleTitle);
-  if (payload.branch) employee.branch = cleanText(payload.branch);
-  if (payload.permissions) employee.permissions = parseList(payload.permissions);
+  if (canManageProfileAssignments) {
+    if (payload.roleTitle) employee.roleTitle = cleanText(payload.roleTitle);
+    if (payload.branch) employee.branch = cleanText(payload.branch);
+    if (payload.permissions) employee.permissions = parseList(payload.permissions);
+  }
   if (payload.shift) employee.shift = cleanText(payload.shift);
   if (payload.notes) employee.notes = cleanText(payload.notes);
   employee.updatedAt = new Date().toISOString();
 
   await upsertModel('User', user);
   await upsertModel('CompanyEmployee', employee);
-  audit(actorId, 'employee.profile.updated', user.id, { companyId });
+  audit(actorId, 'employee.profile.updated', user.id, {
+    companyId,
+    assignmentsUpdated: canManageProfileAssignments && Boolean(payload.roleTitle || payload.branch || payload.permissions),
+  });
   return { user, employee };
 }
 

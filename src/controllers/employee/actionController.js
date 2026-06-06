@@ -91,7 +91,10 @@ async function createHandover(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    await actionService.updateEmployeeProfile(companyId(req), req.body, actorId(req));
+    const actorRole = req.session?.user?.role || 'company_employee';
+    await actionService.updateEmployeeProfile(companyId(req), req.body, actorId(req), {
+      canManageProfileAssignments: ['company_admin', 'super_admin'].includes(actorRole),
+    });
     if (req.session?.user) {
       req.session.user.fullName = req.body.fullName || req.session.user.fullName;
       req.session.user.phone = req.body.phone || req.session.user.phone;

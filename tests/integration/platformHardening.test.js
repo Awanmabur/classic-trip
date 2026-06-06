@@ -34,6 +34,10 @@ test('role dashboards require authentication and the correct role', async () => 
   const company = await login('company@classictrip.test');
   const companyDashboard = await company.get('/company/dashboard').expect(200);
   expect(companyDashboard.text).toContain('/company/listings');
+
+  const employee = await login('employee@classictrip.test');
+  await employee.get('/company/dashboard').expect(403);
+  await employee.post('/company/employees/invite').type('form').send({ email: 'blocked@classictrip.test' }).expect(403);
 });
 
 test('signed payment webhook reconciles booking payment once and queues notifications', async () => {
@@ -477,7 +481,26 @@ test('company dashboard workflow actions persist settings, payouts, notices, boo
   const deskBooking = store.state.bookings.find((booking) => booking.guestSnapshot?.email === 'company-desk@example.com');
   expect(deskBooking.source).toBe('employee_manual');
 
-  await bookingService.validateTicket(deskBooking.qrCodeValue, 'employee-company-review');
+  const qr = await agent.get(`/company/bookings/${deskBooking.bookingRef}/qr.svg`).expect(200);
+  expect(qr.headers['content-type']).toContain('image/svg+xml');
+  expect((qr.text || qr.body.toString())).toContain('<svg');
+
+  const lookup = await agent
+    .post('/company/scanner/lookup')
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ qrCodeValue: deskBooking.qrCodeValue })
+    .expect(200);
+  expect(lookup.body.canCheckIn).toBe(true);
+
+  await agent
+    .post('/company/scanner/validate')
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ qrCodeValue: deskBooking.qrCodeValue, note: 'Company scanner test' })
+    .expect(200);
+  expect(deskBooking.bookingStatus).toBe('checked_in');
+
   const review = workflowService.createReview({
     bookingRef: deskBooking.bookingRef,
     customerUserId: 'user-company-review',
@@ -551,6 +574,25 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
 
   await agent.post('/employee/profile').type('form').send({ fullName: 'Gate Scanner Updated', roleTitle: 'Ticket Checker', branch: 'Kampala Gate', shift: 'Morning shift', notes: 'Updated from test' }).expect(302);
   expect(store.state.users.find((user) => user.id === 'user-employee-001').fullName).toBe('Gate Scanner Updated');
+
+  const employeeProfile = store.state.companyEmployees.find((item) => item.companyId === 'company-01' && item.userId === 'user-employee-001');
+  const assignmentsBefore = {
+    roleTitle: employeeProfile.roleTitle,
+    branch: employeeProfile.branch,
+    permissions: [...(employeeProfile.permissions || [])],
+  };
+  await agent.post('/employee/profile').type('form').send({
+    fullName: 'Gate Scanner Secure',
+    roleTitle: 'Finance Staff',
+    branch: 'Head office',
+    permissions: 'approve_refunds,edit_prices,manage_staff',
+    shift: 'Evening shift',
+    notes: 'Attempted self-assignment change',
+  }).expect(302);
+  expect(store.state.users.find((user) => user.id === 'user-employee-001').fullName).toBe('Gate Scanner Secure');
+  expect(employeeProfile.roleTitle).toBe(assignmentsBefore.roleTitle);
+  expect(employeeProfile.branch).toBe(assignmentsBefore.branch);
+  expect(employeeProfile.permissions).toEqual(assignmentsBefore.permissions);
 
   const report = await agent.get('/employee/reports/checkins.csv').expect(200);
   expect(report.headers['content-type']).toContain('text/csv');

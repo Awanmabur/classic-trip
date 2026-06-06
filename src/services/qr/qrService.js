@@ -7,8 +7,17 @@ async function toDataUrl(value) {
   }
 }
 
+async function toSvg(value) {
+  try {
+    const QRCode = require('qrcode');
+    return QRCode.toString(value, { type: 'svg' });
+  } catch (error) {
+    return null;
+  }
+}
+
 function valueForBooking(booking) {
   return booking.qrCodeValue || `CLASSIC-TRIP:${booking.bookingRef}`;
 }
 
-module.exports = { toDataUrl, valueForBooking };
+module.exports = { toDataUrl, toSvg, valueForBooking };

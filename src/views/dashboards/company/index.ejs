@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="/js/csrf.js" defer></script>
+  <script src="/js/employee-qr-scanner.js" defer></script>
 
   <style>
     :root{
@@ -826,6 +827,19 @@
       line-height:1.55;
     }
 
+    .scannerBox{border:1px solid var(--line2);border-radius:22px;background:var(--soft);padding:12px;display:none;gap:10px;margin:0 16px 12px}
+    .scannerBox.is-open{display:grid}
+    .qrPlaceholder{min-height:210px;border:1px dashed var(--line2);border-radius:18px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:12px;font-weight:900;line-height:1.5;padding:20px}
+    .qrPlaceholder i{font-size:28px;color:var(--primary);display:block;margin-bottom:8px}
+    .scanResult{margin:0 16px 12px;border:1px solid var(--line2);border-radius:20px;background:var(--soft);padding:13px;font-size:12px;font-weight:850;line-height:1.55;color:var(--text)}
+    .scanResult.is-empty{color:var(--muted)}
+    .scanResult.is-error{border-color:rgba(239,68,68,.38);background:rgba(239,68,68,.10)}
+    .scanResult h4{margin:0 0 8px;font-size:14px}
+    .scanResult .detailGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .scanResult .detailItem{padding:9px;border-radius:14px;background:var(--table);border:1px solid var(--line2);display:grid;gap:3px}
+    .scanResult .detailItem span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0;font-weight:950}
+    .scanActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:0 16px 16px}
+
     .reportGrid{
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
@@ -1297,14 +1311,30 @@
             </div>
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Manual scanner</h3><p>Enter the booking reference printed on the customer ticket.</p></div></div>
-              <form class="formPanel" method="POST" action="/company/checkins">
+              <form class="formPanel" method="POST" action="/company/checkins" id="companyScannerForm">
                 <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
                 <div class="formGrid">
-                  <div class="field full"><label>Booking reference</label><div class="control"><i class="fa-solid fa-barcode"></i><input name="bookingRef" placeholder="CT-BUS-0001" required></div></div>
-                  <div class="field full"><label>Counter note</label><div class="control"><textarea name="note" placeholder="Optional staff note for the check-in log"></textarea></div></div>
+                  <div class="field full"><label>QR value, booking reference, lookup code, payment ref, email, phone, or seat</label><div class="control"><i class="fa-solid fa-barcode"></i><input name="bookingRef" id="companyCheckSearch" placeholder="Scan QR, paste payload, or enter CT-BUS-0001" autocomplete="off" required></div></div>
+                  <div class="field full"><label>Counter note</label><div class="control"><textarea name="note" id="companyCheckNote" placeholder="Optional staff note for the check-in log"></textarea></div></div>
                 </div>
-                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-circle-check"></i> Validate and check in</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                  <button class="btn" type="button" id="btnCompanyOpenCamera"><i class="fa-solid fa-camera"></i> Open QR scanner</button>
+                  <button class="btn" type="button" id="btnCompanyLookupTicket"><i class="fa-solid fa-magnifying-glass"></i> Lookup</button>
+                  <button class="btn btnPrimary" type="submit" id="btnCompanyCheckIn" disabled><i class="fa-solid fa-circle-check"></i> Validate and check in</button>
+                </div>
               </form>
+              <div class="scannerBox" id="companyScannerBox">
+                <div id="companyQrReader" class="qrPlaceholder"><i class="fa-solid fa-camera"></i><span>Press Open QR scanner to start the camera.</span></div>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+                  <span class="badge info" id="companyScannerStatus"><i class="fa-solid fa-circle-info"></i> Camera closed</span>
+                  <button class="btn" type="button" id="btnCompanyStopCamera"><i class="fa-solid fa-stop"></i> Stop camera</button>
+                </div>
+              </div>
+              <div class="scanResult is-empty" id="companyScannerResult">Lookup or scan a ticket to verify customer, service, payment, and check-in status before action.</div>
+              <div class="scanActions" aria-label="Ticket actions at end of company check-in panel">
+                <button class="btn" type="button" id="btnCompanyNoShow" disabled><i class="fa-solid fa-user-slash"></i> Mark no-show</button>
+                <button class="btn btnBlue" type="button" id="btnCompanyQr" disabled><i class="fa-solid fa-qrcode"></i> Open QR</button>
+              </div>
               <div class="splitGrid">
                 <div class="splitItem"><div class="splitTop"><span>Checked in</span><strong id="checkedInCount">0</strong></div><div class="progress"><i style="width:0%"></i></div></div>
                 <div class="splitItem"><div class="splitTop"><span>Pending arrivals</span><strong id="pendingCheckinCount">0</strong></div><div class="progress"><i style="width:0%"></i></div></div>
@@ -1632,7 +1662,20 @@
         crudBody: $('#crudBody'),
         deleteModal: $('#deleteModal'),
         deleteText: $('#deleteText'),
-        confirmDelete: $('#confirmDelete')
+        confirmDelete: $('#confirmDelete'),
+        companyScannerForm: $('#companyScannerForm'),
+        companyCheckSearch: $('#companyCheckSearch'),
+        companyCheckNote: $('#companyCheckNote'),
+        btnCompanyOpenCamera: $('#btnCompanyOpenCamera'),
+        btnCompanyStopCamera: $('#btnCompanyStopCamera'),
+        btnCompanyLookupTicket: $('#btnCompanyLookupTicket'),
+        btnCompanyCheckIn: $('#btnCompanyCheckIn'),
+        btnCompanyNoShow: $('#btnCompanyNoShow'),
+        btnCompanyQr: $('#btnCompanyQr'),
+        companyScannerBox: $('#companyScannerBox'),
+        companyScannerStatus: $('#companyScannerStatus'),
+        companyQrReader: $('#companyQrReader'),
+        companyScannerResult: $('#companyScannerResult')
       };
 
       const data = {
@@ -1714,6 +1757,9 @@
         data[key] = Array.isArray(data[key]) ? data[key] : [];
       });
       let pendingDeleteUrl = '';
+      let currentCompanyScan = null;
+      let companyCameraStream = null;
+      let lastCompanyScanValue = '';
 
       const pageMeta = {
         overview:['Partner Company Dashboard','Manage listings, schedules, inventory, bookings, staff, payouts, promotions, and support.'],
@@ -1806,29 +1852,41 @@
         if(meta && archiveUrls[meta.entity]){
           return `<div class="rowActions">
             <button class="tinyBtn" data-modal="view" data-type="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
-            <button class="tinyBtn" data-modal="edit" data-type="${safeLabel}" data-entity="${escapeHtml(meta.entity)}" data-id="${safeId}" title="Edit"><i class="fa-regular fa-pen-to-square"></i></button>
+            <button class="tinyBtn" data-modal="edit" data-type="${safeLabel}" data-entity="${escapeHtml(meta.entity)}" data-id="${safeId}"${detailAttr} title="Edit"><i class="fa-regular fa-pen-to-square"></i></button>
             <button class="tinyBtn" data-export-row="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>
             <button class="tinyBtn danger" data-delete="${safeLabel}" data-delete-url="${archiveUrls[meta.entity]}" title="Archive"><i class="fa-regular fa-trash-can"></i></button>
           </div>`;
         }
         if(meta?.entity === 'checkin'){
-          const checked = String(meta.status || '').toLowerCase() === 'checked_in';
+          const status = String(meta.status || '').toLowerCase();
+          const checked = status === 'checked_in' || status === 'checked in';
+          const closed = checked || /cancel|refund|void|no_show|no show|complete/.test(status);
+          const qrUrl = `/company/bookings/${safeId}/qr.svg`;
           return `<div class="rowActions">
             <button class="tinyBtn" data-modal="view" data-type="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
+            <a class="tinyBtn" href="${qrUrl}" target="_blank" rel="noopener" title="Open QR code"><i class="fa-solid fa-qrcode"></i></a>
             <form method="POST" action="/company/bookings/${safeId}/check-in" style="margin:0">
               <input type="hidden" name="_csrf" value="${csrfToken}">
-              <button class="tinyBtn ${checked ? '' : 'ok'}" type="submit" title="Check in" ${checked ? 'disabled' : ''}><i class="fa-solid fa-qrcode"></i></button>
+              <button class="tinyBtn ${closed ? '' : 'ok'}" type="submit" title="Check in" ${closed ? 'disabled' : ''}><i class="fa-solid fa-circle-check"></i></button>
             </form>
             <form method="POST" action="/company/bookings/${safeId}/no-show" style="margin:0">
               <input type="hidden" name="_csrf" value="${csrfToken}">
-              <button class="tinyBtn danger" type="submit" title="No show" ${checked ? 'disabled' : ''}><i class="fa-solid fa-user-slash"></i></button>
+              <button class="tinyBtn danger" type="submit" title="No show" ${closed ? 'disabled' : ''}><i class="fa-solid fa-user-slash"></i></button>
             </form>
+          </div>`;
+        }
+        if(meta?.entity === 'booking'){
+          const qrUrl = `/company/bookings/${safeId}/qr.svg`;
+          return `<div class="rowActions">
+            <button class="tinyBtn" data-modal="view" data-type="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
+            <a class="tinyBtn" href="${qrUrl}" target="_blank" rel="noopener" title="Open QR code"><i class="fa-solid fa-qrcode"></i></a>
+            <button class="tinyBtn" data-export-row="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>
           </div>`;
         }
         if(meta && ['support','review','payout','employee','booking','promotion','refund','inventory'].includes(meta.entity)){
           return `<div class="rowActions">
             <button class="tinyBtn" data-modal="view" data-type="${safeLabel}"${detailAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
-            <button class="tinyBtn" data-modal="edit" data-type="${safeLabel}" data-entity="${escapeHtml(meta.entity)}" data-id="${safeId}" title="Edit / action"><i class="fa-regular fa-pen-to-square"></i></button>
+            <button class="tinyBtn" data-modal="edit" data-type="${safeLabel}" data-entity="${escapeHtml(meta.entity)}" data-id="${safeId}"${detailAttr} title="Edit / action"><i class="fa-regular fa-pen-to-square"></i></button>
             <button class="tinyBtn" data-export-row="${safeLabel}"${detailAttr} title="Export PDF"><i class="fa-solid fa-file-export"></i></button>
           </div>`;
         }
@@ -2132,6 +2190,191 @@
         showToast.t = setTimeout(() => els.toast.classList.remove('show'), 2300);
       }
 
+      function companyScanValue(){
+        return (els.companyCheckSearch?.value || currentCompanyScan?.detail?.booking?.bookingRef || currentCompanyScan?.booking?.bookingRef || '').trim();
+      }
+
+      function setCompanyCheckButtons(result = {}){
+        const canCheckIn = Boolean(result.canCheckIn || (result.ok && result.result === 'ready'));
+        const hasBooking = Boolean(result.booking || result.detail?.booking);
+        if(els.btnCompanyCheckIn) els.btnCompanyCheckIn.disabled = !canCheckIn;
+        if(els.btnCompanyNoShow) els.btnCompanyNoShow.disabled = !hasBooking || /checked|cancel|refund|void|complete|no_show|no show/.test(String(result.booking?.bookingStatus || result.detail?.booking?.bookingStatus || '').toLowerCase());
+        if(els.btnCompanyQr) els.btnCompanyQr.disabled = !hasBooking;
+      }
+
+      function renderCompanyScanResult(result = {}, ok = Boolean(result.ok)){
+        if(!els.companyScannerResult) return;
+        const detail = result.detail || {};
+        const booking = detail.booking || result.booking || {};
+        const customer = detail.customer || {};
+        const service = detail.service || detail.listing || result.listing || {};
+        const checkIn = detail.checkIn || {};
+        if(!booking.bookingRef && !result.message){
+          els.companyScannerResult.className = 'scanResult is-empty';
+          els.companyScannerResult.textContent = 'Lookup or scan a ticket to verify customer, service, payment, and check-in status before action.';
+          return;
+        }
+        const qrUrl = booking.bookingRef ? `/company/bookings/${encodeURIComponent(booking.bookingRef)}/qr.svg` : '';
+        els.companyScannerResult.className = ok ? 'scanResult' : 'scanResult is-error';
+        els.companyScannerResult.innerHTML = `
+          <h4>${escapeHtml(result.message || (ok ? 'Ticket ready' : 'Ticket issue'))}</h4>
+          <div class="detailGrid">
+            <div class="detailItem"><span>Booking</span><b>${escapeHtml(booking.bookingRef || '-')}</b></div>
+            <div class="detailItem"><span>Customer</span><b>${escapeHtml(customer.name || booking.customerName || '-')}</b></div>
+            <div class="detailItem"><span>Service</span><b>${escapeHtml(service.title || service.name || result.listing?.title || '-')}</b></div>
+            <div class="detailItem"><span>Seat / room</span><b>${escapeHtml((booking.seats || []).join(', ') || booking.seatOrRoom || '-')}</b></div>
+            <div class="detailItem"><span>Payment</span><b>${escapeHtml(booking.paymentStatus || '-')}</b></div>
+            <div class="detailItem"><span>Check-in</span><b>${escapeHtml(checkIn.status || booking.bookingStatus || '-')}</b></div>
+          </div>
+          ${qrUrl ? `<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px"><a class="btn btnBlue" href="${qrUrl}" target="_blank" rel="noopener"><i class="fa-solid fa-qrcode"></i> Open QR</a></div>` : ''}
+        `;
+      }
+
+      async function postCompanyScanner(url, value){
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ bookingRef: value, qrCodeValue: value, note: els.companyCheckNote?.value || '' })
+        });
+        const result = await response.json().catch(() => ({}));
+        return { response, result };
+      }
+
+      function companyCheckinRowFromScan(result = {}){
+        const detail = result.detail || {};
+        const booking = detail.booking || result.booking || {};
+        const customer = detail.customer || {};
+        const service = detail.service || result.listing || {};
+        const checkIn = detail.checkIn || {};
+        const status = booking.bookingStatus || checkIn.status || result.result || 'checked_in';
+        return [
+          booking.bookingRef || result.booking?.bookingRef || companyScanValue(),
+          customer.name || booking.customerName || 'Customer',
+          service.title || result.listing?.title || 'Service',
+          (booking.seats || []).join(', ') || booking.seatOrRoom || 'Selected',
+          checkIn.checkedInAt || booking.checkedInAt ? new Date(checkIn.checkedInAt || booking.checkedInAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : 'Pending',
+          status,
+          { entity:'checkin', id: booking.bookingRef || companyScanValue(), label: booking.bookingRef || companyScanValue(), status, detail }
+        ];
+      }
+
+      async function lookupCompanyTicket(value = companyScanValue()){
+        const lookup = String(value || '').trim();
+        if(!lookup){ showToast('Enter or scan a ticket first'); return; }
+        const oldLabel = els.btnCompanyLookupTicket?.innerHTML;
+        try{
+          if(els.btnCompanyLookupTicket){ els.btnCompanyLookupTicket.disabled = true; els.btnCompanyLookupTicket.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Looking up'; }
+          const payload = await postCompanyScanner('/company/scanner/lookup', lookup);
+          currentCompanyScan = payload.result;
+          renderCompanyScanResult(payload.result, payload.response.ok);
+          setCompanyCheckButtons(payload.result);
+          if(payload.response.ok) showToast('Ticket found');
+          else showToast(payload.result.message || 'Ticket not found');
+        } catch(error){
+          currentCompanyScan = null;
+          setCompanyCheckButtons({});
+          renderCompanyScanResult({ message: error.message || 'Lookup failed' }, false);
+          showToast('Lookup failed');
+        } finally {
+          if(els.btnCompanyLookupTicket){ els.btnCompanyLookupTicket.innerHTML = oldLabel; els.btnCompanyLookupTicket.disabled = false; }
+        }
+      }
+
+      async function validateCompanyTicket(value = companyScanValue()){
+        const lookup = String(value || '').trim();
+        if(!lookup){ showToast('Enter or scan a ticket first'); return; }
+        const oldLabel = els.btnCompanyCheckIn?.innerHTML;
+        try{
+          if(els.btnCompanyCheckIn){ els.btnCompanyCheckIn.disabled = true; els.btnCompanyCheckIn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking in'; }
+          const payload = await postCompanyScanner('/company/scanner/validate', lookup);
+          currentCompanyScan = payload.result;
+          renderCompanyScanResult(payload.result, payload.response.ok);
+          setCompanyCheckButtons(payload.result);
+          if(payload.response.ok){
+            const row = companyCheckinRowFromScan(payload.result);
+            data.checkins = [row].concat(data.checkins.filter(item => rowCells(item)[0] !== row[0]));
+            renderAll();
+            showToast('Ticket checked in');
+          } else {
+            showToast(payload.result.message || 'Check-in blocked');
+          }
+        } catch(error){
+          renderCompanyScanResult({ message: error.message || 'Check-in failed' }, false);
+          showToast('Check-in failed');
+        } finally {
+          if(els.btnCompanyCheckIn){ els.btnCompanyCheckIn.innerHTML = oldLabel; setCompanyCheckButtons(currentCompanyScan || {}); }
+        }
+      }
+
+      async function markCompanyNoShow(value = companyScanValue()){
+        const lookup = String(value || '').trim();
+        if(!lookup){ showToast('Enter or scan a ticket first'); return; }
+        const oldLabel = els.btnCompanyNoShow?.innerHTML;
+        try{
+          if(els.btnCompanyNoShow){ els.btnCompanyNoShow.disabled = true; els.btnCompanyNoShow.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving'; }
+          const payload = await postCompanyScanner('/company/scanner/no-show', lookup);
+          currentCompanyScan = payload.result;
+          renderCompanyScanResult(payload.result, payload.response.ok);
+          setCompanyCheckButtons(payload.result);
+          if(payload.response.ok){
+            const row = companyCheckinRowFromScan(payload.result);
+            data.checkins = [row].concat(data.checkins.filter(item => rowCells(item)[0] !== row[0]));
+            renderAll();
+            showToast('Booking marked no-show');
+          } else {
+            showToast(payload.result.message || 'No-show blocked');
+          }
+        } catch(error){
+          renderCompanyScanResult({ message: error.message || 'No-show failed' }, false);
+          showToast('No-show failed');
+        } finally {
+          if(els.btnCompanyNoShow){ els.btnCompanyNoShow.innerHTML = oldLabel; setCompanyCheckButtons(currentCompanyScan || {}); }
+        }
+      }
+
+      async function startCompanyCameraScanner(){
+        if(!els.companyScannerBox) return;
+        els.companyScannerBox.classList.add('is-open');
+        if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-camera"></i> Requesting camera permission';
+        if(els.companyQrReader) els.companyQrReader.innerHTML = '<div class="qrPlaceholder"><i class="fa-solid fa-spinner fa-spin"></i><span>Opening camera...</span></div>';
+        if(!window.isSecureContext && !['localhost','127.0.0.1'].includes(location.hostname)){
+          if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-lock"></i> Camera needs HTTPS';
+          showToast('Camera access requires HTTPS or localhost. Manual lookup still works.');
+          return;
+        }
+        try{
+          await stopCompanyCameraScanner(false);
+          if(!window.ClassicTripQrScanner) throw new Error('Local QR scanner script did not load');
+          companyCameraStream = await window.ClassicTripQrScanner.start('companyQrReader', {
+            onStatus(message){ if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = `<i class="fa-solid fa-camera"></i> ${escapeHtml(message)}`; },
+            onDecode(decodedText){
+              if(decodedText && decodedText !== lastCompanyScanValue){
+                lastCompanyScanValue = decodedText;
+                if(els.companyCheckSearch) els.companyCheckSearch.value = decodedText;
+                if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i> QR scanned';
+                lookupCompanyTicket(decodedText);
+              }
+            }
+          });
+          if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-camera"></i> Camera open and scanning';
+        } catch(error){
+          if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Camera unavailable';
+          if(els.companyQrReader) els.companyQrReader.innerHTML = '<div class="qrPlaceholder"><i class="fa-solid fa-triangle-exclamation"></i><span>Camera could not start. Check permission, HTTPS/localhost, and whether another app is using the camera.</span></div>';
+          showToast(error?.message || 'Camera scanner could not start');
+        }
+      }
+
+      async function stopCompanyCameraScanner(closeBox = true){
+        try{
+          if(window.ClassicTripQrScanner) await window.ClassicTripQrScanner.stop();
+        } catch(error){/* ignore stop errors */}
+        if(companyCameraStream && companyCameraStream.getTracks) companyCameraStream.getTracks().forEach(track => track.stop());
+        companyCameraStream = null;
+        if(els.companyQrReader) els.companyQrReader.innerHTML = '<div class="qrPlaceholder"><i class="fa-solid fa-camera"></i><span>Press Open QR scanner to start the camera.</span></div>';
+        if(els.companyScannerStatus) els.companyScannerStatus.innerHTML = '<i class="fa-solid fa-circle-info"></i> Camera closed';
+        if(closeBox && els.companyScannerBox) els.companyScannerBox.classList.remove('is-open');
+      }
+
       function fieldHtml(field, readonly){
         const valueAttr = typeof field.value !== 'undefined' ? ` value="${escapeHtml(field.value)}"` : '';
         const attrs = `${field.name ? ` name="${escapeHtml(field.name)}"` : ''}${field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : ''}${valueAttr}${field.required ? ' required' : ''}${readonly ? ' readonly' : ''}`;
@@ -2387,6 +2630,28 @@
         return null;
       }
 
+      function detailValue(meta, ...paths){
+        const detail = meta?.detail || {};
+        for(const path of paths){
+          const value = String(path).split('.').reduce((acc, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), detail);
+          if(value !== undefined && value !== null && value !== '') return value;
+        }
+        return '';
+      }
+
+      function detailList(value){
+        if(Array.isArray(value)) return value.join(', ');
+        return value || '';
+      }
+
+      function toLocalDateTime(value){
+        if(!value) return '';
+        const date = new Date(value);
+        if(Number.isNaN(date.getTime())) return '';
+        const offset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+      }
+
       function editConfigFor(meta, nice){
         if(!meta) return formConfigFor(nice);
         const routeOptions = optionItems(data.options.routes, 'Keep current route');
@@ -2395,11 +2660,17 @@
           return {
             action: `/company/listings/${encodeURIComponent(meta.id)}`,
             fields: [
-              {name:'title', label:'Listing title', required:true, value: nice},
+              {name:'title', label:'Listing title', required:true, value: detailValue(meta, 'listing.title') || nice},
               {name:'imageFile', label:'Replace service image', type:'file', accept:'image/*'},
-              {name:'priceFrom', label:'Price from', type:'number', placeholder:'85000'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'draft',label:'Draft'},{value:'active',label:'Active'},{value:'paused',label:'Paused'}]},
-              {name:'sub', label:'Description', kind:'textarea', placeholder:'Short customer-facing summary'}
+              {name:'from', label:'From / origin', value: detailValue(meta, 'service.from')},
+              {name:'to', label:'To / destination', value: detailValue(meta, 'service.to')},
+              {name:'city', label:'City / location', value: detailValue(meta, 'service.city')},
+              {name:'address', label:'Address', value: detailValue(meta, 'service.address')},
+              {name:'country', label:'Country', value: detailValue(meta, 'service.country', 'owner.country')},
+              {name:'priceFrom', label:'Price from', type:'number', placeholder:'85000', value: detailValue(meta, 'inventory.basePrice')},
+              {name:'currency', label:'Currency', value: detailValue(meta, 'inventory.currency', 'owner.currency')},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'listing.status'), options:[{value:'draft',label:'Draft'},{value:'active',label:'Active'},{value:'paused',label:'Paused'}]},
+              {name:'sub', label:'Description', kind:'textarea', value: detailValue(meta, 'listing.sub', 'service.summary'), placeholder:'Short customer-facing summary'}
             ]
           };
         }
@@ -2407,11 +2678,11 @@
           return {
             action: `/company/routes/${encodeURIComponent(meta.id)}`,
             fields: [
-              {name:'origin', label:'Origin', placeholder:'Leave blank to keep current'},
-              {name:'destination', label:'Destination', placeholder:'Leave blank to keep current'},
-              {name:'boardingPoints', label:'Boarding points', placeholder:'Comma-separated stops'},
-              {name:'dropoffPoints', label:'Dropoff points', placeholder:'Comma-separated stops'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
+              {name:'origin', label:'Origin', value: detailValue(meta, 'route.origin')},
+              {name:'destination', label:'Destination', value: detailValue(meta, 'route.destination')},
+              {name:'boardingPoints', label:'Boarding points', value: detailList(detailValue(meta, 'route.boardingPoints')), placeholder:'Comma-separated stops'},
+              {name:'dropoffPoints', label:'Dropoff points', value: detailList(detailValue(meta, 'route.dropoffPoints')), placeholder:'Comma-separated stops'},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'route.status'), options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
             ]
           };
         }
@@ -2419,14 +2690,14 @@
           return {
             action: `/company/schedules/${encodeURIComponent(meta.id)}`,
             fields: [
-              {name:'routeId', label:'Route', kind:'select', options:routeOptions},
-              {name:'vehicleId', label:'Vehicle', kind:'select', options:vehicleOptions},
-              {name:'departAt', label:'Departure', type:'datetime-local'},
-              {name:'arriveAt', label:'Arrival', type:'datetime-local'},
-              {name:'basePrice', label:'Base price', type:'number', placeholder:'85000'},
-              {name:'currency', label:'Currency', placeholder:'UGX'},
-              {name:'driverName', label:'Driver / captain', placeholder:'Assigned staff'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'delayed',label:'Delayed'},{value:'archived',label:'Archived'}]}
+              {name:'routeId', label:'Route', kind:'select', options:routeOptions, value: detailValue(meta, 'schedule.routeId')},
+              {name:'vehicleId', label:'Vehicle', kind:'select', options:vehicleOptions, value: detailValue(meta, 'vehicle.id', 'schedule.vehicleId')},
+              {name:'departAt', label:'Departure', type:'datetime-local', value: toLocalDateTime(detailValue(meta, 'schedule.departure'))},
+              {name:'arriveAt', label:'Arrival', type:'datetime-local', value: toLocalDateTime(detailValue(meta, 'schedule.arrival'))},
+              {name:'basePrice', label:'Base price', type:'number', placeholder:'85000', value: detailValue(meta, 'schedule.basePrice')},
+              {name:'currency', label:'Currency', value: detailValue(meta, 'schedule.currency')},
+              {name:'driverName', label:'Driver / captain', value: detailValue(meta, 'schedule.driverName'), placeholder:'Assigned staff'},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'schedule.status'), options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'delayed',label:'Delayed'},{value:'archived',label:'Archived'}]}
             ]
           };
         }
@@ -2434,13 +2705,14 @@
           return {
             action: `/company/vehicles/${encodeURIComponent(meta.id)}`,
             fields: [
-              {name:'name', label:'Vehicle name', value: nice},
+              {name:'name', label:'Vehicle name', value: detailValue(meta, 'vehicle.name') || nice},
               {name:'imageFile', label:'Replace vehicle image', type:'file', accept:'image/*'},
-              {name:'plateOrCode', label:'Plate / code', placeholder:'UAX 000A'},
-              {name:'layoutName', label:'Seat layout', kind:'select', options:[{value:'2x2',label:'Bus 2 x 2'},{value:'2x1',label:'VIP 2 x 1'},{value:'2x3',label:'Coach 2 x 3'},{value:'sleeper',label:'Sleeper'},{value:'flight-3x3',label:'Flight 3 x 3'}]},
-              {name:'rows', label:'Rows', type:'number', placeholder:'12'},
-              {name:'amenities', label:'Amenities', placeholder:'USB charging, Reclining seats'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'maintenance',label:'Maintenance'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
+              {name:'plateOrCode', label:'Plate / code', value: detailValue(meta, 'vehicle.plateOrCode'), placeholder:'UAX 000A'},
+              {name:'layoutName', label:'Seat layout', kind:'select', value: detailValue(meta, 'vehicle.layoutName'), options:[{value:'2x2',label:'Bus 2 x 2'},{value:'2x1',label:'VIP 2 x 1'},{value:'2x3',label:'Coach 2 x 3'},{value:'sleeper',label:'Sleeper'},{value:'flight-3x3',label:'Flight 3 x 3'}]},
+              {name:'rows', label:'Rows', type:'number', value: detailValue(meta, 'vehicle.rows'), placeholder:'12'},
+              {name:'totalSeats', label:'Total seats', type:'number', value: detailValue(meta, 'vehicle.totalSeats')},
+              {name:'amenities', label:'Amenities', value: detailList(detailValue(meta, 'vehicle.amenities')), placeholder:'USB charging, Reclining seats'},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'vehicle.status'), options:[{value:'active',label:'Active'},{value:'maintenance',label:'Maintenance'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
             ]
           };
         }
@@ -2448,13 +2720,13 @@
           return {
             action: `/company/rooms/${encodeURIComponent(meta.id)}/inventory`,
             fields: [
-              {name:'roomType', label:'Room type', value: nice},
+              {name:'roomType', label:'Room type', value: detailValue(meta, 'room.roomType') || nice},
               {name:'imageFile', label:'Replace room image', type:'file', accept:'image/*'},
-              {name:'capacity', label:'Capacity', type:'number', placeholder:'2'},
-              {name:'nightlyPrice', label:'Nightly price', type:'number', placeholder:'180000'},
-              {name:'inventory', label:'Room stock', type:'number', placeholder:'1'},
-              {name:'amenities', label:'Amenities', placeholder:'Wi-Fi, Breakfast, Parking'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
+              {name:'capacity', label:'Capacity', type:'number', value: detailValue(meta, 'room.capacity'), placeholder:'2'},
+              {name:'nightlyPrice', label:'Nightly price', type:'number', value: detailValue(meta, 'room.nightlyPrice'), placeholder:'180000'},
+              {name:'inventory', label:'Room stock', type:'number', value: detailValue(meta, 'room.inventory'), placeholder:'1'},
+              {name:'amenities', label:'Amenities', value: detailList(detailValue(meta, 'room.amenities')), placeholder:'Wi-Fi, Breakfast, Parking'},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'room.status'), options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'archived',label:'Archived'}]}
             ]
           };
         }
@@ -2462,8 +2734,8 @@
           return {
             action: `/company/support/${encodeURIComponent(meta.id)}`,
             fields: [
-              {name:'status', label:'Status', kind:'select', options:[{value:'open',label:'Open'},{value:'waiting_finance',label:'Waiting finance'},{value:'resolved',label:'Resolved'},{value:'closed',label:'Closed'}]},
-              {name:'priority', label:'Priority', kind:'select', options:[{value:'normal',label:'Normal'},{value:'high',label:'High'},{value:'urgent',label:'Urgent'}]},
+              {name:'status', label:'Status', kind:'select', value: detailValue(meta, 'case.status'), options:[{value:'open',label:'Open'},{value:'waiting_finance',label:'Waiting finance'},{value:'resolved',label:'Resolved'},{value:'closed',label:'Closed'}]},
+              {name:'priority', label:'Priority', kind:'select', value: detailValue(meta, 'case.priority'), options:[{value:'normal',label:'Normal'},{value:'high',label:'High'},{value:'urgent',label:'Urgent'}]},
               {name:'response', label:'Response', kind:'textarea', placeholder:'Write the customer or internal response'}
             ]
           };
@@ -2472,8 +2744,8 @@
           return {
             action: `/company/reviews/${encodeURIComponent(meta.id)}/reply`,
             fields: [
-              {name:'reply', label:'Public reply', kind:'textarea', required:true, placeholder:'Thank the customer and explain the follow-up'},
-              {name:'status', label:'Status', kind:'select', options:[{value:'replied',label:'Replied'},{value:'published',label:'Published'},{value:'hidden',label:'Hidden'}], value:'replied'}
+              {name:'reply', label:'Public reply', kind:'textarea', required:true, value: detailValue(meta, 'review.companyReply.message'), placeholder:'Thank the customer and explain the follow-up'},
+              {name:'status', label:'Status', kind:'select', options:[{value:'replied',label:'Replied'},{value:'published',label:'Published'},{value:'hidden',label:'Hidden'}], value: detailValue(meta, 'review.status') || 'replied'}
             ]
           };
         }
@@ -2572,6 +2844,11 @@
       });
 
       document.addEventListener('submit', e => {
+        if(e.target.matches('#companyScannerForm')){
+          e.preventDefault();
+          validateCompanyTicket(companyScanValue());
+          return;
+        }
         if(e.target.matches('[data-dashboard-form], #noticeForm, #settingsForm')){
           if(e.target.hasAttribute('action')){
             return;
@@ -2602,6 +2879,22 @@
 
       on(els.btnNew, 'click', () => openCrud('create', 'listing'));
       on(els.btnExport, 'click', () => showToast('Export started'));
+      on(els.btnCompanyLookupTicket, 'click', () => lookupCompanyTicket(companyScanValue()));
+      on(els.btnCompanyCheckIn, 'click', () => validateCompanyTicket(companyScanValue()));
+      on(els.btnCompanyNoShow, 'click', () => markCompanyNoShow(companyScanValue()));
+      on(els.btnCompanyOpenCamera, 'click', startCompanyCameraScanner);
+      on(els.btnCompanyStopCamera, 'click', stopCompanyCameraScanner);
+      on(els.btnCompanyQr, 'click', () => {
+        const bookingRef = currentCompanyScan?.detail?.booking?.bookingRef || currentCompanyScan?.booking?.bookingRef || companyScanValue();
+        if(!bookingRef){ showToast('Lookup a ticket first'); return; }
+        window.open(`/company/bookings/${encodeURIComponent(bookingRef)}/qr.svg`, '_blank', 'noopener');
+      });
+      on(els.companyCheckSearch, 'keydown', (event) => {
+        if(event.key === 'Enter'){
+          event.preventDefault();
+          lookupCompanyTicket(companyScanValue());
+        }
+      });
       on(els.openMenu, 'click', () => document.body.classList.add('menu-open'));
       on(els.sideBackdrop, 'click', () => document.body.classList.remove('menu-open'));
 
@@ -2627,9 +2920,20 @@
         }
       });
 
+      function initialPageFromLocation(){
+        const hash = String(location.hash || '').replace('#', '');
+        if(pageMeta[hash]) return hash;
+        const leaf = location.pathname.split('/').filter(Boolean).pop() || 'dashboard';
+        const map = { dashboard:'overview', rooms:'seatrooms', employees:'staff' };
+        const page = map[leaf] || leaf;
+        return pageMeta[page] ? page : 'overview';
+      }
+
       renderAll();
       enhanceTables();
-      openPage('overview');
+      openPage(initialPageFromLocation());
+      const scanMessage = new URLSearchParams(location.search).get('message');
+      if(scanMessage) showToast(scanMessage);
     });
   </script>
 </body>

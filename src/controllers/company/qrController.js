@@ -1,0 +1,32 @@
+const store = require('../../services/data/demoStore');
+const qrService = require('../../services/qr/qrService');
+
+function companyIdFor(req) {
+  const user = req.session?.user || {};
+  if (user.role === 'super_admin') return req.query.companyId || req.body.companyId || user.companyId || 'company-01';
+  return user.companyId || 'company-01';
+}
+
+async function bookingQr(req, res, next) {
+  try {
+    const booking = store.searchBooking(req.params.bookingRef, companyIdFor(req));
+    if (!booking) {
+      const error = new Error('Booking not found for this company');
+      error.status = 404;
+      throw error;
+    }
+    const svg = await qrService.toSvg(qrService.valueForBooking(booking));
+    if (!svg) {
+      const error = new Error('QR generator is unavailable');
+      error.status = 503;
+      throw error;
+    }
+    res.set('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.set('Cache-Control', 'private, no-store');
+    res.send(svg);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { bookingQr };
