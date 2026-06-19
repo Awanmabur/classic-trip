@@ -1662,6 +1662,26 @@ function normalizeMediaAsset(asset = {}, target = '', metadata = {}) {
   };
 }
 
+function readableDocumentLabel(value) {
+  return cleanText(value).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function decorateDocumentMedia(media = {}, metadata = {}, fallbackType = 'document') {
+  const documentType = cleanText(metadata.documentType || media.documentType || fallbackType);
+  const label = cleanText(metadata.label || media.label || readableDocumentLabel(documentType) || 'Document');
+  return {
+    ...media,
+    label,
+    alt: cleanText(metadata.alt || media.alt || label),
+    documentType,
+    documentReference: cleanText(metadata.documentReference || media.documentReference || ''),
+    note: cleanText(metadata.note || media.note || ''),
+    status: cleanText(metadata.status || media.status || 'pending_review'),
+    reviewedBy: cleanText(metadata.reviewedBy || media.reviewedBy || ''),
+    reviewedAt: metadata.reviewedAt || media.reviewedAt || '',
+  };
+}
+
 function mediaMatches(media = {}, publicId = '') {
   const key = cleanText(publicId);
   if (!key) return false;
@@ -1689,8 +1709,13 @@ async function attachMedia({ companyId, target, targetId, asset, metadata = {} }
     company.documents = Array.isArray(company.documents) ? company.documents : [];
     const documentMedia = decorateDocumentMedia(media, metadata, target === 'companyVerificationDocument' ? 'verification_document' : 'business_license');
     company.documents.push(documentMedia);
-    company.verificationStatus = company.verificationStatus === 'verified' ? 'pending' : (company.verificationStatus || 'pending');
-    company.settings = { ...(company.settings || {}), canPublish: company.verificationStatus === 'verified' };
+    const wasPublishable = companyCanPublish(company);
+    company.verificationStatus = company.verificationStatus || COMPANY_STATUS.PENDING;
+    company.settings = {
+      ...(company.settings || {}),
+      canPublish: wasPublishable,
+      instantConfirmation: wasPublishable ? company.settings?.instantConfirmation !== false : Boolean(company.settings?.instantConfirmation),
+    };
     audit(metadata.uploadedBy || 'system', 'company.document.uploaded', company.id, { publicId: documentMedia.publicId, documentType: documentMedia.documentType });
     await upsertModel('Company', company);
     try {

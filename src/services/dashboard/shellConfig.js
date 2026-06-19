@@ -311,7 +311,7 @@ const COMPANY_SERVICE_MENU_CONFIG = {
 
 const EMPLOYEE_SERVICE_MENU_CONFIG = {
   bus: {
-    createLabel: 'Check In Passenger',
+    createLabel: 'Create Booking',
     groups: [
       { label: 'Bus Shift', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
@@ -337,7 +337,7 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
     ],
   },
   hotel: {
-    createLabel: 'Check In Guest',
+    createLabel: 'Create Booking',
     groups: [
       { label: 'Hotel Shift', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
@@ -360,7 +360,7 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
     ],
   },
   cargo: {
-    createLabel: 'Update Shipment',
+    createLabel: 'Create Booking',
     groups: [
       { label: 'Cargo Shift', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
@@ -378,7 +378,7 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
     ],
   },
   default: {
-    createLabel: 'Create Update',
+    createLabel: 'Create Booking',
     groups: [
       { label: 'Shift Work', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },

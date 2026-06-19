@@ -15,7 +15,12 @@ async function index(req, res, next) {
     const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId });
     res.render('dashboards/admin/index', {
       seo: { title: 'Employee dashboard | Classic Trip' },
-      dashboardData: { ...dashboardData, dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
+      dashboardData: {
+        ...dashboardData,
+        company: dashboardData.company || companyDashboardData.company,
+        serviceProfile: dashboardData.serviceProfile || companyDashboardData.serviceProfile,
+        dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
+      },
       dashboardShell: buildDashboardShell('employee', {
         user: req.session?.user,
         companyId,

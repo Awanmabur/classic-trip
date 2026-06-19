@@ -39,6 +39,12 @@ function actionName(req) {
   return 'Saved successfully.';
 }
 
+function isAuthAction(req) {
+  const path = String(req.originalUrl || req.path || '').split('?')[0];
+  return ['/login', '/register', '/forgot-password', '/reset-password', '/logout'].includes(path)
+    || path.startsWith('/auth/');
+}
+
 function flashMiddleware(req, res, next) {
   req.flash = (type, text) => pushFlash(req, type, text);
   res.locals.flashMessages = takeFlash(req.session || {});
@@ -49,7 +55,7 @@ function flashMiddleware(req, res, next) {
     const statusOrUrl = args[0];
     const url = typeof statusOrUrl === 'number' ? args[1] : statusOrUrl;
     const isBackToLogin = String(url || '').startsWith('/login');
-    if (req.method !== 'GET' && !req._ctHasFlash && !isBackToLogin) {
+    if (req.method !== 'GET' && !req._ctHasFlash && !isBackToLogin && !isAuthAction(req)) {
       pushFlash(req, 'success', actionName(req));
     }
     return originalRedirect(...args);

@@ -136,7 +136,7 @@
           </div>
         </div>
 
-        <div id="successBox" class="successBox"><i class="fa-solid fa-circle-check"></i> Saved successfully. Backend authentication is connected.</div>
+        <div id="successBox" class="successBox"><i class="fa-solid fa-circle-check"></i> Welcome back. Opening your dashboard...</div>
 
         <div class="panel active" id="loginPanel">
           <div class="formCard">
@@ -384,11 +384,18 @@
       btn.querySelector('i').className = input.type === 'password' ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
     }));
 
-    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', (e)=>{
-      if(['loginForm','signupForm','partnerForm','supportForm','forgotForm'].includes(form.id)) return;
-      e.preventDefault();
+    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', ()=>{
+      const copy = {
+        loginForm: 'Welcome back. Opening your dashboard...',
+        signupForm: 'Creating your account...',
+        partnerForm: 'Sending your partner request...',
+        supportForm: 'Sending your support request...',
+        forgotForm: 'Sending your reset link...'
+      };
+      if (!copy[form.id]) return;
+      successBox.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + copy[form.id];
       successBox.classList.add('show');
-      showToast('Saved. Backend authentication is connected.');
+      showToast(copy[form.id]);
     }));
 
     document.getElementById('menuBtn').addEventListener('click', ()=>{ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); });

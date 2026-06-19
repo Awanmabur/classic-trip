@@ -31,6 +31,9 @@ test('role dashboards require authentication and the correct role', async () => 
   const admin = await login('admin@classictrip.test');
   const adminDashboard = await admin.get('/admin').expect(200);
   expect(adminDashboard.text).toContain('Super Admin Dashboard');
+  expect(adminDashboard.text).toContain('Welcome back');
+  expect(adminDashboard.text).toContain('Your dashboard is ready');
+  expect(adminDashboard.text).not.toContain('Saved successfully');
 
   const company = await login('company@classictrip.test');
   const companyDashboard = await company.get('/company/dashboard').expect(200);
@@ -674,6 +677,13 @@ test('company dashboard workflow actions persist settings, payouts, notices, boo
 
 test('employee dashboard workflow actions persist bookings, inventory, payments, refunds, support, handovers, profile, and reports', async () => {
   const agent = await login('employee@classictrip.test');
+  const dashboard = await agent.get('/employee/dashboard').expect(200);
+  expect(dashboard.text).toContain('Your staff workspace is ready');
+  expect(dashboard.text).toContain('/employee/bookings');
+  expect(dashboard.text).toContain('/employee/support/notice');
+  expect(dashboard.text).toContain('/employee/handovers');
+  expect(dashboard.text).not.toContain('/admin/finance/release-eligible');
+  expect(dashboard.text).not.toContain('Saved successfully');
   const listing = await companyService.createListing('company-01', {
     serviceType: 'bus',
     title: `Employee workflow route ${Date.now()}`,

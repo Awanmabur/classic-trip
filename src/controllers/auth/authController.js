@@ -1,6 +1,10 @@
 const authService = require('../../services/auth/authService');
 const securityService = require('../../services/security/securityService');
 
+function welcomeName(user = {}) {
+  return String(user.fullName || user.name || user.email || 'there').trim().split(/\s+/)[0] || 'there';
+}
+
 function showLogin(req, res) {
   res.render('pages/auth/login', {
     seo: { title: 'Login or signup | Classic Trip' },
@@ -34,6 +38,7 @@ async function login(req, res, next) {
       result: 'success',
       req,
     });
+    if (req.flash) req.flash('success', `Welcome back, ${welcomeName(user)}. Your dashboard is ready.`);
     const nextUrl = req.body.next || req.query.next || authService.redirectForRole(user.role);
     return res.redirect(nextUrl);
   } catch (error) {
@@ -56,6 +61,7 @@ async function register(req, res, next) {
       roleTitle: req.body.roleTitle,
     });
     req.session.user = user;
+    if (req.flash) req.flash('success', `Welcome, ${welcomeName(user)}. Your account is ready.`);
     return res.redirect(authService.redirectForRole(user.role));
   } catch (error) {
     return next(error);

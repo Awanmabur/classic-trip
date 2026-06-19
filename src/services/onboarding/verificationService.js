@@ -202,7 +202,13 @@ async function submitCompanyChecklist(companyId, payload = {}, actorId = 'compan
   company.payoutAccountProvider = payoutAccount.provider || company.payoutAccountProvider || '';
   company.payoutAccountName = payoutAccount.accountName || company.payoutAccountName || '';
   company.supportContacts = { ...(company.supportContacts || {}), ...supportContacts };
-  company.settings = { ...(company.settings || {}), onboardingStep: 'verification', canPublish: false };
+  const canAlreadyPublish = company.verificationStatus === 'verified' && company.settings?.canPublish !== false;
+  company.settings = {
+    ...(company.settings || {}),
+    onboardingStep: canAlreadyPublish ? (company.settings?.onboardingStep || 'complete') : 'verification',
+    canPublish: canAlreadyPublish,
+    instantConfirmation: canAlreadyPublish ? company.settings?.instantConfirmation !== false : false,
+  };
   review.payoutAccount = payoutAccount;
   review.supportContacts = supportContacts;
   review.agreementSummary = cleanText(payload.agreementSummary || payload.termsSummary || review.agreementSummary || '');

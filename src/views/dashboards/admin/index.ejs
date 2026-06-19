@@ -1749,12 +1749,61 @@
     const dashboardRoleKey = dashboardShell?.currentRole || 'admin';
     const companyServiceProfile = dashboardData?.serviceProfile || {};
     const isCompanyDashboard = dashboardRoleKey === 'company';
+    const isEmployeeDashboard = dashboardRoleKey === 'employee';
     const companyServiceType = companyServiceProfile.primaryServiceType || '';
     const companySupportsBus = Boolean(companyServiceProfile.supportsBus || companyServiceType === 'bus');
     const companySupportsHotel = Boolean(companyServiceProfile.supportsHotel || companyServiceType === 'hotel');
     const companySupportsTransport = Boolean(companyServiceProfile.supportsTransport || companySupportsBus || ['flight','train','tour','car_rental','event','cargo'].includes(companyServiceType));
     const companyVisiblePages = new Set(companyServiceProfile.visiblePages || []);
     function companyCanShow(page){ return !isCompanyDashboard || companyVisiblePages.has(page); }
+    const employeeCompanyName = dashboardData?.company?.name || companyServiceProfile.companyName || 'your company';
+    const employeeFirstName = String(dashboardShell?.profileName || 'there').trim().split(/\s+/)[0] || 'there';
+    const defaultCreateType = isCompanyDashboard
+      ? (companySupportsHotel ? 'room night inventory' : companySupportsBus ? 'schedule' : 'listing')
+      : (isEmployeeDashboard ? 'booking' : 'partner');
+    const dashboardCopy = isCompanyDashboard ? {
+      title: companyServiceProfile.dashboardLabel || 'Company Dashboard',
+      body: 'Manage ' + ((companyServiceProfile.primaryLabel || 'service').toLowerCase()) + ' bookings, inventory, staff, support, revenue, settlement, and reports from the same admin dashboard shell.',
+      primaryPage: 'bookings',
+      primaryIcon: 'fa-ticket',
+      primaryLabel: 'Review bookings',
+      secondaryPage: 'support',
+      secondaryLabel: 'Support queue',
+      tertiaryPage: 'reports',
+      tertiaryLabel: 'Reports',
+      bookingLabel: 'Company bookings',
+      supportLabel: 'Open support cases',
+      reportsLabel: 'Reports ready',
+      quickSub: 'Fast actions for this service dashboard only.'
+    } : isEmployeeDashboard ? {
+      title: 'Welcome back, ' + employeeFirstName + '. Your staff workspace is ready.',
+      body: 'Handle bookings, check-ins, inventory, delay notices, payments, refunds, support, handovers, and reports for ' + employeeCompanyName + ' from the shared dashboard shell.',
+      primaryPage: 'checkin',
+      primaryIcon: 'fa-qrcode',
+      primaryLabel: 'Open check-in',
+      secondaryPage: 'bookings',
+      secondaryLabel: 'Bookings',
+      tertiaryPage: 'reports',
+      tertiaryLabel: 'Reports',
+      bookingLabel: 'Assigned bookings',
+      supportLabel: 'Support tasks',
+      reportsLabel: 'Reports ready',
+      quickSub: 'Fast staff actions scoped to assigned company data.'
+    } : {
+      title: 'Welcome back. Your marketplace is running smoothly.',
+      body: 'Track every booking, partner listing, customer ticket, payout split, promoter commission, ad campaign, refund, and dispute from this single super admin dashboard.',
+      primaryPage: 'payments',
+      primaryIcon: 'fa-money-bill-transfer',
+      primaryLabel: 'Review payouts',
+      secondaryPage: 'support',
+      secondaryLabel: 'Support queue',
+      tertiaryPage: 'analytics',
+      tertiaryLabel: 'Analytics',
+      bookingLabel: 'Bookings today',
+      supportLabel: 'Pending partner approvals',
+      reportsLabel: 'Open disputes',
+      quickSub: 'Fast platform control actions.'
+    };
   %>
 
   <!-- Clean dashboard chrome dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher transform:none !important padding:12px 0 20px 10px !important navLogout -->
@@ -1845,7 +1894,7 @@
           <label class="topSearch hideMobile" aria-label="Search dashboard"><i class="fa-solid fa-magnifying-glass"></i><input id="dashboardGlobalSearch" placeholder="Search dashboard..." autocomplete="off"></label>
           <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
           <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
-          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= companySupportsHotel ? 'hotel property' : companySupportsBus ? 'listing' : 'listing' %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
+          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
           <button class="btn btnPrimary hideMobile"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></button>
           <form class="logoutForm topLogout" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn hideMobile navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
         </div>
@@ -1856,7 +1905,7 @@
           <% flashMessages.forEach(function(message){ %>
             <div class="actionFlash <%= message.type || 'info' %>">
               <div>
-                <strong><i class="fa-solid <%= message.type === 'error' ? 'fa-triangle-exclamation' : message.type === 'warning' ? 'fa-circle-exclamation' : message.type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i> <%= message.type === 'error' ? 'Action needs attention' : message.type === 'warning' ? 'Please review' : message.type === 'success' ? 'Saved' : 'Notice' %></strong>
+                <strong><i class="fa-solid <%= message.type === 'error' ? 'fa-triangle-exclamation' : message.type === 'warning' ? 'fa-circle-exclamation' : message.type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i> <%= message.type === 'error' ? 'Action needs attention' : message.type === 'warning' ? 'Please review' : message.type === 'success' ? (/^welcome/i.test(message.text || '') ? 'Welcome' : 'Saved') : 'Notice' %></strong>
                 <p><%= message.text %></p>
               </div>
               <button type="button" data-dismiss-flash aria-label="Dismiss message"><i class="fa-solid fa-xmark"></i></button>
@@ -1871,13 +1920,13 @@
             <div class="welcome">
               <div>
                 <span class="badge info"><i class="fa-solid fa-shield-halved"></i> <%= dashboardShell?.label || 'Dashboard' %></span>
-                <h2><%= isCompanyDashboard ? (companyServiceProfile.dashboardLabel || 'Company Dashboard') : 'Welcome back. Your marketplace is running smoothly.' %></h2>
-                <p><%= isCompanyDashboard ? ('Manage ' + ((companyServiceProfile.primaryLabel || 'service').toLowerCase()) + ' bookings, inventory, staff, support, revenue, settlement, and reports from the same admin dashboard shell.') : 'Track every booking, partner listing, customer ticket, payout split, promoter commission, ad campaign, refund, and dispute from this single super admin dashboard.' %></p>
+                <h2><%= dashboardCopy.title %></h2>
+                <p><%= dashboardCopy.body %></p>
               </div>
               <div class="heroActions">
-                <button class="btn btnPrimary" data-jump="<%= isCompanyDashboard ? 'bookings' : 'payments' %>"><i class="fa-solid fa-money-bill-transfer"></i> <%= isCompanyDashboard ? 'Review bookings' : 'Review payouts' %></button>
-                <button class="btn" data-jump="support"><i class="fa-solid fa-headset"></i> Support queue</button>
-                <button class="btn" data-jump="<%= isCompanyDashboard ? 'reports' : 'analytics' %>"><i class="fa-solid fa-chart-pie"></i> <%= isCompanyDashboard ? 'Reports' : 'Analytics' %></button>
+                <button class="btn btnPrimary" data-jump="<%= dashboardCopy.primaryPage %>"><i class="fa-solid <%= dashboardCopy.primaryIcon %>"></i> <%= dashboardCopy.primaryLabel %></button>
+                <button class="btn" data-jump="<%= dashboardCopy.secondaryPage %>"><i class="fa-solid fa-headset"></i> <%= dashboardCopy.secondaryLabel %></button>
+                <button class="btn" data-jump="<%= dashboardCopy.tertiaryPage %>"><i class="fa-solid fa-chart-pie"></i> <%= dashboardCopy.tertiaryLabel %></button>
               </div>
             </div>
 
@@ -1887,10 +1936,10 @@
                 <span class="badge ok"><span class="pulse"></span> Online</span>
               </div>
               <div class="liveList">
-                <div class="liveItem"><span><%= isCompanyDashboard ? 'Company bookings' : 'Bookings today' %></span><strong><%= Array.isArray(dashboardData?.bookings) ? dashboardData.bookings.length : '0' %></strong></div>
+                <div class="liveItem"><span><%= dashboardCopy.bookingLabel %></span><strong><%= Array.isArray(dashboardData?.bookings) ? dashboardData.bookings.length : '0' %></strong></div>
                 <div class="liveItem"><span><%= companySupportsHotel ? 'Room holds' : companySupportsBus ? 'Seat holds' : 'Inventory holds' %></span><strong><%= dashboardData?.stats?.seatsOnHold || '0' %></strong></div>
-                <div class="liveItem"><span><%= isCompanyDashboard ? 'Open support cases' : 'Pending partner approvals' %></span><strong><%= Array.isArray(dashboardData?.support) ? dashboardData.support.length : '0' %></strong></div>
-                <div class="liveItem"><span><%= isCompanyDashboard ? 'Reports ready' : 'Open disputes' %></span><strong><%= Array.isArray(dashboardData?.reports) ? dashboardData.reports.length : '0' %></strong></div>
+                <div class="liveItem"><span><%= dashboardCopy.supportLabel %></span><strong><%= Array.isArray(dashboardData?.support) ? dashboardData.support.length : '0' %></strong></div>
+                <div class="liveItem"><span><%= dashboardCopy.reportsLabel %></span><strong><%= Array.isArray(dashboardData?.reports) ? dashboardData.reports.length : '0' %></strong></div>
               </div>
             </div>
           </div>
@@ -1951,7 +2000,7 @@
 
           <div class="card">
             <div class="cardHead">
-              <div class="cardTitle"><h3>Quick actions</h3><p><%= isCompanyDashboard ? 'Fast actions for this service dashboard only.' : 'Fast platform control actions.' %></p></div>
+              <div class="cardTitle"><h3>Quick actions</h3><p><%= dashboardCopy.quickSub %></p></div>
             </div>
             <div class="cardPad">
               <div class="quickGrid">
@@ -1971,6 +2020,11 @@
                 <button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Bookings</strong><span>Review service bookings and customer records.</span></button>
                 <button class="quickCard" data-jump="support"><div class="quickIcon"><i class="fa-solid fa-headset"></i></div><strong>Support</strong><span>Handle customer and operational cases.</span></button>
                 <button class="quickCard" data-jump="settlement"><div class="quickIcon"><i class="fa-solid fa-wallet"></i></div><strong>Settlement</strong><span>Track pending and available earnings.</span></button>
+                <% } else if(isEmployeeDashboard){ %>
+                <button class="quickCard" data-jump="checkin"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Check in ticket</strong><span>Open the shared check-in workspace for manual or QR validation.</span></button>
+                <button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Record a desk booking for the assigned company.</span></button>
+                <button class="quickCard" data-modal="create" data-type="support notice"><div class="quickIcon"><i class="fa-solid fa-headset"></i></div><strong>Support notice</strong><span>Create a customer-visible note or operational support task.</span></button>
+                <button class="quickCard" data-modal="create" data-type="handover"><div class="quickIcon"><i class="fa-solid fa-clipboard-list"></i></div><strong>Shift handover</strong><span>Leave clear notes for the next staff member.</span></button>
                 <% } else { %>
                 <button class="quickCard" data-modal="create" data-type="partner"><div class="quickIcon"><i class="fa-solid fa-check"></i></div><strong>Approve partner</strong><span>Review documents and activate their dashboard.</span></button>
                 <button class="quickCard" data-modal="edit" data-type="payment"><div class="quickIcon"><i class="fa-solid fa-ban"></i></div><strong>Freeze payout</strong><span>Hold suspicious payouts while finance reviews.</span></button>
@@ -2034,7 +2088,7 @@
         </div>
       </section>
 
-      <section class="section" id="bookings"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isCompanyDashboard ? (companyServiceProfile.primaryLabel || 'Company') + ' bookings' : 'All bookings' %></h3><p><%= isCompanyDashboard ? (companySupportsHotel ? 'Monitor hotel stays, room-night holds, refunds, and confirmations.' : companySupportsBus ? 'Monitor bus tickets, seats, passenger holds, refunds, and confirmations.' : 'Monitor this company service bookings, holds, refunds, and confirmations.') : 'Monitor tickets, reservations, rooms, seats, held items, refunds, and confirmations.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="booking"><i class="fa-solid fa-plus"></i> Create booking</button></div><div class="innerTabs" data-tab-group="bookings-tabs"><button type="button" class="tabBtn is-on" data-tab-target="bookings-all"><i class="fa-solid fa-ticket"></i> <%= isCompanyDashboard ? (companyServiceProfile.primaryLabel || 'Service') : 'All' %></button><% if(!isCompanyDashboard || companySupportsBus){ %><button type="button" class="tabBtn" data-tab-target="bookings-bus"><i class="fa-solid fa-bus"></i> Bus</button><% } %><% if(!isCompanyDashboard || companySupportsHotel){ %><button type="button" class="tabBtn" data-tab-target="bookings-hotel"><i class="fa-solid fa-hotel"></i> Hotel</button><% } %><% if(!isCompanyDashboard){ %><button type="button" class="tabBtn" data-tab-target="bookings-flight"><i class="fa-solid fa-plane"></i> Flight</button><button type="button" class="tabBtn" data-tab-target="bookings-train"><i class="fa-solid fa-train"></i> Train</button><% } %><button type="button" class="tabBtn" data-tab-target="bookings-hold"><i class="fa-regular fa-clock"></i> On hold</button><button type="button" class="tabBtn" data-tab-target="bookings-refunded"><i class="fa-solid fa-rotate-left"></i> Refunded</button></div><div class="tabPane is-open" id="bookings-all"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTable"></tbody></table></div></div><% if(!isCompanyDashboard || companySupportsBus){ %><div class="tabPane" id="bookings-bus"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsBusTable"></tbody></table></div></div><% } %><% if(!isCompanyDashboard || companySupportsHotel){ %><div class="tabPane" id="bookings-hotel"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHotelTable"></tbody></table></div></div><% } %><% if(!isCompanyDashboard){ %><div class="tabPane" id="bookings-flight"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsFlightTable"></tbody></table></div></div><div class="tabPane" id="bookings-train"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTrainTable"></tbody></table></div></div><% } %><div class="tabPane" id="bookings-hold"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHoldTable"></tbody></table></div></div><div class="tabPane" id="bookings-refunded"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsRefundedTable"></tbody></table></div></div></div></section>
+      <section class="section" id="bookings"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isCompanyDashboard ? (companyServiceProfile.primaryLabel || 'Company') + ' bookings' : isEmployeeDashboard ? 'Assigned bookings' : 'All bookings' %></h3><p><%= isCompanyDashboard ? (companySupportsHotel ? 'Monitor hotel stays, room-night holds, refunds, and confirmations.' : companySupportsBus ? 'Monitor bus tickets, seats, passenger holds, refunds, and confirmations.' : 'Monitor this company service bookings, holds, refunds, and confirmations.') : isEmployeeDashboard ? 'Create desk bookings, check in passengers or guests, record payments, and request refunds in your assigned company scope.' : 'Monitor tickets, reservations, rooms, seats, held items, refunds, and confirmations.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="booking"><i class="fa-solid fa-plus"></i> Create booking</button></div><div class="innerTabs" data-tab-group="bookings-tabs"><button type="button" class="tabBtn is-on" data-tab-target="bookings-all"><i class="fa-solid fa-ticket"></i> <%= isCompanyDashboard ? (companyServiceProfile.primaryLabel || 'Service') : isEmployeeDashboard ? 'Assigned' : 'All' %></button><% if(!isCompanyDashboard || companySupportsBus){ %><button type="button" class="tabBtn" data-tab-target="bookings-bus"><i class="fa-solid fa-bus"></i> Bus</button><% } %><% if(!isCompanyDashboard || companySupportsHotel){ %><button type="button" class="tabBtn" data-tab-target="bookings-hotel"><i class="fa-solid fa-hotel"></i> Hotel</button><% } %><% if(!isCompanyDashboard){ %><button type="button" class="tabBtn" data-tab-target="bookings-flight"><i class="fa-solid fa-plane"></i> Flight</button><button type="button" class="tabBtn" data-tab-target="bookings-train"><i class="fa-solid fa-train"></i> Train</button><% } %><button type="button" class="tabBtn" data-tab-target="bookings-hold"><i class="fa-regular fa-clock"></i> On hold</button><button type="button" class="tabBtn" data-tab-target="bookings-refunded"><i class="fa-solid fa-rotate-left"></i> Refunded</button></div><div class="tabPane is-open" id="bookings-all"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTable"></tbody></table></div></div><% if(!isCompanyDashboard || companySupportsBus){ %><div class="tabPane" id="bookings-bus"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsBusTable"></tbody></table></div></div><% } %><% if(!isCompanyDashboard || companySupportsHotel){ %><div class="tabPane" id="bookings-hotel"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHotelTable"></tbody></table></div></div><% } %><% if(!isCompanyDashboard){ %><div class="tabPane" id="bookings-flight"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsFlightTable"></tbody></table></div></div><div class="tabPane" id="bookings-train"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsTrainTable"></tbody></table></div></div><% } %><div class="tabPane" id="bookings-hold"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsHoldTable"></tbody></table></div></div><div class="tabPane" id="bookings-refunded"><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Customer</th><th>Date</th><th>Hold</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="bookingsRefundedTable"></tbody></table></div></div></div></section>
 
       <section class="section" id="partners"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Partner companies</h3><p>Approve, suspend, verify, and monitor companies.</p></div><button class="btn btnPrimary" data-modal="create" data-type="partner"><i class="fa-solid fa-building-circle-check"></i> Add partner</button></div><div class="innerTabs" data-tab-group="partners-tabs"><button type="button" class="tabBtn is-on" data-tab-target="partners-all"><i class="fa-solid fa-building"></i> All</button><button type="button" class="tabBtn" data-tab-target="partners-bus"><i class="fa-solid fa-bus"></i> Bus</button><button type="button" class="tabBtn" data-tab-target="partners-hotel"><i class="fa-solid fa-hotel"></i> Hotel</button><button type="button" class="tabBtn" data-tab-target="partners-airline"><i class="fa-solid fa-plane"></i> Airline</button><button type="button" class="tabBtn" data-tab-target="partners-train"><i class="fa-solid fa-train"></i> Train</button><button type="button" class="tabBtn" data-tab-target="partners-pending"><i class="fa-regular fa-hourglass-half"></i> Pending</button></div><div class="tabPane is-open" id="partners-all"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersTable"></tbody></table></div></div><div class="tabPane" id="partners-bus"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersBusTable"></tbody></table></div></div><div class="tabPane" id="partners-hotel"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersHotelTable"></tbody></table></div></div><div class="tabPane" id="partners-airline"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersAirlineTable"></tbody></table></div></div><div class="tabPane" id="partners-train"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersTrainTable"></tbody></table></div></div><div class="tabPane" id="partners-pending"><div class="tableWrap"><table><thead><tr><th>Partner</th><th>Type</th><th>Country</th><th>Listings</th><th>Verification</th><th>Revenue</th><th></th></tr></thead><tbody id="partnersPendingTable"></tbody></table></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Partner onboarding</h3><p>Checks before approval.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Business license</span><span class="badge ok">Required</span></div><div class="progress"><i style="width:88%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Payout account</span><span class="badge warn">Review</span></div><div class="progress"><i style="width:72%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Service inventory</span><span class="badge info">Setup</span></div><div class="progress"><i style="width:64%"></i></div></div><div class="notice">Partners should not receive payouts until business verification, payout account, and service inventory are approved.</div></div></div></div></section>
 
@@ -2046,7 +2100,7 @@
 
       <section class="section" id="vehicles"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Vehicles</h3><p>All partner vehicles, aircraft, and fleet inventory linked to listings and schedules.</p></div><button class="btn btnBlue" data-modal="create" data-type="vehicle"><i class="fa-solid fa-plus"></i> Add vehicle</button></div><div class="tableWrap"><table><thead><tr><th>Vehicle</th><th>Partner</th><th>Type</th><th>Plate / Code</th><th>Seats</th><th>Status</th><th></th></tr></thead><tbody id="adminVehiclesTable"></tbody></table></div></div></section>
 
-      <section class="section" id="schedules"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Schedules</h3><p>Departures, assigned vehicles, available capacity, prices, and publishing status.</p></div><button class="btn btnBlue" data-modal="create" data-type="schedule"><i class="fa-solid fa-plus"></i> Create schedule</button></div><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div></div></section>
+      <section class="section" id="schedules"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Assigned schedules' : 'Schedules' %></h3><p><%= isEmployeeDashboard ? 'Review assigned departures, manifests, seat maps, availability, and delay notices.' : 'Departures, assigned vehicles, available capacity, prices, and publishing status.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="<%= isEmployeeDashboard ? 'delay notice' : 'schedule' %>"><i class="fa-solid <%= isEmployeeDashboard ? 'fa-triangle-exclamation' : 'fa-plus' %>"></i> <%= isEmployeeDashboard ? 'Send delay notice' : 'Create schedule' %></button></div><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div></div></section>
 
       <% const featureServices = Array.isArray(dashboardData?.dashboardFeatures?.services) ? dashboardData.dashboardFeatures.services : []; %>
       <% featureServices.forEach(function(service){ %>
@@ -2465,11 +2519,21 @@
         <div class="grid2">
           <div class="card">
             <div class="cardHead">
-              <div class="cardTitle"><h3>Payments & split settlement</h3><p>Track customer payments, platform fees, promoter commissions, and partner payouts.</p></div>
-              <form method="POST" action="/admin/finance/release-eligible"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-unlock-keyhole"></i> Release eligible</button></form>
+              <div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Payments' : 'Payments & split settlement' %></h3><p><%= isEmployeeDashboard ? 'Record desk payments and keep booking payment status aligned with the staff workflow.' : 'Track customer payments, platform fees, promoter commissions, and partner payouts.' %></p></div>
+              <% if(isEmployeeDashboard){ %><button class="btn btnPrimary" data-modal="create" data-type="payment"><i class="fa-solid fa-wallet"></i> Record payment</button><% } else { %><form method="POST" action="/admin/finance/release-eligible"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-unlock-keyhole"></i> Release eligible</button></form><% } %>
             </div>
             <div class="tableWrap"><table><thead><tr><th>Transaction</th><th>Booking</th><th>Customer paid</th><th>Partner</th><th>Platform 7%</th><th>Promoter 3%</th><th>Status</th><th></th></tr></thead><tbody id="paymentsTable"></tbody></table></div>
           </div>
+          <% if(isEmployeeDashboard){ %>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Staff payment actions</h3><p>Use these controls for bookings handled during the current shift.</p></div></div>
+            <div class="heroActions"><button class="btn btnBlue" data-modal="create" data-type="payment"><i class="fa-solid fa-wallet"></i> Record payment</button><button class="btn" data-modal="create" data-type="refund"><i class="fa-solid fa-rotate-left"></i> Request refund</button><button class="btn" data-modal="create" data-type="handover"><i class="fa-solid fa-clipboard-list"></i> Shift handover</button></div>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Shift reconciliation</h3><p>Export reports and leave handover notes for payments, refunds, check-ins, and open support tasks.</p></div></div>
+            <div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Payments recorded</span><span class="badge ok"><%= dashboardData?.stats?.paymentsRecorded || '0' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Refund requests</span><span class="badge warn"><%= dashboardData?.stats?.refundRequestsHandled || '0' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Reports</span><span class="badge info">Ready</span></div></div></div>
+          </div>
+          <% } else { %>
           <div class="card">
             <div class="cardHead"><div class="cardTitle"><h3>Settlement batches</h3><p>Create period settlements and finance statements for companies and promoters.</p></div></div>
             <form class="formPanel" method="POST" action="/admin/settlements">
@@ -2514,6 +2578,7 @@
             <div class="cardHead"><div class="cardTitle"><h3>Finance rules</h3><p>Current split logic used by the marketplace.</p></div></div>
             <div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Partner payout</span><strong>90%</strong></div><div class="progress"><i style="width:90%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Platform revenue</span><strong>7%</strong></div><div class="progress"><i style="width:7%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Promoter commission</span><strong>3%</strong></div><div class="progress"><i style="width:3%"></i></div></div><button class="btn btnBlue" data-modal="edit" data-type="finance rules"><i class="fa-solid fa-gear"></i> Edit finance rules</button></div>
           </div>
+          <% } %>
         </div>
       </section>
 
@@ -2521,7 +2586,7 @@
 
       <section class="section" id="customers"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Customers</h3><p>View customer booking history, receipts, saved items, refunds, and support activity.</p></div><button class="btn" data-modal="create" data-type="customer note"><i class="fa-solid fa-user-plus"></i> Add note</button></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Email / phone</th><th>Bookings</th><th>Spent</th><th>Last activity</th><th>Status</th><th></th></tr></thead><tbody id="customersTable"></tbody></table></div></div></section>
 
-      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isCompanyDashboard ? '/company/support/notices' : '/admin/notices' %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
+      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isCompanyDashboard ? '/company/support/notices' : isEmployeeDashboard ? '/employee/support/notice' : '/admin/notices' %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
 
       <section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
 
@@ -2549,7 +2614,7 @@
 
       <section class="section" id="kyc"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>KYC / Verification</h3><p>Review partner company documents, payout accounts, employee IDs, and compliance flags.</p></div><button class="btn btnPrimary" data-modal="create" data-type="verification task"><i class="fa-solid fa-id-card-clip"></i> New review</button></div><div class="innerTabs" data-tab-group="kyc-tabs"><button type="button" class="tabBtn is-on" data-tab-target="kyc-pending"><i class="fa-regular fa-hourglass-half"></i> Pending</button><button type="button" class="tabBtn" data-tab-target="kyc-approved"><i class="fa-solid fa-circle-check"></i> Approved</button><button type="button" class="tabBtn" data-tab-target="kyc-rejected"><i class="fa-solid fa-circle-xmark"></i> Rejected</button><button type="button" class="tabBtn" data-tab-target="kyc-bank"><i class="fa-solid fa-building-columns"></i> Bank mismatch</button><button type="button" class="tabBtn" data-tab-target="kyc-expired"><i class="fa-solid fa-file-circle-exclamation"></i> Expired docs</button></div><div class="tabPane is-open" id="kyc-pending"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycTable"></tbody></table></div></div><div class="tabPane" id="kyc-approved"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycApprovedTable"></tbody></table></div></div><div class="tabPane" id="kyc-rejected"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycRejectedTable"></tbody></table></div></div><div class="tabPane" id="kyc-bank"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycBankTable"></tbody></table></div></div><div class="tabPane" id="kyc-expired"><div class="tableWrap"><table><thead><tr><th>Company</th><th>Document</th><th>Country</th><th>Payout account</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="kycExpiredTable"></tbody></table></div></div></div></section>
 
-      <section class="section" id="refunds"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Refunds & cancellations</h3><p>Approve customer refunds, cancellation fees, failed ticket reversals, and partner chargebacks.</p></div><button class="btn btnPrimary" data-modal="create" data-type="refund"><i class="fa-solid fa-rotate-left"></i> Create refund</button></div><div class="tableWrap"><table><thead><tr><th>Refund</th><th>Booking</th><th>Customer</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="refundsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Refund policy health</h3><p>Keep refunds controlled but fast for customers.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Auto refundable</span><strong>64%</strong></div><div class="progress"><i style="width:64%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Partner approval needed</span><strong>28%</strong></div><div class="progress"><i style="width:28%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Fraud / duplicate review</span><strong>8%</strong></div><div class="progress"><i style="width:8%"></i></div></div></div></div></div></section>
+      <section class="section" id="refunds"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Refund requests' : 'Refunds & cancellations' %></h3><p><%= isEmployeeDashboard ? 'Create refund requests for assigned bookings and track customer follow-up.' : 'Approve customer refunds, cancellation fees, failed ticket reversals, and partner chargebacks.' %></p></div><button class="btn btnPrimary" data-modal="create" data-type="refund"><i class="fa-solid fa-rotate-left"></i> <%= isEmployeeDashboard ? 'Request refund' : 'Create refund' %></button></div><div class="tableWrap"><table><thead><tr><th>Refund</th><th>Booking</th><th>Customer</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="refundsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Refund workflow' : 'Refund policy health' %></h3><p><%= isEmployeeDashboard ? 'Keep refund requests linked to booking, payment, support, and shift handover records.' : 'Keep refunds controlled but fast for customers.' %></p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span><%= isEmployeeDashboard ? 'Employee requests' : 'Auto refundable' %></span><strong><%= isEmployeeDashboard ? (dashboardData?.stats?.refundRequestsHandled || '0') : '64%' %></strong></div><div class="progress"><i style="width:64%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Partner approval needed</span><strong>28%</strong></div><div class="progress"><i style="width:28%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Fraud / duplicate review</span><strong>8%</strong></div><div class="progress"><i style="width:8%"></i></div></div></div></div></div></section>
 
       <section class="section" id="notifications"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Notifications</h3><p>Manage email, SMS, WhatsApp, push, booking receipts, payout alerts, and partner notices.</p></div><button class="btn btnBlue" data-modal="create" data-type="notification"><i class="fa-solid fa-paper-plane"></i> Send notification</button></div><div class="innerTabs" data-tab-group="notify-tabs"><button type="button" class="tabBtn is-on" data-tab-target="notify-campaigns"><i class="fa-solid fa-bullhorn"></i> Campaigns</button><button type="button" class="tabBtn" data-tab-target="notify-templates"><i class="fa-solid fa-envelope-open-text"></i> Templates</button></div><div class="tabPane is-open" id="notify-campaigns"><div class="tableWrap"><table><thead><tr><th>Message</th><th>Channel</th><th>Audience</th><th>Sent</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody id="notificationsTable"></tbody></table></div></div><div class="tabPane" id="notify-templates"><div class="reportGrid"><article class="reportCard"><span class="badge ok">Active</span><h4>Booking receipt</h4><p>Email/SMS template after successful payment.</p><button class="btn" data-modal="edit" data-type="template" data-label="Booking receipt">Edit</button></article><article class="reportCard"><span class="badge ok">Active</span><h4>Payout approved</h4><p>Notice to partners and promoters when funds are released.</p><button class="btn" data-modal="edit" data-type="template" data-label="Payout approved">Edit</button></article><article class="reportCard"><span class="badge warn">Review</span><h4>Refund update</h4><p>Customer message for refund progress and cancellation rules.</p><button class="btn" data-modal="edit" data-type="template" data-label="Refund update">Edit</button></article></div></div></div></section>
 
@@ -2655,7 +2720,7 @@
           return '#'+page;
         }
       %>
-      <% dynamicDashboardItems.forEach(function(item){ %>
+      <% dynamicDashboardItems.forEach(function(item){ const employeeDynamicActions = { bookings:'booking', schedule:'delay notice', inventory:'inventory', payments:'payment', refunds:'refund', support:'support notice', handover:'handover', profile:'profile' }; const employeeDynamicAction = isEmployeeDashboard ? employeeDynamicActions[item.page] : ''; const employeeDynamicLabel = item.page === 'profile' ? 'Save profile' : item.page === 'handover' ? 'Create handover' : item.page === 'schedule' ? 'Send delay notice' : item.page === 'inventory' ? 'Update inventory' : item.page === 'payments' ? 'Record payment' : item.page === 'refunds' ? 'Request refund' : item.page === 'support' ? 'Create support notice' : 'Create booking'; %>
         <section class="section" id="<%= item.page %>">
           <div class="grid2">
             <div class="card">
@@ -2678,6 +2743,7 @@
               </div>
               <div class="heroActions">
                 <a class="btn btnBlue" href="<%= dynamicActionHref(item.page) %>"><i class="fa-solid fa-up-right-from-square"></i> Open <%= item.label %></a>
+                <% if(employeeDynamicAction){ %><button class="btn btnPrimary" data-modal="create" data-type="<%= employeeDynamicAction %>"><i class="fa-solid fa-pen-to-square"></i> <%= employeeDynamicLabel %></button><% } %>
                 <button class="btn" data-modal="view" data-type="<%= item.label %>" data-label="<%= dashboardShell?.label || 'Dashboard' %>"><i class="fa-regular fa-eye"></i> View details</button>
                 <button class="btn" data-export-row="<%= item.label %>" data-label="<%= item.label %>"><i class="fa-solid fa-file-export"></i> Export</button>
               </div>
@@ -2702,6 +2768,8 @@ window.addEventListener('DOMContentLoaded', function () {
   const shell = <%- JSON.stringify(dashboardShell || {}) %>;
   const csrfToken = <%- JSON.stringify(csrfToken || '') %>;
   const serverFlashMessages = <%- JSON.stringify(flashMessages || []) %>;
+  const runtimeServiceProfile = backendDashboardData.serviceProfile || {};
+  const runtimeCompanyServiceType = String(runtimeServiceProfile.primaryServiceType || 'partner').replace('-', '_');
 
   function setFieldError(field, message) {
     if (!field) return;
@@ -3028,6 +3096,32 @@ window.addEventListener('DOMContentLoaded', function () {
         scopedActions += `<form method="POST" action="/company/hotels/inventory/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive room-night"><i class="fa-solid fa-box-archive"></i></button></form>`;
       }
     }
+    if (role === 'employee' && id) {
+      if (entity === 'booking' || entity === 'checkin' || entity === 'manifest_passenger') {
+        const bookingRef = encodeURIComponent(meta?.detail?.seat?.bookingRef || meta?.detail?.booking?.bookingRef || rawId || '');
+        if (bookingRef) {
+          scopedActions += `<a class="tinyBtn" href="/driver/tickets/${bookingRef}" title="Open ticket"><i class="fa-solid fa-ticket"></i></a>`;
+          scopedActions += `<form method="POST" action="/employee/bookings/${bookingRef}/check-in" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Check in"><i class="fa-solid fa-qrcode"></i></button></form>`;
+          scopedActions += `<form method="POST" action="/employee/bookings/${bookingRef}/no-show" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="No-show"><i class="fa-solid fa-user-slash"></i></button></form>`;
+          scopedActions += `<button class="tinyBtn" data-modal="create" data-type="payment" data-label="${safeLabel}"${detailAttr}${idAttr} title="Record payment"><i class="fa-solid fa-wallet"></i></button>`;
+          scopedActions += `<button class="tinyBtn" data-modal="create" data-type="refund" data-label="${safeLabel}"${detailAttr}${idAttr} title="Request refund"><i class="fa-solid fa-rotate-left"></i></button>`;
+          scopedActions += `<button class="tinyBtn" data-modal="create" data-type="support notice" data-label="${safeLabel}"${detailAttr}${idAttr} title="Support notice"><i class="fa-solid fa-headset"></i></button>`;
+        }
+      }
+      if (entity === 'schedule' || entity === 'manifest') {
+        scopedActions += `<a class="tinyBtn" href="/driver/schedules/${id}/manifest" title="Open manifest"><i class="fa-solid fa-file-lines"></i></a>`;
+        scopedActions += `<a class="tinyBtn" href="/driver/schedules/${id}/manifest.pdf" title="Download manifest PDF"><i class="fa-solid fa-file-pdf"></i></a>`;
+        scopedActions += `<a class="tinyBtn" href="/driver/schedules/${id}/manifest.csv" title="Download manifest CSV"><i class="fa-solid fa-file-csv"></i></a>`;
+        scopedActions += `<button class="tinyBtn" data-modal="create" data-type="delay notice" data-label="${safeLabel}"${detailAttr}${idAttr} title="Send delay notice"><i class="fa-solid fa-triangle-exclamation"></i></button>`;
+      }
+      if (entity === 'seat' || entity === 'inventory') {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="seat status" data-label="${safeLabel}"${detailAttr}${idAttr} title="Update inventory status"><i class="fa-solid fa-chair"></i></button>`;
+        const parts = String(rawId || '').split(':');
+        const scheduleId = encodeURIComponent(parts[0] || meta?.detail?.inventory?.scheduleId || meta?.detail?.seat?.scheduleId || meta?.detail?.seatMap?.scheduleId || '');
+        const seatNo = encodeURIComponent(parts[1] || meta?.detail?.inventory?.seatNumber || meta?.detail?.seat?.seatNumber || '');
+        if (scheduleId && seatNo) scopedActions += `<a class="tinyBtn" href="/driver/seats/${scheduleId}/${seatNo}/ticket" title="Open seat ticket"><i class="fa-solid fa-ticket"></i></a>`;
+      }
+    }
     if ((shell.currentRole || 'admin') === 'admin' && entity === 'support' && /driver_invitation_request/i.test(String(meta?.detail?.ticket?.category || meta?.detail?.supportTicket?.category || meta?.detail?.category || ''))) {
       scopedActions += `<form method="POST" action="/admin/driver-requests/${id}/approve" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Approve driver"><i class="fa-solid fa-user-check"></i></button></form>`;
       scopedActions += `<form method="POST" action="/admin/driver-requests/${id}/reject" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Reject driver"><i class="fa-solid fa-user-xmark"></i></button></form>`;
@@ -3290,6 +3384,31 @@ window.addEventListener('DOMContentLoaded', function () {
         opsBtn += `<a class="btn" href="/company/tickets/${bookingRef}"><i class="fa-solid fa-ticket"></i> Ticket</a>`;
         opsBtn += `<form method="POST" action="/company/scanner/validate" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="bookingRef" value="${bookingRef}"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-qrcode"></i> Check in</button></form>`;
         opsBtn += `<form method="POST" action="/company/scanner/no-show" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="bookingRef" value="${bookingRef}"><button class="btn danger" type="submit"><i class="fa-solid fa-user-slash"></i> No-show</button></form>`;
+      }
+    }
+    if ((shell.currentRole || 'admin') === 'employee' && (entity === 'seat' || entity === 'inventory')) {
+      const parts = String(recordId || '').split(':');
+      const scheduleId = encodeURIComponent(parts[0] || detail?.inventory?.scheduleId || detail?.seat?.scheduleId || detail?.seatMap?.scheduleId || detail?.schedule?.id || '');
+      const seatNo = encodeURIComponent(String(parts[1] || detail?.inventory?.seatNumber || detail?.seat?.seatNumber || '').replace(/^seat\s*(no\.?|number)?\s*/i, '').replace(/^[A-Za-z](\d+)$/, '$1'));
+      opsBtn += `<button class="btn btnPrimary" type="button" data-modal="edit" data-type="seat status" data-label="${safeLabel}"${detailAttr}${idAttr}><i class="fa-solid fa-chair"></i> Update status</button>`;
+      if (scheduleId && seatNo) opsBtn += `<a class="btn" href="/driver/seats/${scheduleId}/${seatNo}/ticket"><i class="fa-solid fa-ticket"></i> Seat ticket</a>`;
+    }
+    if ((shell.currentRole || 'admin') === 'employee' && (entity === 'manifest_passenger' || entity === 'booking' || entity === 'checkin')) {
+      const bookingRef = encodeURIComponent(recordId || detail?.seat?.bookingRef || detail?.booking?.bookingRef || detail?.bookingRef || '');
+      if (bookingRef) {
+        opsBtn += `<a class="btn" href="/driver/tickets/${bookingRef}"><i class="fa-solid fa-ticket"></i> Ticket</a>`;
+        opsBtn += `<form method="POST" action="/employee/bookings/${bookingRef}/check-in" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-qrcode"></i> Check in</button></form>`;
+        opsBtn += `<form method="POST" action="/employee/bookings/${bookingRef}/no-show" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="btn danger" type="submit"><i class="fa-solid fa-user-slash"></i> No-show</button></form>`;
+        opsBtn += `<button class="btn" type="button" data-modal="create" data-type="payment" data-label="${safeLabel}"${detailAttr}${idAttr}><i class="fa-solid fa-wallet"></i> Payment</button>`;
+        opsBtn += `<button class="btn" type="button" data-modal="create" data-type="support notice" data-label="${safeLabel}"${detailAttr}${idAttr}><i class="fa-solid fa-headset"></i> Support</button>`;
+      }
+    }
+    if ((shell.currentRole || 'admin') === 'employee' && (entity === 'schedule' || entity === 'manifest')) {
+      const scheduleId = encodeURIComponent(recordId || detail?.manifest?.scheduleId || detail?.schedule?.id || '');
+      if (scheduleId) {
+        opsBtn += `<a class="btn" href="/driver/schedules/${scheduleId}/manifest"><i class="fa-solid fa-file-lines"></i> Manifest</a>`;
+        opsBtn += `<a class="btn" href="/driver/schedules/${scheduleId}/manifest.pdf"><i class="fa-solid fa-file-pdf"></i> PDF</a>`;
+        opsBtn += `<button class="btn" type="button" data-modal="create" data-type="delay notice" data-label="${safeLabel}"${detailAttr}${idAttr}><i class="fa-solid fa-triangle-exclamation"></i> Delay notice</button>`;
       }
     }
     return `<div class="detailActions">
@@ -3627,7 +3746,19 @@ window.addEventListener('DOMContentLoaded', function () {
     document.body.scrollTop = top;
   }
 
+  function canonicalPage(page) {
+    const role = shell.currentRole || 'admin';
+    const aliases = {
+      employee: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' },
+      driver: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' },
+      operations: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' }
+    };
+    return aliases[role]?.[page] || page;
+  }
+
   function showPage(page) {
+    const requestedPage = page || 'overview';
+    page = canonicalPage(requestedPage);
     $$('.section').forEach(section => section.classList.remove('is-open'));
     let target = $('#' + page);
     if (!target) {
@@ -3640,8 +3771,8 @@ window.addEventListener('DOMContentLoaded', function () {
       main.appendChild(target);
     }
     if (target) target.classList.add('is-open');
-    $$('.navBtn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === page));
-    const meta = pageMeta[page] || pageMeta.overview;
+    $$('.navBtn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === requestedPage || canonicalPage(btn.dataset.page) === page));
+    const meta = pageMeta[requestedPage] || pageMeta[page] || pageMeta.overview;
     if (els.pageHeading) els.pageHeading.textContent = meta[0];
     if (els.pageSub) els.pageSub.textContent = meta[1];
     closeMenu();
@@ -3663,11 +3794,16 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function optionFromRows(rows, fallback = 'Select item', valueIndex = 0, labelIndex = 0) {
     const options = (rows || []).map(row => {
+      if (row && typeof row === 'object' && !Array.isArray(row)) {
+        const value = row.value || row.id || row.slug || row.key || '';
+        const label = row.label || row.title || row.name || row.routeLabel || value;
+        return { value, label };
+      }
       const meta = rowMeta(row);
       const cells = rowCells(row);
       return {
-        value: meta.id || cells[valueIndex] || cells[labelIndex],
-        label: cells[labelIndex] || meta.label || meta.id,
+        value: meta?.id || cells[valueIndex] || cells[labelIndex],
+        label: cells[labelIndex] || meta?.label || meta?.id,
       };
     }).filter(item => item.value);
     return options.length ? options : [{ value: '', label: fallback }];
@@ -3713,6 +3849,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const key = String(type || '').toLowerCase();
     const currentRole = shell.currentRole || 'admin';
     const isCompanyRole = currentRole === 'company';
+    const isEmployeeRole = currentRole === 'employee';
     const companyServiceType = String(companyServiceProfile.primaryServiceType || 'partner').replace('-', '_');
     const serviceLabel = companyServiceProfile.primaryLabel || 'Service';
     const dayOptions = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -3720,22 +3857,34 @@ window.addEventListener('DOMContentLoaded', function () {
     const hotelAmenityOptions = ['WiFi','Breakfast','Parking','Airport shuttle','Pool','Gym','Restaurant','Air conditioning','Room service','Conference room'];
     const listingStatusOptions = ['draft','active','published','paused','archived'];
     const scheduleStatusOptions = ['draft','active','published','boarding','departed','arrived','completed','delayed','cancelled','archived'];
-    const listings = optionFromRows(data.listings, 'Select listing');
+    const listings = optionFromRows(data.options?.listings || data.listings, 'Select listing');
     const routes = optionFromRows(data.routes, 'Select route');
     const vehicles = optionFromRows(data.vehicles, 'Select vehicle');
     const vehicleRecords = Array.isArray(data.vehicles) ? data.vehicles : [];
-    const schedules = optionFromRows(data.schedules, 'Select schedule');
+    const schedules = optionFromRows(data.options?.schedules || data.schedules, 'Select schedule');
     const branches = optionFromRows(data.branches, 'Select branch / terminal / property');
     const policies = optionFromRows(data.policies, 'Select policy');
     const roomTypes = optionFromRows(data.roomTypes, 'Select room type');
     const roomUnits = optionFromRows(data.roomUnits, 'Select room unit');
-    const seatOptions = (Array.isArray(data.seatMaps) ? data.seatMaps.flatMap(map => (map.seats || []).map(seat => ({ value: seat.seatNumber || seat.id, label: `${map.routeLabel || map.scheduleId} - Seat No ${String(seat.seatNumber || seat.id || '').replace(/^seat\s*(no\.?|number)?\s*/i, '').replace(/^[A-Za-z](\d+)$/, '$1')} (${seat.status || 'available'})` }))) : []).slice(0, 200);
+    const rooms = optionFromRows(data.options?.rooms || data.rooms, 'Select room');
+    const seatMapOptions = Array.isArray(data.seatMaps) ? data.seatMaps.flatMap(map => (map.seats || []).map(seat => ({ value: seat.seatNumber || seat.id, label: `${map.routeLabel || map.scheduleId} - Seat No ${String(seat.seatNumber || seat.id || '').replace(/^seat\s*(no\.?|number)?\s*/i, '').replace(/^[A-Za-z](\d+)$/, '$1')} (${seat.status || 'available'})` }))) : [];
+    const inventorySeatOptions = (Array.isArray(data.inventory) ? data.inventory : []).map(row => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      const inventory = meta?.detail?.inventory || meta?.detail?.seat || {};
+      const scheduleId = inventory.scheduleId || cells[0] || '';
+      const seatNumber = inventory.seatNumber || cells[1] || meta?.label || '';
+      if (!seatNumber) return null;
+      return { value: seatNumber, label: `${scheduleId || 'Inventory'} - Seat No ${String(seatNumber).replace(/^seat\s*(no\.?|number)?\s*/i, '')} (${inventory.status || cells[6] || 'available'})` };
+    }).filter(Boolean);
+    const seatOptions = (seatMapOptions.length ? seatMapOptions : inventorySeatOptions).slice(0, 200);
     const companies = optionFromRows(data.partners, 'Select partner');
     const bookings = (data.bookings || []).map(row => rowCells(row)[0]).filter(Boolean);
     const bookingOptions = bookings.length ? bookings : [''];
     const payments = optionFromRows(data.payments, 'Select transaction');
     const customers = optionFromRows(data.customers, 'Select customer');
     const promoters = optionFromRows(data.promoters, 'Select promoter');
+    const employeeProfile = data.profile || {};
     const recordId = detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.routeStop?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.roomUnit?.id || detail?.roomNight?.id || '';
     const recordLabel = label || detail?.label || recordId || 'selected record';
 
@@ -3766,6 +3915,89 @@ window.addEventListener('DOMContentLoaded', function () {
       if (entityKey === 'room_unit') return `/company/hotels/room-units/${safeId}`;
       if (entityKey === 'room_night') return `/company/hotels/inventory/${safeId}/status`;
       return '';
+    };
+
+    if (isEmployeeRole && key === 'booking') return {
+      action: '/employee/bookings', submit: 'Create booking',
+      fields: [
+        { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, required:true, value: fieldValue('booking.listingId','listing.id','listingId') },
+        { name:'scheduleId', label:'Schedule', type:'select', icon:'fa-calendar-days', options:schedules, value: fieldValue('booking.scheduleId','schedule.id','scheduleId') },
+        { name:'selected', label: companyServiceType === 'hotel' ? 'Room / unit' : 'Seat', type: seatOptions.length ? 'select' : 'text', icon: companyServiceType === 'hotel' ? 'fa-bed' : 'fa-chair', options: seatOptions, value: fieldValue('booking.selected','ticket.seatNumber','seat.seatNumber','selected') },
+        { name:'roomId', label:'Room', type:'select', icon:'fa-bed', options:rooms, value: fieldValue('booking.roomId','room.id','roomId') },
+        { name:'fullName', label:'Customer name', icon:'fa-user', required:true, placeholder:'Jane Customer', value: fieldValue('booking.guestSnapshot.fullName','guestSnapshot.fullName','customer.name') },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', placeholder:'customer@example.com', value: fieldValue('booking.guestSnapshot.email','guestSnapshot.email','customer.email') },
+        { name:'phone', label:'Phone', icon:'fa-phone', required:true, placeholder:'+256700000000', value: fieldValue('booking.guestSnapshot.phone','guestSnapshot.phone','customer.phone') },
+        { name:'addons', label:'Add-ons', icon:'fa-plus', placeholder:'luggage,meal' }
+      ]
+    };
+    if (isEmployeeRole && (key === 'inventory' || key === 'seat status' || key === 'seat map')) return {
+      action: '/employee/inventory', submit: 'Update inventory',
+      fields: companyServiceType === 'hotel' ? [
+        { name:'roomId', label:'Room', type:'select', icon:'fa-bed', options:rooms, required:true, value: fieldValue('inventory.id','room.id','roomId') },
+        { name:'inventory', label:'Available units', type:'number', icon:'fa-door-open', value: fieldValue('inventory.inventory','room.inventory','inventory') },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','blocked','maintenance','reserved','cleaning','occupied'], required:true, value: fieldValue('inventory.status','room.status','status') || 'available' },
+        { name:'nightlyPrice', label:'Nightly price', type:'number', icon:'fa-coins', value: fieldValue('inventory.price','room.nightlyPrice','nightlyPrice') },
+        { name:'notes', label:'Note', type:'textarea', full:true, placeholder:'Reason for the inventory update' }
+      ] : [
+        { name:'scheduleId', label:'Schedule', type:'select', icon:'fa-calendar-days', options:schedules, required:true, value: fieldValue('inventory.scheduleId','seat.scheduleId','seatMap.scheduleId','schedule.id') },
+        { name:'seatNumber', label:'Seat No', type: seatOptions.length ? 'select' : 'text', icon:'fa-chair', options:seatOptions, required:true, value: fieldValue('inventory.seatNumber','seat.seatNumber','selected') },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','blocked','maintenance','reserved','disabled'], required:true, value: fieldValue('inventory.status','seat.status','status') || 'blocked' },
+        { name:'priceDelta', label:'Price delta', type:'number', icon:'fa-coins', value: fieldValue('inventory.price','seat.priceDelta','priceDelta') },
+        { name:'note', label:'Reason / note', type:'textarea', full:true, placeholder:'Reason for blocked or maintenance seat' }
+      ]
+    };
+    if (isEmployeeRole && (key === 'support notice' || key === 'notice' || key === 'support task')) return {
+      action: '/employee/support/notice', submit: 'Create support notice',
+      fields: [
+        { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options:bookingOptions, value: fieldValue('booking.bookingRef','seat.bookingRef','bookingRef') },
+        { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'], value: fieldValue('case.priority','priority') || 'normal' },
+        { name:'subject', label:'Subject', icon:'fa-heading', placeholder:'Customer notice', value: fieldValue('case.subject','subject') },
+        { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Write notice message...', value: fieldValue('case.message','message','note') }
+      ]
+    };
+    if (isEmployeeRole && key === 'payment') return {
+      action: '/employee/payments', submit: 'Record payment',
+      fields: [
+        { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options:bookingOptions, required:true, value: fieldValue('booking.bookingRef','payment.bookingRef','bookingRef') },
+        { name:'method', label:'Method', type:'select', icon:'fa-money-bill', options:['cash','mobile_money','card','bank_transfer','voucher'], value: fieldValue('payment.provider','method') || 'cash' },
+        { name:'amount', label:'Amount', type:'number', icon:'fa-coins', required:true, value: fieldValue('payment.amount','booking.pricing.total','pricing.total','amount') },
+        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'], value: fieldValue('payment.currency','booking.pricing.currency','currency') || 'UGX' },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['successful','paid','pending','failed'], value: fieldValue('payment.status','paymentStatus','status') || 'successful' }
+      ]
+    };
+    if (isEmployeeRole && key === 'refund') return {
+      action: '/employee/refunds', submit: 'Request refund',
+      fields: [
+        { name:'bookingRef', label:'Booking', type:'select', icon:'fa-ticket', options:bookingOptions, required:true, value: fieldValue('booking.bookingRef','refund.bookingRef','bookingRef') },
+        { name:'amount', label:'Amount', type:'number', icon:'fa-coins', value: fieldValue('refund.amount','booking.pricing.total','pricing.total','amount') },
+        { name:'reason', label:'Reason', type:'textarea', full:true, required:true, placeholder:'Refund reason', value: fieldValue('refund.reason','reason') }
+      ]
+    };
+    if (isEmployeeRole && key === 'handover') return {
+      action: '/employee/handovers', submit: 'Create handover',
+      fields: [
+        { name:'shift', label:'Shift', icon:'fa-clock', value: fieldValue('handover.shift','shift') || employeeProfile.shift || 'Current shift' },
+        { name:'nextStaff', label:'Next staff', icon:'fa-user-group', value: fieldValue('handover.nextStaff','nextStaff') },
+        { name:'note', label:'Handover note', type:'textarea', full:true, required:true, placeholder:'Cash, bookings, check-ins, issues, and follow-ups', value: fieldValue('handover.note','note') }
+      ]
+    };
+    if (isEmployeeRole && key === 'profile') return {
+      action: '/employee/profile', submit: 'Save profile',
+      fields: [
+        { name:'fullName', label:'Full name', icon:'fa-user', required:true, value: fieldValue('profile.fullName','fullName') || employeeProfile.fullName || shell.profileName || '' },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', value: fieldValue('profile.email','email') || employeeProfile.email || '' },
+        { name:'phone', label:'Phone', icon:'fa-phone', value: fieldValue('profile.phone','phone') || employeeProfile.phone || '' },
+        { name:'shift', label:'Shift', icon:'fa-clock', value: fieldValue('profile.shift','shift') || employeeProfile.shift || '' },
+        { name:'notes', label:'Notes', type:'textarea', full:true, value: fieldValue('profile.notes','notes') || employeeProfile.notes || '' }
+      ]
+    };
+    if (isEmployeeRole && (key === 'schedule' || key === 'delay notice')) return {
+      action: '/employee/schedules/delay', submit: 'Send delay notice',
+      fields: [
+        { name:'scheduleId', label:'Schedule', type:'select', icon:'fa-calendar-days', options:schedules, required:true, value: fieldValue('schedule.id','scheduleId') },
+        { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'], value:'high' },
+        { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Departure delayed by 20 minutes' }
+      ]
     };
 
     if (isCompanyRole && mode === 'edit' && key === 'listing') return {
@@ -4599,7 +4831,7 @@ window.addEventListener('DOMContentLoaded', function () {
         if (e.target.hasAttribute('action')) return;
         e.preventDefault();
         $$('.modal').forEach(m => m.classList.remove('is-open'));
-        toast('Saved successfully');
+        toast('Action saved');
       }
     });
 
@@ -4617,7 +4849,12 @@ window.addEventListener('DOMContentLoaded', function () {
     }
 
     const btnNew = $('#btnNew');
-    if (btnNew) btnNew.addEventListener('click', () => openCrud('create', shell.currentRole === 'company' ? 'schedule' : 'partner'));
+    function defaultCreateModalType() {
+      if (shell.currentRole === 'company') return runtimeCompanyServiceType === 'hotel' ? 'room night inventory' : runtimeCompanyServiceType === 'bus' ? 'schedule' : 'listing';
+      if (shell.currentRole === 'employee') return 'booking';
+      return 'partner';
+    }
+    if (btnNew) btnNew.addEventListener('click', () => openCrud('create', defaultCreateModalType()));
 
     if (els.sideSearch) {
       els.sideSearch.addEventListener('input', function (e) {
