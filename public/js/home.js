@@ -358,24 +358,25 @@
       return [{name:'Insurance',price:15000},{name:'Guide support',price:30000},{name:'Priority service',price:20000}];
     }
 
-    function cell(code, cls='seat'){
+    function cell(code, cls='seat', label=code){
       const taken = current.taken.includes(code);
       const isSel = selected.includes(code);
       const isHeld = held.includes(code);
-      return `<button class="${cls} ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${code}')">${code}</button>`;
+      const safeCode = String(code).replace(/'/g, '&#39;');
+      return `<button class="${cls} ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${safeCode}')"><span>Seat No</span><b>${label}</b></button>`;
     }
 
     function renderLayout(){
       let h = '';
       if(current.layout==='bus-2-2'){
         h += '<div class="vehicleFront">DRIVER • FRONT</div>';
-        ['A','B','C','D','E','F','G','H'].forEach(r=>{h += `<div class="seatRow">${cell(r+'1')}${cell(r+'2')}<span class="aisle"></span>${cell(r+'3')}${cell(r+'4')}</div>`});
+        for(let row=0; row<8; row++){ const start = row * 4 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span>${cell(String(start+2),'seat',start+2)}${cell(String(start+3),'seat',start+3)}</div>`; }
       } else if(current.layout==='bus-2-1'){
         h += '<div class="vehicleFront">VIP FRONT</div>';
-        ['A','B','C','D','E','F','G'].forEach(r=>{h += `<div class="seatRow">${cell(r+'1')}${cell(r+'2')}<span class="aisle"></span><span></span>${cell(r+'3')}</div>`});
+        for(let row=0; row<7; row++){ const start = row * 3 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span><span></span>${cell(String(start+2),'seat',start+2)}</div>`; }
       } else if(current.layout==='bus-sleeper'){
         h += '<div class="vehicleFront">SLEEPER COACH</div>';
-        ['A','B','C','D','E','F'].forEach(r=>{h += `<div class="seatRow">${cell(r+'1')}${cell(r+'2')}<span class="aisle"></span>${cell(r+'3')}${cell(r+'4')}</div>`});
+        for(let row=0; row<6; row++){ const start = row * 4 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span>${cell(String(start+2),'seat',start+2)}${cell(String(start+3),'seat',start+3)}</div>`; }
       } else if(current.layout==='hotel-rooms'){
         h += '<div class="vehicleFront">FLOOR PLAN • TAP ROOM</div><div class="roomGrid">';
         ['101','102','103','104','201','202','203','204','301','302','303','304'].forEach(r=>h += roomCell(r));

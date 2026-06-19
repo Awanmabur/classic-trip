@@ -1,5 +1,5 @@
 const releaseService = require('../services/commission/releaseService');
-const store = require('../services/data/demoStore');
+const store = require('../services/data/persistentStore');
 
 function run() {
   return store.state.bookings.filter((booking) => booking.bookingStatus === 'completed').flatMap((booking) => releaseService.releaseCompletedBooking(booking.bookingRef) || []);

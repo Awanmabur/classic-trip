@@ -8,7 +8,17 @@ async function create(req, res, next) {
     if (req.file) {
       const target = req.body.mediaTarget === 'companyDocument' ? 'companyDocument' : 'companyLogo';
       const asset = await uploadService.uploadMedia(req.file, target);
-      await companyService.attachMedia({ companyId: company.id, target, asset });
+      await companyService.attachMedia({
+        companyId: company.id,
+        target,
+        asset,
+        metadata: {
+          uploadedBy: req.session?.user?.id || 'admin-system',
+          documentType: req.body.documentType,
+          documentReference: req.body.documentReference,
+          note: req.body.reviewNotes || req.body.note,
+        },
+      });
     }
     res.redirect('/admin/companies');
   } catch (error) {
@@ -18,7 +28,7 @@ async function create(req, res, next) {
 
 async function approve(req, res, next) {
   try {
-    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.VERIFIED, req.session?.user?.id || 'admin-system');
+    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.VERIFIED, req.session?.user?.id || 'admin-system', req.body);
     res.redirect('/admin/companies');
   } catch (error) {
     next(error);
@@ -27,7 +37,7 @@ async function approve(req, res, next) {
 
 async function reject(req, res, next) {
   try {
-    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.REJECTED, req.session?.user?.id || 'admin-system');
+    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.REJECTED, req.session?.user?.id || 'admin-system', req.body);
     res.redirect('/admin/companies');
   } catch (error) {
     next(error);
@@ -36,7 +46,7 @@ async function reject(req, res, next) {
 
 async function suspend(req, res, next) {
   try {
-    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.SUSPENDED, req.session?.user?.id || 'admin-system');
+    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.SUSPENDED, req.session?.user?.id || 'admin-system', req.body);
     res.redirect('/admin/companies');
   } catch (error) {
     next(error);

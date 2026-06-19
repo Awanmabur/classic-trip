@@ -17,7 +17,7 @@ router.post('/forgot-password', authLimiter, authController.forgotPassword);
 router.get('/reset-password/:token', authController.showResetPassword);
 router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post('/logout', authController.logout);
-router.get('/logout', authController.logout);
+router.get('/logout', (req, res) => res.redirect('/login')); // Logout is a POST action, not a dashboard page.
 
 if (google.enabled) {
   router.get('/auth/google', googleController.setGoogleIntent, passport.authenticate('google', { scope: ['profile', 'email'] }));

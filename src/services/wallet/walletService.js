@@ -1,4 +1,4 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const ledgerService = require('./ledgerService');
 
 function getWallet(ownerType, ownerId) {

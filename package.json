@@ -8,7 +8,18 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seeds/seedAll.js",
     "check": "node scripts/check-syntax.js",
-    "test": "jest --runInBand"
+    "lint": "node scripts/check-syntax.js",
+    "test": "jest --runInBand",
+    "test:acceptance": "jest --runInBand tests/integration/requiredAcceptanceN.test.js --silent",
+    "acceptance:matrix": "node scripts/acceptance-matrix.js",
+    "seed:local": "SEED_FRESH=true node src/seeds/seedAll.js",
+    "seed:local:upsert": "SEED_FRESH=false node src/seeds/seedAll.js",
+    "dev:seeded": "AUTO_SEED_MONGO=true npm run dev",
+    "seed:counts": "node scripts/mongo-seed-counts.js",
+    "repair:seats": "node scripts/repair-local-seat-locks.js",
+    "check:dashboards": "node scripts/validate-dashboard-scope.js",
+    "test:dashboard-smoke": "jest --runInBand tests/e2e/companyDashboardSmoke.test.js --silent",
+    "check:dashboard-smoke-static": "node scripts/dashboard-route-smoke-static.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

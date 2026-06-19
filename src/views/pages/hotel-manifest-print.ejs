@@ -1,0 +1,17 @@
+<%- include('../partials/site-head', { seo }) %>
+<main class="container py-4">
+  <section class="card print-card">
+    <h1>Hotel <%= mode %> manifest</h1>
+    <p>Listing: <%= listingId %></p>
+    <p><button onclick="window.print()">Print</button> <a href="/company/hotels/<%= listingId %>/manifest.csv?mode=<%= mode %>">CSV</a> <a href="/company/hotels/<%= listingId %>/manifest.pdf?mode=<%= mode %>">PDF</a></p>
+    <table class="table">
+      <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr></thead>
+      <tbody>
+        <% rows.forEach((row) => { %>
+          <tr><td><%= row[0] %></td><td><%= row[1] %></td><td><%= row[2] %></td><td><%= row[3] %></td><td><%= row[4] %></td><td><%= row[5] %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

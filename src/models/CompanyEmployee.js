@@ -1,4 +1,4 @@
-const { Schema, model } = require('./_helpers');
+const { Schema, mediaSchema, model } = require('./_helpers');
 
 const companyEmployeeSchema = new Schema({
   id: { type: String, index: true },
@@ -7,6 +7,7 @@ const companyEmployeeSchema = new Schema({
   roleTitle: String,
   branch: String,
   permissions: [String],
+  documents: [mediaSchema],
   status: { type: String, default: 'active', index: true },
   invitedAt: Date,
 }, { timestamps: true });

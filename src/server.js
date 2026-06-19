@@ -2,12 +2,14 @@ const app = require('./app');
 const { env, validateEnv } = require('./config/env');
 const { connectDb, mongoose } = require('./config/db');
 const logger = require('./config/logger');
-const store = require('./services/data/demoStore');
+const store = require('./services/data/persistentStore');
+const { maybeSeedLocalMongo } = require('./config/bootstrapSeed');
 const { startScheduledJobs } = require('./jobs/scheduler');
 
 async function start() {
   validateEnv();
   await connectDb();
+  await maybeSeedLocalMongo();
   await store.hydrateFromDatabase({ mongoose, logger });
   startScheduledJobs();
   app.listen(env.port, () => {

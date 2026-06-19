@@ -1,9 +1,11 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const bookingService = require('../booking/bookingService');
 const companyService = require('../company/companyService');
 const notificationService = require('../notification/notificationService');
 const walletService = require('../wallet/walletService');
 const workflowService = require('../support/workflowService');
+const settlementService = require('../finance/settlementService');
+const hotelService = require('../hotel/hotelService');
 const { mongoose } = require('../../config/db');
 
 function mongoReady() {
@@ -166,24 +168,12 @@ async function requestCompanyPayout(companyId, payload = {}, actorId = 'company-
   const company = findCompanyOrThrow(companyId);
   const wallet = walletService.getOrCreateWallet('company', company.id, payload.currency || company.settings?.defaultCurrency || 'UGX');
   const amount = amountValue(payload.amount, wallet.availableBalance);
-  const result = walletService.requestWithdrawal('company', company.id, amount, {
+  const result = await settlementService.requestOwnerPayout('company', company.id, amount, {
+    ...payload,
     currency: wallet.currency,
-    referenceType: 'company_payout',
-    referenceId: company.id,
-    requestedBy: actorId,
-  });
-  if (result.transaction) {
-    Object.assign(result.transaction, {
-      payoutMethod: cleanText(payload.payoutMethod || payload.method || 'bank'),
-      payoutAccount: cleanText(payload.payoutAccount || company.payoutAccount || company.settings?.payoutAccount || ''),
-      note: cleanText(payload.note || ''),
-      requestedBy: actorId,
-      updatedAt: new Date().toISOString(),
-    });
-    await upsertModel('WalletTransaction', result.transaction);
-  }
-  await upsertModel('Wallet', result.wallet);
-  audit(actorId, 'company.payout.requested', company.id, { amount });
+    payoutAccount: payload.payoutAccount || company.payoutAccount || company.settings?.payoutAccount || '',
+  }, actorId);
+  audit(actorId, 'company.payout.dashboard_requested', company.id, { amount, payoutRequestId: result.request?.id });
   return result;
 }
 
@@ -280,6 +270,23 @@ async function createManualBooking(companyId, payload = {}, actorId = 'employee-
   ensureCollections();
   const listingId = cleanText(payload.listingId) || store.state.listings.find((listing) => listing.companyId === companyId && listing.bookable && listing.status === 'active')?.id;
   const listing = companyListingOrThrow(companyId, listingId);
+  if (normalize(listing.serviceType) === 'hotel') {
+    const booking = await hotelService.createHotelBooking({
+      ...payload,
+      listingId: listing.id,
+      source: 'company_manual',
+      actorId,
+      createdByEmployeeId: actorId,
+      paymentStatus: payload.paymentStatus || 'successful',
+      bookingStatus: payload.bookingStatus || 'confirmed',
+    }, { session: { user: { id: actorId } } });
+    booking.source = 'company_manual';
+    booking.createdByEmployeeId = actorId;
+    booking.createdAtDesk = new Date().toISOString();
+    await upsertModel('Booking', booking, { bookingRef: booking.bookingRef });
+    audit(actorId, 'company.hotel_booking.created', booking.bookingRef, { companyId, listingId: listing.id });
+    return booking;
+  }
   const booking = await bookingService.createGuestBooking({
     listingId: listing.id,
     scheduleId: cleanText(payload.scheduleId || ''),
@@ -510,10 +517,51 @@ async function updateEmployeeProfile(companyId, payload = {}, actorId = 'employe
   return { user, employee };
 }
 
+
+async function createDriverInviteRequest(companyId, payload = {}, actorId = 'company-admin') {
+  ensureCollections();
+  const company = findCompanyOrThrow(companyId);
+  const fullName = cleanText(payload.fullName || payload.name || 'Driver invite request');
+  const phone = cleanText(payload.phone || '');
+  if (!fullName || !phone) {
+    const error = new Error('Driver name and phone are required for a driver invitation request');
+    error.status = 422;
+    throw error;
+  }
+  const ticket = {
+    id: nextId('support', store.state.supportTickets),
+    ownerType: 'company',
+    ownerId: company.id,
+    companyId: company.id,
+    subject: `Driver invitation request: ${fullName}`,
+    message: cleanText(payload.note || `Please review and invite/approve driver ${fullName}.`),
+    audience: 'super_admin',
+    priority: statusValue(payload.priority, 'normal'),
+    status: 'pending_super_admin_approval',
+    category: 'driver_invitation_request',
+    requestedDriver: {
+      fullName,
+      email: cleanText(payload.email || '').toLowerCase(),
+      phone,
+      licenseNumber: cleanText(payload.licenseNumber || ''),
+      licenseClass: cleanText(payload.licenseClass || ''),
+      vehicleId: cleanText(payload.vehicleId || ''),
+      scheduleId: cleanText(payload.scheduleId || ''),
+    },
+    createdBy: actorId,
+    createdAt: new Date().toISOString(),
+  };
+  store.state.supportTickets.unshift(ticket);
+  await upsertModel('SupportTicket', ticket);
+  audit(actorId, 'company.driver_invite.requested', company.id, { ticketId: ticket.id, requestedDriver: ticket.requestedDriver });
+  return ticket;
+}
+
 module.exports = {
   updateCompanySettings,
   requestCompanyPayout,
   createCompanyNotice,
+  createDriverInviteRequest,
   updateSupportTicket,
   replyToReview,
   createManualBooking,

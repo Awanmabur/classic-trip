@@ -1,4 +1,5 @@
 const authService = require('../../services/auth/authService');
+const securityService = require('../../services/security/securityService');
 
 function showLogin(req, res) {
   res.render('pages/auth/login', {
@@ -17,8 +18,22 @@ function showResetPassword(req, res) {
 async function login(req, res, next) {
   try {
     const user = await authService.verifyLogin(req.body.identity || req.body.email, req.body.password);
-    if (!user) return res.redirect('/login?error=invalid');
+    if (!user) {
+      await securityService.recordLoginAttempt({
+        identity: req.body.identity || req.body.email,
+        result: 'failure',
+        reason: 'invalid_credentials',
+        req,
+      });
+      return res.redirect('/login?error=invalid');
+    }
     req.session.user = user;
+    await securityService.recordLoginAttempt({
+      user,
+      identity: req.body.identity || req.body.email,
+      result: 'success',
+      req,
+    });
     const nextUrl = req.body.next || req.query.next || authService.redirectForRole(user.role);
     return res.redirect(nextUrl);
   } catch (error) {
@@ -34,6 +49,11 @@ async function register(req, res, next) {
       phone: req.body.phone,
       password: req.body.password,
       role: ({ partner: 'company_admin', employee: 'company_employee' }[req.body.role] || req.body.role || req.body.accountType || 'customer'),
+      company: req.body.company || req.body.companyName || req.body.businessName,
+      companyType: req.body.companyType || req.body.businessType,
+      country: req.body.country,
+      city: req.body.city,
+      roleTitle: req.body.roleTitle,
     });
     req.session.user = user;
     return res.redirect(authService.redirectForRole(user.role));
@@ -42,8 +62,13 @@ async function register(req, res, next) {
   }
 }
 
-function logout(req, res) {
-  req.session.destroy(() => res.redirect('/'));
+async function logout(req, res, next) {
+  try {
+    await securityService.closeDeviceSession(req);
+    req.session.destroy(() => res.redirect('/'));
+  } catch (error) {
+    next(error);
+  }
 }
 
 async function forgotPassword(req, res, next) {

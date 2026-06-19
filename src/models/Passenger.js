@@ -7,7 +7,20 @@ const passengerSchema = new Schema({
   phone: String,
   email: String,
   seatOrRoom: String,
+  seatNumber: String,
+  pickupPoint: String,
+  dropoffPoint: String,
+  specialNotes: String,
+  travelNotes: String,
   identityNumber: String,
+  bookingRef: { type: String, index: true },
+  companyId: { type: String, index: true },
+  listingId: { type: String, index: true },
+  scheduleId: { type: String, index: true },
+  passengerIndex: Number,
 }, { timestamps: true });
+
+passengerSchema.index({ bookingRef: 1, passengerIndex: 1 }, { unique: true, sparse: true });
+passengerSchema.index({ companyId: 1, scheduleId: 1 });
 
 module.exports = model('Passenger', passengerSchema);

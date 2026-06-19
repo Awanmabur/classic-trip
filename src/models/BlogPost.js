@@ -1,4 +1,4 @@
-const { Schema, model } = require('./_helpers');
+const { Schema, mediaSchema, model } = require('./_helpers');
 
 const blogPostSchema = new Schema({
   id: { type: String, index: true },
@@ -8,6 +8,8 @@ const blogPostSchema = new Schema({
   excerpt: String,
   body: String,
   image: String,
+  imageAlt: String,
+  media: mediaSchema,
   status: { type: String, default: 'published', index: true },
   publishedAt: Date,
 }, { timestamps: true });

@@ -1,4 +1,4 @@
-const store = require('../services/data/demoStore');
+const store = require('../services/data/persistentStore');
 const reportService = require('../services/report/reportService');
 
 function run() {

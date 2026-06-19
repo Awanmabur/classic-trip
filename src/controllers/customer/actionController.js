@@ -1,4 +1,4 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const walletService = require('../../services/wallet/walletService');
 const { mongoose } = require('../../config/db');
 

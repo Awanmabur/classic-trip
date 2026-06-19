@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= seo.title %></title>
+  <style>
+    :root{font-family:Inter,Arial,sans-serif;color:#111827;background:#f8fafc}body{margin:0;padding:24px}.sheet{max-width:920px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}.hero{background:#111827;color:#fff;padding:26px 28px;display:flex;justify-content:space-between;gap:16px}.hero h1{margin:0;font-size:28px}.hero p{margin:6px 0 0;color:#cbd5e1;font-weight:800}.tools{display:flex;gap:10px;flex-wrap:wrap;padding:16px 28px;background:#f8fafc;border-bottom:1px solid #e5e7eb}.btn{border:1px solid #cbd5e1;border-radius:999px;padding:10px 14px;color:#111827;text-decoration:none;font-weight:900;background:#fff}.btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:22px 28px}.card{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#f8fafc}.card h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.row{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #e5e7eb}.row:last-child{border-bottom:0}.row span{color:#64748b;font-weight:900}.row b{text-align:right}.forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 28px 28px}.form{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#fff}.form label{display:block;margin:0 0 7px;color:#64748b;font-weight:900;font-size:12px}.form textarea,.form select{width:100%;border:1px solid #cbd5e1;border-radius:14px;padding:10px;font:inherit}.form button{margin-top:10px}.badge{display:inline-block;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 12px;font-weight:900}.footer{padding:16px 28px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;font-weight:800}@media print{body{padding:0}.sheet{border:0;border-radius:0;box-shadow:none}.tools,.forms{display:none}.hero{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <section class="hero"><div><h1>Operational Ticket Detail</h1><p><%= ticket.listing.title || ticket.booking.serviceType || 'Travel service' %></p></div><span class="badge"><%= ticket.booking.bookingRef %></span></section>
+    <nav class="tools"><button class="btn primary" onclick="window.print()">Print detail</button><a class="btn" href="/tickets/<%= encodeURIComponent(ticket.booking.bookingRef) %>">Customer ticket</a><a class="btn" href="/tickets/<%= encodeURIComponent(ticket.booking.bookingRef) %>.pdf">Ticket PDF</a><% if(ticket.schedule){ %><a class="btn" href="/driver/schedules/<%= encodeURIComponent(ticket.schedule.id) %>/manifest">Manifest</a><% } %><a class="btn" href="/driver/dashboard#driver-manifest">Dashboard</a></nav>
+    <section class="grid">
+      <div class="card"><h3>Passenger</h3><div class="row"><span>Name</span><b><%= ticket.printable.passengerName %></b></div><div class="row"><span>Ticket</span><b><%= ticket.printable.ticketNumber %></b></div><div class="row"><span>Contact</span><b><%= ticket.printable.contact %></b></div><div class="row"><span>Seat</span><b><%= ticket.printable.seat %></b></div><div class="row"><span>Pickup</span><b><%= ticket.printable.pickupPoint %></b></div><div class="row"><span>Dropoff</span><b><%= ticket.printable.dropoffPoint %></b></div><div class="row"><span>Notes</span><b><%= ticket.printable.notes || '-' %></b></div><div class="row"><span>Check-in</span><b><%= ticket.printable.status %></b></div></div>
+      <div class="card"><h3>Trip</h3><div class="row"><span>Schedule</span><b><%= ticket.schedule ? ticket.schedule.id : '-' %></b></div><div class="row"><span>Departure</span><b><%= ticket.printable.departureLabel %></b></div><div class="row"><span>Route</span><b><%= ticket.route.origin || ticket.listing.from || '-' %> → <%= ticket.route.destination || ticket.listing.to || '-' %></b></div><div class="row"><span>Company</span><b><%= ticket.company.name || '-' %></b></div></div>
+      <div class="card"><h3>Payment</h3><div class="row"><span>Status</span><b><%= ticket.printable.paymentStatus %></b></div><div class="row"><span>Total</span><b><%= ticket.printable.amount %></b></div><div class="row"><span>Provider</span><b><%= ticket.booking.paymentProvider || '-' %></b></div><div class="row"><span>Reference</span><b><%= ticket.booking.paymentRef || '-' %></b></div></div>
+      <div class="card"><h3>Audit</h3><div class="row"><span>Created</span><b><%= ticket.booking.createdAt ? new Date(ticket.booking.createdAt).toLocaleString('en-UG') : '-' %></b></div><div class="row"><span>Checked by</span><b><%= ticket.booking.checkedInBy || ticket.booking.noShowBy || '-' %></b></div><div class="row"><span>QR</span><b><%= ticket.booking.qrCodeValue || ticket.booking.bookingRef %></b></div><div class="row"><span>Source</span><b><%= ticket.booking.source || ticket.booking.bookingSource || 'online' %></b></div></div>
+    </section>
+    <section class="forms">
+      <form class="form" method="POST" action="/driver/bookings/<%= encodeURIComponent(ticket.booking.bookingRef) %>/check-in-assist"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><label>Driver action</label><select name="action"><option value="check_in">Check in passenger</option><option value="no_show">Mark no-show</option><option value="assist">Log assistance note</option></select><label>Note</label><textarea name="note" placeholder="Optional check-in or assistance note"></textarea><button class="btn primary" type="submit">Save driver action</button></form>
+      <form class="form" method="POST" action="/driver/incidents"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="bookingRef" value="<%= ticket.booking.bookingRef %>"><input type="hidden" name="scheduleId" value="<%= ticket.schedule ? ticket.schedule.id : '' %>"><label>Incident category</label><select name="category"><option value="passenger">Passenger</option><option value="payment">Payment</option><option value="safety">Safety</option><option value="luggage">Luggage</option></select><label>Description</label><textarea name="description" required placeholder="Describe the issue"></textarea><button class="btn primary" type="submit">Report incident</button></form>
+    </section>
+    <section class="grid" style="padding-top:0">
+      <div class="card"><h3>QR / scan history</h3>
+        <div class="row"><span>QR preview</span><b><%= ticket.printable.qrTokenPreview || '-' %></b></div>
+        <div class="row"><span>Scan count</span><b><%= ticket.printable.scanCount || 0 %></b></div>
+        <% (ticket.scanHistory || []).slice(0, 8).forEach(function(scan){ %>
+          <div class="row"><span><%= scan.scanType || scan.result || 'scan' %></span><b><%= scan.result || '-' %> • <%= scan.message || scan.meta?.reason || '' %><br><small><%= scan.scannedAt ? new Date(scan.scannedAt).toLocaleString('en-UG') : '' %> • <%= scan.actorName || scan.employeeId || '-' %></small></b></div>
+        <% }) %>
+        <% if(!(ticket.scanHistory || []).length){ %><div class="row"><span>History</span><b>No scans yet</b></div><% } %>
+      </div>
+      <div class="card"><h3>Refund / reschedule / support</h3>
+        <div class="row"><span>Refund</span><b><%= ticket.printable.refundStatus || ticket.booking.refundStatus || '-' %></b></div>
+        <div class="row"><span>Reschedule</span><b><%= ticket.printable.rescheduleStatus || '-' %></b></div>
+        <% (ticket.supportMessages || []).slice(0, 5).forEach(function(msg){ %>
+          <div class="row"><span><%= msg.status || 'support' %></span><b><%= msg.subject || msg.category || 'Support case' %><br><small><%= msg.message || '' %></small></b></div>
+        <% }) %>
+        <% if(!(ticket.supportMessages || []).length){ %><div class="row"><span>Support</span><b>No linked cases</b></div><% } %>
+      </div>
+    </section>
+    <section class="grid" style="padding-top:0">
+      <div class="card" style="grid-column:1/-1"><h3>Booking timeline</h3>
+        <% (ticket.timeline || []).slice(0, 12).forEach(function(event){ %>
+          <div class="row"><span><%= event.action || event.status || 'event' %></span><b><%= event.title || 'Timeline event' %><br><small><%= event.message || '' %> <%= event.createdAt ? '• ' + new Date(event.createdAt).toLocaleString('en-UG') : '' %></small></b></div>
+        <% }) %>
+        <% if(!(ticket.timeline || []).length){ %><div class="row"><span>Timeline</span><b>No timeline events yet</b></div><% } %>
+      </div>
+    </section>
+    <footer class="footer">Operational view for authorized company staff and drivers only.</footer>
+  </main>
+</body>
+</html>

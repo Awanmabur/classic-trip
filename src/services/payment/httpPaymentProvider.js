@@ -27,6 +27,61 @@ async function postJson(url, apiKey, payload) {
   return body;
 }
 
+
+function hmac(payload, secret, algorithm = 'sha256') {
+  return require('crypto').createHmac(algorithm, secret).update(typeof payload === 'string' ? payload : JSON.stringify(payload)).digest('hex');
+}
+
+function hmacSha256(payload, secret) {
+  return hmac(payload, secret, 'sha256');
+}
+
+function headerValue(headers = {}, names = []) {
+  const lower = Object.fromEntries(Object.entries(headers || {}).map(([key, value]) => [String(key).toLowerCase(), value]));
+  for (const name of names) {
+    const value = lower[String(name).toLowerCase()];
+    if (value) return String(value).replace(/^sha256=/, '').trim();
+  }
+  return '';
+}
+
+function safeEqual(leftValue, rightValue) {
+  const left = Buffer.from(String(leftValue || '').replace(/^sha256=/, '').trim());
+  const right = Buffer.from(String(rightValue || '').replace(/^sha256=/, '').trim());
+  return left.length === right.length && require('crypto').timingSafeEqual(left, right);
+}
+
+function signatureForProvider(provider, payload, config = {}, headers = {}) {
+  if (!config.webhookSecret) return { configured: false, valid: false, reason: 'Provider webhook secret is not configured' };
+  const rawBody = headers.__rawBody || '';
+  const bodyForHmac = rawBody || JSON.stringify(payload || {});
+  const normalizedProvider = String(provider || '').toLowerCase();
+
+  if (normalizedProvider === 'paystack') {
+    const supplied = headerValue(headers, ['x-paystack-signature']);
+    if (!supplied) return { configured: true, valid: false, reason: 'Paystack signature header missing' };
+    return { configured: true, valid: safeEqual(hmac(bodyForHmac, config.webhookSecret, 'sha512'), supplied), reason: 'Paystack signature mismatch' };
+  }
+
+  if (normalizedProvider === 'flutterwave') {
+    const supplied = headerValue(headers, ['verif-hash', 'x-flutterwave-signature']);
+    if (!supplied) return { configured: true, valid: false, reason: 'Flutterwave signature header missing' };
+    const directSecretMatch = safeEqual(config.webhookSecret, supplied);
+    const hmacMatch = safeEqual(hmacSha256(bodyForHmac, config.webhookSecret), supplied);
+    return { configured: true, valid: directSecretMatch || hmacMatch, reason: 'Flutterwave signature mismatch' };
+  }
+
+  const supplied = headerValue(headers, [
+    'x-payment-signature',
+    'x-provider-signature',
+    'x-momo-signature',
+    'x-airtel-signature',
+    'x-dpo-signature',
+  ]);
+  if (!supplied) return { configured: true, valid: false, reason: 'Provider signature header missing' };
+  return { configured: true, valid: safeEqual(hmacSha256(bodyForHmac, config.webhookSecret), supplied), reason: 'Provider signature mismatch' };
+}
+
 function normalizeStatus(value = '') {
   const status = String(value || '').toLowerCase();
   if (['success', 'successful', 'paid', 'completed', 'approved'].includes(status)) return 'successful';
@@ -81,4 +136,4 @@ function createProvider(provider, config = {}) {
   };
 }
 
-module.exports = { createProvider };
+module.exports = { createProvider, signatureForProvider, normalizeStatus };

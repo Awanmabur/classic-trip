@@ -1,3 +1,0 @@
-{"time":"2026-05-29T14:48:51.263Z","level":"info","message":"MongoDB connected","host":"127.0.0.1","db":"classic_trip"}
-{"time":"2026-05-29T14:48:51.784Z","level":"info","message":"Database hydration completed","loadedCollections":20,"loadedRecords":3433}
-{"time":"2026-05-29T14:48:51.794Z","level":"info","message":"Classic Trip server listening","url":"http://localhost:5052","port":5052,"nodeEnv":"development"}

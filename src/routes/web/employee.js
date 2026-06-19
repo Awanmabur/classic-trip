@@ -3,14 +3,19 @@ const dashboardController = require('../../controllers/employee/dashboardControl
 const scannerController = require('../../controllers/employee/scannerController');
 const checkinController = require('../../controllers/employee/checkinController');
 const actionController = require('../../controllers/employee/actionController');
+const manifestController = require('../../controllers/employee/manifestController');
+const driverController = require('../../controllers/employee/driverController');
 const reportController = require('../../controllers/reportController');
 const { requireAuth } = require('../../middlewares/auth');
 const { requireRole } = require('../../middlewares/roles');
+const { enforceCompanyScope } = require('../../middlewares/companyAccess');
 const router = express.Router();
 
-router.use('/employee', requireAuth, requireRole('company_employee', 'company_admin', 'super_admin'));
+router.use('/employee', requireAuth, requireRole('company_employee', 'company_admin', 'super_admin'), enforceCompanyScope);
+router.use('/driver', requireAuth, requireRole('driver', 'company_employee', 'company_admin', 'super_admin'), enforceCompanyScope);
 
 router.get('/employee/dashboard', dashboardController.index);
+router.get('/employee/dashboard/:page', dashboardController.index);
 router.get('/employee/reports/:type.csv', reportController.employee);
 router.post('/employee/scanner/lookup', scannerController.lookup);
 router.post('/employee/scanner/validate', scannerController.validate);
@@ -28,5 +33,17 @@ router.post('/employee/support/:id', actionController.updateSupport);
 router.post('/employee/handovers', actionController.createHandover);
 router.post('/employee/profile', actionController.updateProfile);
 router.post('/employee/reports/custom', reportController.employeeCustom);
+
+router.get('/driver/dashboard', driverController.driverDashboard);
+router.get('/driver/dashboard/:page', driverController.driverDashboard);
+router.get('/driver/schedules/:scheduleId/manifest', manifestController.manifestPage);
+router.get('/driver/schedules/:scheduleId/manifest.csv', manifestController.manifestCsv);
+router.get('/driver/schedules/:scheduleId/manifest.xls', manifestController.manifestExcel);
+router.get('/driver/schedules/:scheduleId/manifest.pdf', manifestController.manifestPdf);
+router.get('/driver/tickets/:bookingRef', manifestController.ticketDetail);
+router.get('/driver/seats/:scheduleId/:seatNumber/ticket', manifestController.seatTicketDetail);
+router.post('/driver/trips/:scheduleId/status', driverController.updateTripStatus);
+router.post('/driver/incidents', driverController.createIncident);
+router.post('/driver/bookings/:bookingRef/check-in-assist', driverController.bookingAssist);
 
 module.exports = router;

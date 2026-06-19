@@ -5,7 +5,7 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
 ## What is implemented
 
 - Public marketplace homepage migrated to EJS, with the uploaded design preserved.
-- Expanded backend demo data: 30 partner companies, 95 service listings, 30 bus routes, 120 schedules, 120 hotel room records, 10 starter bookings, promoter links, wallets, campaigns, support tickets, refunds and blog posts.
+- Expanded backend reference seed data: 30 partner companies, 95 service listings, 30 bus routes, 120 schedules, 120 hotel room records, 10 starter bookings, promoter links, wallets, campaigns, support tickets, refunds and blog posts.
 - Public pages:
   - `/` marketplace
   - `/search` backend-filtered listings
@@ -50,6 +50,8 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
 cd classic-trip-platform
 cp .env.example .env
 npm install
+npm run lint
+npm test
 npm run dev
 ```
 
@@ -77,13 +79,17 @@ customer@classictrip.test    -> /account
 promoter@classictrip.test    -> /promoter/dashboard
 ```
 
-## MongoDB and demo store
+## MongoDB-first data layer
 
-The app can boot with the in-memory demo store during development. When `MONGO_URI` is reachable, `npm run seed` inserts the demo records into MongoDB.
+The old in-memory demo store has been removed from runtime. The app expects MongoDB as the system of record when `DEMO_MODE=false`. For local development, start MongoDB, seed the reference data, then run the app:
 
 ```bash
-npm run seed
+npm run seed:local
+npm run seed:counts
+npm run dev
 ```
+
+Use `AUTO_SEED_MONGO=true` only for local/dev bootstrapping when the database is empty.
 
 ## Environment notes
 
@@ -108,6 +114,6 @@ Production ticket PDFs are generated with PDFKit at `/tickets/:bookingRef.pdf`. 
 
 ## Current implementation status
 
-The audited blueprint gaps have been completed through the current Express/EJS architecture. Dashboard forms now persist through backend services, support and partner onboarding are wired, refunds reverse ledger entries, scheduled jobs do real work, payment adapters are configurable, and ticket PDFs are generated locally with Cloudinary upload support when production credentials are present.
+The implementation is MongoDB-first with seeded platform records, transaction-style checkout persistence, seat and hotel room-night locking, signed/idempotent webhook processing, scoped dashboard routes, support/partner onboarding, refund and wallet reversal flows, scheduled cleanup jobs, configurable payment providers, and locally generated ticket PDFs with Cloudinary upload support when production credentials are present.
 
 See `FINAL_CHANGE_REPORT.md` for the full implementation summary and verification results.

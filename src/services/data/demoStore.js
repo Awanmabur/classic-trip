@@ -1,28 +1,157 @@
 const { buildSeedData } = require('../../seeds/seedAll');
+const crypto = require('crypto');
 const generateBookingRef = require('../../utils/generateBookingRef');
 const calculateCommission = require('../../utils/calculateCommission');
 const { addMinutes } = require('../../utils/dates');
 const { ENABLED_BOOKING_TYPES } = require('../../config/constants');
 const toSlug = require('../../utils/slugify');
+const { env } = require('../../config/env');
+const repositories = require('../../repositories');
 
-const state = buildSeedData();
+function emptyProductionState() {
+  return {
+    categories: [],
+    users: [],
+    companies: [],
+    listings: [],
+    partnerLeads: [],
+    discoverySessions: [],
+    agreements: [],
+    invitations: [],
+    verificationReviews: [],
+    routes: [],
+    vehicles: [],
+    schedules: [],
+    seats: [],
+    rooms: [],
+    hotelProperties: [],
+    roomTypes: [],
+    roomUnits: [],
+    roomNightInventories: [],
+    stayRules: [],
+    companyEmployees: [],
+    companyBranches: [],
+    companyPolicies: [],
+    driverAssignments: [],
+    driverIncidents: [],
+    tripStatusUpdates: [],
+    routeStops: [],
+    carts: [],
+    cartCheckoutAttempts: [],
+    bookings: [],
+    passengers: [],
+    payments: [],
+    correspondenceMessages: [],
+    bookingTimelineEvents: [],
+    notificationDeliveryAttempts: [],
+    rescheduleRequests: [],
+    wallets: [],
+    walletTransactions: [],
+    paymentIntents: [],
+    receiptInvoices: [],
+    taxFeeRecords: [],
+    financeStatements: [],
+    financeRiskReviews: [],
+    settlementBatches: [],
+    payoutRequests: [],
+    payoutBatches: [],
+    reconciliationReports: [],
+    promoterLinks: [],
+    referralClicks: [],
+    attributionSessions: [],
+    campaignConversions: [],
+    agentProfiles: [],
+    offlineSales: [],
+    fraudSignals: [],
+    commissions: [],
+    blogs: [],
+    reviews: [],
+    notifications: [],
+    supportTickets: [],
+    refundRequests: [],
+    promotionCampaigns: [],
+    auditLogs: [],
+    securityEvents: [],
+    loginAudits: [],
+    deviceSessions: [],
+    idempotencyKeyRecords: [],
+    savedListings: [],
+    shiftHandovers: [],
+    subscriptionOrders: [],
+    subscriptions: [],
+    inventoryHolds: [],
+    ticketScans: [],
+    futureServiceModules: [],
+    flightOffers: [],
+    trainInventories: [],
+    tourPackageInventories: [],
+    carRentalUnits: [],
+    eventTicketInventories: [],
+    cargoShipments: [],
+    insurancePolicyRecords: [],
+    corporateTravelAccounts: [],
+    loyaltyAccounts: [],
+    settings: [],
+    platformSettings: {},
+    notificationTemplates: [],
+  };
+}
+
+const state = env.demoMode ? buildSeedData() : emptyProductionState();
 const DATABASE_MODELS = {
   users: 'User',
   companies: 'Company',
   categories: 'ServiceCategory',
   listings: 'Listing',
+  partnerLeads: 'PartnerLead',
+  discoverySessions: 'DiscoverySession',
+  agreements: 'Agreement',
+  invitations: 'Invitation',
+  verificationReviews: 'VerificationReview',
   routes: 'Route',
   vehicles: 'Vehicle',
   schedules: 'TripSchedule',
   seats: 'Seat',
   rooms: 'Room',
+  hotelProperties: 'HotelProperty',
+  roomTypes: 'RoomType',
+  roomUnits: 'RoomUnit',
+  roomNightInventories: 'RoomNightInventory',
+  stayRules: 'StayRule',
   companyEmployees: 'CompanyEmployee',
+  companyBranches: 'CompanyBranch',
+  companyPolicies: 'CompanyPolicy',
+  driverAssignments: 'DriverAssignment',
+  driverIncidents: 'DriverIncident',
+  tripStatusUpdates: 'TripStatusUpdate',
+  routeStops: 'RouteStop',
+  carts: 'Cart',
+  cartCheckoutAttempts: 'CartCheckoutAttempt',
   bookings: 'Booking',
+  passengers: 'Passenger',
   payments: 'Payment',
+  correspondenceMessages: 'CorrespondenceMessage',
+  bookingTimelineEvents: 'BookingTimelineEvent',
+  notificationDeliveryAttempts: 'NotificationDeliveryAttempt',
+  rescheduleRequests: 'RescheduleRequest',
   wallets: 'Wallet',
   walletTransactions: 'WalletTransaction',
+  paymentIntents: 'PaymentIntent',
+  receiptInvoices: 'ReceiptInvoice',
+  taxFeeRecords: 'TaxFeeRecord',
+  financeStatements: 'FinanceStatement',
+  financeRiskReviews: 'FinanceRiskReview',
+  settlementBatches: 'SettlementBatch',
+  payoutRequests: 'PayoutRequest',
+  payoutBatches: 'PayoutBatch',
+  reconciliationReports: 'ReconciliationReport',
   promoterLinks: 'PromoterLink',
   referralClicks: 'ReferralClick',
+  attributionSessions: 'AttributionSession',
+  campaignConversions: 'CampaignConversion',
+  agentProfiles: 'AgentProfile',
+  offlineSales: 'OfflineSale',
+  fraudSignals: 'FraudSignal',
   commissions: 'Commission',
   blogs: 'BlogPost',
   supportTickets: 'SupportTicket',
@@ -30,7 +159,28 @@ const DATABASE_MODELS = {
   promotionCampaigns: 'PromotionCampaign',
   reviews: 'Review',
   auditLogs: 'AuditLog',
+  securityEvents: 'SecurityEvent',
+  loginAudits: 'LoginAudit',
+  deviceSessions: 'DeviceSession',
+  idempotencyKeyRecords: 'IdempotencyKeyRecord',
   notifications: 'Notification',
+  savedListings: 'SavedListing',
+  shiftHandovers: 'ShiftHandover',
+  subscriptionOrders: 'SubscriptionOrder',
+  subscriptions: 'Subscription',
+  inventoryHolds: 'InventoryHold',
+  ticketScans: 'TicketScan',
+  futureServiceModules: 'FutureServiceModule',
+  flightOffers: 'FlightOffer',
+  trainInventories: 'TrainInventory',
+  tourPackageInventories: 'TourPackageInventory',
+  carRentalUnits: 'CarRentalUnit',
+  eventTicketInventories: 'EventTicketInventory',
+  cargoShipments: 'CargoShipment',
+  insurancePolicyRecords: 'InsurancePolicyRecord',
+  corporateTravelAccounts: 'CorporateTravelAccount',
+  loyaltyAccounts: 'LoyaltyAccount',
+  settings: 'Setting',
 };
 const FALLBACK_MEDIA = {
   bus: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=70',
@@ -56,6 +206,23 @@ const SERVICE_LABELS = {
 };
 const TYPE_ORDER = ['bus', 'hotel', 'flight', 'train'];
 const ROUTED_SERVICE_TYPES = ['bus', 'flight', 'train', 'ferry', 'tour', 'airport_transfer', 'package', 'cargo'];
+const COMPANY_COMMON_DASHBOARD_PAGES = ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'];
+
+const COMPANY_SERVICE_PAGE_MAP = {
+  bus: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  hotel: ['overview', 'company-profile', 'staff', 'listings', 'hotel-rooms', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  flight: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  train: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  tour: ['overview', 'company-profile', 'staff', 'listings', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  car_rental: ['overview', 'company-profile', 'staff', 'listings', 'vehicles', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  event: ['overview', 'company-profile', 'staff', 'listings', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  cargo: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'schedules', 'bookings', 'manifests', 'checkins', 'support', 'revenue', 'settlement', 'reports'],
+  insurance: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+  corporate: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'support', 'revenue', 'settlement', 'reports'],
+  loyalty: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'support', 'revenue', 'settlement', 'reports'],
+  partner: COMPANY_COMMON_DASHBOARD_PAGES,
+};
+
 const CITY_CODES = {
   kampala: 'ug',
   entebbe: 'ug',
@@ -189,13 +356,7 @@ function normalizeMediaList(row, serviceType) {
 }
 
 function seatNumbers(totalSeats) {
-  const seats = [];
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  for (let index = 0; index < totalSeats; index += 1) {
-    const row = letters[Math.floor(index / 4)] || `R${Math.floor(index / 4) + 1}`;
-    seats.push(`${row}${(index % 4) + 1}`);
-  }
-  return seats;
+  return Array.from({ length: Math.max(0, Math.round(Number(totalSeats || 0))) }, (_, index) => String(index + 1));
 }
 
 function ensureBookableInventory() {
@@ -305,6 +466,9 @@ function normalizeHydratedState() {
       logo: normalizeMedia(company.logo || company.logoUrl, `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name || 'Classic Trip')}&background=4f8cff&color=fff&bold=true`, company.name || 'Classic Trip partner'),
       coverImage: normalizeMedia(company.coverImage || company.coverUrl, FALLBACK_MEDIA.default, company.name || 'Classic Trip partner'),
       verificationStatus: company.verificationStatus || (company.isVerified ? 'verified' : 'pending'),
+      documents: Array.isArray(company.documents)
+        ? company.documents.map((document) => normalizeMedia(document, document.url || document.secureUrl || '', document.label || document.documentType || 'Company verification document')).filter((document) => document.url || document.publicId)
+        : [],
       supportContacts: company.supportContacts || { phone: '+256 700 000 000', email: 'support@classictrip.example', whatsapp: '+256 700 000 999' },
       ratingAverage: Number(company.ratingAverage || company.rating || 4.5),
       reviewCount: Number(company.reviewCount || 0),
@@ -430,9 +594,8 @@ async function hydrateFromDatabase({ mongoose, logger } = {}) {
 
   for (const [stateKey, modelName] of Object.entries(DATABASE_MODELS)) {
     try {
-      require(`../../models/${modelName}`);
-      const Model = mongoose.model(modelName);
-      const rows = await Model.find({}).lean();
+      const repository = repositories.repositoryFor(stateKey);
+      const rows = await repository.list({});
       if (rows.length) {
         nextState[stateKey] = rows.map(stripMongoFields);
         loadedCollections += 1;
@@ -444,8 +607,8 @@ async function hydrateFromDatabase({ mongoose, logger } = {}) {
   }
 
   if (!loadedRecords) {
-    logger?.info?.('Database hydration found no records; using in-memory seed data');
-    return { source: 'memory', loadedCollections: 0, loadedRecords: 0 };
+    logger?.info?.(`Database hydration found no records; using ${env.demoMode ? 'explicit DEMO_MODE seed data' : 'empty production state'}`);
+    return { source: env.demoMode ? 'demo' : 'empty', loadedCollections: 0, loadedRecords: 0 };
   }
 
   Object.entries(nextState).forEach(([stateKey, rows]) => {
@@ -954,6 +1117,7 @@ function dashboardData(role = 'admin', context = {}) {
   if (role === 'admin') return adminDashboardData(bookings);
   if (role === 'company') return enrichCompanyDashboard(companyDashboardData(companyId, companyListings, companyBookings), companyId, companyBookings);
   if (role === 'employee') return employeeDashboardData(companyId, companyBookings, context);
+  if (role === 'driver') return employeeDashboardData(companyId, companyBookings, { ...context, driverMode: true });
   if (role === 'customer') return customerDashboardData(customerBookings, customerId);
   if (role === 'promoter') return promoterDashboardData(promoterLinks, promoterBookings, promoterId);
   return {};
@@ -1092,6 +1256,39 @@ function adminDashboardData(bookings) {
     ticket.updatedAt ? dateValue(ticket.updatedAt) : dateValue(ticket.createdAt),
     dashboardMeta('support', ticket.id, ticket.id, ticket.status, employeeSupportDetail(ticket), ['view', 'assign', 'progress', 'resolve', 'reopen']),
   ]);
+  const leadRows = (state.partnerLeads || []).map((lead) => [
+    lead.businessName || lead.name || '-',
+    lead.leadType || lead.companyType || 'company',
+    lead.contactName || '-',
+    lead.email || lead.phone || '-',
+    lead.sourceChannel || 'manual',
+    lead.status || 'new',
+    dashboardMeta('partner_lead', lead.id, lead.businessName || lead.id, lead.status || 'new', { lead }, ['view', 'session', 'agreement', 'invite']),
+  ]);
+  const sessionRows = (state.discoverySessions || []).map((session) => {
+    const lead = (state.partnerLeads || []).find((row) => row.id === session.leadId) || {};
+    return [
+      session.providerName || lead.businessName || session.leadId || '-',
+      session.sessionType || 'Discovery call',
+      session.scheduledAt ? dateValue(session.scheduledAt) : '-',
+      Array.isArray(session.attendees) ? session.attendees.join(', ') : (session.attendees || '-'),
+      session.agreedNextAction || session.notes || '-',
+      session.status || 'scheduled',
+      dashboardMeta('discovery_session', session.id, session.providerName || lead.businessName || session.id, session.status || 'scheduled', { session, lead }, ['view', 'agreement', 'lead']),
+    ];
+  });
+  const agreementRows = (state.agreements || []).map((agreement) => {
+    const lead = (state.partnerLeads || []).find((row) => row.id === agreement.leadId) || {};
+    return [
+      agreement.partnerName || lead.businessName || '-',
+      agreement.agreementType || lead.leadType || 'company',
+      agreement.commissionModel || '-',
+      agreement.subscriptionPlan || '-',
+      agreement.startDate ? dateValue(agreement.startDate) : '-',
+      agreement.status || 'draft',
+      dashboardMeta('agreement', agreement.id, agreement.partnerName || lead.businessName || agreement.id, agreement.status || 'draft', { agreement, lead }, ['view', 'approve', 'reject', 'invite']),
+    ];
+  });
 
   const campaignRows = state.promotionCampaigns.map((campaign) => [
     campaign.name || campaign.title,
@@ -1136,10 +1333,270 @@ function adminDashboardData(bookings) {
 
   const auditRows = state.auditLogs.map((log) => [dateValue(log.createdAt), log.actorId, log.action, log.target || log.entityId || '-', 'Backend store', log.status || 'Success', dashboardMeta('audit', log.id, log.action, log.status || 'Success', auditDetail(log), ['view', 'export'])]);
   const adminRows = state.users.filter((user) => ['super_admin', 'admin', 'finance_admin', 'support_admin', 'content_admin'].includes(user.role)).map((user) => [user.fullName, user.role, user.permissionsLabel || 'Role based', user.twoFactorEnabled ? 'Enabled' : 'Required', user.lastLoginAt ? dateValue(user.lastLoginAt) : 'No login', user.status || 'active', dashboardMeta('admin', user.id, user.fullName, user.status || 'active', adminUserDetail(user), ['view', 'invite', 'suspend'])]);
-  const kycRows = state.companies.map((company) => [company.name, Array.isArray(company.documents) && company.documents.length ? `${company.documents.length} documents` : 'Business profile', company.country || '-', company.payoutAccount || company.walletId || 'Payout pending', company.verificationStatus === 'verified' ? 'Low' : 'Medium', company.verificationStatus || 'pending', dashboardMeta('kyc', company.id, company.name, company.verificationStatus, companyDetail(company), ['view', 'approve', 'reject', 'changes'])]);
+  const kycRows = state.companies.map((company) => {
+    const documents = Array.isArray(company.documents) ? company.documents : [];
+    const pendingDocuments = documents.filter((document) => /pending|review/i.test(document.status || 'pending_review')).length;
+    const documentLabel = documents.length ? `${documents.length} documents${pendingDocuments ? `, ${pendingDocuments} pending` : ''}` : 'Business profile';
+    return [company.name, documentLabel, company.country || '-', company.payoutAccount || company.walletId || 'Payout pending', company.verificationStatus === 'verified' && !pendingDocuments ? 'Low' : 'Medium', company.verificationStatus || 'pending', dashboardMeta('kyc', company.id, company.name, company.verificationStatus, companyDetail(company), ['view', 'approve', 'reject', 'changes'])];
+  });
   const refundRows = state.refundRequests.map((refund) => [refund.id, refund.bookingRef, bookingCustomer(findBooking(refund.bookingRef) || {}) || refund.requesterId || 'Customer', refund.reason, moneyValue(refund.amount), refund.status, dashboardMeta('refund', refund.id, refund.id, refund.status, employeeRefundDetail(refund), ['view', 'approve', 'reject', 'booking', 'payment'])]);
   const notificationRows = (state.notifications || []).map((note) => [note.title || note.subject, Array.isArray(note.channels) ? note.channels.join(', ') : note.channel || 'Email', note.audience || note.ownerType || 'Users', String(note.sentCount || note.deliveredCount || 0), note.deliveryStatus || note.status || 'Pending', note.status || 'queued', dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'send'])]);
   const fallbackNotifications = supportRows.map((row) => [`Support update: ${row[2]}`, 'Email/SMS', row[1], '1', 'Pending', row[4], dashboardMeta('notification', row[0], row[2], row[4], { support: row[row.length - 1].detail }, ['view', 'send'])]);
+  const cartRows = (state.carts || []).map((cart) => [
+    cart.cartRef,
+    String(cart.items?.length || 0),
+    cart.customer?.fullName || 'Guest customer',
+    moneyValue(cart.pricing?.total || 0, cart.pricing?.currency || 'UGX'),
+    cart.bookingRef || '-',
+    cart.status || 'draft',
+    dashboardMeta('cart', cart.cartRef, cart.cartRef, cart.status || 'draft', { cart, booking: cart.bookingRef ? bookingDetail(findBooking(cart.bookingRef)) : null }, ['view', 'recover', 'booking', 'export']),
+  ]);
+  const cartCheckoutRows = (state.cartCheckoutAttempts || []).map((attempt) => [
+    attempt.id,
+    attempt.cartRef,
+    attempt.bookingRef || '-',
+    attempt.providerReference || attempt.paymentId || '-',
+    attempt.failureType || attempt.paymentId || '-',
+    attempt.status || 'started',
+    dashboardMeta('cart_checkout', attempt.id, attempt.cartRef || attempt.id, attempt.status || 'started', { attempt, cart: (state.carts || []).find((cart) => cart.cartRef === attempt.cartRef) || null }, ['view', 'cart', 'payment', 'export']),
+  ]);
+  const ticketScanRows = (state.ticketScans || []).map((scan) => [
+    scan.id,
+    scan.bookingRef || '-',
+    scan.ticketNumber || '-',
+    scan.scheduleId || '-',
+    scan.scanType || '-',
+    scan.result || '-',
+    scan.meta?.checkInStatus || scan.message || '-',
+    scan.scannedAt ? dateValue(scan.scannedAt) : '-',
+    scan.actorName || scan.employeeId || scan.actorEmail || '-',
+    scan.location || scan.source || '-',
+    dashboardMeta('ticket_scan', scan.id, scan.ticketNumber || scan.bookingRef || scan.id, scan.result || 'scan', { scan, booking: scan.bookingRef ? bookingDetail(findBooking(scan.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const ticketLegRows = bookings.flatMap((booking) => (booking.ticketLegs || []).map((ticket, index) => [
+    ticket.ticketNumber,
+    booking.bookingRef,
+    ticket.passengerName || (booking.passengers || [])[Number(ticket.passengerIndex || index)]?.fullName || bookingCustomer(booking),
+    ticket.legType || 'primary',
+    ticket.scheduleId || booking.scheduleId || '-',
+    ticket.seatNumber || ticket.roomNumber || (booking.passengers || [])[Number(ticket.passengerIndex || index)]?.seatOrRoom || '-',
+    ticket.status || booking.bookingStatus,
+    ticket.checkInStatus || booking.checkInStatus || 'boarding',
+    ticket.qrTokenPreview || '-',
+    ticket.usedAt || ticket.checkedInAt ? dateValue(ticket.usedAt || ticket.checkedInAt) : '-',
+    dashboardMeta('ticket_leg', ticket.id || ticket.ticketNumber, ticket.ticketNumber, ticket.checkInStatus || ticket.status || 'valid', { ticket, booking: bookingDetail(booking) }, ['view', 'booking', 'scan_history', 'export']),
+  ]));
+  const correspondenceRows = (state.correspondenceMessages || []).map((message) => [
+    message.id,
+    message.bookingRef || message.supportTicketId || message.refundId || message.agreementId || message.verificationId || message.driverId || message.customerId || '-',
+    message.subject || '-',
+    message.visibility || 'shared',
+    Array.isArray(message.channels) ? message.channels.join(', ') : (message.channels || '-'),
+    message.status || 'open',
+    message.createdAt ? dateValue(message.createdAt) : '-',
+    dashboardMeta('correspondence', message.id, message.subject || message.id, message.status || 'open', { message, booking: message.bookingRef ? bookingDetail(findBooking(message.bookingRef)) : null }, ['view', 'booking', 'support', 'export']),
+  ]);
+  const deliveryAttemptRows = (state.notificationDeliveryAttempts || []).map((attempt) => [
+    attempt.id,
+    attempt.correspondenceMessageId || attempt.notificationId || '-',
+    attempt.bookingRef || attempt.referenceId || '-',
+    attempt.channel || '-',
+    attempt.status || 'queued',
+    attempt.provider || '-',
+    attempt.attemptedAt ? dateValue(attempt.attemptedAt) : '-',
+    dashboardMeta('delivery_attempt', attempt.id, attempt.channel || attempt.id, attempt.status || 'queued', { attempt }, ['view', 'message', 'export']),
+  ]);
+  const timelineRows = (state.bookingTimelineEvents || []).map((event) => [
+    event.bookingRef || '-',
+    event.entityType || '-',
+    event.action || event.title || '-',
+    event.actorName || event.actorId || event.actorType || '-',
+    event.status || '-',
+    event.createdAt ? dateValue(event.createdAt) : '-',
+    dashboardMeta('booking_timeline', event.id, event.action || event.title || event.id, event.status || 'open', { event, booking: event.bookingRef ? bookingDetail(findBooking(event.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const rescheduleRows = (state.rescheduleRequests || []).map((request) => [
+    request.id,
+    request.bookingRef,
+    request.requestedScheduleId || [request.preferredDate ? dateValue(request.preferredDate) : '', request.preferredTime || ''].filter(Boolean).join(' ') || request.currentScheduleId || '-',
+    request.reason || '-',
+    request.status || 'pending',
+    request.updatedAt || request.reviewedAt || request.createdAt ? dateValue(request.updatedAt || request.reviewedAt || request.createdAt) : '-',
+    dashboardMeta('reschedule_request', request.id, request.bookingRef || request.id, request.status || 'pending', { request, booking: request.bookingRef ? bookingDetail(findBooking(request.bookingRef)) : null }, ['view', 'approve', 'reject', 'booking', 'export']),
+  ]);
+  const financeOwnerLabel = (ownerType, ownerId) => {
+    if (ownerType === 'company') return findCompany(ownerId)?.name || ownerId || 'Company';
+    if (ownerType === 'promoter') return state.users.find((user) => user.id === ownerId)?.fullName || ownerId || 'Promoter';
+    if (ownerType === 'customer') return state.users.find((user) => user.id === ownerId)?.fullName || ownerId || 'Customer';
+    return [ownerType, ownerId].filter(Boolean).join(':') || 'Platform';
+  };
+  const paymentIntentRows = (state.paymentIntents || []).map((intent) => [
+    intent.intentRef || intent.id,
+    intent.bookingRef || intent.cartRef || intent.bookingId || '-',
+    intent.provider || '-',
+    moneyValue(intent.amount || 0, intent.currency || 'UGX'),
+    intent.status || 'created',
+    intent.providerReference || '-',
+    intent.createdAt ? dateValue(intent.createdAt) : '-',
+    dashboardMeta('payment_intent', intent.id, intent.intentRef || intent.id, intent.status || 'created', { intent }, ['view', 'booking', 'export']),
+  ]);
+  const receiptInvoiceRows = (state.receiptInvoices || []).map((document) => [
+    document.documentRef || document.id,
+    document.documentType || 'receipt',
+    document.bookingRef || '-',
+    document.customerName || document.customerEmail || '-',
+    moneyValue(document.total || 0, document.currency || 'UGX'),
+    document.status || 'pending',
+    document.issuedAt ? dateValue(document.issuedAt) : '-',
+    dashboardMeta('receipt_invoice', document.id, document.documentRef || document.id, document.status || 'pending', { document, booking: document.bookingRef ? bookingDetail(findBooking(document.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const taxFeeRows = (state.taxFeeRecords || []).map((record) => [
+    record.id,
+    record.bookingRef || '-',
+    moneyValue(record.subtotal || 0, record.currency || 'UGX'),
+    moneyValue(record.serviceFee || 0, record.currency || 'UGX'),
+    moneyValue(record.taxAmount || 0, record.currency || 'UGX'),
+    moneyValue(record.providerFee || 0, record.currency || 'UGX'),
+    moneyValue(record.totalFees || 0, record.currency || 'UGX'),
+    record.status || 'recorded',
+    dashboardMeta('tax_fee', record.id, record.bookingRef || record.id, record.status || 'recorded', { record, booking: record.bookingRef ? bookingDetail(findBooking(record.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const financeStatementRows = (state.financeStatements || []).map((statement) => [
+    statement.statementRef || statement.id,
+    financeOwnerLabel(statement.ownerType, statement.ownerId),
+    statement.periodStart ? dateValue(statement.periodStart) : '-',
+    statement.periodEnd ? dateValue(statement.periodEnd) : '-',
+    moneyValue(statement.gross || 0, statement.currency || 'UGX'),
+    moneyValue(statement.closingBalance || 0, statement.currency || 'UGX'),
+    statement.status || 'issued',
+    dashboardMeta('finance_statement', statement.id, statement.statementRef || statement.id, statement.status || 'issued', { statement }, ['view', 'owner', 'export']),
+  ]);
+  const financeRiskRows = (state.financeRiskReviews || []).map((review) => [
+    review.id,
+    [review.targetType, review.targetId].filter(Boolean).join(':') || '-',
+    financeOwnerLabel(review.ownerType, review.ownerId),
+    moneyValue(review.amount || 0, review.currency || 'UGX'),
+    String(review.riskScore || 0),
+    review.status || 'clear',
+    Array.isArray(review.flags) && review.flags.length ? review.flags.join(', ') : 'No flags',
+    dashboardMeta('finance_risk', review.id, review.targetId || review.id, review.status || 'clear', { review }, ['view', 'target', 'export']),
+  ]);
+  const settlementRows = (state.settlementBatches || []).map((batch) => [
+    batch.batchNumber || batch.id,
+    batch.periodStart ? dateValue(batch.periodStart) : '-',
+    batch.periodEnd ? dateValue(batch.periodEnd) : '-',
+    moneyValue(batch.totalGross || 0, batch.currency || 'UGX'),
+    moneyValue(batch.totalPayable || 0, batch.currency || 'UGX'),
+    batch.status || 'draft',
+    dashboardMeta('settlement_batch', batch.id, batch.batchNumber || batch.id, batch.status || 'draft', { batch }, ['view', 'statements', 'payouts', 'export']),
+  ]);
+  const payoutRequestRows = (state.payoutRequests || []).map((request) => [
+    request.id,
+    request.transactionId || '-',
+    financeOwnerLabel(request.ownerType, request.ownerId),
+    moneyValue(request.amount || 0, request.currency || 'UGX'),
+    request.payoutMethod || '-',
+    request.payoutBatchId || '-',
+    request.riskStatus || request.status || 'requested',
+    request.status || 'requested',
+    dashboardMeta('payout_request', request.id, request.transactionId || request.id, request.status || 'requested', { request }, ['view', 'review', 'batch', 'export']),
+  ]);
+  const payoutBatchRows = (state.payoutBatches || []).map((batch) => [
+    batch.batchNumber || batch.id,
+    batch.providerReference || '-',
+    String((batch.requestIds || []).length),
+    moneyValue(batch.totalAmount || 0, batch.currency || 'UGX'),
+    batch.status || 'exported',
+    batch.createdAt ? dateValue(batch.createdAt) : '-',
+    dashboardMeta('payout_batch', batch.id, batch.batchNumber || batch.id, batch.status || 'exported', { batch }, ['view', 'requests', 'export']),
+  ]);
+  const reconciliationRows = (state.reconciliationReports || []).map((report) => [
+    report.id,
+    report.settlementBatchId || '-',
+    report.periodStart ? dateValue(report.periodStart) : '-',
+    report.periodEnd ? dateValue(report.periodEnd) : '-',
+    moneyValue(report.grossPayments || 0, 'UGX'),
+    moneyValue(report.variance || 0, 'UGX'),
+    report.status || 'variance_review',
+    dashboardMeta('reconciliation', report.id, report.settlementBatchId || report.id, report.status || 'variance_review', { report }, ['view', 'settlement', 'export']),
+  ]);
+  const ledgerRows = (state.walletTransactions || []).map((transaction) => [
+    transaction.id,
+    financeOwnerLabel(transaction.ownerType, transaction.ownerId),
+    transaction.transactionType || transaction.referenceType || 'wallet',
+    transaction.direction || '-',
+    moneyValue(transaction.amount || 0, transaction.currency || 'UGX'),
+    transaction.status || 'completed',
+    dashboardMeta('ledger_transaction', transaction.id, transaction.id, transaction.status || 'completed', { transaction }, ['view', 'owner', 'export']),
+  ]);
+  const referralClickRows = (state.referralClicks || []).map((click) => [
+    click.id,
+    click.code || '-',
+    financeOwnerLabel('promoter', click.promoterId),
+    findListing(click.listingId)?.title || click.listingId || '-',
+    click.ip || '-',
+    click.createdAt ? dateValue(click.createdAt) : '-',
+    dashboardMeta('referral_click', click.id, click.code || click.id, 'tracked', { click }, ['view', 'promoter', 'listing', 'export']),
+  ]);
+  const attributionSessionRows = (state.attributionSessions || []).map((session) => [
+    session.id,
+    session.referralCode || '-',
+    financeOwnerLabel('promoter', session.promoterId),
+    findListing(session.listingId)?.title || session.listingId || '-',
+    session.status || 'active',
+    session.bookingRef || '-',
+    session.createdAt ? dateValue(session.createdAt) : '-',
+    dashboardMeta('attribution_session', session.id, session.referralCode || session.id, session.status || 'active', { session }, ['view', 'click', 'booking', 'export']),
+  ]);
+  const campaignConversionRows = (state.campaignConversions || []).map((conversion) => [
+    conversion.id,
+    conversion.campaignId || conversion.linkId || '-',
+    financeOwnerLabel('promoter', conversion.promoterId),
+    conversion.bookingRef || '-',
+    moneyValue(conversion.amount || 0, conversion.currency || 'UGX'),
+    moneyValue(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
+    conversion.status || 'converted',
+    dashboardMeta('campaign_conversion', conversion.id, conversion.bookingRef || conversion.id, conversion.status || 'converted', { conversion, booking: conversion.bookingRef ? bookingDetail(findBooking(conversion.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const agentProfileRows = (state.agentProfiles || []).map((profile) => [
+    profile.id,
+    financeOwnerLabel('promoter', profile.userId || profile.promoterId),
+    profile.agentCode || '-',
+    profile.officeName || '-',
+    profile.location || '-',
+    profile.offlineSalesEnabled ? 'Enabled' : 'Disabled',
+    profile.status || 'active',
+    dashboardMeta('agent_profile', profile.id, profile.agentCode || profile.id, profile.status || 'active', { profile }, ['view', 'agent', 'export']),
+  ]);
+  const fraudSignalRows = (state.fraudSignals || []).map((signal) => [
+    signal.id,
+    financeOwnerLabel('promoter', signal.promoterId || signal.agentId),
+    signal.bookingRef || '-',
+    signal.signalType || 'booking_risk',
+    signal.severity || '-',
+    String(signal.score || 0),
+    signal.status || 'open',
+    dashboardMeta('fraud_signal', signal.id, signal.bookingRef || signal.id, signal.status || 'open', { signal, booking: signal.bookingRef ? bookingDetail(findBooking(signal.bookingRef)) : null }, ['view', 'review', 'booking', 'export']),
+  ]);
+  const referralCardRows = (state.promoterLinks || []).map((link) => [
+    link.id,
+    financeOwnerLabel('promoter', link.promoterId),
+    link.code || link.referralCode || '-',
+    findListing(link.listingId)?.title || link.listingId || '-',
+    link.qrCardUrl || `/promoter/links/${link.id}/qr-card`,
+    link.status || 'active',
+    dashboardMeta('referral_card', link.id, link.code || link.id, link.status || 'active', { link, listing: listingDetail(findListing(link.listingId)) }, ['view', 'qr', 'export']),
+  ]);
+  const agentSaleRows = (state.offlineSales || []).map((sale) => [
+    sale.saleRef || sale.id,
+    sale.bookingRef || '-',
+    sale.customerName || sale.passengerName || '-',
+    findListing(sale.listingId)?.title || sale.listingId || '-',
+    sale.paymentMethod || '-',
+    moneyValue(sale.amountCollected || 0, sale.currency || 'UGX'),
+    sale.status || 'completed',
+    dashboardMeta('agent_sale', sale.id, sale.saleRef || sale.id, sale.status || 'completed', { sale, booking: sale.bookingRef ? bookingDetail(findBooking(sale.bookingRef)) : null }, ['view', 'booking', 'receipt', 'export']),
+  ]);
 
   return {
     overviewStats,
@@ -1181,6 +1638,9 @@ function adminDashboardData(bookings) {
     promoters: promoterRows,
     customers: customerRows,
     support: supportRows,
+    leads: leadRows,
+    sessions: sessionRows,
+    agreements: agreementRows,
     ads: campaignRows,
     routeInventory: routeInventoryRows,
     stayInventory: stayInventoryRows,
@@ -1192,27 +1652,134 @@ function adminDashboardData(bookings) {
     kyc: kycRows,
     refunds: refundRows,
     notifications: notificationRows.length ? notificationRows : fallbackNotifications,
+    carts: cartRows,
+    cartCheckouts: cartCheckoutRows,
+    ticketScans: ticketScanRows,
+    ticketLegs: ticketLegRows,
+    correspondence: correspondenceRows,
+    deliveryAttempts: deliveryAttemptRows,
+    timeline: timelineRows,
+    reschedules: rescheduleRows,
+    paymentIntents: paymentIntentRows,
+    receiptInvoices: receiptInvoiceRows,
+    taxFees: taxFeeRows,
+    financeStatements: financeStatementRows,
+    financeRisk: financeRiskRows,
+    settlements: settlementRows,
+    payoutRequests: payoutRequestRows,
+    payoutBatches: payoutBatchRows,
+    reconciliation: reconciliationRows,
+    ledger: ledgerRows,
+    referralClicks: referralClickRows,
+    attributionSessions: attributionSessionRows,
+    campaignConversions: campaignConversionRows,
+    agentProfiles: agentProfileRows,
+    fraudSignals: fraudSignalRows,
+    referralCards: referralCardRows,
+    agentSales: agentSaleRows,
+    offlineSales: agentSaleRows,
+  };
+}
+
+function buildCompanyServiceProfile(company = {}, listings = [], assets = {}) {
+  // Business rule: one company account belongs to one primary service category.
+  // Super Admin can see all service dashboards, but a company admin must never
+  // receive a combined Bus + Hotel (or any multi-service) dashboard.
+  const companyType = normalize(company.companyType || company.type || company.serviceType);
+  const listingTypes = Array.from(new Set((listings || []).map((listing) => normalize(listing.serviceType || listing.type)).filter(Boolean)));
+  const fallbackType = listingTypes[0]
+    || ((assets.hotelProperties || []).length || (assets.roomTypes || []).length || (assets.roomUnits || []).length || (assets.rooms || []).length ? 'hotel' : '')
+    || ((assets.vehicles || []).length || (assets.schedules || []).length ? 'bus' : '')
+    || 'partner';
+  const primaryServiceType = companyType && companyType !== 'partner' ? companyType : fallbackType;
+  const serviceTypes = primaryServiceType && primaryServiceType !== 'partner' ? [primaryServiceType] : [];
+  const supportsHotel = primaryServiceType === 'hotel';
+  const supportsBus = primaryServiceType === 'bus';
+  const supportsFlight = primaryServiceType === 'flight';
+  const supportsTrain = primaryServiceType === 'train';
+  const supportsTransport = ROUTED_SERVICE_TYPES.includes(primaryServiceType);
+  const primaryLabel = SERVICE_LABELS[primaryServiceType] || (primaryServiceType === 'partner' ? 'Partner' : primaryServiceType);
+  const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : `${primaryLabel} inventory`;
+  const dashboardLabel = primaryServiceType && primaryServiceType !== 'partner' ? `${primaryLabel} Dashboard` : 'Company Dashboard';
+  const visiblePages = new Set(COMPANY_SERVICE_PAGE_MAP[primaryServiceType] || COMPANY_SERVICE_PAGE_MAP.partner);
+
+  const pageMeta = {
+    overview: [`${dashboardLabel}`, `Manage only this company's ${primaryLabel.toLowerCase()} operations, bookings, inventory, team work, support, revenue, and settlement.`],
+    listings: [`${primaryLabel} Listings`, `Manage only ${primaryLabel.toLowerCase()} services connected to this company.`],
+    routes: [supportsFlight ? 'Flight Routes' : supportsTrain ? 'Train Routes' : 'Routes', supportsFlight ? 'Manage airline corridors and route readiness.' : supportsTrain ? 'Manage train corridors, stations, and route readiness.' : 'Manage transport routes before scheduling departures.'],
+    vehicles: [supportsFlight ? 'Aircraft and Fleet' : supportsTrain ? 'Coaches and Fleet' : 'Vehicles', supportsFlight ? 'Manage aircraft or fleet records linked to schedules.' : supportsTrain ? 'Manage train coaches and fleet records linked to schedules.' : 'Manage vehicles and seat layouts for departures.'],
+    schedules: [supportsFlight ? 'Flight Schedules' : supportsTrain ? 'Train Schedules' : 'Schedules and Availability', supportsFlight ? 'Manage flight schedules and availability.' : supportsTrain ? 'Manage train schedules and availability.' : 'Manage departure dates, vehicles, prices, and availability.'],
+    checkins: [supportsHotel ? 'Guest Check-ins' : 'Check-ins', supportsHotel ? 'Validate arriving guests and monitor stay status.' : 'Validate tickets and monitor boarding progress.'],
+    seatrooms: [inventoryLabel, supportsBus ? 'Control visual bus seat maps, holds, bookings, and blocked seats.' : supportsHotel ? 'Control visual room maps, room-night inventory, housekeeping, and booked stays.' : `Control ${primaryLabel.toLowerCase()} inventory.`],
+    'seat-maps': ['Seat Maps', supportsBus ? 'Control visual bus seat maps, holds, bookings, and blocked seats.' : 'Control seat maps and inventory status.'],
+    'hotel-rooms': ['Rooms & Inventory', 'Control hotel properties, room types, room units, room-night inventory, housekeeping, and booked stays.'],
+    manifests: ['Manifests', supportsHotel ? 'Print hotel arrival, departure, and in-house lists.' : 'Print customer manifests and operational lists.'],
+    revenue: ['Revenue', 'View company revenue, booking splits, pending earnings, and refunds.'],
+    settlement: ['Settlement', 'Request payout and track pending/available/paid-out earnings.'],
+  };
+  return {
+    serviceTypes,
+    primaryServiceType,
+    primaryLabel,
+    dashboardLabel,
+    consoleName: `${dashboardLabel} Console`,
+    inventoryLabel,
+    supportsBus,
+    supportsHotel,
+    supportsFlight,
+    supportsTransport,
+    supportsMultiple: false,
+    visiblePages: Array.from(visiblePages),
+    pageMeta,
   };
 }
 
 function companyDashboardData(companyId, listings, bookings) {
   const company = findCompany(companyId) || {};
   const companyRoutes = state.routes.filter((route) => route.companyId === companyId);
+  const routeStops = Array.isArray(state.routeStops) ? state.routeStops.filter((stop) => stop.companyId === companyId) : [];
   const vehicles = (state.vehicles || []).filter((vehicle) => vehicle.companyId === companyId);
   const schedules = state.schedules.filter((schedule) => schedule.companyId === companyId);
   const rooms = state.rooms.filter((room) => room.companyId === companyId);
   const reviews = state.reviews.filter((review) => review.companyId === companyId);
   const companyEmployees = Array.isArray(state.companyEmployees) ? state.companyEmployees.filter((employee) => employee.companyId === companyId) : [];
+  const companyBranches = Array.isArray(state.companyBranches) ? state.companyBranches.filter((branch) => branch.companyId === companyId) : [];
+  const companyPolicies = Array.isArray(state.companyPolicies) ? state.companyPolicies.filter((policy) => policy.companyId === companyId) : [];
+  const driverAssignments = Array.isArray(state.driverAssignments) ? state.driverAssignments.filter((assignment) => assignment.companyId === companyId) : [];
+  const driverIncidents = Array.isArray(state.driverIncidents) ? state.driverIncidents.filter((incident) => incident.companyId === companyId) : [];
+  const tripStatusUpdates = Array.isArray(state.tripStatusUpdates) ? state.tripStatusUpdates.filter((update) => update.companyId === companyId) : [];
+  const hotelProperties = Array.isArray(state.hotelProperties) ? state.hotelProperties.filter((property) => property.companyId === companyId) : [];
+  const roomTypes = Array.isArray(state.roomTypes) ? state.roomTypes.filter((roomType) => roomType.companyId === companyId) : [];
+  const roomUnits = Array.isArray(state.roomUnits) ? state.roomUnits.filter((unit) => unit.companyId === companyId) : [];
+  const roomNightInventories = Array.isArray(state.roomNightInventories) ? state.roomNightInventories.filter((night) => night.companyId === companyId) : [];
+  const serviceProfile = buildCompanyServiceProfile(company, listings, { hotelProperties, roomTypes, roomUnits, rooms, vehicles, schedules });
+  const listingSupportsVisibleService = (listingId) => {
+    const listing = findListing(listingId) || {};
+    const type = normalize(listing.serviceType);
+    return !type || serviceProfile.serviceTypes.includes(type);
+  };
+  const visibleRoutes = serviceProfile.supportsTransport ? companyRoutes.filter((route) => listingSupportsVisibleService(route.listingId)) : [];
+  const visibleRouteIds = new Set(visibleRoutes.map((route) => route.id));
+  const visibleRouteStops = serviceProfile.supportsTransport ? routeStops.filter((stop) => visibleRouteIds.has(stop.routeId)) : [];
+  const visibleSchedules = serviceProfile.supportsTransport ? schedules.filter((schedule) => listingSupportsVisibleService(schedule.listingId)) : [];
+  const busSchedules = serviceProfile.supportsBus ? visibleSchedules.filter((schedule) => normalize(findListing(schedule.listingId)?.serviceType) === 'bus') : [];
+  const visibleVehicles = serviceProfile.supportsTransport ? vehicles.filter((vehicle) => listingSupportsVisibleService(vehicle.listingId) || serviceProfile.serviceTypes.includes(normalize(vehicle.serviceType))) : [];
+  const visibleRooms = serviceProfile.supportsHotel ? rooms : [];
+  const visibleHotelProperties = serviceProfile.supportsHotel ? hotelProperties : [];
+  const visibleRoomTypes = serviceProfile.supportsHotel ? roomTypes : [];
+  const visibleRoomUnits = serviceProfile.supportsHotel ? roomUnits : [];
+  const visibleRoomNightInventories = serviceProfile.supportsHotel ? roomNightInventories : [];
+  const hotelBookings = serviceProfile.supportsHotel ? bookings.filter((booking) => booking.serviceType === 'hotel') : [];
   const supportTickets = state.supportTickets.filter((ticket) => ticket.companyId === companyId || (ticket.ownerType === 'company' && (!ticket.ownerId || ticket.ownerId === companyId)));
   const grossRevenue = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
-  const seats = schedules.flatMap((schedule) => seatsForSchedule(schedule.id));
+  const seats = busSchedules.flatMap((schedule) => seatsForSchedule(schedule.id));
   const bookedSeats = seats.filter((seat) => seat.status === 'taken').length;
   const heldSeats = seats.filter((seat) => seat.status === 'locked').length;
   const blockedSeats = seats.filter((seat) => seat.status === 'blocked').length;
   const fillRate = seats.length ? Math.round((bookedSeats / seats.length) * 100) : 0;
   const activeListings = listings.filter((listing) => listing.status === 'active');
-  const activeSchedules = schedules.filter((schedule) => schedule.status === 'active');
+  const activeSchedules = visibleSchedules.filter((schedule) => schedule.status === 'active');
   const checkedInBookings = bookings.filter((booking) => booking.bookingStatus === 'checked_in');
   const scheduleLabel = (schedule) => {
     const departAt = schedule.departAt ? new Date(schedule.departAt) : null;
@@ -1259,12 +1826,29 @@ function companyDashboardData(companyId, listings, bookings) {
     listingId: vehicle.listingId,
     status: vehicle.status,
   });
-  const seatInventoryRows = schedules.map((schedule) => {
+  const branchOption = (branch) => ({
+    id: branch.id,
+    value: branch.id,
+    label: `${branch.name}${branch.city ? ` - ${branch.city}` : ''}`,
+    branchType: branch.branchType,
+    status: branch.status,
+  });
+  const driverOption = (employee) => {
+    const user = state.users.find((item) => item.id === employee.userId) || {};
+    return {
+      id: employee.id,
+      value: employee.id,
+      userId: employee.userId,
+      label: `${user.fullName || user.email || employee.id}${employee.licenseNumber ? ` - ${employee.licenseNumber}` : ''}`,
+      status: employee.status,
+    };
+  };
+  const seatInventoryRows = busSchedules.map((schedule) => {
     const scheduleSeats = seatsForSchedule(schedule.id);
     const totalSeats = scheduleSeats.length || Number(schedule.totalSeats || 0);
-    const sold = scheduleSeats.filter((seat) => seat.status === 'taken').length;
-    const held = scheduleSeats.filter((seat) => seat.status === 'locked').length;
-    const blocked = scheduleSeats.filter((seat) => seat.status === 'blocked').length;
+    const sold = scheduleSeats.filter((seat) => ['taken', 'booked', 'checked-in'].includes(normalize(seat.status))).length;
+    const held = scheduleSeats.filter((seat) => ['locked', 'held', 'selected'].includes(normalize(seat.status))).length;
+    const blocked = scheduleSeats.filter((seat) => ['blocked', 'maintenance', 'disabled'].includes(normalize(seat.status))).length;
     return [
       `Seat map ${schedule.id}`,
       bookingTitle({ listingId: schedule.listingId }),
@@ -1276,7 +1860,67 @@ function companyDashboardData(companyId, listings, bookings) {
       { entity: 'schedule', id: schedule.id, label: `Seat map ${schedule.id}`, status: schedule.status },
     ];
   });
-  const roomInventoryRows = rooms.map((room) => {
+  const seatMaps = busSchedules.map((schedule) => {
+    const scheduleSeats = seatsForSchedule(schedule.id);
+    const listing = findListing(schedule.listingId) || {};
+    const route = visibleRoutes.find((item) => item.id === schedule.routeId) || {};
+    const vehicle = visibleVehicles.find((item) => item.id === schedule.vehicleId) || {};
+    const matchBookingSeat = (seat) => {
+      const number = seat.seatNumber || seat.label || seat.id;
+      return bookings.find((booking) => {
+        if ((booking.ticketLegs || []).some((leg) => leg.scheduleId === schedule.id && leg.seatNumber === number)) return true;
+        if ((booking.bookingItems || []).some((item) => item.scheduleId === schedule.id && item.seatNumber === number)) return true;
+        return booking.scheduleId === schedule.id && (booking.passengers || []).some((passenger) => [passenger.seatOrRoom, passenger.seatNumber].includes(number));
+      }) || null;
+    };
+    const seats = scheduleSeats.map((seat) => {
+      const booking = matchBookingSeat(seat);
+      const number = seat.seatNumber || seat.label || seat.id;
+      const ticket = (booking?.ticketLegs || []).find((leg) => leg.scheduleId === schedule.id && leg.seatNumber === number) || {};
+      const passenger = (booking?.passengers || [])[ticket.passengerIndex || 0] || (booking?.passengers || []).find((row) => [row.seatOrRoom, row.seatNumber].includes(number)) || {};
+      const status = normalize(seat.status || 'available');
+      return {
+        id: seat.id,
+        scheduleId: schedule.id,
+        seatNumber: number,
+        row: Number(seat.row || 0),
+        col: Number(seat.col || 0),
+        deck: seat.deck || 'main',
+        seatClass: seat.seatClass || seat.seatType || 'Standard',
+        seatType: seat.seatType || normalize(seat.seatClass || 'standard'),
+        status,
+        priceDelta: Number(seat.priceDelta || 0),
+        lockedUntil: seat.lockedUntil || '',
+        lockId: seat.lockId || '',
+        blockedReason: seat.blockedReason || '',
+        bookingRef: booking?.bookingRef || '',
+        passengerName: passenger.fullName || ticket.passengerName || '',
+        passengerPhone: passenger.phone || booking?.guestSnapshot?.phone || '',
+        passengerEmail: passenger.email || booking?.guestSnapshot?.email || '',
+        ticketNumber: ticket.ticketNumber || '',
+        checkInStatus: ticket.checkInStatus || booking?.checkInStatus || '',
+        paymentStatus: booking?.paymentStatus || '',
+      };
+    });
+    return {
+      scheduleId: schedule.id,
+      listingId: listing.id || schedule.listingId,
+      listingTitle: listing.title || bookingTitle({ listingId: schedule.listingId }),
+      routeLabel: route.routeName || [route.origin || listing.from, route.destination || listing.to].filter(Boolean).join(' to '),
+      vehicleName: vehicle.name || schedule.vehicleName || 'Vehicle pending',
+      departAt: schedule.departAt,
+      status: schedule.status,
+      totals: {
+        total: seats.length || Number(schedule.totalSeats || 0),
+        booked: seats.filter((seat) => ['taken', 'booked', 'checked-in'].includes(seat.status)).length,
+        held: seats.filter((seat) => ['locked', 'held', 'selected'].includes(seat.status)).length,
+        available: seats.filter((seat) => seat.status === 'available').length,
+        blocked: seats.filter((seat) => ['blocked', 'maintenance', 'disabled'].includes(seat.status)).length,
+      },
+      seats,
+    };
+  });
+  const roomInventoryRows = visibleRooms.map((room) => {
     const roomBookings = bookings.filter((booking) => booking.listingId === room.listingId && booking.passengers?.some((passenger) => passenger.seatOrRoom === room.roomType)).length;
     return [
       room.roomType,
@@ -1286,9 +1930,243 @@ function companyDashboardData(companyId, listings, bookings) {
       '0',
       room.status === 'active' ? '0' : String(room.inventory),
       room.status,
-      { entity: 'room', id: room.id, label: room.roomType, status: room.status },
+      { entity: 'room', id: room.id, label: room.roomType, status: room.status, detail: { room, listing: listingDetail(findListing(room.listingId) || {}), company: companyDetail(company) } },
     ];
   });
+  const propertyById = (propertyId) => visibleHotelProperties.find((property) => property.id === propertyId) || {};
+  const roomTypeById = (roomTypeId) => visibleRoomTypes.find((roomType) => roomType.id === roomTypeId) || {};
+  const roomUnitById = (roomUnitId) => visibleRoomUnits.find((unit) => unit.id === roomUnitId) || {};
+  const activeStayRows = hotelBookings.filter((booking) => {
+    const status = normalize(booking.hotelStay?.status || booking.bookingStatus);
+    return !['cancelled', 'refunded', 'voided'].includes(status);
+  });
+  const hotelManifestRow = (booking) => [
+    booking.bookingRef,
+    bookingCustomer(booking),
+    bookingTitle(booking),
+    (booking.passengers || []).map((guest) => guest.seatOrRoom || guest.roomNumber || guest.roomType).filter(Boolean).join(', ') || 'Room pending',
+    booking.hotelStay?.checkIn || '-',
+    booking.hotelStay?.checkOut || '-',
+    booking.hotelStay?.status || booking.bookingStatus,
+    dashboardMeta('hotel_booking', booking.bookingRef, booking.bookingRef, booking.bookingStatus, bookingDetail(booking), ['view', 'check_in', 'check_out', 'manifest', 'export']),
+  ];
+  const hotelPropertyRows = visibleHotelProperties.map((property) => {
+    const listing = findListing(property.listingId) || {};
+    return [
+      property.propertyName || listing.title || 'Hotel property',
+      listing.title || property.listingId || '-',
+      [property.city, property.country].filter(Boolean).join(', ') || '-',
+      `${property.checkInTime || '-'} / ${property.checkOutTime || '-'}`,
+      Array.isArray(property.amenities) && property.amenities.length ? property.amenities.join(', ') : '-',
+      property.status || 'active',
+      dashboardMeta('hotel_property', property.id, property.propertyName || listing.title, property.status || 'active', { property, listing: listingDetail(listing), company: companyDetail(company) }, ['view', 'edit', 'rooms', 'manifest']),
+    ];
+  });
+  const roomTypeRows = visibleRoomTypes.map((roomType) => {
+    const listing = findListing(roomType.listingId) || {};
+    const units = visibleRoomUnits.filter((unit) => unit.roomTypeId === roomType.id && unit.status !== 'archived');
+    return [
+      roomType.name || 'Room type',
+      propertyById(roomType.propertyId).propertyName || listing.title || '-',
+      String(roomType.capacity || 1),
+      moneyValue(roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
+      `${units.length} units`,
+      roomType.status || 'active',
+      dashboardMeta('room_type', roomType.id, roomType.name || 'Room type', roomType.status || 'active', { roomType, property: propertyById(roomType.propertyId), listing: listingDetail(listing), units }, ['view', 'edit', 'units', 'pricing']),
+    ];
+  });
+  const roomUnitRows = visibleRoomUnits.map((unit) => {
+    const roomType = roomTypeById(unit.roomTypeId);
+    const listing = findListing(unit.listingId) || {};
+    return [
+      unit.unitNumber || unit.id,
+      roomType.name || 'Room type',
+      propertyById(unit.propertyId).propertyName || listing.title || '-',
+      [unit.floor && `Floor ${unit.floor}`, unit.wing].filter(Boolean).join(' / ') || '-',
+      unit.housekeepingStatus || 'clean',
+      unit.status || 'available',
+      dashboardMeta('room_unit', unit.id, unit.unitNumber || unit.id, unit.status || 'available', { roomUnit: unit, roomType, property: propertyById(unit.propertyId), listing: listingDetail(listing) }, ['view', 'edit', 'maintenance', 'housekeeping']),
+    ];
+  });
+  const roomNightInventoryRows = visibleRoomNightInventories
+    .slice()
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.roomUnitId || '').localeCompare(String(b.roomUnitId || '')))
+    .map((night) => {
+      const unit = roomUnitById(night.roomUnitId);
+      const roomType = roomTypeById(night.roomTypeId);
+      const listing = findListing(night.listingId) || {};
+      const booking = night.bookingRef ? findBooking(night.bookingRef) : null;
+      return [
+        night.date || '-',
+        unit.unitNumber || night.roomUnitId || '-',
+        roomType.name || 'Room type',
+        night.status || 'available',
+        night.bookingRef || '-',
+        night.guestName || bookingCustomer(booking || {}) || '-',
+        moneyValue(night.price || roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
+        dashboardMeta('room_night', night.id, `${unit.unitNumber || night.roomUnitId || 'Room'} ${night.date || ''}`.trim(), night.status || 'available', { roomNight: night, roomUnit: unit, roomType, booking: bookingDetail(booking), listing: listingDetail(listing) }, ['view', 'status', 'booking', 'manifest']),
+      ];
+    });
+  let roomVisualMaps = visibleRoomTypes.map((roomType) => {
+    const listing = findListing(roomType.listingId) || {};
+    const units = visibleRoomUnits.filter((unit) => unit.roomTypeId === roomType.id && unit.status !== 'archived');
+    const roomsForMap = units.map((unit) => {
+      const nights = visibleRoomNightInventories.filter((night) => night.roomUnitId === unit.id).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      const activeNight = nights.find((night) => ['held', 'booked', 'occupied', 'checked-in', 'maintenance', 'cleaning', 'cancelled', 'refunded', 'reserved'].includes(normalize(night.status))) || nights[0] || {};
+      const booking = activeNight.bookingRef ? findBooking(activeNight.bookingRef) : null;
+      return {
+        roomUnitId: unit.id,
+        unitNumber: unit.unitNumber || unit.id,
+        floor: unit.floor || '',
+        wing: unit.wing || '',
+        housekeepingStatus: unit.housekeepingStatus || 'clean',
+        roomTypeId: roomType.id,
+        roomTypeName: roomType.name || 'Room type',
+        date: activeNight.date || '',
+        dateRange: nights.length ? `${nights[0].date} to ${nights[nights.length - 1].date}` : 'No nightly inventory',
+        status: activeNight.status || unit.status || 'available',
+        bookingRef: activeNight.bookingRef || '',
+        guestName: activeNight.guestName || bookingCustomer(booking || {}) || '',
+        guestPhone: booking?.guestSnapshot?.phone || '',
+        guestEmail: booking?.guestSnapshot?.email || '',
+        checkIn: booking?.hotelStay?.checkIn || '',
+        checkOut: booking?.hotelStay?.checkOut || '',
+        price: activeNight.price || roomType.basePrice || listing.priceFrom || 0,
+      };
+    });
+    return {
+      roomTypeId: roomType.id,
+      roomTypeName: roomType.name || 'Room type',
+      propertyName: propertyById(roomType.propertyId).propertyName || listing.title || '-',
+      listingId: listing.id || roomType.listingId,
+      listingTitle: listing.title || 'Hotel listing',
+      status: roomType.status || 'active',
+      totals: {
+        total: roomsForMap.length,
+        available: roomsForMap.filter((room) => normalize(room.status) === 'available').length,
+        held: roomsForMap.filter((room) => ['held', 'reserved'].includes(normalize(room.status))).length,
+        booked: roomsForMap.filter((room) => ['booked', 'occupied', 'checked-in'].includes(normalize(room.status))).length,
+        maintenance: roomsForMap.filter((room) => ['maintenance', 'cleaning'].includes(normalize(room.status))).length,
+      },
+      rooms: roomsForMap,
+    };
+  });
+  if (!roomVisualMaps.length && visibleRooms.length) {
+    roomVisualMaps = visibleRooms.map((room) => {
+      const listing = findListing(room.listingId) || {};
+      const roomBookings = bookings.filter((booking) => booking.listingId === room.listingId && (booking.passengers || []).some((passenger) => passenger.seatOrRoom === room.roomType || passenger.roomType === room.roomType));
+      const bookedRooms = roomBookings.map((booking, index) => ({
+        roomUnitId: `${room.id}-booking-${index + 1}`,
+        unitNumber: `Booked ${index + 1}`,
+        floor: '',
+        wing: '',
+        housekeepingStatus: 'guest-ready',
+        roomTypeId: room.id,
+        roomTypeName: room.roomType || 'Room type',
+        date: booking.hotelStay?.checkIn || dateValue(booking.createdAt),
+        dateRange: [booking.hotelStay?.checkIn, booking.hotelStay?.checkOut].filter(Boolean).join(' to ') || dateValue(booking.createdAt),
+        status: booking.hotelStay?.status || booking.bookingStatus || 'booked',
+        bookingRef: booking.bookingRef,
+        guestName: bookingCustomer(booking),
+        guestPhone: booking.guestSnapshot?.phone || '',
+        guestEmail: booking.guestSnapshot?.email || '',
+        checkIn: booking.hotelStay?.checkIn || '',
+        checkOut: booking.hotelStay?.checkOut || '',
+        price: room.nightlyPrice || listing.priceFrom || 0,
+      }));
+      const availableRooms = Array.from({ length: Math.max(0, Number(room.inventory || 0)) }).map((_, index) => ({
+        roomUnitId: `${room.id}-available-${index + 1}`,
+        unitNumber: `Open ${index + 1}`,
+        floor: '',
+        wing: '',
+        housekeepingStatus: 'clean',
+        roomTypeId: room.id,
+        roomTypeName: room.roomType || 'Room type',
+        date: '',
+        dateRange: 'Available inventory',
+        status: room.status === 'active' ? 'available' : room.status || 'available',
+        bookingRef: '',
+        guestName: '',
+        guestPhone: '',
+        guestEmail: '',
+        checkIn: '',
+        checkOut: '',
+        price: room.nightlyPrice || listing.priceFrom || 0,
+      }));
+      const roomsForMap = [...bookedRooms, ...availableRooms];
+      return {
+        roomTypeId: room.id,
+        roomTypeName: room.roomType || 'Room type',
+        propertyName: listing.title || 'Hotel property',
+        listingId: listing.id || room.listingId,
+        listingTitle: listing.title || 'Hotel listing',
+        status: room.status || 'active',
+        totals: {
+          total: roomsForMap.length,
+          available: availableRooms.length,
+          held: 0,
+          booked: bookedRooms.length,
+          maintenance: room.status === 'active' ? 0 : availableRooms.length,
+        },
+        rooms: roomsForMap,
+      };
+    });
+  }
+  const hotelArrivalRows = activeStayRows.map(hotelManifestRow);
+  const hotelDepartureRows = activeStayRows.filter((booking) => {
+    const status = normalize(booking.hotelStay?.status || booking.bookingStatus);
+    return ['booked', 'confirmed', 'checked-in', 'occupied', 'checked-out', 'completed'].includes(status);
+  }).map(hotelManifestRow);
+  const hotelInHouseRows = activeStayRows.filter((booking) => {
+    const status = normalize(booking.hotelStay?.status || booking.bookingStatus);
+    return ['checked-in', 'occupied', 'in-house', 'in_house'].includes(status);
+  }).map(hotelManifestRow);
+  const bookedSeatGroups = seatMaps.map((map) => {
+    const bookedOrHeld = (map.seats || []).filter((seat) => ['taken', 'booked', 'checked-in', 'checked_in', 'confirmed', 'locked', 'held', 'hold', 'selected', 'reserved'].includes(normalize(seat.status)));
+    return {
+      scheduleId: map.scheduleId,
+      routeLabel: map.routeLabel || map.listingTitle || 'Route',
+      vehicleName: map.vehicleName || 'Vehicle',
+      travelDate: map.departAt ? dateValue(map.departAt) : 'Schedule date pending',
+      status: map.status || 'active',
+      totalBooked: bookedOrHeld.filter((seat) => ['taken', 'booked', 'checked-in', 'checked_in', 'confirmed'].includes(normalize(seat.status))).length,
+      totalHeld: bookedOrHeld.filter((seat) => ['locked', 'held', 'hold', 'selected', 'reserved'].includes(normalize(seat.status))).length,
+      seats: bookedOrHeld.map((seat) => ({
+        seatNumber: seat.seatNumber,
+        status: seat.status,
+        bookingRef: seat.bookingRef || '',
+        passengerName: seat.passengerName || '',
+        passengerPhone: seat.passengerPhone || '',
+        passengerEmail: seat.passengerEmail || '',
+        paymentStatus: seat.paymentStatus || '',
+        checkInStatus: seat.checkInStatus || '',
+      })),
+    };
+  }).filter((group) => group.seats.length);
+  const bookedRoomGroups = roomVisualMaps.map((map) => {
+    const bookedOrHeld = (map.rooms || []).filter((room) => ['held', 'hold', 'reserved', 'booked', 'confirmed', 'occupied', 'checked-in', 'in-house'].includes(normalize(room.status)));
+    return {
+      roomTypeId: map.roomTypeId,
+      roomTypeName: map.roomTypeName || 'Room type',
+      propertyName: map.propertyName || map.listingTitle || 'Hotel',
+      dateRange: bookedOrHeld[0]?.dateRange || 'Date range pending',
+      status: map.status || 'active',
+      totalBooked: bookedOrHeld.filter((room) => ['booked', 'confirmed', 'occupied', 'checked-in', 'in-house'].includes(normalize(room.status))).length,
+      totalHeld: bookedOrHeld.filter((room) => ['held', 'hold', 'reserved'].includes(normalize(room.status))).length,
+      rooms: bookedOrHeld.map((room) => ({
+        roomUnitId: room.roomUnitId,
+        unitNumber: room.unitNumber,
+        status: room.status,
+        bookingRef: room.bookingRef || '',
+        guestName: room.guestName || '',
+        guestPhone: room.guestPhone || '',
+        guestEmail: room.guestEmail || '',
+        checkIn: room.checkIn || '',
+        checkOut: room.checkOut || '',
+        date: room.date || '',
+      })),
+    };
+  }).filter((group) => group.rooms.length);
   return {
     company: {
       id: company.id || companyId,
@@ -1306,6 +2184,13 @@ function companyDashboardData(companyId, listings, bookings) {
       supportMessage: company.settings?.supportMessage || '',
       ratingAverage: Number(company.ratingAverage || 0),
       reviewCount: Number(company.reviewCount || reviews.length),
+      canPublish: company.settings?.canPublish !== false,
+      logo: company.logo || null,
+      coverImage: company.coverImage || null,
+      documents: Array.isArray(company.documents) ? company.documents : [],
+      reviewedBy: company.reviewedBy || '',
+      reviewedAt: company.reviewedAt || '',
+      reviewNotes: company.reviewNotes || '',
     },
     stats: {
       earnings: moneyValue(companyEarnings),
@@ -1317,23 +2202,34 @@ function companyDashboardData(companyId, listings, bookings) {
       openSupportCases: supportTickets.filter((ticket) => !['closed', 'resolved'].includes(normalize(ticket.status))).length.toLocaleString(),
       fillRate: `${fillRate}%`,
       rating: `${Number(company.ratingAverage || 0).toFixed(1)}/5`,
-      routeCount: companyRoutes.length.toLocaleString(),
-      vehicleCount: vehicles.filter((vehicle) => vehicle.status !== 'archived').length.toLocaleString(),
-      roomTypes: rooms.length.toLocaleString(),
+      routeCount: visibleRoutes.length.toLocaleString(),
+      vehicleCount: visibleVehicles.filter((vehicle) => vehicle.status !== 'archived').length.toLocaleString(),
+      roomTypes: (visibleRoomTypes.length || visibleRooms.length).toLocaleString(),
       blockedSeats: blockedSeats.toLocaleString(),
       checkedIn: checkedInBookings.length.toLocaleString(),
     },
+    serviceProfile,
     options: {
       listings: listings.map(listingOption),
       busListings: listings.filter((listing) => listing.serviceType === 'bus').map(listingOption),
       hotelListings: listings.filter((listing) => listing.serviceType === 'hotel').map(listingOption),
       transportListings: listings.filter((listing) => ROUTED_SERVICE_TYPES.includes(listing.serviceType)).map(listingOption),
-      routes: companyRoutes.filter((route) => route.status !== 'archived').map(routeOption),
-      vehicles: vehicles.filter((vehicle) => vehicle.status !== 'archived').map(vehicleOption),
-      schedules: schedules.filter((schedule) => schedule.status !== 'archived').map(scheduleOption),
-      rooms: rooms.filter((room) => room.status !== 'archived').map(roomOption),
+      routes: visibleRoutes.filter((route) => route.status !== 'archived').map(routeOption),
+      vehicles: visibleVehicles.filter((vehicle) => vehicle.status !== 'archived').map(vehicleOption),
+      drivers: (state.companyEmployees || []).filter((employee) => employee.companyId === companyId && (/driver/i.test(employee.roleTitle || '') || (employee.permissions || []).includes('trip_status'))).map((employee) => ({ id: employee.id, value: employee.id, label: employee.fullName || employee.email || employee.phone || employee.id, status: employee.status })),
+      hotelProperties: visibleHotelProperties.filter((property) => property.status !== 'archived').map((property) => ({ id: property.id, value: property.id, label: property.propertyName || property.id, listingId: property.listingId, status: property.status })),
+      roomTypes: visibleRoomTypes.filter((roomType) => roomType.status !== 'archived').map((roomType) => ({ id: roomType.id, value: roomType.id, label: roomType.name || roomType.id, listingId: roomType.listingId, propertyId: roomType.propertyId, status: roomType.status })),
+      roomUnits: visibleRoomUnits.filter((unit) => unit.status !== 'archived').map((unit) => ({ id: unit.id, value: unit.id, label: unit.unitNumber || unit.id, roomTypeId: unit.roomTypeId, propertyId: unit.propertyId, status: unit.status })),
+      schedules: visibleSchedules.filter((schedule) => schedule.status !== 'archived').map(scheduleOption),
+      rooms: visibleRooms.filter((room) => room.status !== 'archived').map(roomOption),
+      branches: companyBranches.filter((branch) => branch.status !== 'archived').map(branchOption),
+      drivers: serviceProfile.supportsTransport ? companyEmployees.filter((employee) => /driver/i.test(employee.roleTitle || '') || (employee.permissions || []).some((permission) => ['driver_manifest', 'trip_status'].includes(permission))).map(driverOption) : [],
     },
     recentBookings: bookings.slice(0, 8).map((booking) => [booking.bookingRef, bookingTitle(booking), bookingCustomer(booking), booking.passengers?.[0]?.seatOrRoom || 'Selected', booking.bookingStatus, bookingTotal(booking)]),
+    seatMaps,
+    roomVisualMaps,
+    bookedSeatGroups,
+    bookedRoomGroups,
     listings: listings.map((listing) => [
       listing.title,
       listing.type,
@@ -1341,21 +2237,33 @@ function companyDashboardData(companyId, listings, bookings) {
       listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`,
       moneyValue(listing.priceFrom),
       listing.status,
-      { entity: 'listing', id: listing.id, label: listing.title, status: listing.status },
+      { entity: 'listing', id: listing.id, label: listing.title, status: listing.status, detail: { listing, company: companyDetail(company) } },
     ]),
-    routes: companyRoutes.map((route) => [
-      `${route.origin} to ${route.destination}`,
+    routes: visibleRoutes.map((route) => [
+      route.routeName || `${route.origin} to ${route.destination}`,
       bookingTitle({ listingId: route.listingId }),
       `${route.boardingPoints?.length || 0} boarding`,
       `${route.dropoffPoints?.length || 0} dropoffs`,
       route.corridor || '',
       route.status,
-      { entity: 'route', id: route.id, label: `${route.origin} to ${route.destination}`, status: route.status },
+      { entity: 'route', id: route.id, label: route.routeName || `${route.origin} to ${route.destination}`, status: route.status, detail: { route, listing: listingDetail(findListing(route.listingId) || {}), company: companyDetail(company) } },
     ]),
-    schedules: schedules.slice(0, 24).map((schedule) => {
+    routeStops: visibleRouteStops.map((stop) => {
+      const route = visibleRoutes.find((item) => item.id === stop.routeId) || {};
+      return [
+        route.routeName || `${route.origin || ''} to ${route.destination || ''}`.trim() || stop.routeId,
+        stop.name,
+        stop.stopType || 'intermediate',
+        String(stop.stopOrder || 0),
+        String(stop.timeOffsetMinutes || 0),
+        stop.status || 'active',
+        { entity: 'routeStop', id: stop.id, label: stop.name, status: stop.status || 'active', detail: { routeStop: stop, route, company: companyDetail(company) } },
+      ];
+    }),
+    schedules: visibleSchedules.slice(0, 24).map((schedule) => {
       const totalSeats = Number(schedule.totalSeats || 0);
       const sold = Math.max(0, totalSeats - Number(schedule.availableSeats || 0) - seatsForSchedule(schedule.id).filter((seat) => ['locked', 'blocked'].includes(seat.status)).length);
-      const vehicle = vehicles.find((item) => item.id === schedule.vehicleId);
+      const vehicle = visibleVehicles.find((item) => item.id === schedule.vehicleId);
       return [
         schedule.id,
         bookingTitle({ listingId: schedule.listingId }),
@@ -1363,17 +2271,17 @@ function companyDashboardData(companyId, listings, bookings) {
         vehicle?.name || schedule.vehicleName || 'Vehicle pending',
         `${sold}/${totalSeats}`,
         schedule.status,
-        { entity: 'schedule', id: schedule.id, label: schedule.id, status: schedule.status },
+        { entity: 'schedule', id: schedule.id, label: schedule.id, status: schedule.status, detail: { schedule, route: visibleRoutes.find((item) => item.id === schedule.routeId) || {}, vehicle, listing: listingDetail(findListing(schedule.listingId) || {}), company: companyDetail(company) } },
       ];
     }),
-    vehicles: vehicles.map((vehicle) => [
+    vehicles: visibleVehicles.map((vehicle) => [
       vehicle.name,
       SERVICE_LABELS[vehicle.serviceType] || vehicle.serviceType || 'Vehicle',
       vehicle.plateOrCode || '-',
       `${vehicle.totalSeats || 0} seats`,
       vehicle.layoutName || 'Layout pending',
       vehicle.status,
-      { entity: 'vehicle', id: vehicle.id, label: vehicle.name, status: vehicle.status },
+      { entity: 'vehicle', id: vehicle.id, label: vehicle.name, status: vehicle.status, detail: { vehicle, listing: listingDetail(findListing(vehicle.listingId) || {}), company: companyDetail(company) } },
     ]),
     bookings: bookings.map((booking) => [booking.bookingRef, bookingTitle(booking), bookingCustomer(booking), booking.passengers?.[0]?.seatOrRoom || 'Selected', dateValue(booking.createdAt), booking.bookingStatus, bookingTotal(booking)]),
     checkins: bookings.slice(0, 24).map((booking) => [
@@ -1386,6 +2294,13 @@ function companyDashboardData(companyId, listings, bookings) {
       { entity: 'checkin', id: booking.bookingRef, label: booking.bookingRef, status: booking.bookingStatus, detail: bookingDetail(booking) },
     ]),
     inventory: [...seatInventoryRows, ...roomInventoryRows],
+    hotelProperties: hotelPropertyRows,
+    roomTypes: roomTypeRows,
+    roomUnits: roomUnitRows,
+    roomNightInventory: roomNightInventoryRows,
+    hotelArrivals: hotelArrivalRows,
+    hotelDepartures: hotelDepartureRows,
+    hotelInHouse: hotelInHouseRows,
     payouts: [
       ...state.walletTransactions.filter((txn) => txn.ownerType === 'company' && txn.ownerId === companyId).map((txn) => [
         txn.id,
@@ -1412,10 +2327,74 @@ function companyDashboardData(companyId, listings, bookings) {
         { entity: 'review', id: review.id, label: booking?.bookingRef || review.id, status: review.status },
       ];
     }),
+    branches: companyBranches.map((branch) => [
+      branch.name,
+      branch.branchType || 'terminal',
+      [branch.city, branch.country].filter(Boolean).join(', '),
+      (branch.serviceCategories || []).join(', '),
+      branch.operatingHours || '-',
+      branch.status || 'active',
+      { entity: 'branch', id: branch.id, label: branch.name, status: branch.status || 'active', detail: { branch, company: companyDetail(company) } },
+    ]),
+    policies: companyPolicies.map((policy) => [
+      policy.title,
+      policy.policyType || 'operations',
+      policy.serviceCategory || 'all',
+      policy.customerVisible ? 'Customer visible' : 'Internal',
+      policy.summary || '-',
+      policy.status || 'active',
+      { entity: 'policy', id: policy.id, label: policy.title, status: policy.status || 'active', detail: { policy, company: companyDetail(company) } },
+    ]),
     staff: companyEmployees.map((employee) => {
       const user = state.users.find((item) => item.id === employee.userId) || {};
       return [user.fullName || user.email || employee.userId, employee.roleTitle || 'Staff', employee.branch || 'Main branch', (employee.permissions || []).join(', '), user.lastLoginAt ? dateValue(user.lastLoginAt) : 'Invited', employee.status || user.status || 'active', { entity: 'employee', id: employee.id, label: user.fullName || user.email || employee.userId, status: employee.status || user.status || 'active' }];
     }),
+    drivers: (serviceProfile.supportsTransport ? companyEmployees : [])
+      .filter((employee) => /driver/i.test(employee.roleTitle || '') || (employee.permissions || []).some((permission) => ['driver_manifest', 'trip_status'].includes(permission)))
+      .map((employee) => {
+        const user = state.users.find((item) => item.id === employee.userId) || {};
+        return [
+          user.fullName || user.email || employee.userId,
+          employee.licenseNumber || '-',
+          employee.safetyStatus || 'pending_review',
+          (employee.permissions || []).join(', '),
+          employee.branch || employee.assignedFleetId || '-',
+          employee.status || user.status || 'active',
+          { entity: 'driver', id: employee.id, label: user.fullName || user.email || employee.id, status: employee.status || user.status || 'active', detail: { driver: employee, user, company: companyDetail(company) } },
+        ];
+      }),
+    driverAssignments: (serviceProfile.supportsTransport ? driverAssignments : []).map((assignment) => {
+      const employee = companyEmployees.find((item) => item.id === assignment.employeeId) || {};
+      const user = state.users.find((item) => item.id === employee.userId || item.id === assignment.driverUserId) || {};
+      const vehicle = visibleVehicles.find((item) => item.id === assignment.vehicleId) || {};
+      return [
+        user.fullName || user.email || assignment.employeeId,
+        vehicle.name || assignment.vehicleId || '-',
+        assignment.scheduleId || '-',
+        assignment.assignmentType || 'schedule',
+        assignment.safetyStatus || employee.safetyStatus || '-',
+        assignment.status || 'active',
+        { entity: 'driverAssignment', id: assignment.id, label: assignment.scheduleId || assignment.id, status: assignment.status || 'active', detail: { assignment, driver: employee, user, vehicle, schedule: state.schedules.find((item) => item.id === assignment.scheduleId) || {}, company: companyDetail(company) } },
+      ];
+    }),
+    driverIncidents: (serviceProfile.supportsTransport ? driverIncidents : []).map((incident) => [
+      incident.id,
+      incident.scheduleId || incident.bookingRef || '-',
+      incident.category || 'general',
+      incident.severity || 'normal',
+      incident.title || incident.description || '-',
+      incident.status || 'open',
+      { entity: 'driverIncident', id: incident.id, label: incident.title || incident.id, status: incident.status || 'open', detail: { incident, company: companyDetail(company) } },
+    ]),
+    tripStatusUpdates: (serviceProfile.supportsTransport ? tripStatusUpdates : []).map((update) => [
+      update.scheduleId,
+      update.status,
+      update.location || '-',
+      update.note || '-',
+      update.createdBy || update.driverUserId || '-',
+      update.createdAt ? dateValue(update.createdAt) : 'Recent',
+      { entity: 'tripStatusUpdate', id: update.id, label: update.scheduleId, status: update.status, detail: { tripStatusUpdate: update, company: companyDetail(company) } },
+    ]),
     support: supportTickets.map((ticket) => [
       ticket.id,
       ticket.audience || ticket.ownerType,
@@ -1456,7 +2435,8 @@ function enrichCompanyDashboard(data, companyId, bookings) {
       return withMeta(row, dashboardMeta('listing', listing.id || row[0], row[0], row[5], listingDetail(listing), ['view', 'edit', 'close', 'bookings', 'occupancy']));
     }),
     routes: (data.routes || []).map((row) => {
-      const route = state.routes.find((item) => `${item.origin} to ${item.destination}` === row[0] && item.companyId === companyId) || {};
+      const meta = rowMetaLike(row);
+      const route = state.routes.find((item) => item.companyId === companyId && (item.id === meta?.id || item.routeName === row[0] || `${item.origin} to ${item.destination}` === row[0])) || {};
       const listing = findListing(route.listingId) || {};
       return withMeta(row, dashboardMeta('route', route.id || row[0], row[0], row[5], { route, listing: listingDetail(listing) }, ['view', 'edit', 'close']));
     }),
@@ -1496,11 +2476,19 @@ function rowMetaLike(row) {
 function employeeDashboardData(companyId, bookings, context = {}) {
   const withMeta = (row, meta) => [...row, meta];
   const employeeId = context.employeeId || 'user-employee-001';
+  const driverMode = Boolean(context.driverMode);
   const company = findCompany(companyId) || {};
   const employeeUser = state.users.find((user) => user.id === employeeId) || state.users.find((user) => user.companyId === companyId && user.role === 'company_employee') || {};
   const employeeProfile = (Array.isArray(state.companyEmployees) ? state.companyEmployees : []).find((employee) => employee.companyId === companyId && employee.userId === employeeUser.id) || {};
   const listings = state.listings.filter((listing) => listing.companyId === companyId);
-  const schedules = state.schedules.filter((schedule) => schedule.companyId === companyId).slice(0, 50);
+  const assignedScheduleIds = new Set((Array.isArray(state.driverAssignments) ? state.driverAssignments : [])
+    .filter((assignment) => assignment.companyId === companyId && (!employeeProfile.id || assignment.employeeId === employeeProfile.id || assignment.driverUserId === employeeUser.id))
+    .map((assignment) => assignment.scheduleId)
+    .filter(Boolean));
+  const schedules = state.schedules
+    .filter((schedule) => schedule.companyId === companyId)
+    .filter((schedule) => !driverMode || !assignedScheduleIds.size || assignedScheduleIds.has(schedule.id) || schedule.driverEmployeeId === employeeProfile.id || schedule.driverUserId === employeeUser.id)
+    .slice(0, 50);
   const rooms = state.rooms.filter((room) => room.companyId === companyId);
   const supportTickets = state.supportTickets.filter((ticket) => ticket.companyId === companyId || (ticket.ownerType === 'company' && (!ticket.ownerId || ticket.ownerId === companyId)));
   const companyDashboard = companyDashboardData(companyId, listings, bookings);
@@ -1644,7 +2632,30 @@ function employeeDashboardData(companyId, bookings, context = {}) {
     'Current shift', employeeUser.fullName || 'Team', 'No handover submitted yet. Use the form to record cash, bookings, check-ins, and issues.', 'Open',
   ], dashboardMeta('handover', 'handover-current', 'Current shift', 'open', handoverDetail({ id: 'handover-current', companyId, employeeId, shift: 'Current shift', nextStaff: employeeUser.fullName, note: 'No handover submitted yet', status: 'open' }, companyId), ['view']))];
 
+  const driverIncidentRows = (Array.isArray(state.driverIncidents) ? state.driverIncidents : [])
+    .filter((incident) => incident.companyId === companyId && (!driverMode || schedules.some((schedule) => schedule.id === incident.scheduleId) || incident.driverUserId === employeeUser.id))
+    .map((incident) => withMeta([
+      incident.id,
+      incident.scheduleId || incident.bookingRef || '-',
+      incident.category || 'general',
+      incident.severity || 'normal',
+      incident.title || incident.description || '-',
+      incident.status || 'open',
+    ], dashboardMeta('driverIncident', incident.id, incident.title || incident.id, incident.status || 'open', { incident, company: companyDetail(company) }, ['view', 'export'])));
+
+  const tripStatusRows = (Array.isArray(state.tripStatusUpdates) ? state.tripStatusUpdates : [])
+    .filter((update) => update.companyId === companyId && (!driverMode || schedules.some((schedule) => schedule.id === update.scheduleId) || update.driverUserId === employeeUser.id))
+    .map((update) => withMeta([
+      update.scheduleId,
+      update.status,
+      update.location || '-',
+      update.note || '-',
+      update.createdAt ? dateValue(update.createdAt) : 'Recent',
+      update.createdBy || update.driverUserId || '-',
+    ], dashboardMeta('tripStatusUpdate', update.id, update.scheduleId, update.status, { tripStatusUpdate: update, company: companyDetail(company) }, ['view', 'export'])));
+
   return {
+    mode: driverMode ? 'driver' : 'employee',
     company: {
       id: company.id || companyId,
       name: company.name || 'Company partner',
@@ -1657,7 +2668,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
       phone: employeeUser.phone || '',
       status: employeeUser.status || 'active',
       role: employeeUser.role || 'company_employee',
-      roleTitle: employeeProfile.roleTitle || 'Ticket Checker',
+      roleTitle: driverMode ? (employeeProfile.roleTitle || 'Driver') : (employeeProfile.roleTitle || 'Ticket Checker'),
       permissionsLabel: (employeeProfile.permissions || ['check_in', 'view_bookings']).join(', '),
       branch: employeeProfile.branch || company.city || 'Main branch',
       shift: employeeProfile.shift || 'Morning shift',
@@ -1683,6 +2694,9 @@ function employeeDashboardData(companyId, bookings, context = {}) {
       rooms: rooms.filter((room) => room.status !== 'archived').map((room) => ({ id: room.id, value: room.id, label: `${room.roomType} - ${bookingTitle({ listingId: room.listingId })}`, listingId: room.listingId, status: room.status })),
     },
     tasks: supportRows,
+    driverOps: scheduleRows,
+    driverIncidents: driverIncidentRows,
+    tripStatusUpdates: tripStatusRows,
     checkins: checkinRows,
     bookings: rows,
     schedules: scheduleRows,
@@ -1934,7 +2948,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
     liveActivity: currentTicket.bookingRef ? [
       ['Service', bookingTitle(currentTicket)],
       ['Departure', dateValue(currentTicket.travelDate || currentTicket.departAt || currentTicket.createdAt)],
-      ['Seat / room', (currentTicket.passengers || []).map((pax) => pax.seatOrRoom || pax.seatNumber).filter(Boolean).join(', ') || 'Assigned at check-in'],
+      [currentTicket.serviceType === 'bus' ? 'Seat' : 'Seat / room', (currentTicket.passengers || []).map((pax) => currentTicket.serviceType === 'bus' ? displaySeatNo(pax.seatOrRoom || pax.seatNumber) : (pax.seatOrRoom || pax.seatNumber)).filter(Boolean).join(', ') || 'Assigned at check-in'],
       ['Booking', currentTicket.bookingRef],
     ] : [],
     profile: {
@@ -2083,6 +3097,65 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
     ['Duplicate customer contacts', 'Recent referrals', String(new Set(bookings.map((booking) => normalize(booking.guestSnapshot?.phone || booking.guestSnapshot?.email))).size), 'Low', 'Approved', dashboardMeta('traffic_quality', 'duplicate-contacts', 'Duplicate customer contacts', 'Approved', { traffic: { uniqueContacts: new Set(bookings.map((booking) => normalize(booking.guestSnapshot?.phone || booking.guestSnapshot?.email))).size, totalBookings: bookings.length }, promoter: promoter.promoter }, ['view', 'export'])],
     ['Cancellation rate', 'All sources', bookings.length ? `${Math.round((cancelledRefundedBookings.length / bookings.length) * 100)}%` : '0%', cancelledRefundedBookings.length > 2 ? 'Medium' : 'Low', cancelledRefundedBookings.length > 2 ? 'Review' : 'Approved', dashboardMeta('traffic_quality', 'cancellation-rate', 'Cancellation rate', cancelledRefundedBookings.length > 2 ? 'Review' : 'Approved', { traffic: { totalBookings: bookings.length, cancelledOrRefunded: cancelledRefundedBookings.length, rate: bookings.length ? `${Math.round((cancelledRefundedBookings.length / bookings.length) * 100)}%` : '0%' }, promoter: promoter.promoter }, ['view', 'export'])],
   ];
+  const promoterOfflineSales = (state.offlineSales || []).filter((sale) => sale.agentId === promoterId);
+  const offlineSaleRows = promoterOfflineSales.map((sale) => [
+    sale.saleRef || sale.id,
+    sale.bookingRef || '-',
+    sale.customerName || sale.passengerName || '-',
+    findListing(sale.listingId)?.title || sale.listingId || '-',
+    sale.paymentMethod || '-',
+    moneyValue(sale.amountCollected || 0, sale.currency || 'UGX'),
+    sale.status || 'completed',
+    dashboardMeta('agent_sale', sale.id, sale.saleRef || sale.id, sale.status || 'completed', { sale, booking: sale.bookingRef ? bookingDetail(findBooking(sale.bookingRef)) : null }, ['view', 'booking', 'receipt', 'export']),
+  ]);
+  const promoterReferralClickRows = (state.referralClicks || []).filter((click) => click.promoterId === promoterId).map((click) => [
+    click.id,
+    click.code || '-',
+    promoterUser.fullName || promoterId,
+    findListing(click.listingId)?.title || click.listingId || '-',
+    click.ip || '-',
+    click.createdAt ? dateValue(click.createdAt) : '-',
+    dashboardMeta('referral_click', click.id, click.code || click.id, 'tracked', { click, promoter: promoter.promoter }, ['view', 'export']),
+  ]);
+  const promoterAttributionRows = (state.attributionSessions || []).filter((session) => session.promoterId === promoterId).map((session) => [
+    session.id,
+    session.referralCode || '-',
+    promoterUser.fullName || promoterId,
+    findListing(session.listingId)?.title || session.listingId || '-',
+    session.status || 'active',
+    session.bookingRef || '-',
+    session.createdAt ? dateValue(session.createdAt) : '-',
+    dashboardMeta('attribution_session', session.id, session.referralCode || session.id, session.status || 'active', { session, promoter: promoter.promoter }, ['view', 'export']),
+  ]);
+  const promoterConversionRows = (state.campaignConversions || []).filter((conversion) => conversion.promoterId === promoterId).map((conversion) => [
+    conversion.id,
+    conversion.campaignId || conversion.linkId || '-',
+    promoterUser.fullName || promoterId,
+    conversion.bookingRef || '-',
+    moneyValue(conversion.amount || 0, conversion.currency || 'UGX'),
+    moneyValue(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
+    conversion.status || 'converted',
+    dashboardMeta('campaign_conversion', conversion.id, conversion.bookingRef || conversion.id, conversion.status || 'converted', { conversion, booking: conversion.bookingRef ? bookingDetail(findBooking(conversion.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
+  const promoterReferralCardRows = links.map((link) => [
+    link.id,
+    promoterUser.fullName || promoterId,
+    link.code || link.referralCode || '-',
+    findListing(link.listingId)?.title || link.listingId || '-',
+    link.qrCardUrl || `/promoter/links/${link.id}/qr-card`,
+    link.status || 'active',
+    dashboardMeta('referral_card', link.id, link.code || link.id, link.status || 'active', { link, promoter: promoter.promoter }, ['view', 'qr', 'export']),
+  ]);
+  const promoterFraudSignalRows = (state.fraudSignals || []).filter((signal) => signal.promoterId === promoterId || signal.agentId === promoterId).map((signal) => [
+    signal.id,
+    promoterUser.fullName || promoterId,
+    signal.bookingRef || '-',
+    signal.signalType || 'booking_risk',
+    signal.severity || '-',
+    String(signal.score || 0),
+    signal.status || 'open',
+    dashboardMeta('fraud_signal', signal.id, signal.bookingRef || signal.id, signal.status || 'open', { signal, booking: signal.bookingRef ? bookingDetail(findBooking(signal.bookingRef)) : null }, ['view', 'booking', 'export']),
+  ]);
 
   return {
     profile: {
@@ -2134,6 +3207,13 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
       ...withdrawalTransactions.map((txn) => [txn.id, dateValue(txn.createdAt), txn.currency || wallet.currency || 'UGX', moneyValue(txn.amount || 0, txn.currency || wallet.currency || 'UGX'), txn.reference || txn.transactionType || 'Withdrawal', txn.status, dashboardMeta('payout', txn.id, txn.id, txn.status, withdrawalDetail(txn), ['view', 'export'])]),
     ],
     fraud: trafficRows,
+    offlineSales: offlineSaleRows,
+    agentSales: offlineSaleRows,
+    referralClicks: promoterReferralClickRows,
+    attributionSessions: promoterAttributionRows,
+    campaignConversions: promoterConversionRows,
+    referralCards: promoterReferralCardRows,
+    fraudSignals: promoterFraudSignalRows,
     support: supportRows.map((ticket) => [ticket.id, ticket.subject, ticket.priority, ticket.status, dateValue(ticket.createdAt || ticket.updatedAt), dashboardMeta('support_case', ticket.id, ticket.id, ticket.status, supportDetail(ticket), ['view', 'export'])]),
     performance: {
       bars: [['Mon', 44], ['Tue', 58], ['Wed', 70], ['Thu', 62], ['Fri', 84], ['Sat', 92], ['Sun', 76]],
@@ -2362,13 +3442,91 @@ function settleBookingPayment(bookingRef) {
       referenceType: 'booking',
       referenceId: booking.id,
     });
-    if (promoterLink) promoterLink.conversions = Number(promoterLink.conversions || 0) + 1;
+    const existingConversion = promoterLink
+      ? state.campaignConversions.some((row) => row.bookingRef === booking.bookingRef && row.linkId === promoterLink.id)
+      : false;
+    if (promoterLink && !existingConversion) promoterLink.conversions = Number(promoterLink.conversions || 0) + 1;
   }
   const activeCampaign = listing ? state.promotionCampaigns.find((campaign) => campaign.listingId === listing.id && campaign.status === 'active') : null;
   if (activeCampaign) activeCampaign.bookings = Number(activeCampaign.bookings || 0) + 1;
   booking.settlementStatus = 'settled';
   booking.settledAt = new Date().toISOString();
   return booking;
+}
+
+function parsePayloadArray(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function listPayloadValues(value) {
+  if (Array.isArray(value)) return value.flatMap((item) => listPayloadValues(item));
+  return String(value || '').split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
+}
+
+function passengerInputFromPayload(payload = {}) {
+  const explicit = parsePayloadArray(payload.passengers, []);
+  if (explicit.length) return explicit;
+  const names = listPayloadValues(payload.passengerNames || payload.passengerFullName || []);
+  const phones = listPayloadValues(payload.passengerPhones || payload.passengerPhone || []);
+  const emails = listPayloadValues(payload.passengerEmails || payload.passengerEmail || []);
+  const pickups = listPayloadValues(payload.pickupPoints || payload.pickupPoint || []);
+  const dropoffs = listPayloadValues(payload.dropoffPoints || payload.dropoffPoint || []);
+  const notes = listPayloadValues(payload.passengerNotes || payload.passengerNote || []);
+  const count = Math.max(names.length, phones.length, emails.length, pickups.length, dropoffs.length, notes.length);
+  return Array.from({ length: count }).map((_, index) => ({
+    fullName: names[index] || '',
+    phone: phones[index] || '',
+    email: emails[index] || '',
+    pickupPoint: pickups[index] || '',
+    dropoffPoint: dropoffs[index] || '',
+    notes: notes[index] || '',
+    specialNotes: notes[index] || '',
+  }));
+}
+
+function cleanSeatToken(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const withoutPrefix = raw.replace(/^seat\s*(no\.?|number)?\s*/i, '').trim();
+  const legacy = withoutPrefix.match(/^[A-Za-z](\d+)$/);
+  return legacy ? legacy[1] : withoutPrefix;
+}
+
+function displaySeatNo(value) {
+  const clean = cleanSeatToken(value);
+  return clean ? `Seat No ${clean}` : 'Seat pending';
+}
+
+function seatListFrom(value) {
+  if (Array.isArray(value)) return value.flatMap((seat) => seatListFrom(seat));
+  return String(value || '').split(',').map((seat) => cleanSeatToken(seat)).filter(Boolean);
+}
+
+function qrNonceFor(bookingRef, scheduleId, seatNumber, index) {
+  return crypto.createHash('sha1').update(`${bookingRef}:${scheduleId}:${seatNumber}:${index}:${Date.now()}:${Math.random()}`).digest('hex').slice(0, 16).toUpperCase();
+}
+
+function qrPublicValueForLeg(bookingRef, leg = {}) {
+  if (!leg || !bookingRef) return '';
+  if (leg.qrToken) return leg.qrToken;
+  if (!leg.qrNonce) return '';
+  return `CLASSIC-TRIP:TICKET:${bookingRef}:${leg.id}:${leg.qrNonce}`;
+}
+
+function qrHash(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
+function qrPreview(token = '') {
+  const value = String(token || '');
+  return value.length > 14 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
 }
 
 function createBooking(payload = {}, req = null) {
@@ -2398,33 +3556,67 @@ function createBooking(payload = {}, req = null) {
   const promoterLink = refCode ? state.promoterLinks.find((link) => isActivePromoterLink(link) && (normalize(link.code) === normalize(refCode) || normalize(link.code.split('-').slice(0, -1).join('-')) === normalize(refCode))) : null;
   const isSelfReferral = promoterLink && req?.session?.user?.id === promoterLink.promoterId;
   const hasValidReferral = Boolean(promoterLink && !isSelfReferral);
+  const explicitPromoterAttribution = !req && payload.promoterAttribution ? payload.promoterAttribution : null;
+  const promoterAttribution = hasValidReferral
+    ? { promoterId: promoterLink.promoterId, linkId: promoterLink.id, code: promoterLink.code }
+    : explicitPromoterAttribution;
   let scheduleId = payload.scheduleId || schedulesForListing(listing.id)[0]?.id || null;
-  let selected = payload.selected || payload.seatNumber || payload.roomId || (listing.serviceType === 'bus' ? 'A1' : 'Room 201');
+  let selected = payload.selected || payload.seatNumber || payload.roomId || (listing.serviceType === 'bus' ? '1' : 'Room 201');
   let subtotal = Number(listing.priceFrom) || 0;
+  const passengerInput = passengerInputFromPayload(payload);
+  const busLegSelections = [];
+  let tripType = 'one_way';
 
   if (listing.serviceType === 'bus') {
     const schedule = state.schedules.find((item) => item.id === scheduleId) || schedulesForListing(listing.id)[0];
     scheduleId = schedule?.id || null;
-    const seats = schedule ? seatsForSchedule(schedule.id) : [];
-    const requestedSeat = payload.selected || payload.seatNumber;
-    const seat = requestedSeat ? seats.find((item) => item.seatNumber === requestedSeat) : seats.find((item) => item.status === 'available');
-    if (seat?.status === 'locked' && seat.lockedUntil && new Date(seat.lockedUntil) <= new Date()) {
-      seat.status = 'available';
-      seat.lockedUntil = null;
-      seat.lockId = null;
+    const passengerCount = Math.max(1, passengerInput.length, seatListFrom(payload.selectedSeats || payload.selected || payload.seatNumber).length, seatListFrom(payload.returnSeats).length);
+
+    const reserveSeats = (legSchedule, requestedSeats, legType) => {
+      if (!legSchedule) {
+        const error = new Error('Selected schedule is no longer available');
+        error.status = 409;
+        throw error;
+      }
+      const seats = seatsForSchedule(legSchedule.id);
+      const used = new Set();
+      const requested = seatListFrom(requestedSeats);
+      const selections = [];
+      for (let index = 0; index < passengerCount; index += 1) {
+        const requestedSeat = requested[index];
+        let seat = requestedSeat ? seats.find((item) => item.seatNumber === requestedSeat) : null;
+        if (!seat) seat = seats.find((item) => item.status === 'available' && !used.has(item.seatNumber));
+        if (seat?.status === 'locked' && seat.lockedUntil && new Date(seat.lockedUntil) <= new Date()) {
+          seat.status = 'available';
+          seat.lockedUntil = null;
+          seat.lockId = null;
+        }
+        const lockedByAnotherCheckout = seat?.status === 'locked' && (!payload.holdId || seat.lockId !== payload.holdId);
+        if (!seat || used.has(seat.seatNumber) || ['taken', 'booked', 'blocked', 'maintenance', 'disabled'].includes(seat.status) || lockedByAnotherCheckout) {
+          const error = new Error('Selected seat is no longer available');
+          error.status = 409;
+          throw error;
+        }
+        used.add(seat.seatNumber);
+        seat.status = 'taken';
+        seat.lockedUntil = null;
+        seat.lockId = null;
+        const price = Number(legSchedule.basePrice || listing.priceFrom || 0) + Number(seat.priceDelta || 0);
+        selections.push({ legType, schedule: legSchedule, seat, passengerIndex: index, price });
+      }
+      legSchedule.availableSeats = Math.max(0, Number(legSchedule.availableSeats || 0) - selections.length);
+      return selections;
+    };
+
+    const outboundSelections = reserveSeats(schedule, payload.selectedSeats || payload.selected || payload.seatNumber, 'outbound');
+    busLegSelections.push(...outboundSelections);
+    if (payload.returnScheduleId) {
+      const returnSchedule = state.schedules.find((item) => item.id === payload.returnScheduleId && item.listingId === listing.id);
+      tripType = 'round_trip';
+      busLegSelections.push(...reserveSeats(returnSchedule, payload.returnSeats, 'return'));
     }
-    const lockedByAnotherCheckout = seat?.status === 'locked' && (!payload.holdId || seat.lockId !== payload.holdId);
-    if (!schedule || !seat || seat.status === 'taken' || lockedByAnotherCheckout) {
-      const error = new Error('Selected seat is no longer available');
-      error.status = 409;
-      throw error;
-    }
-    seat.status = 'taken';
-    seat.lockedUntil = null;
-    seat.lockId = null;
-    schedule.availableSeats = Math.max(0, Number(schedule.availableSeats || 0) - 1);
-    selected = seat.seatNumber;
-    subtotal = Number(schedule.basePrice || listing.priceFrom || 0) + Number(seat.priceDelta || 0);
+    selected = outboundSelections.map((selection) => selection.seat.seatNumber).join(',');
+    subtotal = busLegSelections.reduce((total, selection) => total + selection.price, 0);
   }
 
   if (listing.serviceType === 'hotel') {
@@ -2458,6 +3650,76 @@ function createBooking(payload = {}, req = null) {
   const split = calculateCommission(total, hasValidReferral);
   const bookingRef = generateBookingRef(listing.serviceType);
   const initialPaymentStatus = payload.paymentStatus || (payload.deferPayment ? 'pending' : 'successful');
+  const outboundSelections = busLegSelections.filter((selection) => selection.legType === 'outbound');
+  const passengerRows = listing.serviceType === 'bus'
+    ? Array.from({ length: Math.max(1, passengerInput.length, outboundSelections.length) }).map((_, index) => {
+      const input = passengerInput[index] || {};
+      const seat = outboundSelections[index]?.seat;
+      return {
+        id: `passenger-${state.passengers.length + index + 1}`,
+        fullName: input.fullName || input.name || (index === 0 ? payload.passengerName || payload.fullName : `${payload.fullName || 'Guest Customer'} ${index + 1}`),
+        email: input.email || payload.email || '',
+        phone: input.phone || payload.phone || '',
+        seatOrRoom: seat?.seatNumber || selected,
+        seatNumber: seat?.seatNumber || selected,
+        pickupPoint: input.pickupPoint || payload.pickupPoint || '',
+        dropoffPoint: input.dropoffPoint || payload.dropoffPoint || '',
+        specialNotes: input.specialNotes || input.travelNotes || input.notes || '',
+      };
+    })
+    : [{ fullName: payload.passengerName || payload.fullName || 'Guest Customer', seatOrRoom: selected }];
+  const bookingLegs = listing.serviceType === 'bus'
+    ? Array.from(new Map(busLegSelections.map((selection) => [selection.legType, selection])).values()).map((selection) => ({
+      legType: selection.legType,
+      scheduleId: selection.schedule.id,
+      listingId: listing.id,
+      companyId: listing.companyId,
+      departAt: selection.schedule.departAt,
+      arriveAt: selection.schedule.arriveAt,
+      status: 'confirmed',
+    }))
+    : [];
+  const bookingItems = listing.serviceType === 'bus'
+    ? busLegSelections.map((selection, index) => ({
+      id: `booking-item-${state.bookings.length + 1}-${index + 1}`,
+      bookingRef,
+      serviceType: 'bus',
+      legType: selection.legType,
+      listingId: listing.id,
+      scheduleId: selection.schedule.id,
+      seatNumber: selection.seat.seatNumber,
+      passengerIndex: selection.passengerIndex,
+      passengerName: passengerRows[selection.passengerIndex]?.fullName || payload.fullName || 'Passenger',
+      unitPrice: selection.price,
+      currency: listing.currency || selection.schedule.currency || 'UGX',
+      status: 'confirmed',
+    }))
+    : [];
+  const ticketLegs = listing.serviceType === 'bus'
+    ? busLegSelections.map((selection, index) => {
+      const id = `ticket-leg-${state.bookings.length + 1}-${index + 1}`;
+      const qrNonce = qrNonceFor(bookingRef, selection.schedule.id, selection.seat.seatNumber, index + 1);
+      const qrValue = `CLASSIC-TRIP:TICKET:${bookingRef}:${id}:${qrNonce}`;
+      return {
+        id,
+        bookingRef,
+        ticketNumber: `${bookingRef}-${selection.schedule.id}-${selection.seat.seatNumber}`,
+        legType: selection.legType,
+        serviceType: 'bus',
+        listingId: listing.id,
+        scheduleId: selection.schedule.id,
+        seatNumber: selection.seat.seatNumber,
+        passengerIndex: selection.passengerIndex,
+        passengerName: passengerRows[selection.passengerIndex]?.fullName || payload.fullName || 'Passenger',
+        qrNonce,
+        qrTokenHash: qrHash(qrValue),
+        qrTokenPreview: qrPreview(qrValue),
+        checkInStatus: 'boarding',
+        status: 'valid',
+        createdAt: new Date().toISOString(),
+      };
+    })
+    : [];
   const booking = {
     id: `booking-${state.bookings.length + 1}`,
     bookingRef,
@@ -2467,14 +3729,27 @@ function createBooking(payload = {}, req = null) {
       email: payload.email || 'guest@example.com',
       phone: payload.phone || '+256700000000',
     },
-    customerUserId: req?.session?.user?.id || null,
+    buyerSnapshot: {
+      fullName: payload.fullName || payload.customerName || 'Guest Customer',
+      email: payload.email || 'guest@example.com',
+      phone: payload.phone || '+256700000000',
+      idType: payload.idType || '',
+      documentNumber: payload.documentNumber || '',
+      notes: payload.notes || payload.customerNote || '',
+    },
+    customerUserId: payload.customerUserId || payload.userId || req?.session?.user?.id || null,
     companyId: listing.companyId,
     listingId: listing.id,
     scheduleId,
-    passengers: [{ fullName: payload.passengerName || payload.fullName || 'Guest Customer', seatOrRoom: selected }],
+    passengers: passengerRows,
+    bookingItems,
+    bookingLegs,
+    ticketLegs,
+    tripType,
     addons: selectedAddons,
+    notes: payload.notes || payload.customerNote || '',
     pricing: { subtotal, fees, addonTotal, total, currency: listing.currency || 'UGX', split, addons: selectedAddons },
-    promoterAttribution: hasValidReferral ? { promoterId: promoterLink.promoterId, linkId: promoterLink.id, code: promoterLink.code } : null,
+    promoterAttribution,
     paymentStatus: initialPaymentStatus,
     bookingStatus: initialPaymentStatus === 'successful' ? 'confirmed' : 'pending',
     qrCodeValue: `CLASSIC-TRIP:${bookingRef}:${listing.id}:${Date.now()}`,
@@ -2482,7 +3757,21 @@ function createBooking(payload = {}, req = null) {
     createdAt: new Date().toISOString(),
   };
   state.bookings.unshift(booking);
+  passengerRows.forEach((passenger, index) => {
+    state.passengers.push({
+      ...passenger,
+      id: passenger.id || `passenger-${state.passengers.length + 1}`,
+      bookingId: booking.id,
+      bookingRef: booking.bookingRef,
+      companyId: booking.companyId,
+      listingId: booking.listingId,
+      scheduleId: booking.scheduleId,
+      passengerIndex: index,
+      createdAt: booking.createdAt,
+    });
+  });
   const fraudService = require('../fraud/fraudService');
+  const promoterNetworkService = require('../promoter/promoterNetworkService');
   booking.risk = fraudService.scoreBookingRisk(booking);
   if (fraudService.needsManualReview(booking.risk)) {
     state.supportTickets.unshift({
@@ -2501,6 +3790,16 @@ function createBooking(payload = {}, req = null) {
       createdAt: new Date().toISOString(),
       meta: { bookingId: booking.id, risk: booking.risk },
     });
+    promoterNetworkService.createFraudSignal({
+      booking,
+      signalType: 'booking_risk',
+      score: booking.risk.score,
+      reasons: booking.risk.reasons || [],
+      metadata: { source: booking.agentSale || booking.offlineSale ? 'agent_offline' : 'booking', risk: booking.risk },
+    });
+  }
+  if (booking.promoterAttribution?.promoterId) {
+    promoterNetworkService.recordConversion(booking, booking.agentSale || booking.offlineSale ? 'agent_offline' : 'booking');
   }
   if (booking.paymentStatus === 'successful') settleBookingPayment(booking.bookingRef);
   return booking;
@@ -2514,6 +3813,12 @@ function bookingSearchValues(booking = {}) {
     passenger.phone,
     passenger.seatOrRoom,
     passenger.seatNumber,
+  ]);
+  const ticketValues = (booking.ticketLegs || []).flatMap((ticket) => [
+    ticket.id,
+    ticket.ticketNumber,
+    ticket.qrTokenHash,
+    ticket.seatNumber,
   ]);
   return [
     booking.id,
@@ -2532,6 +3837,7 @@ function bookingSearchValues(booking = {}) {
     booking.customer?.email,
     booking.customer?.phone,
     ...passengerValues,
+    ...ticketValues,
   ].filter(Boolean).map((value) => String(value));
 }
 
@@ -2548,6 +3854,51 @@ function searchBooking(value, companyId = '') {
     if (companyId && booking.companyId !== companyId) return false;
     return bookingSearchValues(booking).some((field) => normalize(field).includes(key));
   }) || null;
+}
+
+function ticketSearchValues(ticket = {}) {
+  return [
+    ticket.id,
+    ticket.ticketNumber,
+    ticket.qrTokenHash,
+    ticket.seatNumber,
+    ticket.roomNumber,
+  ].filter(Boolean).map((value) => String(value));
+}
+
+function findTicketOnBooking(booking = {}, value = '') {
+  const key = normalize(value);
+  if (!key) return null;
+  const scannedHash = qrHash(value);
+  return (booking.ticketLegs || []).find((ticket) => {
+    if (ticket.qrTokenHash && normalize(ticket.qrTokenHash) === normalize(scannedHash)) return true;
+    return ticketSearchValues(ticket).some((field) => normalize(field) === key || normalize(field).includes(key));
+  }) || null;
+}
+
+function searchTicket(value, companyId = '') {
+  const booking = searchBooking(value, companyId);
+  if (!booking) return { booking: null, ticket: null };
+  return { booking, ticket: findTicketOnBooking(booking, value) };
+}
+
+function updatePassengerCheckState(booking = {}, ticket = {}, status = 'boarding') {
+  const passengerIndex = Number(ticket.passengerIndex || 0);
+  const passenger = (booking.passengers || [])[passengerIndex];
+  if (!passenger) return;
+  passenger.checkInStatus = status;
+  passenger.ticketNumber = ticket.ticketNumber || passenger.ticketNumber;
+  passenger.scheduleId = ticket.scheduleId || passenger.scheduleId;
+}
+
+function bookingCheckInProgress(booking = {}) {
+  const legs = booking.ticketLegs || [];
+  if (!legs.length) return { allCheckedIn: booking.checkInStatus === 'checked_in', anyCheckedIn: booking.checkInStatus === 'checked_in' };
+  return {
+    allCheckedIn: legs.every((leg) => leg.checkInStatus === 'checked_in'),
+    anyCheckedIn: legs.some((leg) => leg.checkInStatus === 'checked_in'),
+    allClosed: legs.every((leg) => ['checked_in', 'no_show', 'cancelled', 'refunded', 'voided'].includes(normalize(leg.checkInStatus || leg.status))),
+  };
 }
 
 function bookingDetail(booking = {}) {
@@ -2575,6 +3926,10 @@ function bookingDetail(booking = {}) {
       quantity: booking.quantity || booking.passengers?.length || 1,
       passengers: booking.passengers || [],
       seats: (booking.passengers || []).map((pax) => pax.seatOrRoom || pax.seatNumber).filter(Boolean),
+      bookingItems: booking.bookingItems || [],
+      bookingLegs: booking.bookingLegs || [],
+      ticketLegs: booking.ticketLegs || [],
+      tripType: booking.tripType || 'one_way',
       notes: booking.notes || booking.customerNote || '',
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
@@ -2585,9 +3940,12 @@ function bookingDetail(booking = {}) {
     customer: {
       userId: booking.customerUserId || '',
       type: booking.customerUserId ? 'Registered customer' : 'Guest customer',
-      name: booking.guestSnapshot?.fullName || booking.passengers?.[0]?.fullName || 'Guest customer',
-      email: booking.guestSnapshot?.email || '',
-      phone: booking.guestSnapshot?.phone || '',
+      name: booking.buyerSnapshot?.fullName || booking.guestSnapshot?.fullName || booking.passengers?.[0]?.fullName || 'Guest customer',
+      email: booking.buyerSnapshot?.email || booking.guestSnapshot?.email || '',
+      phone: booking.buyerSnapshot?.phone || booking.guestSnapshot?.phone || '',
+      idType: booking.buyerSnapshot?.idType || '',
+      documentNumber: booking.buyerSnapshot?.documentNumber || '',
+      notes: booking.buyerSnapshot?.notes || booking.notes || '',
     },
     company: {
       id: company.id || booking.companyId,
@@ -2710,6 +4068,12 @@ function companyDetail(company = {}) {
     payout: {
       payoutAccount: company.payoutAccount || company.settings?.payoutAccount || '',
       walletId: company.walletId || '',
+    },
+    media: {
+      logo: company.logo || null,
+      coverImage: company.coverImage || null,
+      documents: Array.isArray(company.documents) ? company.documents : [],
+      canPublish: company.settings?.canPublish !== false,
     },
     timestamps: {
       createdAt: company.createdAt,
@@ -2975,45 +4339,70 @@ function adminUserDetail(user = {}) {
   };
 }
 
-function checkInBlockReason(booking = {}) {
+function checkInBlockReason(booking = {}, ticket = null) {
   if (!booking) return 'Booking was not found';
   if (booking.paymentStatus !== 'successful') return 'Ticket payment is not confirmed';
   if (['cancelled', 'refunded', 'voided'].includes(booking.bookingStatus)) return `Ticket is ${booking.bookingStatus}`;
-  if (booking.bookingStatus === 'checked_in' || booking.checkInStatus === 'checked_in') return 'Ticket is already checked in';
+  if (ticket && ['checked_in', 'used'].includes(normalize(ticket.checkInStatus || ticket.status))) return 'Ticket leg is already used';
+  if (ticket && ['cancelled', 'refunded', 'voided'].includes(normalize(ticket.checkInStatus || ticket.status))) return `Ticket leg is ${ticket.checkInStatus || ticket.status}`;
+  if (!ticket && ['checked_in', 'partially_checked_in'].includes(booking.bookingStatus)) return 'Ticket is already checked in';
+  if (!ticket && ['checked_in', 'partial'].includes(booking.checkInStatus)) return 'Ticket is already checked in';
   if (booking.bookingStatus === 'completed') return 'Trip or service is already completed';
   if (booking.bookingStatus === 'no_show') return 'Ticket is marked as no-show';
   return '';
 }
 
 function lookupTicket(value, companyId = '', context = {}) {
-  const booking = searchBooking(value, companyId);
-  if (!booking) return { ok: false, result: 'not_found', message: 'Ticket not found' };
-  const reason = checkInBlockReason(booking);
+  const { booking, ticket } = searchTicket(value, companyId);
+  if (!booking) {
+    const unrestricted = searchTicket(value, '');
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope' };
+    return { ok: false, result: 'not_found', message: 'Ticket not found' };
+  }
+  const reason = checkInBlockReason(booking, ticket);
   return {
     ok: !reason,
     result: reason ? 'blocked' : 'ready',
-    message: reason || 'Ticket found and ready for check-in',
+    message: reason || (ticket ? 'Ticket leg found and ready for check-in' : 'Ticket found and ready for check-in'),
     canCheckIn: !reason,
     disabledReason: reason,
     booking,
+    ticket: ticket || (booking.ticketLegs || [])[0] || null,
     listing: findListing(booking.listingId),
     detail: bookingDetail(booking),
   };
 }
 
 function validateTicket(qrCodeValue, employeeId = 'employee-system', companyId = '', context = {}) {
-  const booking = searchBooking(qrCodeValue, companyId);
-  if (!booking) return { ok: false, result: 'not_found', message: 'Ticket not found' };
-  const reason = checkInBlockReason(booking);
+  const { booking, ticket } = searchTicket(qrCodeValue, companyId);
+  if (!booking) {
+    const unrestricted = searchTicket(qrCodeValue, '');
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope', canCheckIn: false, disabledReason: 'Wrong company scope' };
+    return { ok: false, result: 'not_found', message: 'Ticket not found' };
+  }
+  const reason = checkInBlockReason(booking, ticket);
   if (reason) {
     let result = 'not_valid_for_checkin';
     if (booking.paymentStatus !== 'successful') result = 'payment_not_successful';
-    if (booking.bookingStatus === 'checked_in' || booking.checkInStatus === 'checked_in' || booking.bookingStatus === 'completed') result = 'already_used';
-    return { ok: false, result, booking, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: reason, canCheckIn: false, disabledReason: reason };
+    if ((ticket && ['checked_in', 'used'].includes(normalize(ticket.checkInStatus || ticket.status))) || booking.bookingStatus === 'checked_in' || booking.checkInStatus === 'checked_in' || booking.bookingStatus === 'completed') result = 'already_used';
+    return { ok: false, result, booking, ticket: ticket || (booking.ticketLegs || [])[0] || null, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: reason, canCheckIn: false, disabledReason: reason };
   }
-  booking.bookingStatus = 'checked_in';
-  booking.checkInStatus = 'checked_in';
-  booking.checkedInAt = new Date().toISOString();
+  const now = new Date().toISOString();
+  const activeTicket = ticket || (booking.ticketLegs || [])[0] || null;
+  if (activeTicket) {
+    activeTicket.checkInStatus = 'checked_in';
+    activeTicket.status = 'used';
+    activeTicket.usedAt = now;
+    activeTicket.checkedInAt = now;
+    activeTicket.checkedInBy = employeeId;
+    activeTicket.source = context.source || activeTicket.source || '';
+    activeTicket.location = context.location || activeTicket.location || '';
+    updatePassengerCheckState(booking, activeTicket, 'checked_in');
+  }
+  const progress = bookingCheckInProgress(booking);
+  booking.bookingStatus = progress.allCheckedIn || !activeTicket ? 'checked_in' : 'partially_checked_in';
+  booking.checkInStatus = progress.allCheckedIn || !activeTicket ? 'checked_in' : 'partial';
+  booking.checkedInAt = progress.allCheckedIn || !booking.checkedInAt ? now : booking.checkedInAt;
   booking.checkedInBy = employeeId;
   booking.checkedInByUserId = employeeId;
   state.auditLogs.push({
@@ -3023,28 +4412,42 @@ function validateTicket(qrCodeValue, employeeId = 'employee-system', companyId =
     actorName: context.actorName || '',
     actorEmail: context.actorEmail || '',
     action: 'ticket.checked_in',
-    target: booking.bookingRef,
-    entityType: 'booking',
-    entityId: booking.id,
-    beforeSummary: 'Ticket was eligible for check-in',
-    afterSummary: 'Ticket marked checked_in and earnings release triggered',
+    target: activeTicket?.ticketNumber || booking.bookingRef,
+    entityType: activeTicket ? 'ticket_leg' : 'booking',
+    entityId: activeTicket?.id || booking.id,
+    beforeSummary: 'Ticket leg was eligible for check-in',
+    afterSummary: activeTicket ? `Ticket leg ${activeTicket.ticketNumber} marked checked_in` : 'Ticket marked checked_in and earnings release triggered',
     ip: context.ip || '',
     userAgent: context.userAgent || '',
     status: 'success',
-    createdAt: new Date().toISOString()
+    createdAt: now
   });
-  return { ok: true, result: 'validated', booking, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: 'Ticket validated and checked in', canCheckIn: false, disabledReason: 'Ticket is already checked in' };
+  return { ok: true, result: 'validated', booking, ticket: activeTicket, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: activeTicket ? 'Ticket leg validated and checked in' : 'Ticket validated and checked in', canCheckIn: false, disabledReason: activeTicket ? 'Ticket leg is already used' : 'Ticket is already checked in' };
 }
 
 function markNoShow(value, employeeId = 'employee-system', companyId = '', note = '', context = {}) {
-  const booking = searchBooking(value, companyId);
-  if (!booking) return { ok: false, result: 'not_found', message: 'Ticket not found' };
-  if (['cancelled', 'refunded', 'voided', 'checked_in', 'completed'].includes(booking.bookingStatus)) {
-    return { ok: false, result: 'not_valid_for_no_show', booking, detail: bookingDetail(booking), message: `Cannot mark ${booking.bookingStatus} booking as no-show` };
+  const { booking, ticket } = searchTicket(value, companyId);
+  if (!booking) {
+    const unrestricted = searchTicket(value, '');
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope' };
+    return { ok: false, result: 'not_found', message: 'Ticket not found' };
   }
-  booking.bookingStatus = 'no_show';
-  booking.checkInStatus = 'no_show';
-  booking.noShowAt = new Date().toISOString();
+  if (['cancelled', 'refunded', 'voided', 'completed'].includes(booking.bookingStatus) || (ticket && ['checked_in', 'used', 'cancelled', 'refunded', 'voided'].includes(normalize(ticket.checkInStatus || ticket.status)))) {
+    return { ok: false, result: 'not_valid_for_no_show', booking, ticket: ticket || null, detail: bookingDetail(booking), message: ticket ? `Cannot mark ${ticket.checkInStatus || ticket.status} ticket leg as no-show` : `Cannot mark ${booking.bookingStatus} booking as no-show` };
+  }
+  const now = new Date().toISOString();
+  const activeTicket = ticket || (booking.ticketLegs || [])[0] || null;
+  if (activeTicket) {
+    activeTicket.checkInStatus = 'no_show';
+    activeTicket.status = 'no_show';
+    activeTicket.noShowAt = now;
+    activeTicket.noShowBy = employeeId;
+    updatePassengerCheckState(booking, activeTicket, 'no_show');
+  }
+  const progress = bookingCheckInProgress(booking);
+  booking.bookingStatus = progress.allClosed || !activeTicket ? 'no_show' : 'partially_checked_in';
+  booking.checkInStatus = progress.allClosed || !activeTicket ? 'no_show' : 'partial';
+  booking.noShowAt = now;
   booking.noShowBy = employeeId;
   booking.noShowByUserId = employeeId;
   booking.checkInNote = note || booking.checkInNote || 'Marked no-show from employee dashboard';
@@ -3055,17 +4458,17 @@ function markNoShow(value, employeeId = 'employee-system', companyId = '', note 
     actorName: context.actorName || '',
     actorEmail: context.actorEmail || '',
     action: 'ticket.no_show',
-    target: booking.bookingRef,
-    entityType: 'booking',
-    entityId: booking.id,
+    target: activeTicket?.ticketNumber || booking.bookingRef,
+    entityType: activeTicket ? 'ticket_leg' : 'booking',
+    entityId: activeTicket?.id || booking.id,
     beforeSummary: 'Ticket was not checked in',
-    afterSummary: `Ticket marked no_show${note ? `: ${note}` : ''}`,
+    afterSummary: `${activeTicket ? 'Ticket leg' : 'Ticket'} marked no_show${note ? `: ${note}` : ''}`,
     ip: context.ip || '',
     userAgent: context.userAgent || '',
     status: 'success',
-    createdAt: new Date().toISOString()
+    createdAt: now
   });
-  return { ok: true, result: 'no_show', booking, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: 'Booking marked as no-show' };
+  return { ok: true, result: 'no_show', booking, ticket: activeTicket, listing: findListing(booking.listingId), detail: bookingDetail(booking), message: activeTicket ? 'Ticket leg marked as no-show' : 'Booking marked as no-show' };
 }
 
 module.exports = {
@@ -3098,6 +4501,7 @@ module.exports = {
   recordReferralClick,
   settleBookingPayment,
   createBooking,
+  qrPublicValueForLeg,
   findBooking,
   searchBooking,
   lookupTicket,

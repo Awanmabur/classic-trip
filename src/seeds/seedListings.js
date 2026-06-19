@@ -160,9 +160,9 @@ const extraLaterServices = [
 function takenFor(layout, index) {
   if (layout === 'hotel-rooms' || layout === 'hotel-house') return ['101', '203', 'Villa 2', 'R4'].slice(0, 2 + (index % 3));
   if (layout === 'flight') return ['1A', '2C', '4F', '6D'].slice(0, 2 + (index % 2));
-  if (layout === 'train') return ['A1', 'B3', 'D4'].slice(0, 2 + (index % 2));
+  if (layout === 'train') return ['Seat No 1', 'Seat No 2', 'Seat No 3'].slice(0, 2 + (index % 2));
   if (layout === 'slots') return ['S2', 'S5', 'S8'].slice(0, 2 + (index % 2));
-  return ['A1', 'B2', 'C3', 'D4', 'F2'].slice(0, 3 + (index % 2));
+  return ['Seat No 1', 'Seat No 2', 'Seat No 3', 'Seat No 4', 'Seat No 5'].slice(0, 3 + (index % 2));
 }
 
 function groupFor(serviceType) {

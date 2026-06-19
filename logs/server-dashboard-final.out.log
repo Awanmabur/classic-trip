@@ -1,2 +1,0 @@
-{"time":"2026-05-29T14:48:36.301Z","level":"info","message":"MongoDB connected","host":"127.0.0.1","db":"classic_trip"}
-{"time":"2026-05-29T14:48:36.823Z","level":"info","message":"Database hydration completed","loadedCollections":20,"loadedRecords":3433}

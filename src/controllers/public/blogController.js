@@ -1,4 +1,4 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 
 function index(req, res) {
   res.render('pages/blogs', { seo: { title: 'Classic Trip blog' }, blogs: store.state.blogs });

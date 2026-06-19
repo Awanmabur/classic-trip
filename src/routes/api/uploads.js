@@ -1,7 +1,11 @@
 const express = require('express');
 const upload = require('../../middlewares/upload');
 const uploadController = require('../../controllers/api/uploadController');
+const { requireApiAuth, requireApiRole } = require('../../middlewares/apiAuth');
 const router = express.Router();
-router.post('/', upload.single('file'), uploadController.upload);
-router.post('/signature', uploadController.signature);
+const canUploadMedia = requireApiRole('super_admin', 'admin', 'company_admin', 'company_employee', 'promoter');
+router.use(requireApiAuth);
+router.post('/', canUploadMedia, upload.single('file'), uploadController.upload);
+router.post('/delete', canUploadMedia, uploadController.destroy);
+router.post('/signature', canUploadMedia, uploadController.signature);
 module.exports = router;

@@ -1,4 +1,6 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
+const correspondenceService = require('../../services/support/correspondenceService');
+const timelineService = require('../../services/support/timelineService');
 const { mongoose } = require('../../config/db');
 
 function cleanText(value) {
@@ -50,6 +52,26 @@ async function create(req, res, next) {
     };
     store.state.supportTickets.unshift(ticket);
     await persist(ticket);
+    await timelineService.attachSupportEvent(ticket, {
+      action: 'support.case.created',
+      title: ticket.subject,
+      message,
+      status: ticket.status,
+      actorType: 'customer',
+      actorId: user.id || user.email || 'customer',
+      actorName: user.fullName || user.email || 'Customer',
+      visibility: 'shared',
+    });
+    await correspondenceService.linkToSupportTicket(ticket, {
+      message,
+      actorType: 'customer',
+      actorId: user.id || user.email || 'customer',
+      actorName: user.fullName || user.email || 'Customer',
+      visibility: 'shared',
+      direction: 'inbound',
+      channels: ['in_app'],
+      metadata: { source: 'customer_support_form' },
+    });
     res.redirect('/account#support');
   } catch (error) {
     next(error);

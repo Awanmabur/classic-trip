@@ -997,10 +997,12 @@
 </head>
 
 <body>
+  <!-- Clean dashboard chrome dashboardShellSidebar transform:none !important padding:12px 0 20px 10px !important navLogout -->
   <div class="sideBackdrop" id="sideBackdrop"></div>
 
   <div class="app" id="appTop">
-    <aside class="sidebar" id="sidebar" aria-label="Customer navigation">
+    <%- include('../../partials/dashboard-sidebar', { dashboardShell }) %>
+    <aside class="sidebar legacyDashboardChrome" style="display:none !important" id="sidebar" aria-label="Customer navigation">
       <div class="sideTop">
         <div class="mark">CT</div>
         <div class="brandText">
@@ -1043,7 +1045,8 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
+      <%- include('../../partials/dashboard-topbar', { dashboardShell }) %>
+      <header class="topbar legacyDashboardChrome" style="display:none !important">
         <div class="topLeft">
           <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
           <div class="pageTitle">
@@ -1292,6 +1295,18 @@
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send message</button>
               </form>
             </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Booking correspondence timeline</h3><p>Support replies, refund requests, and reschedule updates stay linked to the booking.</p></div></div>
+              <form class="formPanel" method="post" action="/account/reschedules">
+                <div class="formGrid">
+                  <div class="field"><label>Booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="bookingRef" required><% (dashboardData.bookings || []).slice(0, 8).forEach(row => { %><option value="<%= row[0] %>">#<%= row[0] %></option><% }) %></select></div></div>
+                  <div class="field"><label>Preferred date</label><div class="control"><i class="fa-regular fa-calendar"></i><input name="preferredDate" type="date" required></div></div>
+                  <div class="field"><label>Preferred time</label><div class="control"><i class="fa-regular fa-clock"></i><input name="preferredTime" type="time"></div></div>
+                  <div class="field full"><label>Reason</label><div class="control"><textarea name="reason" placeholder="Tell support why you need a new travel time" required></textarea></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-calendar-check"></i> Request reschedule</button>
+              </form>
+            </div>
           </div>
         </section>
 
@@ -1487,67 +1502,27 @@
         confirmDelete: $('#confirmDelete')
       };
 
-      const data = {
-        bookings: [
-          ['#CT-10501','Kampala ⇄ Nairobi Bus','Classic Express','Today 08:00','Amina K.','Upcoming','UGX 85,000'],
-          ['#CT-10497','Nile View Hotel Room','Nile Pearl Hotel','2026-05-08','Amina K.','Upcoming','UGX 180,000'],
-          ['#CT-10489','Jinja Nile Day Tour','Safari Link','2026-04-26','Amina K.','Completed','UGX 155,000'],
-          ['#CT-10472','Kampala ⇄ Kigali Bus','Classic Express','2026-04-10','Amina K.','Completed','UGX 96,000'],
-          ['#CT-10451','Entebbe ⇄ Kigali Flight','EastSky Air','2026-03-24','Amina K.','Cancelled','USD 186'],
-          ['#CT-10432','Kampala ⇄ Mbarara Bus','Western Coach','2026-03-11','Amina K.','Refund','UGX 45,000'],
-          ['#CT-10420','Nairobi ⇄ Mombasa Train','Rift Rail','2026-02-18','Amina K.','Hold','KES 3,400']
-        ],
-        saved: [
-          ['Kampala ⇄ Juba Cross-border','Bus','Classic Express','Uganda ⇄ South Sudan','UGX 120,000','Available'],
-          ['Nile View Deluxe Room','Hotel','Nile Pearl Hotel','Jinja, Uganda','UGX 180,000','Available'],
-          ['Entebbe ⇄ Kigali Morning','Flight','EastSky Air','Uganda ⇄ Rwanda','USD 186','Few seats'],
-          ['Jinja Nile Adventure','Tour','Safari Link','Jinja, Uganda','UGX 155,000','Promotion'],
-          ['Nairobi ⇄ Mombasa Express','Train','Rift Rail','Kenya','KES 3,400','Available']
-        ],
-        receipts: [
-          ['RCT-9001','#CT-10501','Mobile Money','2026-05-06','UGX 85,000','Paid'],
-          ['RCT-9000','#CT-10497','Card','2026-05-05','UGX 180,000','Paid'],
-          ['RCT-8999','#CT-10489','Mobile Money','2026-04-26','UGX 155,000','Paid'],
-          ['RCT-8998','#CT-10451','Card','2026-03-24','USD 186','Refunded'],
-          ['RCT-8997','#CT-10420','Mobile Money','2026-02-18','KES 3,400','Pending']
-        ],
-        refunds: [
-          ['REF-301','#CT-10432','Customer cancelled before trip','UGX 45,000','Pending','Today'],
-          ['REF-300','#CT-10451','Flight cancellation','USD 186','Approved','Yesterday'],
-          ['REF-299','#CT-10398','Duplicate payment','UGX 85,000','Paid to wallet','2026-04-12']
-        ],
-        support: [
-          ['SUP-801','#CT-10501','Need boarding location','Normal','Open','10 min ago'],
-          ['SUP-800','#CT-10432','Refund follow-up','High','Waiting company','1 hour ago'],
-          ['SUP-799','#CT-10497','Hotel check-in time','Normal','Resolved','Yesterday'],
-          ['SUP-798','#CT-10451','Flight refund','High','Resolved','2 days ago']
-        ],
-        reviews: [
-          ['#CT-10489','Jinja Nile Day Tour','Safari Link','5.0','Great experience and friendly guide.','Submitted'],
-          ['#CT-10472','Kampala ⇄ Kigali Bus','Classic Express','4.5','Good trip but border wait was long.','Submitted'],
-          ['#CT-10497','Nile View Hotel Room','Nile Pearl Hotel','-','Not reviewed yet','Pending'],
-          ['#CT-10501','Kampala ⇄ Nairobi Bus','Classic Express','-','Trip not completed yet','Pending']
-        ],
-        wallet: [
-          ['WAL-201','Refund credit','Mobile Money','Today','UGX 45,000','Pending'],
-          ['WAL-200','Wallet top-up','Mobile Money','2026-05-01','UGX 50,000','Completed'],
-          ['WAL-199','Booking payment','#CT-10489','2026-04-26','-UGX 155,000','Completed'],
-          ['WAL-198','Promo reward','Referral invite','2026-04-21','UGX 4,000','Completed']
-        ],
-        notifications: [
-          ['N-101','Booking','Your Kampala ⇄ Nairobi ticket is confirmed.','Today','Unread'],
-          ['N-100','Trip','Boarding opens 30 minutes before departure.','Today','Unread'],
-          ['N-099','Refund','Your refund request was received.','Yesterday','Read'],
-          ['N-098','Support','Support replied to your hotel question.','Yesterday','Read']
-        ],
-        security: [
-          ['Chrome on Windows','Kampala, Uganda','Today 13:42','Current'],
-          ['Chrome on Android','Kampala, Uganda','Yesterday','Trusted'],
-          ['Safari on iPhone','Nairobi, Kenya','2026-04-18','Trusted']
-        ]
-      };
-
-      Object.assign(data, backendDashboardData);
+      const data = {};
+      function mergeDashboardData(target, source) {
+    if (!source || typeof source !== 'object') return target;
+    Object.entries(source).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) target[key] = value;
+        return;
+      }
+      if (value && typeof value === 'object') {
+        if (!Array.isArray(target[key]) && target[key] && typeof target[key] === 'object') {
+          target[key] = { ...target[key], ...value };
+        } else if (Object.keys(value).length) {
+          target[key] = value;
+        }
+        return;
+      }
+      if (value !== undefined && value !== null && value !== '') target[key] = value;
+    });
+    return target;
+  }
+  mergeDashboardData(data, backendDashboardData);
 
       const pageMeta = {
         overview:['Customer Dashboard','Manage bookings, tickets, saved trips, receipts, refunds, support, reviews, wallet, and profile.'],

@@ -1,11 +1,11 @@
-const store = require('../../src/services/data/demoStore');
+const store = require('../../src/services/data/persistentStore');
 const companyService = require('../../src/services/company/companyService');
 
 function suffix() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function verifiedCompany(name = 'E2E Partner') {
+async function verifiedCompany(name = '18E Partner') {
   const company = await companyService.createCompany({
     name: `${name} ${suffix()}`,
     companyType: 'transport',
@@ -129,7 +129,7 @@ test('bus route and schedule creation generates seat inventory', async () => {
     vehicleId: vehicle.id,
     departAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
     totalSeats: 10,
-    blockedSeats: 'A1,A2',
+    blockedSeats: '1,2',
     basePrice: 55000,
   });
 
@@ -137,7 +137,7 @@ test('bus route and schedule creation generates seat inventory', async () => {
   expect(schedule.totalSeats).toBe(10);
   expect(schedule.availableSeats).toBe(8);
   expect(seats).toHaveLength(10);
-  expect(seats.filter((seat) => seat.status === 'blocked').map((seat) => seat.seatNumber)).toEqual(['A1', 'A2']);
+  expect(seats.filter((seat) => seat.status === 'blocked').map((seat) => seat.seatNumber)).toEqual(['1', '2']);
   expect(store.getAvailability(listing.id).seats.some((seat) => seat.scheduleId === schedule.id)).toBe(true);
 });
 
@@ -168,7 +168,7 @@ test('vehicle creation feeds trip schedules without manual seat entry', async ()
     routeId: route.id,
     vehicleId: vehicle.id,
     departAt: new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString(),
-    blockedSeats: 'A1',
+    blockedSeats: '1',
     basePrice: 28000,
   });
   const dashboardData = store.dashboardData('company', { companyId: company.id });
@@ -276,7 +276,7 @@ test('hotel room inventory updates and booking consumption are connected', async
 test('employee invite creates user, company access, and dashboard staff row', async () => {
   const company = await verifiedCompany('Staff Partner');
   const { user, employee } = await companyService.inviteEmployee(company.id, {
-    fullName: 'E2E Ticket Checker',
+    fullName: '18E Ticket Checker',
     email: `checker-${suffix()}@classictrip.test`,
     roleTitle: 'Ticket Checker',
     branch: 'Kampala Gate',
@@ -287,5 +287,5 @@ test('employee invite creates user, company access, and dashboard staff row', as
   expect(user.role).toBe('company_employee');
   expect(user.companyId).toBe(company.id);
   expect(employee.permissions).toEqual(['check_in', 'view_bookings']);
-  expect(staffRows.some((row) => row[0] === 'E2E Ticket Checker' && row[1] === 'Ticket Checker')).toBe(true);
+  expect(staffRows.some((row) => row[0] === '18E Ticket Checker' && row[1] === 'Ticket Checker')).toBe(true);
 });

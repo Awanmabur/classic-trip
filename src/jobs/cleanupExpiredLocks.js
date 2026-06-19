@@ -1,4 +1,13 @@
 const seatLockService = require('../services/booking/seatLockService');
 const roomReservationService = require('../services/booking/roomReservationService');
-function run() { return { seats: seatLockService.releaseExpiredLocks(), rooms: roomReservationService.releaseExpiredReservations() }; }
+const inventoryHoldService = require('../services/booking/inventoryHoldService');
+
+async function run() {
+  return {
+    seats: await seatLockService.releaseExpiredLocksPersistent(),
+    rooms: roomReservationService.releaseExpiredReservations(),
+    holds: await inventoryHoldService.expireActiveHolds(),
+  };
+}
+
 module.exports = { run };

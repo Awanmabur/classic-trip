@@ -1,4 +1,4 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const toSlug = require('../../utils/slugify');
 
 function uniqueCode(baseCode) {

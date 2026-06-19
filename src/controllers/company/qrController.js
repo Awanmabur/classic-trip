@@ -1,4 +1,4 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const qrService = require('../../services/qr/qrService');
 
 function companyIdFor(req) {

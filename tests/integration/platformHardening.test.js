@@ -1,12 +1,13 @@
 const request = require('supertest');
 const app = require('../../src/app');
-const store = require('../../src/services/data/demoStore');
+const store = require('../../src/services/data/persistentStore');
 const bookingService = require('../../src/services/booking/bookingService');
 const companyService = require('../../src/services/company/companyService');
 const billingService = require('../../src/services/billing/billingService');
 const webhookService = require('../../src/services/payment/webhookService');
 const walletService = require('../../src/services/wallet/walletService');
 const workflowService = require('../../src/services/support/workflowService');
+const blogService = require('../../src/services/content/blogService');
 const scheduler = require('../../src/jobs/scheduler');
 
 async function login(email) {
@@ -38,6 +39,161 @@ test('role dashboards require authentication and the correct role', async () => 
   const employee = await login('employee@classictrip.test');
   await employee.get('/company/dashboard').expect(403);
   await employee.post('/company/employees/invite').type('form').send({ email: 'blocked@classictrip.test' }).expect(403);
+});
+
+test('auth registration provisions role-specific dashboard records', async () => {
+  const promoterRes = await request(app)
+    .post('/register')
+    .type('form')
+    .send({
+      role: 'promoter',
+      firstName: 'Auth',
+      lastName: 'Promoter',
+      email: 'auth-promoter-e2e@classictrip.test',
+      phone: '+256700910001',
+      password: 'Password123',
+      confirmPassword: 'Password123',
+    })
+    .expect(302);
+  expect(promoterRes.headers.location).toBe('/promoter/dashboard');
+  const promoter = store.findUserByIdentity('auth-promoter-e2e@classictrip.test');
+  expect(promoter.role).toBe('promoter');
+  expect(promoter.referralCode).toBeTruthy();
+  expect(promoter.verificationStatus).toBe('pending');
+  expect(walletService.getWallet('promoter', promoter.id)).toBeTruthy();
+
+  const companyRes = await request(app)
+    .post('/register')
+    .type('form')
+    .send({
+      role: 'partner',
+      firstName: 'Auth',
+      lastName: 'Owner',
+      email: 'auth-company-e2e@classictrip.test',
+      phone: '+256700910002',
+      password: 'Password123',
+      confirmPassword: 'Password123',
+      company: 'Auth Partner Transport 18E',
+      businessType: 'Bus company',
+      country: 'Uganda',
+    })
+    .expect(302);
+  expect(companyRes.headers.location).toBe('/company/dashboard');
+  const companyAdmin = store.findUserByIdentity('auth-company-e2e@classictrip.test');
+  const company = store.state.companies.find((row) => row.name === 'Auth Partner Transport 18E');
+  expect(companyAdmin.role).toBe('company_admin');
+  expect(companyAdmin.companyId).toBe(company.id);
+  expect(company.ownerId).toBe(companyAdmin.id);
+  expect(company.verificationStatus).toBe('pending');
+  expect(company.settings.canPublish).toBe(false);
+  expect(walletService.getWallet('company', company.id)).toBeTruthy();
+
+  const employeeRes = await request(app)
+    .post('/register')
+    .type('form')
+    .send({
+      role: 'employee',
+      firstName: 'Auth',
+      lastName: 'Employee',
+      email: 'auth-employee-e2e@classictrip.test',
+      phone: '+256700910003',
+      password: 'Password123',
+      confirmPassword: 'Password123',
+      company: 'Auth Employee Company 18E',
+      businessType: 'Hotel / apartments',
+      country: 'Uganda',
+    })
+    .expect(302);
+  expect(employeeRes.headers.location).toBe('/employee/dashboard');
+  const employee = store.findUserByIdentity('auth-employee-e2e@classictrip.test');
+  const employeeCompany = store.state.companies.find((row) => row.name === 'Auth Employee Company 18E');
+  expect(employee.role).toBe('company_employee');
+  expect(employee.status).toBe('pending');
+  expect(employee.companyId).toBe(employeeCompany.id);
+  expect(store.state.companyEmployees.some((row) => row.companyId === employeeCompany.id && row.userId === employee.id && row.status === 'requested')).toBe(true);
+});
+
+test('Cloudinary media lifecycle is secured and attaches or deletes company, listing, and blog assets', async () => {
+  await request(app)
+    .post('/api/uploads')
+    .field('target', 'blog')
+    .attach('file', Buffer.from('image'), { filename: 'guide.png', contentType: 'image/png' })
+    .expect(401);
+
+  const admin = await login('admin@classictrip.test');
+  const blog = await blogService.ensureBlog({
+    title: `Media guide ${Date.now()}`,
+    slug: `media-guide-${Date.now()}`,
+    status: 'draft',
+  });
+  const blogUpload = await admin
+    .post('/api/uploads')
+    .field('target', 'blog')
+    .field('blogId', blog.id)
+    .field('alt', 'Classic Trip media guide')
+    .attach('file', Buffer.from('png'), { filename: 'guide.png', contentType: 'image/png' })
+    .expect(201);
+
+  expect(blog.media.publicId).toBe(blogUpload.body.asset.publicId);
+  expect(blog.image).toBe(blogUpload.body.asset.secureUrl);
+
+  await admin
+    .post('/api/uploads/delete')
+    .send({ target: 'blog', blogId: blog.id, publicId: blog.media.publicId, resourceType: blog.media.resourceType })
+    .expect(200);
+  expect(blog.media).toBeNull();
+  expect(blog.image).toBe('');
+
+  const company = await login('company@classictrip.test');
+  await company
+    .post('/company/media')
+    .field('target', 'companyDocument')
+    .field('documentType', 'operator_permit')
+    .field('documentReference', 'PERMIT-18E')
+    .attach('imageFile', Buffer.from('%PDF-1.4 classic trip permit'), { filename: 'permit.pdf', contentType: 'application/pdf' })
+    .expect(302);
+
+  const partner = store.findCompany('company-01');
+  const document = partner.documents.find((item) => item.documentReference === 'PERMIT-18E');
+  expect(document).toBeTruthy();
+  expect(document.status).toBe('pending_review');
+  expect(document.resourceType).toBe('raw');
+
+  await company
+    .post('/company/media/delete')
+    .type('form')
+    .send({ target: 'companyDocument', publicId: document.publicId })
+    .expect(302);
+  expect(partner.documents.some((item) => item.publicId === document.publicId)).toBe(false);
+
+  const listing = await companyService.createListing('company-01', {
+    serviceType: 'bus',
+    title: `Media route ${Date.now()}`,
+    from: 'Kampala',
+    to: 'Jinja',
+    priceFrom: 30000,
+    status: 'active',
+  });
+  const listingUpload = await company
+    .post('/api/uploads')
+    .field('target', 'busListing')
+    .field('targetId', listing.id)
+    .attach('file', Buffer.from('bus image'), { filename: 'bus.png', contentType: 'image/png' })
+    .expect(201);
+  expect(listing.media.some((item) => item.publicId === listingUpload.body.asset.publicId)).toBe(true);
+
+  await company
+    .post('/api/uploads/delete')
+    .send({ target: 'busListing', targetId: listing.id, publicId: listingUpload.body.asset.publicId })
+    .expect(200);
+  expect(listing.media.some((item) => item.publicId === listingUpload.body.asset.publicId)).toBe(false);
+
+  await company
+    .post('/api/uploads')
+    .field('target', 'companyLogo')
+    .field('companyId', 'not-company-01')
+    .attach('file', Buffer.from('logo'), { filename: 'logo.png', contentType: 'image/png' })
+    .expect(403);
 });
 
 test('signed payment webhook reconciles booking payment once and queues notifications', async () => {
@@ -212,6 +368,8 @@ test('partner onboarding selects a plan, pays, and activates subscription end to
   expect(order.paymentStatus).toBe('successful');
   expect(subscription.planId).toBe('growth');
   expect(company.settings.subscription.planName).toBe('Growth');
+  expect(store.state.subscriptionOrders.some((row) => row.orderRef === orderRef && row.status === 'active')).toBe(true);
+  expect(store.state.subscriptions.some((row) => row.orderRef === orderRef && row.status === 'active')).toBe(true);
   expect(store.state.payments.some((payment) => payment.bookingRef === orderRef && payment.metadata?.referenceType === 'subscription_order')).toBe(true);
 });
 
@@ -339,7 +497,7 @@ test('company dashboard route, schedule, and seat forms persist end to end', asy
       vehicleId: vehicle.id,
       departAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
       totalSeats: 8,
-      blockedSeats: 'A1',
+      blockedSeats: '1',
       basePrice: 62000,
     })
     .expect(302);
@@ -351,10 +509,10 @@ test('company dashboard route, schedule, and seat forms persist end to end', asy
   await agent
     .post('/company/seats/status')
     .type('form')
-    .send({ scheduleId: schedule.id, seatNumber: 'A2', status: 'blocked', seatClass: 'Standard', priceDelta: 0 })
+    .send({ scheduleId: schedule.id, seatNumber: '2', status: 'blocked', seatClass: 'Standard', priceDelta: 0 })
     .expect(302);
 
-  const seat = store.seatsForSchedule(schedule.id).find((item) => item.seatNumber === 'A2');
+  const seat = store.seatsForSchedule(schedule.id).find((item) => item.seatNumber === '2');
   expect(seat.status).toBe('blocked');
   expect(schedule.availableSeats).toBe(6);
 
@@ -545,7 +703,7 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   await agent.post('/employee/bookings').type('form').send({
     listingId: listing.id,
     scheduleId: schedule.id,
-    seatNumber: 'A1',
+    seatNumber: '1',
     fullName: 'Employee Desk Guest',
     email: 'employee-desk@example.com',
     phone: '+256700555200',
@@ -554,8 +712,8 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   expect(booking).toBeTruthy();
   expect(booking.source).toBe('employee_manual');
 
-  await agent.post('/employee/inventory').type('form').send({ scheduleId: schedule.id, seatNumber: 'A2', status: 'blocked' }).expect(302);
-  expect(store.seatsForSchedule(schedule.id).find((seat) => seat.seatNumber === 'A2').status).toBe('blocked');
+  await agent.post('/employee/inventory').type('form').send({ scheduleId: schedule.id, seatNumber: '2', status: 'blocked' }).expect(302);
+  expect(store.seatsForSchedule(schedule.id).find((seat) => seat.seatNumber === '2').status).toBe('blocked');
 
   await agent.post('/employee/schedules/delay').type('form').send({ scheduleId: schedule.id, priority: 'high', message: 'Departure delayed by 20 minutes' }).expect(302);
   expect(schedule.status).toBe('delayed');
@@ -569,8 +727,8 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   await agent.post('/employee/support/notice').type('form').send({ bookingRef: booking.bookingRef, priority: 'normal', message: 'Customer should arrive 30 minutes before departure' }).expect(302);
   expect(store.state.supportTickets.some((ticket) => ticket.companyId === 'company-01' && ticket.message === 'Customer should arrive 30 minutes before departure')).toBe(true);
 
-  await agent.post('/employee/handovers').type('form').send({ shift: 'Morning shift', nextStaff: 'Evening team', note: 'A2 is blocked pending manager review.' }).expect(302);
-  expect(store.state.shiftHandovers.some((handover) => handover.note === 'A2 is blocked pending manager review.')).toBe(true);
+  await agent.post('/employee/handovers').type('form').send({ shift: 'Morning shift', nextStaff: 'Evening team', note: '2 is blocked pending manager review.' }).expect(302);
+  expect(store.state.shiftHandovers.some((handover) => handover.note === '2 is blocked pending manager review.')).toBe(true);
 
   await agent.post('/employee/profile').type('form').send({ fullName: 'Gate Scanner Updated', roleTitle: 'Ticket Checker', branch: 'Kampala Gate', shift: 'Morning shift', notes: 'Updated from test' }).expect(302);
   expect(store.state.users.find((user) => user.id === 'user-employee-001').fullName).toBe('Gate Scanner Updated');
@@ -624,9 +782,9 @@ test('customer dashboard actions persist saved trips wallet security and promote
   expect(user.twoFactorEnabled).toBe(true);
   expect(user.recoveryEmail).toBe('recovery@example.com');
 
-  await agent.post('/account/promoter').type('form').send({ referralCode: 'DASH-E2E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555801' }).expect(302);
+  await agent.post('/account/promoter').type('form').send({ referralCode: 'DASH-18E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555801' }).expect(302);
   expect(user.role).toBe('promoter');
-  expect(user.referralCode).toBe('DASH-E2E');
+  expect(user.referralCode).toBe('DASH-18E');
   expect(walletService.getWallet('promoter', user.id)).toBeTruthy();
   await agent.get('/promoter/dashboard').expect(200);
 });
@@ -646,12 +804,12 @@ test('promoter dashboard campaign and verification forms persist to dashboard da
   const agent = await login(promoter.email);
   await agent.get('/promoter/dashboard').expect(200);
 
-  await agent.post('/promoter/campaigns').type('form').send({ listingId: listing.id, name: 'Promoter E2E campaign', placement: 'social', budget: 50000 }).expect(302);
-  expect(store.state.promotionCampaigns.some((row) => row.promoterId === promoter.id && row.name === 'Promoter E2E campaign')).toBe(true);
+  await agent.post('/promoter/campaigns').type('form').send({ listingId: listing.id, name: 'Promoter 18E campaign', placement: 'social', budget: 50000 }).expect(302);
+  expect(store.state.promotionCampaigns.some((row) => row.promoterId === promoter.id && row.name === 'Promoter 18E campaign')).toBe(true);
 
-  await agent.post('/promoter/verification').type('form').send({ documentType: 'national_id', documentReference: 'NIN-E2E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555802' }).expect(302);
+  await agent.post('/promoter/verification').type('form').send({ documentType: 'national_id', documentReference: 'NIN-18E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555802' }).expect(302);
   expect(promoter.verificationStatus).toBe('pending');
-  expect(promoter.verificationReference).toBe('NIN-E2E');
+  expect(promoter.verificationReference).toBe('NIN-18E');
   expect(promoter.payoutAccount.account).toBe('+256700555802');
 });
 
@@ -661,16 +819,16 @@ test('admin dashboard actions create operational records and exports', async () 
   const wallet = walletService.creditAvailable('promoter', 'user-promoter-001', 25000, { currency: 'UGX', referenceType: 'test_seed', referenceId: 'admin-payout-e2e' });
   const withdrawal = walletService.requestWithdrawal('promoter', 'user-promoter-001', 1000, { currency: wallet.currency, referenceType: 'withdrawal', referenceId: 'admin-payout-e2e' }).transaction;
 
-  await agent.post('/admin/promotions').type('form').send({ listingId: listing.id, name: 'Admin E2E campaign', placement: 'marketplace_top', budget: 75000 }).expect(302);
-  expect(store.state.promotionCampaigns.some((row) => row.name === 'Admin E2E campaign')).toBe(true);
+  await agent.post('/admin/promotions').type('form').send({ listingId: listing.id, name: 'Admin 18E campaign', placement: 'marketplace_top', budget: 75000 }).expect(302);
+  expect(store.state.promotionCampaigns.some((row) => row.name === 'Admin 18E campaign')).toBe(true);
 
   await agent.post('/admin/notices').type('form').send({ audience: 'customers', priority: 'high', message: 'Admin dashboard notice test' }).expect(302);
   expect(store.state.supportTickets.some((row) => row.category === 'platform_notice' && row.message === 'Admin dashboard notice test')).toBe(true);
 
-  await agent.post('/admin/admin-users').type('form').send({ fullName: 'Finance E2E', email: 'finance-e2e@classictrip.test', role: 'finance_admin' }).expect(302);
+  await agent.post('/admin/admin-users').type('form').send({ fullName: 'Finance 18E', email: 'finance-e2e@classictrip.test', role: 'finance_admin' }).expect(302);
   expect(store.state.users.some((row) => row.email === 'finance-e2e@classictrip.test' && row.role === 'finance_admin')).toBe(true);
 
-  await agent.post('/admin/payouts/run').type('form').send({ transactionId: withdrawal.id, note: 'E2E payout run' }).expect(302);
+  await agent.post('/admin/payouts/run').type('form').send({ transactionId: withdrawal.id, note: '18E payout run' }).expect(302);
   expect(withdrawal.status).toBe('completed');
 
   await agent.post('/admin/settings').type('form').send({ platformFeePercent: 8, promoterCommissionPercent: 4, partnerPayoutPercent: 88, holdMinutes: 12, defaultCurrency: 'UGX' }).expect(302);

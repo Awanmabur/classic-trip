@@ -1,10 +1,18 @@
+<%
+  const isDriverDashboard = (typeof dashboardMode !== 'undefined' && dashboardMode === 'driver') || (dashboardData && dashboardData.mode === 'driver');
+  const dashboardTitle = isDriverDashboard ? 'Driver Dashboard' : 'Company Employee Dashboard';
+  const dashboardDescription = isDriverDashboard
+    ? 'Classic Trip Driver Dashboard for assigned trips, manifests, incident reports, check-in assistance, and trip status updates.'
+    : 'Classic Trip Company Employee Dashboard for ticket checkers, booking agents, hotel receptionists, finance staff, and route managers.';
+  const consoleLabel = isDriverDashboard ? 'Driver Console' : 'Employee Console';
+%>
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Classic Trip | Company Employee Dashboard</title>
-  <meta name="description" content="Classic Trip Company Employee Dashboard for ticket checkers, booking agents, hotel receptionists, finance staff, and route managers." />
+  <title>Classic Trip | <%= dashboardTitle %></title>
+  <meta name="description" content="<%= dashboardDescription %>" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1026,12 +1034,13 @@
   <div class="sideBackdrop" id="sideBackdrop"></div>
 
   <div class="app" id="appTop">
-    <aside class="sidebar" id="sidebar" aria-label="Company employee navigation">
+    <%- include('../../partials/dashboard-sidebar', { dashboardShell }) %>
+    <aside class="sidebar legacyDashboardChrome" style="display:none !important" id="sidebar" aria-label="Company employee navigation">
       <div class="sideTop">
         <div class="mark">CT</div>
         <div class="brandText">
           <strong>Classic Trip</strong>
-          <span>Employee Console</span>
+          <span><%= consoleLabel %></span>
         </div>
       </div>
 
@@ -1046,8 +1055,16 @@
         <button class="navBtn is-active" data-page="overview"><i class="fa-solid fa-chart-line"></i><span>Overview</span></button>
         <button class="navBtn" data-page="checkin"><i class="fa-solid fa-qrcode"></i><span>Ticket Check-in</span></button>
         <button class="navBtn" data-page="bookings"><i class="fa-solid fa-ticket"></i><span>Bookings Desk</span></button>
-        <button class="navBtn" data-page="schedule"><i class="fa-solid fa-calendar-days"></i><span>Schedules</span></button>
-        <button class="navBtn" data-page="inventory"><i class="fa-solid fa-chair"></i><span>Seats / Rooms</span></button>
+        <% if (isDriverDashboard) { %>
+          <button class="navBtn" data-page="driver-ops"><i class="fa-solid fa-route"></i><span>Driver Ops</span></button>
+          <button class="navBtn" data-page="driver-manifest"><i class="fa-solid fa-list-check"></i><span>Driver Manifest</span></button>
+          <button class="navBtn" data-page="driver-incidents"><i class="fa-solid fa-triangle-exclamation"></i><span>Incidents</span></button>
+        <% } else { %>
+          <button class="navBtn" data-page="schedule"><i class="fa-solid fa-calendar-days"></i><span>Schedules</span></button>
+        <% } %>
+        <button class="navBtn" data-page="routes"><i class="fa-solid fa-route"></i><span>Routes</span></button>
+        <button class="navBtn" data-page="vehicles"><i class="fa-solid fa-bus-simple"></i><span>Vehicles</span></button>
+        <button class="navBtn" data-page="inventory"><i class="fa-solid fa-chair"></i><span>Service Inventory</span></button>
         <button class="navBtn" data-page="customers"><i class="fa-solid fa-users"></i><span>Customers</span></button>
         <button class="navBtn" data-page="payments"><i class="fa-solid fa-wallet"></i><span>Payments</span></button>
         <button class="navBtn" data-page="refunds"><i class="fa-solid fa-rotate-left"></i><span>Refund Requests</span></button>
@@ -1069,12 +1086,13 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
+      <%- include('../../partials/dashboard-topbar', { dashboardShell }) %>
+      <header class="topbar legacyDashboardChrome" style="display:none !important">
         <div class="topLeft">
           <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
           <div class="pageTitle">
-            <h1 id="pageHeading">Company Employee Dashboard</h1>
-            <p id="pageSub">Work dashboard for ticket checkers, booking agents, hotel receptionists, finance staff, and route managers.</p>
+            <h1 id="pageHeading"><%= dashboardTitle %></h1>
+            <p id="pageSub"><%= isDriverDashboard ? 'Driver Operations for assigned trips, manifests, incidents, seat maps, and trip status updates.' : 'Work dashboard for ticket checkers, booking agents, hotel receptionists, finance staff, and route managers.' %></p>
           </div>
         </div>
 
@@ -1250,7 +1268,7 @@
         <section class="section" id="schedule">
           <div class="card" data-tabs>
             <div class="cardHead">
-              <div class="cardTitle"><h3>Schedules</h3><p>View today’s trips, departure times, assigned vehicles, drivers, and availability.</p></div>
+              <div class="cardTitle"><h3><%= isDriverDashboard ? 'Driver Operations' : 'Schedules' %></h3><p><%= isDriverDashboard ? 'Assigned Trips, departure status, vehicles, manifests, and driver updates.' : 'View today’s trips, departure times, assigned vehicles, drivers, and availability.' %></p></div>
               <button class="btn btnPrimary" data-modal="create" data-type="delay notice"><i class="fa-solid fa-bell"></i> Send delay notice</button>
             </div>
             <div class="tabs">
@@ -1263,6 +1281,126 @@
             <div class="tabPane" data-pane="tomorrow"><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route</th><th>Time</th><th>Vehicle</th><th>Booked</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="schedules-status" data-filter="Tomorrow"></tbody></table></div></div>
             <div class="tabPane" data-pane="delayed"><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route</th><th>Time</th><th>Vehicle</th><th>Booked</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="schedules-status" data-filter="Delayed"></tbody></table></div></div>
             <div class="tabPane" data-pane="completed"><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route</th><th>Time</th><th>Vehicle</th><th>Booked</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="schedules-status" data-filter="Completed"></tbody></table></div></div>
+          </div>
+        </section>
+
+        <section class="section" id="driver-ops">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Driver Ops</h3><p>Assigned trips, current status, vehicle, occupancy, and manifest shortcuts.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="trip status"><i class="fa-solid fa-route"></i> Log trip update</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Schedule</th><th>Trip</th><th>Departure</th><th>Vehicle</th><th>Seats</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="driverOpsTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Trip status updates</h3><p>Latest driver movement, gate, delay, and safety updates.</p></div></div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Schedule</th><th>Status</th><th>Location</th><th>Note</th><th>Time</th><th>By</th><th></th></tr></thead>
+                  <tbody id="tripStatusTable"></tbody>
+                </table>
+              </div>
+              <form class="formPanel" method="POST" action="/driver/trips/<%= encodeURIComponent((dashboardData.schedules && dashboardData.schedules[0] && dashboardData.schedules[0][0]) || 'schedule-0001') %>/status">
+                <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+                <div class="formGrid">
+                  <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-route"></i><select name="status"><option>boarding</option><option>departed</option><option>delayed</option><option>arrived</option><option>completed</option></select></div></div>
+                  <div class="field"><label>Location</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="location" placeholder="Gate A / Jinja road / Border"></div></div>
+                  <div class="field full"><label>Note</label><div class="control"><textarea name="note" placeholder="Short operational update..."></textarea></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save update</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="driver-manifest">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Driver Manifest</h3><p>Passenger manifest for assigned trips with check-in and ticket actions.</p></div>
+                <a class="btn btnBlue" id="driverManifestPrintLink" href="/driver/schedules/<%= encodeURIComponent((dashboardData.schedules && dashboardData.schedules[0] && dashboardData.schedules[0][0]) || 'schedule-0001') %>/manifest" target="_blank" rel="noopener"><i class="fa-solid fa-print"></i> Print manifest</a>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Booking</th><th>Customer</th><th>Trip</th><th>Seat</th><th>Time</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="driverManifestTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Seat map / inventory</h3><p>Seat or room state for the assigned service.</p></div></div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Schedule</th><th>Seat / room</th><th>Service</th><th>Price</th><th>Passenger</th><th>Hold</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="driverInventoryTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="driver-incidents">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Incidents</h3><p>Driver incident reports, safety notes, breakdowns, delays, and passenger issues.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="driver incident"><i class="fa-solid fa-triangle-exclamation"></i> New incident</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Incident</th><th>Schedule / Booking</th><th>Category</th><th>Severity</th><th>Title</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="driverIncidentsTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Report incident</h3><p>Record only the important fields needed by operations.</p></div></div>
+              <form class="formPanel" method="POST" action="/driver/incidents">
+                <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+                <div class="formGrid">
+                  <div class="field"><label>Schedule</label><div class="control"><i class="fa-solid fa-calendar-days"></i><select name="scheduleId"><% (dashboardData.options && dashboardData.options.schedules || []).forEach(function(schedule){ %><option value="<%= schedule.value || schedule.id %>"><%= schedule.label || schedule.id %></option><% }) %></select></div></div>
+                  <div class="field"><label>Category</label><div class="control"><i class="fa-solid fa-list"></i><select name="category"><option>delay</option><option>vehicle</option><option>passenger</option><option>safety</option><option>route</option></select></div></div>
+                  <div class="field"><label>Severity</label><div class="control"><i class="fa-solid fa-triangle-exclamation"></i><select name="severity"><option>normal</option><option>high</option><option>urgent</option></select></div></div>
+                  <div class="field"><label>Title</label><div class="control"><i class="fa-solid fa-pen"></i><input name="title" placeholder="Short incident title" required></div></div>
+                  <div class="field full"><label>Description</label><div class="control"><textarea name="description" placeholder="What happened and what action was taken?" required></textarea></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save incident</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="routes">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Routes</h3><p>Routes connected to this company, including linked service, stops, corridor, and status.</p></div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Route</th><th>Service</th><th>Boarding</th><th>Drop-offs</th><th>Corridor</th><th>Status</th><th></th></tr></thead>
+                <tbody id="routesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="vehicles">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Vehicles</h3><p>Fleet records linked to this company: vehicle name, service type, plate/code, capacity, layout, and status.</p></div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Vehicle</th><th>Type</th><th>Plate / Code</th><th>Capacity</th><th>Layout</th><th>Status</th><th></th></tr></thead>
+                <tbody id="vehiclesTable"></tbody>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -1505,6 +1643,7 @@
     window.addEventListener('DOMContentLoaded', function () {
       const backendDashboardData = <%- JSON.stringify(dashboardData || {}) %>;
       const csrfToken = <%- JSON.stringify(csrfToken || '') %>;
+      const isDriverDashboard = <%- JSON.stringify(Boolean(isDriverDashboard)) %>;
       const $ = (s, root = document) => root.querySelector(s);
       const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
@@ -1545,81 +1684,31 @@
         confirmDelete: $('#confirmDelete')
       };
 
-      const data = {
-        tasks: [
-          ['T-1001','Amina K.','Ticket check','High','Open','10 min'],
-          ['T-1002','Moses A.','Seat move','Normal','Open','25 min'],
-          ['T-1003','Sarah L.','Delay notice','High','In progress','Now'],
-          ['T-1004','Peace N.','Refund follow-up','High','Waiting finance','1 hour'],
-          ['T-1005','John M.','Print receipt','Normal','Open','Today']
-        ],
-        checkins: [
-          ['#CE-2401','Amina K.','Kampala ⇄ Nairobi','A12','07:42','Checked in'],
-          ['#CE-2400','Moses A.','Kampala ⇄ Juba','B04','07:49','Checked in'],
-          ['#CE-2399','Sarah L.','Kampala ⇄ Kigali','C18','Pending','Not checked'],
-          ['#CE-2398','David O.','Jinja ⇄ Kampala','A01','07:55','Checked in'],
-          ['#CE-2397','Peace N.','Kampala ⇄ Mbarara','D11','Pending','Hold']
-        ],
-        bookings: [
-          ['#CE-2401','Kampala ⇄ Nairobi','Amina K.','A12','2026-05-06','Paid','UGX 85,000'],
-          ['#CE-2400','Kampala ⇄ Juba','Moses A.','B04','2026-05-06','Checked in','UGX 120,000'],
-          ['#CE-2399','Kampala ⇄ Kigali','Sarah L.','C18','2026-05-06','Hold','UGX 96,000'],
-          ['#CE-2398','Jinja ⇄ Kampala','David O.','A01','2026-05-05','Cancelled','UGX 25,000'],
-          ['#CE-2397','Kampala ⇄ Mbarara','Peace N.','D11','2026-05-05','Refund','UGX 45,000'],
-          ['#CE-2396','Kampala ⇄ Nairobi','John M.','A09','2026-05-05','Paid','UGX 85,000']
-        ],
-        schedules: [
-          ['SCH-1201','Kampala ⇄ Nairobi','Today 08:00','Coach A','44/49','Boarding'],
-          ['SCH-1202','Kampala ⇄ Juba','Today 10:30','Coach B','31/49','Open'],
-          ['SCH-1203','Kampala ⇄ Kigali','Today 14:00','Coach C','20/32','Delayed'],
-          ['SCH-1204','Jinja ⇄ Kampala','Tomorrow 07:00','Coach D','12/32','Tomorrow'],
-          ['SCH-1205','Kampala ⇄ Mbarara','Yesterday 09:00','Coach E','49/49','Completed']
-        ],
-        inventory: [
-          ['Executive Coach A','Kampala ⇄ Nairobi','49','44','3','2','Healthy'],
-          ['Standard Coach B','Kampala ⇄ Juba','49','31','5','0','Open'],
-          ['VIP Coach C','Kampala ⇄ Kigali','32','20','4','2','Review'],
-          ['Room Block 1','Nile View Partner Rooms','12','8','2','1','Healthy'],
-          ['Tour Slots','Jinja Nile Day Tour','24','18','0','0','Healthy']
-        ],
-        customers: [
-          ['Amina K.','+256 700 112233','18','Kampala ⇄ Nairobi','UGX 1.7M','Active'],
-          ['Moses A.','moses@example.com','6','Kampala ⇄ Juba','UGX 720K','Active'],
-          ['Sarah L.','sarah@example.com','12','Kampala ⇄ Kigali','UGX 980K','VIP'],
-          ['Peace N.','+256 711 992200','3','Kampala ⇄ Mbarara','UGX 140K','Refund open'],
-          ['John M.','john@example.com','9','Kampala ⇄ Nairobi','UGX 840K','Active']
-        ],
-        payments: [
-          ['PAY-8001','#CE-2401','Amina K.','Mobile Money','UGX 85,000','Paid'],
-          ['PAY-8000','#CE-2400','Moses A.','Cash','UGX 120,000','Paid'],
-          ['PAY-7999','#CE-2399','Sarah L.','Card','UGX 96,000','Hold'],
-          ['PAY-7998','#CE-2397','Peace N.','Mobile Money','UGX 45,000','Refund'],
-          ['PAY-7997','#CE-2396','John M.','Cash','UGX 85,000','Paid']
-        ],
-        refunds: [
-          ['REF-301','#CE-2397','Peace N.','Customer cancelled','UGX 45,000','Pending'],
-          ['REF-300','#CE-2388','Daniel K.','Duplicate payment','UGX 85,000','Approved'],
-          ['REF-299','#CE-2381','Mary A.','Late arrival','UGX 40,000','Rejected'],
-          ['REF-298','#CE-2379','Sarah L.','Trip delayed','UGX 96,000','Pending']
-        ],
-        support: [
-          ['SUP-501','Sarah L.','Departure delay','High','Open','18 min ago'],
-          ['SUP-500','Peace N.','Refund request','High','Waiting finance','1 hour ago'],
-          ['SUP-499','John M.','Seat mismatch','Normal','Open','2 hours ago'],
-          ['SUP-498','Moses A.','Luggage question','Normal','Resolved','Yesterday']
-        ],
-        handovers: [
-          ['Morning shift','Peter O.','Customer CE-2399 still needs seat confirmation.','Open'],
-          ['Night shift','Sarah A.','Cash drawer balanced and receipt batch uploaded.','Completed'],
-          ['Afternoon shift','Daniel K.','Coach B driver requested route update before 10:30.','Open']
-        ]
-      };
-
-      Object.assign(data, backendDashboardData);
+      const data = {};
+      function mergeDashboardData(target, source) {
+    if (!source || typeof source !== 'object') return target;
+    Object.entries(source).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) target[key] = value;
+        return;
+      }
+      if (value && typeof value === 'object') {
+        if (!Array.isArray(target[key]) && target[key] && typeof target[key] === 'object') {
+          target[key] = { ...target[key], ...value };
+        } else if (Object.keys(value).length) {
+          target[key] = value;
+        }
+        return;
+      }
+      if (value !== undefined && value !== null && value !== '') target[key] = value;
+    });
+    return target;
+  }
+  mergeDashboardData(data, backendDashboardData);
       data.options = Object.assign({ listings: [], schedules: [], rooms: [] }, data.options || {});
       data.stats = data.stats || {};
       data.profile = data.profile || {};
-      ['tasks','checkins','bookings','schedules','inventory','customers','payments','refunds','support','handovers'].forEach(key => {
+      ['tasks','checkins','bookings','schedules','driverOps','driverIncidents','tripStatusUpdates','inventory','customers','payments','refunds','support','handovers'].forEach(key => {
         data[key] = Array.isArray(data[key]) ? data[key] : [];
       });
 
@@ -1631,11 +1720,16 @@
       let currentPage = 'overview';
 
       const pageMeta = {
-        overview:['Company Employee Dashboard','Work dashboard for ticket checkers, booking agents, receptionists, finance staff, and route managers.'],
+        overview:[isDriverDashboard ? 'Driver Dashboard' : 'Company Employee Dashboard', isDriverDashboard ? 'Driver Operations for assigned trips, manifests, incidents, check-in support, and trip status updates.' : 'Work dashboard for ticket checkers, booking agents, receptionists, finance staff, and route managers.'],
         checkin:['Ticket Check-in','Scan tickets, verify passengers, check in customers, and handle no-shows.'],
         bookings:['Bookings Desk','Create, update, print, and manage customer bookings.'],
-        schedule:['Schedules','View trips, departure times, vehicles, rooms, and delays.'],
-        inventory:['Seats / Rooms','Manage seat maps, rooms, held inventory, and passenger movement.'],
+        schedule:[isDriverDashboard ? 'Driver Operations' : 'Schedules', isDriverDashboard ? 'Assigned Trips, departure status, vehicles, manifests, and driver updates.' : 'View trips, departure times, vehicles, rooms, and delays.'],
+        routes:['Routes','View company corridors, boarding points, drop-off points, and route status.'],
+        vehicles:['Vehicles','View assigned fleet vehicles, plate/code, layout, capacity, and service status.'],
+        'driver-ops':['Driver Ops','Assigned trips, departure status, vehicles, occupancy, manifests, and driver updates.'],
+        inventory:[isDriverDashboard ? 'Driver Manifest' : 'Service Inventory', isDriverDashboard ? 'View seat maps, passenger lists, and manifest exports for assigned trips.' : 'Manage assigned inventory, holds, guest details, and passenger movement.'],
+        'driver-manifest':['Driver Manifest','Passenger list, seats, check-in status, ticket links, and printable manifest.'],
+        'driver-incidents':['Incidents','Driver incident reports, safety notes, delays, route issues, and passenger problems.'],
         customers:['Customers','Search customers, booking history, receipts, and support records.'],
         payments:['Payments','View payments, receipts, unpaid bookings, and cashier totals.'],
         refunds:['Refund Requests','Handle refund requests based on employee permissions.'],
@@ -1763,14 +1857,14 @@
 
         const welcomeTitle = $('.welcome h2');
         const welcomeText = $('.welcome p');
-        if(welcomeTitle) welcomeTitle.textContent = `Welcome ${name}. Your desk has ${stats.openTasks || data.tasks.length} tasks waiting today.`;
-        if(welcomeText) welcomeText.textContent = `Handle bookings, check-ins, inventory, notices, payments, refunds, support, and handovers for ${data.company?.name || 'your company'}.`;
+        if(welcomeTitle) welcomeTitle.textContent = isDriverDashboard ? `Welcome ${name}. You have ${data.schedules.length} Assigned Trips.` : `Welcome ${name}. Your desk has ${stats.openTasks || data.tasks.length} tasks waiting today.`;
+        if(welcomeText) welcomeText.textContent = isDriverDashboard ? `Driver Operations for ${data.company?.name || 'your company'}: trip status, manifests, seat maps, check-in support, and incident reports.` : `Handle bookings, check-ins, inventory, notices, payments, refunds, support, and handovers for ${data.company?.name || 'your company'}.`;
 
         const liveItems = $$('.liveList .liveItem');
         [
-          ['Tickets checked today', stats.checkedIn || data.checkins.filter(row => /checked/i.test(String(rowCells(row)[5] || ''))).length],
-          ['Manual bookings', stats.manualBookings || data.bookings.filter(row => /employee/i.test(String(rowCells(row)[7] || ''))).length],
-          ['Open tasks', stats.openTasks || data.tasks.length],
+          [isDriverDashboard ? 'Assigned trips' : 'Tickets checked today', isDriverDashboard ? data.schedules.length : (stats.checkedIn || data.checkins.filter(row => /checked/i.test(String(rowCells(row)[5] || ''))).length)],
+          [isDriverDashboard ? 'Manifest rows' : 'Manual bookings', isDriverDashboard ? data.inventory.length : (stats.manualBookings || data.bookings.filter(row => /employee/i.test(String(rowCells(row)[7] || ''))).length)],
+          [isDriverDashboard ? 'Open incidents' : 'Open tasks', isDriverDashboard ? data.driverIncidents?.length || 0 : (stats.openTasks || data.tasks.length)],
           ['Shift ends', stats.shiftEnds || '6:00 PM']
         ].forEach(([label, value], index) => {
           const item = liveItems[index];
@@ -1783,10 +1877,10 @@
 
         const statCards = $$('.statsGrid .statCard');
         [
-          [stats.checkedIn || '0', 'Tickets checked'],
-          [stats.manualBookings || '0', 'Manual bookings'],
-          [stats.openTasks || '0', 'Support tasks handled'],
-          [stats.deskSales || 'UGX 0', 'Desk sales today']
+          [isDriverDashboard ? data.schedules.length : (stats.checkedIn || '0'), isDriverDashboard ? 'Assigned Trips' : 'Tickets checked'],
+          [isDriverDashboard ? data.tripStatusUpdates?.length || 0 : (stats.manualBookings || '0'), isDriverDashboard ? 'Trip updates' : 'Manual bookings'],
+          [isDriverDashboard ? data.driverIncidents?.length || 0 : (stats.openTasks || '0'), isDriverDashboard ? 'Incidents' : 'Support tasks handled'],
+          [isDriverDashboard ? (stats.shiftEnds || '6:00 PM') : (stats.deskSales || 'UGX 0'), isDriverDashboard ? 'Shift ends' : 'Desk sales today']
         ].forEach(([value, label], index) => {
           const card = statCards[index];
           if(!card) return;
@@ -1817,6 +1911,11 @@
         renderRows($('#checkinTable'), data.checkins, {statusIndex:5, cols:7});
         renderRows($('#bookingsTable'), data.bookings, {statusIndex:5, cols:8});
         renderRows($('#scheduleToday'), data.schedules, {statusIndex:5, cols:7});
+        renderRows($('#driverOpsTable'), data.driverOps.length ? data.driverOps : data.schedules, {statusIndex:5, cols:7});
+        renderRows($('#tripStatusTable'), data.tripStatusUpdates, {statusIndex:1, cols:7});
+        renderRows($('#driverManifestTable'), data.checkins.length ? data.checkins : data.bookings, {statusIndex:5, cols:7});
+        renderRows($('#driverInventoryTable'), data.inventory, {statusIndex:6, cols:8});
+        renderRows($('#driverIncidentsTable'), data.driverIncidents, {statusIndex:5, cols:7});
         renderRows($('#inventoryTable'), data.inventory, {statusIndex:6, cols:8});
         renderRows($('#customersTable'), data.customers, {avatar:true, statusIndex:5, cols:7});
         renderRows($('#paymentsTable'), data.payments, {statusIndex:5, cols:7});
@@ -1927,7 +2026,16 @@
         });
       }
 
+      function normalizePage(page){
+        const raw = String(page || 'overview');
+        if(raw === 'assigned-trips') return 'driver-ops';
+        if(raw === 'manifest') return 'driver-manifest';
+        if(raw === 'incidents') return 'driver-incidents';
+        return raw;
+      }
+
       function openPage(page){
+        page = normalizePage(page);
         currentPage = page || 'overview';
         $$('.section').forEach(s => s.classList.remove('is-open'));
         const section = $('#' + page);
@@ -2541,8 +2649,8 @@
       });
 
       function initialPageFromLocation(){
-        const hash = String(location.hash || '').replace('#', '');
-        return pageMeta[hash] ? hash : 'overview';
+        const hash = normalizePage(String(location.hash || '').replace('#', ''));
+        return (pageMeta[hash] || $('#' + hash)) ? hash : 'overview';
       }
 
       renderAll();

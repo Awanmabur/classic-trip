@@ -1,5 +1,6 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const actionService = require('../../services/dashboard/actionService');
+const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 
 function roleFromUser(user = {}, requested = '') {
   const requestedRole = String(requested || '').toLowerCase();
@@ -25,10 +26,15 @@ function contextFromUser(user = {}) {
   };
 }
 
-function data(req, res) {
-  const user = req.session?.user || {};
-  const role = roleFromUser(user, req.params.role || req.query.role);
-  res.json({ ok: true, role, data: store.dashboardData(role, contextFromUser(user)) });
+async function data(req, res, next) {
+  try {
+    const user = req.session?.user || {};
+    const role = roleFromUser(user, req.params.role || req.query.role);
+    const data = await mongoDashboardService.roleDashboard(role, contextFromUser(user));
+    res.json({ ok: true, role, data });
+  } catch (error) {
+    next(error);
+  }
 }
 
 async function action(req, res, next) {

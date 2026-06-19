@@ -1,0 +1,13 @@
+<main class="pageShell">
+  <section class="panel" style="max-width:720px;margin:auto;text-align:center">
+    <h1>Classic Trip Promoter QR Referral Card</h1>
+    <p><strong><%= card.promoterName %></strong></p>
+    <h2><%= card.listingTitle || 'Classic Trip marketplace' %></h2>
+    <p>Referral code</p>
+    <div style="font-size:2rem;font-weight:800;letter-spacing:.08em"><%= card.code %></div>
+    <p>QR payload</p>
+    <pre style="white-space:pre-wrap;text-align:left;background:#f5f7fb;padding:1rem;border-radius:12px"><%= card.qrPayload %></pre>
+    <p>Share this card with customers. Bookings from this link are tracked for commission and fraud review.</p>
+    <button onclick="window.print()" class="btn btnPrimary">Print referral card</button>
+  </section>
+</main>

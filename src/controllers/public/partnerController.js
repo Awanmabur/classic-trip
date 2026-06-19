@@ -1,5 +1,5 @@
-const companyService = require('../../services/company/companyService');
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
+const partnerPipelineService = require('../../services/onboarding/partnerPipelineService');
 const { mongoose } = require('../../config/db');
 
 function cleanText(value) {
@@ -24,30 +24,34 @@ async function persist(ticket) {
 
 async function create(req, res, next) {
   try {
-    const company = await companyService.createCompany({
-      name: req.body.name,
+    const lead = await partnerPipelineService.createLead({
+      businessName: req.body.name,
       companyType: req.body.companyType,
-      country: req.body.country,
-      city: req.body.city || '',
+      contactName: req.body.contactName,
       email: req.body.email,
       phone: req.body.phone,
-      description: `Partner request from ${cleanText(req.body.contactName || req.body.email)}`,
-    });
+      whatsapp: req.body.whatsapp,
+      city: req.body.city || '',
+      country: req.body.country || 'Uganda',
+      notes: req.body.notes,
+      sourceChannel: 'public_partner_form',
+      sourcePath: req.originalUrl,
+    }, cleanText(req.body.email || 'public-partner-request'));
 
     const ticket = {
       id: nextId('support', store.state.supportTickets),
-      ownerType: 'company',
-      ownerId: company.id,
-      companyId: company.id,
+      ownerType: 'partner_lead',
+      ownerId: lead.id,
+      companyId: '',
       category: 'Partner onboarding',
-      subject: `Partner request: ${company.name}`,
+      subject: `Partner request: ${lead.businessName}`,
       message: `Contact ${cleanText(req.body.contactName)} at ${cleanText(req.body.email)} / ${cleanText(req.body.phone)} for verification.`,
       priority: 'high',
       status: 'open',
       assignedTo: 'admin-onboarding',
       createdBy: cleanText(req.body.email || 'partner-request'),
       createdAt: new Date().toISOString(),
-      meta: { source: 'public_partner_form', companySlug: company.slug },
+      meta: { source: 'public_partner_form', leadId: lead.id },
     };
     store.state.supportTickets.unshift(ticket);
     await persist(ticket);

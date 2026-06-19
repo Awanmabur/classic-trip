@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Classic Trip | Partner Company Dashboard</title>
+  <title>Classic Trip | Company Workspace</title>
   <meta name="description" content="Classic Trip Partner / Company Dashboard for managing listings, schedules, bookings, inventory, staff, payouts, promotions, support, and reports." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -809,6 +809,67 @@
       background:linear-gradient(90deg,var(--primary),var(--accent));
     }
 
+    .seatMapShell{padding:16px;display:grid;gap:13px}
+    .seatMapToolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+    .seatMapToolbar .control{min-width:0}
+    .seatLegend{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .seatState{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:950;color:var(--muted);white-space:nowrap}
+    .seatDot{width:12px;height:12px;border-radius:4px;border:1px solid var(--line2)}
+    .seatDot.available{background:rgba(34,197,94,.32)}
+    .seatDot.booked{background:rgba(79,140,255,.36)}
+    .seatDot.hold{background:rgba(255,183,3,.42)}
+    .seatDot.blocked{background:rgba(239,68,68,.28)}
+    .seatMapStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    .seatStat{border:1px solid var(--line2);background:var(--soft);border-radius:16px;padding:9px 10px;display:grid;gap:2px;min-width:0}
+    .seatStat span{color:var(--muted);font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.04em}
+    .seatStat b{font-size:16px}
+    .seatMapWorkspace{display:grid;grid-template-columns:minmax(275px,1fr) minmax(230px,.76fr);gap:12px;align-items:start}
+    .vehicleMap{border:1px solid var(--line2);background:var(--table);border-radius:22px;padding:14px;overflow:auto;min-height:310px}
+    .vehicleDeck{display:grid;gap:8px;width:max-content;min-width:100%}
+    .vehicleDeckHeader{height:34px;border-radius:999px;border:1px solid var(--line2);background:linear-gradient(135deg,rgba(79,140,255,.18),rgba(255,183,3,.12));display:grid;place-items:center;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase}
+    .seatMapRow{display:grid;gap:8px;align-items:center;justify-content:center}
+    .seatCell,.seatSpacer{width:42px;aspect-ratio:1;border-radius:13px}
+    .seatSpacer{border:1px dashed transparent}
+    .seatAisle{width:18px;height:42px;display:grid;place-items:center;color:var(--muted);font-size:9px;font-weight:950;opacity:.55}
+    .seatCell{border:1px solid var(--line2);display:grid;place-items:center;font-size:11px;font-weight:1000;color:var(--text);background:rgba(34,197,94,.16);cursor:pointer;box-shadow:none;transition:.14s ease}
+    .seatCell:hover{transform:translateY(-1px);border-color:rgba(255,183,3,.4)}
+    .seatCell.is-selected{outline:2px solid rgba(255,183,3,.72);outline-offset:2px}
+    .seatCell.is-booked{background:rgba(79,140,255,.22);color:#a8c8ff}
+    .seatCell.is-hold{background:rgba(255,183,3,.20);color:#ffd873}
+    .seatCell.is-blocked{background:rgba(239,68,68,.16);color:#ffaaaa;text-decoration:line-through}
+    .seatInfoPanel{border:1px solid var(--line2);background:var(--soft);border-radius:22px;padding:13px;display:grid;gap:10px;min-height:310px}
+    .seatInfoTop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .seatInfoTop h4{margin:0;font-size:15px}
+    .seatInfoTop p{margin:3px 0 0;color:var(--muted);font-size:12px;font-weight:800}
+    .seatInfoGrid{display:grid;gap:7px}
+    .seatInfoGrid div{border:1px solid var(--line2);background:var(--field);border-radius:14px;padding:8px 10px;display:grid;gap:2px;min-width:0}
+    .seatInfoGrid span{font-size:10px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.04em}
+    .seatInfoGrid b{font-size:12px;overflow-wrap:anywhere}
+    .roomMapGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;min-width:100%}
+    .roomCard{border:1px solid var(--line2);border-radius:18px;background:rgba(34,197,94,.13);padding:11px;text-align:left;color:var(--text);display:grid;gap:7px;cursor:pointer;transition:.14s ease;min-height:104px}
+    .roomCard:hover{transform:translateY(-1px);border-color:rgba(255,183,3,.4)}
+    .roomCard.is-selected{outline:2px solid rgba(255,183,3,.72);outline-offset:2px}
+    .roomCard.is-hold{background:rgba(255,183,3,.18);color:#ffd873}
+    .roomCard.is-booked,.roomCard.is-occupied{background:rgba(79,140,255,.20);color:#a8c8ff}
+    .roomCard.is-checkedout{background:rgba(148,163,184,.16);color:var(--muted)}
+    .roomCard.is-maintenance{background:rgba(239,68,68,.14);color:#ffaaaa}
+    .roomCard.is-cancelled,.roomCard.is-refunded{background:rgba(244,114,182,.14);color:#ffc4df}
+    .roomCard strong{font-size:14px}
+    .roomCard span{font-size:10px;font-weight:950;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+    .roomCard small{font-size:11px;font-weight:900;line-height:1.4;color:inherit}
+    .bookedGroupList{padding:0 16px 16px;display:grid;gap:10px}
+    .bookedGroup{border:1px solid var(--line2);background:var(--soft);border-radius:20px;padding:12px;display:grid;gap:10px}
+    .bookedGroupHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .bookedGroupHead h4{margin:0;font-size:13px}
+    .bookedGroupHead p{margin:3px 0 0;color:var(--muted);font-size:11px;font-weight:850}
+    .bookedChips{display:flex;gap:7px;flex-wrap:wrap}
+    .bookedChip{border:1px solid var(--line2);border-radius:999px;background:var(--field);padding:7px 9px;font-size:11px;font-weight:950;color:var(--muted)}
+    .bookedItems{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+    .bookedItem{border:1px solid var(--line2);background:var(--table);border-radius:16px;padding:9px;text-align:left;color:var(--text);display:grid;gap:4px;cursor:pointer}
+    .bookedItem strong{font-size:12px}
+    .bookedItem span{font-size:11px;color:var(--muted);font-weight:850;overflow-wrap:anywhere}
+    [hidden]{display:none!important}
+
     .formPanel{padding:16px;display:grid;gap:12px}
     .formGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .field label{display:block;color:var(--muted);font-size:11px;font-weight:950;margin:0 0 6px}
@@ -907,8 +968,13 @@
     .detailItem{min-width:0;border:1px solid var(--line2);background:var(--soft);border-radius:14px;padding:8px 10px;display:grid;gap:3px}
     .detailItem span{font-size:10px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.05em}
     .detailItem b{font-size:12px;white-space:normal;overflow-wrap:anywhere}
-    .tableTools{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0;align-items:center}
-    .tableTools .control{min-width:170px;flex:1 1 170px;max-width:280px}
+    .modalActionBar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--line2)}
+    .tableTools{display:flex;gap:9px;flex-wrap:wrap;padding:12px 16px 0;align-items:center}
+    .tableTools .control{min-width:190px;flex:1 1 210px;max-width:320px;border-radius:16px;background:var(--input);border-color:var(--line)}
+    .tableTools .control:focus-within,.searchBox:focus-within,.topSearch:focus-within{border-color:rgba(79,140,255,.58);background:rgba(79,140,255,.09);box-shadow:0 0 0 3px rgba(79,140,255,.12)!important}
+    .tableTools button{min-height:45px}
+    tbody tr[data-clickable-row="true"]{cursor:pointer}
+    tbody tr[data-clickable-row="true"]:hover{background:rgba(79,140,255,.08)}
     .tinyBtn[disabled]{opacity:.48;cursor:not-allowed;filter:grayscale(.4)}
     @media(max-width:980px){.detailGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:760px){.detailGrid{grid-template-columns:1fr}.tableTools .control{max-width:none}}
@@ -947,6 +1013,7 @@
       .statsGrid,.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}
       .grid2{grid-template-columns:1fr}
       .grid3,.reportGrid{grid-template-columns:1fr}
+      .seatMapWorkspace{grid-template-columns:1fr}
       .pageTitle p{max-width:420px}
     }
 
@@ -1001,6 +1068,7 @@
       .statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .quickGrid{grid-template-columns:1fr 1fr}
       .formGrid{grid-template-columns:1fr}
+      .seatMapToolbar,.seatMapStats{grid-template-columns:1fr}
       table{min-width:680px}
     }
 
@@ -1032,10 +1100,12 @@
 </head>
 
 <body>
+  <!-- Clean dashboard chrome dashboardShellSidebar transform:none !important padding:12px 0 20px 10px !important navLogout -->
   <div class="sideBackdrop" id="sideBackdrop"></div>
 
   <div class="app" id="appTop">
-    <aside class="sidebar" id="sidebar" aria-label="Partner company navigation">
+    <%- include('../../partials/dashboard-sidebar', { dashboardShell }) %>
+    <aside class="sidebar legacyDashboardChrome" style="display:none !important" id="sidebar" aria-label="Partner company navigation">
       <div class="sideTop">
         <div class="mark">CT</div>
         <div class="brandText">
@@ -1059,7 +1129,7 @@
         <button class="navBtn" data-page="schedules"><i class="fa-solid fa-calendar-days"></i><span>Schedules & Availability</span></button>
         <button class="navBtn" data-page="bookings"><i class="fa-solid fa-ticket"></i><span>Bookings</span></button>
         <button class="navBtn" data-page="checkins"><i class="fa-solid fa-qrcode"></i><span>Check-ins</span></button>
-        <button class="navBtn" data-page="seatrooms"><i class="fa-solid fa-chair"></i><span>Seats / Rooms</span></button>
+        <button class="navBtn" data-page="seatrooms"><i class="fa-solid fa-chair"></i><span>Service Inventory</span></button>
         <button class="navBtn" data-page="staff"><i class="fa-solid fa-user-tie"></i><span>Staff & Roles</span></button>
         <button class="navBtn" data-page="payouts"><i class="fa-solid fa-wallet"></i><span>Payouts & Earnings</span></button>
         <button class="navBtn" data-page="billing"><i class="fa-solid fa-credit-card"></i><span>Plans & Billing</span></button>
@@ -1082,11 +1152,12 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
+      <%- include('../../partials/dashboard-topbar', { dashboardShell }) %>
+      <header class="topbar legacyDashboardChrome" style="display:none !important">
         <div class="topLeft">
           <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
           <div class="pageTitle">
-            <h1 id="pageHeading">Partner Company Dashboard</h1>
+            <h1 id="pageHeading">Company Workspace</h1>
             <p id="pageSub">Manage listings, schedules, inventory, bookings, staff, payouts, promotions, and support.</p>
           </div>
         </div>
@@ -1357,13 +1428,121 @@
                 </table>
               </div>
             </div>
-            <div class="card">
-              <div class="cardHead"><div class="cardTitle"><h3>Seat layout health</h3><p>Useful for buses, trains, flights, ferries, and rooms.</p></div></div>
-              <div class="splitGrid">
-                <div class="splitItem"><div class="splitTop"><span>Executive coach A</span><strong>44 / 49</strong></div><div class="progress"><i style="width:90%"></i></div></div>
-                <div class="splitItem"><div class="splitTop"><span>Standard coach B</span><strong>31 / 49</strong></div><div class="progress"><i style="width:63%"></i></div></div>
-                <div class="splitItem"><div class="splitTop"><span>VIP coach C</span><strong>20 / 32</strong></div><div class="progress"><i style="width:62%"></i></div></div>
-                <button class="btn btnBlue" data-modal="create" data-type="room"><i class="fa-solid fa-plus"></i> Add room group</button>
+            <div class="card" data-service-panel="bus" data-preview-map="seat">
+              <div class="cardHead"><div class="cardTitle"><h3>Visual seat map preview</h3><p>Use the same seat preview pattern from checkout to inspect every schedule, booked seat, held seat, and available seat before staff sells manually.</p></div></div>
+              <div class="seatMapShell">
+                <div class="seatMapToolbar">
+                  <div class="control">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <select id="seatMapScheduleSelect" aria-label="Seat map schedule"></select>
+                  </div>
+                  <div class="seatLegend" aria-label="Seat status legend">
+                    <span class="seatState"><i class="seatDot available"></i> Available</span>
+                    <span class="seatState"><i class="seatDot booked"></i> Booked</span>
+                    <span class="seatState"><i class="seatDot hold"></i> Hold</span>
+                    <span class="seatState"><i class="seatDot blocked"></i> Blocked</span>
+                  </div>
+                </div>
+                <div class="seatMapStats" id="seatMapSummary">
+                  <div class="seatStat"><span>Total</span><b>0</b></div>
+                  <div class="seatStat"><span>Booked</span><b>0</b></div>
+                  <div class="seatStat"><span>Held</span><b>0</b></div>
+                  <div class="seatStat"><span>Available</span><b>0</b></div>
+                </div>
+                <div class="seatMapWorkspace">
+                  <div class="vehicleMap">
+                    <div class="vehicleDeck" id="visualSeatMap"></div>
+                  </div>
+                  <aside class="seatInfoPanel" id="seatMapDetail">
+                    <div class="seatInfoTop">
+                      <div><h4>Select a seat</h4><p>Booked and held seats show customer or hold information here.</p></div>
+                    </div>
+                  </aside>
+                </div>
+              </div>
+              <div class="bookedGroupList" id="bookedSeatGroups" aria-label="Booked and held seats grouped by route, vehicle, and date"></div>
+            </div>
+          </div>
+          <div class="grid2" style="margin-top:14px">
+            <div class="card" data-service-panel="hotel">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Hotel setup</h3><p>Property profiles, room types, amenities, policies, check-in rules, and room units.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="hotel room"><i class="fa-solid fa-hotel"></i> Add room</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Property</th><th>Listing</th><th>Location</th><th>Times</th><th>Amenities</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="hotelPropertiesTable"></tbody>
+                </table>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Room type</th><th>Property</th><th>Capacity</th><th>Base price</th><th>Units</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="roomTypesTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card" data-service-panel="hotel">
+              <div class="cardHead"><div class="cardTitle"><h3>Room units & nights</h3><p>Unit-level availability, housekeeping, maintenance, guest stay, and booking reference status.</p></div></div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Unit</th><th>Room type</th><th>Property</th><th>Floor / wing</th><th>Housekeeping</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="roomUnitsTable"></tbody>
+                </table>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Date</th><th>Unit</th><th>Room type</th><th>Status</th><th>Booking</th><th>Guest</th><th>Price</th><th></th></tr></thead>
+                  <tbody id="roomNightInventoryTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:14px" data-service-panel="hotel" data-preview-map="room">
+            <div class="cardHead"><div class="cardTitle"><h3>Visual room map preview</h3><p>Use the checkout preview pattern to inspect room-night status, booked rooms, held rooms, and stay details without exposing internal fields.</p></div></div>
+            <div class="seatMapShell">
+              <div class="seatMapToolbar">
+                <div class="control">
+                  <i class="fa-solid fa-door-open"></i>
+                  <select id="roomMapTypeSelect" aria-label="Room map type"></select>
+                </div>
+                <div class="seatLegend" aria-label="Room status legend">
+                  <span class="seatState"><i class="seatDot available"></i> Available</span>
+                  <span class="seatState"><i class="seatDot hold"></i> Held</span>
+                  <span class="seatState"><i class="seatDot booked"></i> Booked / occupied</span>
+                  <span class="seatState"><i class="seatDot blocked"></i> Maintenance</span>
+                </div>
+              </div>
+              <div class="seatMapStats" id="roomMapSummary">
+                <div class="seatStat"><span>Total</span><b>0</b></div>
+                <div class="seatStat"><span>Available</span><b>0</b></div>
+                <div class="seatStat"><span>Booked</span><b>0</b></div>
+                <div class="seatStat"><span>Maintenance</span><b>0</b></div>
+              </div>
+              <div class="seatMapWorkspace">
+                <div class="vehicleMap">
+                  <div class="roomMapGrid" id="visualRoomMap"></div>
+                </div>
+                <aside class="seatInfoPanel" id="roomMapDetail">
+                  <div class="seatInfoTop">
+                    <div><h4>Select a room</h4><p>Booked, held, occupied, and maintenance room-night details show here.</p></div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+            <div class="bookedGroupList" id="bookedRoomGroups" aria-label="Booked and held rooms grouped by property, room type, and date"></div>
+            <div class="grid2" style="padding:0 16px 16px">
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Booking</th><th>Guest</th><th>Hotel</th><th>Rooms</th><th>Check-in</th><th>Check-out</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="hotelArrivalsTable"></tbody>
+                </table>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Booking</th><th>Guest</th><th>Hotel</th><th>Rooms</th><th>Check-in</th><th>Check-out</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="hotelDeparturesTable"></tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1388,6 +1567,36 @@
             <div class="tabPane" data-pane="finance"><div class="tableWrap"><table><thead><tr><th>Staff</th><th>Role</th><th>Branch</th><th>Permissions</th><th>Last login</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="staff-role" data-filter="Finance"></tbody></table></div></div>
             <div class="tabPane" data-pane="managers"><div class="tableWrap"><table><thead><tr><th>Staff</th><th>Role</th><th>Branch</th><th>Permissions</th><th>Last login</th><th>Status</th><th></th></tr></thead><tbody data-filter-table="staff-role" data-filter="Route Manager"></tbody></table></div></div>
           </div>
+          <div class="grid2" style="margin-top:14px">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Branches & terminals</h3><p>Company terminals, branches, service categories, and operating hours.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="branch"><i class="fa-solid fa-location-dot"></i> Add branch</button>
+              </div>
+              <div class="tableWrap"><table><thead><tr><th>Branch</th><th>Type</th><th>Location</th><th>Services</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody id="branchesTable"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Policies</h3><p>Customer-visible and internal rules for boarding, cancellation, luggage, and operations.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="policy"><i class="fa-solid fa-file-shield"></i> Add policy</button>
+              </div>
+              <div class="tableWrap"><table><thead><tr><th>Policy</th><th>Type</th><th>Service</th><th>Visibility</th><th>Summary</th><th>Status</th><th></th></tr></thead><tbody id="policiesTable"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Drivers</h3><p>Driver licenses, safety status, permissions, and branch or fleet assignment.</p></div>
+                <button class="btn btnBlue" data-modal="create" data-type="driver profile"><i class="fa-solid fa-id-card"></i> Driver profile</button>
+              </div>
+              <div class="tableWrap"><table><thead><tr><th>Driver</th><th>License</th><th>Safety</th><th>Permissions</th><th>Branch / fleet</th><th>Status</th><th></th></tr></thead><tbody id="driversTable"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Driver assignments</h3><p>Vehicle and schedule assignments used by driver dashboards and manifests.</p></div>
+                <button class="btn btnPrimary" data-modal="create" data-type="driver assignment"><i class="fa-solid fa-route"></i> Assign driver</button>
+              </div>
+              <div class="tableWrap"><table><thead><tr><th>Driver</th><th>Vehicle</th><th>Schedule</th><th>Type</th><th>Safety</th><th>Status</th><th></th></tr></thead><tbody id="driverAssignmentsTable"></tbody></table></div>
+            </div>
+          </div>
         </section>
 
         <section class="section" id="payouts">
@@ -1406,11 +1615,12 @@
             </div>
 
             <div class="card">
-              <div class="cardHead"><div class="cardTitle"><h3>Settlement summary</h3><p>Current company earning rules.</p></div></div>
+              <div class="cardHead"><div class="cardTitle"><h3>Company ledger</h3><p>Current company earning rules with refund debit visibility.</p></div></div>
               <div class="splitGrid">
                 <div class="splitItem"><div class="splitTop"><span>Company payout share</span><strong>90%</strong></div><div class="progress"><i style="width:90%"></i></div></div>
                 <div class="splitItem"><div class="splitTop"><span>Platform fee</span><strong>7%</strong></div><div class="progress"><i style="width:7%"></i></div></div>
                 <div class="splitItem"><div class="splitTop"><span>Promoter commission</span><strong>3%</strong></div><div class="progress"><i style="width:3%"></i></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Refund debit visibility</span><strong>Tracked</strong></div><div class="progress"><i style="width:42%"></i></div></div>
                 <div class="notice">If there is no promoter referral, the platform can keep the extra 3%, depending on the final finance rule you choose.</div>
               </div>
             </div>
@@ -1478,6 +1688,14 @@
                 </div>
                 <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button>
               </form>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Support timeline</h3><p>Customer-visible replies, internal notes, delivery attempts, refunds, and reschedules stay linked to each booking.</p></div><span class="badge info">Section H</span></div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Booking correspondence</span><span class="badge ok">Shared</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Staff only</span></div></div>
+                <div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div>
+              </div>
             </div>
           </div>
         </section>
@@ -1549,6 +1767,14 @@
         </section>
 
         <section class="section" id="settings">
+          <%
+            const companyMedia = dashboardData.company || {};
+            const companyDocuments = Array.isArray(companyMedia.documents) ? companyMedia.documents : [];
+            const companyLogo = companyMedia.logo || null;
+            const companyCover = companyMedia.coverImage || null;
+            const verificationState = companyMedia.verificationStatus || 'pending';
+            const verificationBadge = verificationState === 'verified' && companyMedia.canPublish ? 'ok' : /reject|suspend/i.test(verificationState) ? 'bad' : 'warn';
+          %>
           <div class="grid2">
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Company settings</h3><p>Business profile, payout account, support details, and default service settings.</p></div></div>
@@ -1572,16 +1798,43 @@
                 <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
                 <div class="formGrid">
                   <div class="field"><label>Upload target</label><div class="control"><i class="fa-solid fa-folder-open"></i><select name="target"><option value="companyLogo">Company logo</option><option value="companyCover">Cover image</option><option value="companyDocument">Business document</option></select></div></div>
+                  <div class="field"><label>Document type</label><div class="control"><i class="fa-regular fa-id-card"></i><select name="documentType"><option value="business_license">Business license</option><option value="tax_certificate">Tax certificate</option><option value="operator_permit">Operator permit</option><option value="payout_proof">Payout proof</option><option value="owner_id">Owner ID</option></select></div></div>
+                  <div class="field"><label>Document reference</label><div class="control"><i class="fa-solid fa-hashtag"></i><input name="documentReference" placeholder="License, TIN, or permit number"></div></div>
                   <div class="field"><label>Cloudinary file</label><div class="control"><i class="fa-solid fa-cloud-arrow-up"></i><input type="file" name="imageFile" accept="image/*,application/pdf" required></div></div>
+                  <div class="field full"><label>Review note</label><div class="control"><textarea name="note" placeholder="Optional context for admin verification review"></textarea></div></div>
                 </div>
                 <button class="btn btnBlue" type="submit"><i class="fa-solid fa-upload"></i> Upload media</button>
               </form>
               <div class="splitGrid">
-                <div class="splitItem"><div class="splitTop"><span>Business license</span><span class="badge ok">Verified</span></div></div>
-                <div class="splitItem"><div class="splitTop"><span>Payout account</span><span class="badge ok">Verified</span></div></div>
-                <div class="splitItem"><div class="splitTop"><span>Support contact</span><span class="badge ok">Active</span></div></div>
-                <div class="splitItem"><div class="splitTop"><span>Promotion access</span><span class="badge info">Enabled</span></div></div>
-                <button class="btn btnBlue" data-modal="edit" data-type="verification documents"><i class="fa-solid fa-file-pen"></i> Update documents</button>
+                <div class="splitItem"><div class="splitTop"><span>Verification</span><span class="badge <%= verificationBadge %>"><%= verificationState %></span></div><strong><%= companyMedia.canPublish ? 'Publishing enabled' : 'Publishing locked' %></strong></div>
+                <div class="splitItem">
+                  <div class="splitTop"><span>Company logo</span><span class="badge <%= companyLogo ? 'ok' : 'warn' %>"><%= companyLogo ? 'Uploaded' : 'Missing' %></span></div>
+                  <% if (companyLogo) { %>
+                    <a href="<%= companyLogo.secureUrl || companyLogo.url %>" target="_blank" rel="noopener">Open logo</a>
+                    <form method="POST" action="/company/media/delete" style="margin-top:10px"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="target" value="companyLogo"><input type="hidden" name="publicId" value="<%= companyLogo.publicId || companyLogo.url %>"><button class="btn" type="submit"><i class="fa-regular fa-trash-can"></i> Remove</button></form>
+                  <% } %>
+                </div>
+                <div class="splitItem">
+                  <div class="splitTop"><span>Cover image</span><span class="badge <%= companyCover ? 'ok' : 'warn' %>"><%= companyCover ? 'Uploaded' : 'Missing' %></span></div>
+                  <% if (companyCover) { %>
+                    <a href="<%= companyCover.secureUrl || companyCover.url %>" target="_blank" rel="noopener">Open cover</a>
+                    <form method="POST" action="/company/media/delete" style="margin-top:10px"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="target" value="companyCover"><input type="hidden" name="publicId" value="<%= companyCover.publicId || companyCover.url %>"><button class="btn" type="submit"><i class="fa-regular fa-trash-can"></i> Remove</button></form>
+                  <% } %>
+                </div>
+                <% if (companyDocuments.length) { %>
+                  <% companyDocuments.forEach((document) => { %>
+                    <div class="splitItem">
+                      <div class="splitTop"><span><%= document.documentType || document.label || 'Business document' %></span><span class="badge <%= document.status === 'approved' ? 'ok' : document.status === 'rejected' ? 'bad' : 'warn' %>"><%= document.status || 'pending_review' %></span></div>
+                      <strong><%= document.documentReference || document.publicId || 'Verification file' %></strong>
+                      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                        <a class="btn" href="<%= document.secureUrl || document.url %>" target="_blank" rel="noopener"><i class="fa-regular fa-eye"></i> Open</a>
+                        <form method="POST" action="/company/media/delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="target" value="companyDocument"><input type="hidden" name="publicId" value="<%= document.publicId || document.url %>"><button class="btn" type="submit"><i class="fa-regular fa-trash-can"></i> Remove</button></form>
+                      </div>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <div class="splitItem"><div class="splitTop"><span>Business documents</span><span class="badge warn">Required</span></div><strong>No verification documents uploaded</strong></div>
+                <% } %>
               </div>
             </div>
           </div>
@@ -1675,101 +1928,61 @@
         companyScannerBox: $('#companyScannerBox'),
         companyScannerStatus: $('#companyScannerStatus'),
         companyQrReader: $('#companyQrReader'),
-        companyScannerResult: $('#companyScannerResult')
+        companyScannerResult: $('#companyScannerResult'),
+        seatMapScheduleSelect: $('#seatMapScheduleSelect'),
+        visualSeatMap: $('#visualSeatMap'),
+        seatMapDetail: $('#seatMapDetail'),
+        seatMapSummary: $('#seatMapSummary'),
+        roomMapTypeSelect: $('#roomMapTypeSelect'),
+        visualRoomMap: $('#visualRoomMap'),
+        roomMapDetail: $('#roomMapDetail'),
+        roomMapSummary: $('#roomMapSummary'),
+        bookedSeatGroups: $('#bookedSeatGroups'),
+        bookedRoomGroups: $('#bookedRoomGroups')
       };
 
-      const data = {
-        recentBookings: [
-          ['#CE-2401','Kampala ⇄ Nairobi','Amina K.','A12','Paid','UGX 85,000'],
-          ['#CE-2400','Kampala ⇄ Juba','Moses A.','B04','Checked in','UGX 120,000'],
-          ['#CE-2399','Kampala ⇄ Kigali','Sarah L.','C18','On hold','UGX 96,000'],
-          ['#CE-2398','Jinja ⇄ Kampala','David O.','A01','Paid','UGX 25,000'],
-          ['#CE-2397','Kampala ⇄ Mbarara','Peace N.','D11','Refund','UGX 45,000']
-        ],
-        listings: [
-          ['Kampala ⇄ Nairobi Executive','Bus','Uganda ⇄ Kenya','44 seats','UGX 85,000','Active'],
-          ['Kampala ⇄ Juba Cross-border','Bus','Uganda ⇄ South Sudan','36 seats','UGX 120,000','Active'],
-          ['Kampala ⇄ Kigali Morning','Bus','Uganda ⇄ Rwanda','41 seats','UGX 96,000','Review'],
-          ['Nile View Partner Rooms','Hotel','Jinja, Uganda','12 rooms','UGX 180,000','Active'],
-          ['Entebbe ⇄ Kigali Partner Flight','Flight','Uganda ⇄ Rwanda','118 seats','USD 186','Active'],
-          ['Jinja Nile Day Tour','Tour','Jinja, Uganda','24 slots','UGX 155,000','Review']
-        ],
-        schedules: [
-          ['SCH-1201','Kampala ⇄ Nairobi','Today 08:00','Coach A','44/49','Boarding'],
-          ['SCH-1202','Kampala ⇄ Juba','Today 10:30','Coach B','31/49','Open'],
-          ['SCH-1203','Kampala ⇄ Kigali','Today 14:00','Coach C','20/32','Delayed'],
-          ['SCH-1204','Jinja ⇄ Kampala','Tomorrow 07:00','Coach D','12/32','Tomorrow'],
-          ['SCH-1205','Kampala ⇄ Mbarara','Friday 09:00','Coach E','18/49','Week']
-        ],
-        bookings: [
-          ['#CE-2401','Kampala ⇄ Nairobi','Amina K.','A12','2026-05-06','Paid','UGX 85,000'],
-          ['#CE-2400','Kampala ⇄ Juba','Moses A.','B04','2026-05-06','Checked in','UGX 120,000'],
-          ['#CE-2399','Kampala ⇄ Kigali','Sarah L.','C18','2026-05-06','Hold','UGX 96,000'],
-          ['#CE-2398','Jinja ⇄ Kampala','David O.','A01','2026-05-05','Cancelled','UGX 25,000'],
-          ['#CE-2397','Kampala ⇄ Mbarara','Peace N.','D11','2026-05-05','Refund','UGX 45,000'],
-          ['#CE-2396','Kampala ⇄ Nairobi','John M.','A09','2026-05-05','Paid','UGX 85,000']
-        ],
-        inventory: [
-          ['Executive Coach A','Kampala ⇄ Nairobi','49','44','3','2','Healthy'],
-          ['Standard Coach B','Kampala ⇄ Juba','49','31','5','0','Open'],
-          ['VIP Coach C','Kampala ⇄ Kigali','32','20','4','2','Review'],
-          ['Room Block 1','Nile View Partner Rooms','12','8','2','1','Healthy'],
-          ['Tour Slots','Jinja Nile Day Tour','24','18','0','0','Healthy']
-        ],
-        staff: [
-          ['Grace N.','Booking Agent','Kampala','Create bookings','Today','Active'],
-          ['Peter O.','Ticket Checker','Bus Park','Check in passengers','Today','Active'],
-          ['Sarah A.','Finance','Head office','Payout and reports','Yesterday','Active'],
-          ['Daniel K.','Route Manager','Kampala','Schedules and vehicle assignment','Today','Active'],
-          ['Mariam L.','Booking Agent','Jinja','Create bookings','3 days ago','Suspended']
-        ],
-        payouts: [
-          ['TX-9001','#CE-2401','UGX 85,000','UGX 76,500','UGX 5,950','UGX 2,550','Settled'],
-          ['TX-9000','#CE-2400','UGX 120,000','UGX 108,000','UGX 8,400','UGX 3,600','Pending'],
-          ['TX-8999','#CE-2399','UGX 96,000','UGX 86,400','UGX 6,720','UGX 2,880','Hold'],
-          ['TX-8998','#CE-2397','UGX 45,000','UGX 40,500','UGX 3,150','UGX 1,350','Refund']
-        ],
-        promotions: [
-          ['Nairobi Route Boost','Kampala ⇄ Nairobi','Search top','UGX 600K','3,420','244','Running'],
-          ['Juba Weekend Push','Kampala ⇄ Juba','Homepage','UGX 420K','2,110','128','Running'],
-          ['Kigali Early Bird','Kampala ⇄ Kigali','Route banner','UGX 280K','1,410','72','Paused'],
-          ['Jinja Express Promo','Jinja ⇄ Kampala','Search top','UGX 160K','840','51','Completed']
-        ],
-        reviews: [
-          ['Amina K.','Kampala ⇄ Nairobi','5.0','Clean bus and smooth booking.','Today','Published'],
-          ['Moses A.','Kampala ⇄ Juba','4.8','Good driver, small delay at border.','Yesterday','Published'],
-          ['Sarah L.','Kampala ⇄ Kigali','4.5','Seat was fine but departure was late.','2 days ago','Needs reply'],
-          ['David O.','Jinja ⇄ Kampala','5.0','Fast check-in and friendly staff.','3 days ago','Published']
-        ],
-        support: [
-          ['SUP-501','Sarah L.','Departure delay','High','Open','18 min ago'],
-          ['SUP-500','Peace N.','Refund request','High','Waiting finance','1 hour ago'],
-          ['SUP-499','John M.','Seat mismatch','Normal','Open','2 hours ago'],
-          ['SUP-498','Moses A.','Luggage question','Normal','Resolved','Yesterday']
-        ]
-      };
-
-      Object.assign(data, backendDashboardData);
-      data.options = Object.assign({ listings: [], busListings: [], hotelListings: [], transportListings: [], routes: [], vehicles: [], schedules: [], rooms: [] }, data.options || {});
+      const data = {};
+      function mergeDashboardData(target, source) {
+    if (!source || typeof source !== 'object') return target;
+    Object.entries(source).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) target[key] = value;
+        return;
+      }
+      if (value && typeof value === 'object') {
+        if (!Array.isArray(target[key]) && target[key] && typeof target[key] === 'object') {
+          target[key] = { ...target[key], ...value };
+        } else if (Object.keys(value).length) {
+          target[key] = value;
+        }
+        return;
+      }
+      if (value !== undefined && value !== null && value !== '') target[key] = value;
+    });
+    return target;
+  }
+  mergeDashboardData(data, backendDashboardData);
+      data.options = Object.assign({ listings: [], busListings: [], hotelListings: [], transportListings: [], routes: [], vehicles: [], schedules: [], rooms: [], branches: [], drivers: [] }, data.options || {});
       data.stats = data.stats || {};
       data.company = data.company || {};
-      ['recentBookings','listings','routes','vehicles','schedules','bookings','checkins','inventory','staff','payouts','promotions','reviews','support'].forEach(key => {
+      ['recentBookings','listings','routes','routeStops','vehicles','schedules','bookings','checkins','inventory','seatMaps','roomVisualMaps','bookedSeatGroups','bookedRoomGroups','hotelProperties','roomTypes','roomUnits','roomNightInventory','hotelArrivals','hotelDepartures','hotelInHouse','staff','branches','policies','drivers','driverAssignments','driverIncidents','tripStatusUpdates','payouts','promotions','reviews','support'].forEach(key => {
         data[key] = Array.isArray(data[key]) ? data[key] : [];
       });
+      data.serviceProfile = data.serviceProfile || {};
       let pendingDeleteUrl = '';
       let currentCompanyScan = null;
       let companyCameraStream = null;
       let lastCompanyScanValue = '';
 
       const pageMeta = {
-        overview:['Partner Company Dashboard','Manage listings, schedules, inventory, bookings, staff, payouts, promotions, and support.'],
+        overview:['Company Workspace','Manage listings, availability, bookings, staff, payouts, promotions, and support.'],
         listings:['Listings & Inventory','Create, update, pause, and review company services.'],
         routes:['Routes','Create transport routes from listings before scheduling departures.'],
         vehicles:['Vehicles','Create reusable vehicles and seat layouts for trips.'],
         schedules:['Departures & Availability','Manage departure dates, vehicles, prices, and availability.'],
         bookings:['Bookings','Track paid bookings, check-ins, holds, cancellations, and refunds.'],
         checkins:['Check-ins','Validate customer tickets, release completed-service earnings, and monitor boarding progress.'],
-        seatrooms:['Seats / Rooms','Control seat maps, room stock, cabins, slots, and blocked inventory.'],
+        seatrooms:['Service Inventory','Control service inventory, maps, stock, and blocked availability.'],
         staff:['Staff & Roles','Manage employee permissions for checkers, agents, finance, and managers.'],
         payouts:['Payouts & Earnings','Track company earnings, settlement status, and withdrawal requests.'],
         billing:['Plans & Billing','Select partner plans, pay for upgrades, and monitor subscription status.'],
@@ -1779,6 +1992,32 @@
         reports:['Reports','Download company reports for operations, finance, staff, and support.'],
         settings:['Company Settings','Manage business profile, support contacts, verification, and payout account.']
       };
+      const serviceProfile = data.serviceProfile || {};
+      Object.entries(serviceProfile.pageMeta || {}).forEach(([page, meta]) => {
+        pageMeta[page] = Array.isArray(meta) ? meta : [meta?.title || pageMeta[page]?.[0] || page, meta?.subtitle || pageMeta[page]?.[1] || ''];
+      });
+      const visiblePages = new Set(serviceProfile.visiblePages && serviceProfile.visiblePages.length ? serviceProfile.visiblePages : Object.keys(pageMeta));
+      ['overview','listings','routes','vehicles','schedules','bookings','checkins','seatrooms','staff','payouts','billing','promotions','reviews','support','reports','settings'].forEach(page => visiblePages.add(page));
+
+      function servicePanelVisible(scope){
+        if(scope === 'bus') return Boolean(serviceProfile.supportsBus);
+        if(scope === 'hotel') return Boolean(serviceProfile.supportsHotel);
+        if(scope === 'transport') return Boolean(serviceProfile.supportsTransport);
+        return true;
+      }
+
+      function applyServiceProfile(){
+        $$('[data-page]').forEach(node => {
+          const page = node.dataset.page;
+          if(page && pageMeta[page]) node.hidden = !visiblePages.has(page);
+        });
+        $$('.section[id]').forEach(section => {
+          if(pageMeta[section.id]) section.hidden = !visiblePages.has(section.id);
+        });
+        $$('[data-service-panel]').forEach(panel => {
+          panel.hidden = !servicePanelVisible(panel.dataset.servicePanel);
+        });
+      }
 
       function escapeHtml(value){
         return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -1902,27 +2141,77 @@
         try{return JSON.parse(decodeURIComponent(raw));}catch(error){return null;}
       }
 
+      const DETAIL_ALLOWLIST = new Set([
+        'title','name','status','serviceType','from','to','city','address','country','priceFrom','currency','origin','destination',
+        'boardingPoints','dropoffPoints','plateOrCode','layoutName','rows','totalSeats','amenities','routeName','vehicleName',
+        'departure','arrival','departAt','arriveAt','basePrice','driverName','bookingRef','fullName','customerName','email','phone',
+        'seatNumber','seatOrRoom','roomType','capacity','nightlyPrice','inventory','checkIn','checkOut','paymentStatus','bookingStatus',
+        'amount','total','priority','reason','rating','message','reply'
+      ]);
+
+      function cleanDetailLabel(label){
+        const key = String(label || '').split('.').pop();
+        return key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, ch => ch.toUpperCase());
+      }
+
+      function isUsefulDetail(label, value){
+        if(value === undefined || value === null || value === '') return false;
+        if(Array.isArray(value) && !value.length) return false;
+        const key = String(label || '').split('.').pop();
+        const lowered = key.toLowerCase();
+        if(['id','_id','__v','createdat','updatedat','deletedat','qrcodevalue','qrtoken','qrtokenhash','qrtokenpreview','token','hash','password','metadata','meta','bookingitems','bookinglegs','ticketlegs','raw','payload'].includes(lowered)) return false;
+        if(/(^|\.)(id|_id|token|hash|password|secret|internal|metadata|meta|raw|payload)$/i.test(String(label || ''))) return false;
+        return DETAIL_ALLOWLIST.has(key) || DETAIL_ALLOWLIST.has(lowered);
+      }
+
       function flattenEntries(obj={}, prefix=''){
         return Object.entries(obj || {}).flatMap(([key,value])=>{
           const label = prefix ? `${prefix}.${key}` : key;
           if(value && typeof value === 'object' && !Array.isArray(value)) return flattenEntries(value,label);
-          return [[label, Array.isArray(value) ? value.join(', ') : value]];
+          if(Array.isArray(value)){
+            const display = value.map(item => {
+              if(item && typeof item === 'object'){
+                return [item.fullName || item.name || item.passengerName, item.seatOrRoom || item.seatNumber || item.roomNumber || item.unitNumber || item.ticketNumber, item.phone || item.email, item.status || item.checkInStatus].filter(Boolean).join(' / ');
+              }
+              return item;
+            }).filter(Boolean).join('; ');
+            return [[label, display]];
+          }
+          return [[label, value]];
         });
       }
 
       function detailMarkup(detail={}){
         const groups = Object.entries(detail || {}).map(([title,value])=>{
-          const entries = Array.isArray(value) ? value.map((item,index)=>[`${title} ${index+1}`, JSON.stringify(item)]) : flattenEntries(value);
+          const entries = (Array.isArray(value) ? value.map((item,index)=>[`${title} ${index+1}`, JSON.stringify(item)]) : flattenEntries(value)).filter(([label,val]) => isUsefulDetail(label, val)).slice(0, 8);
           if(!entries.length) return '';
-          return `<div class="detailGroup"><h4>${escapeHtml(title)}</h4><div class="detailGrid">${entries.map(([label,val])=>`<div class="detailItem"><span>${escapeHtml(label)}</span><b>${escapeHtml(val === undefined || val === null || val === '' ? '-' : val)}</b></div>`).join('')}</div></div>`;
+          return `<div class="detailGroup"><h4>${escapeHtml(title)}</h4><div class="detailGrid">${entries.map(([label,val])=>`<div class="detailItem"><span>${escapeHtml(cleanDetailLabel(label))}</span><b>${escapeHtml(val === undefined || val === null || val === '' ? '-' : val)}</b></div>`).join('')}</div></div>`;
         }).join('');
         return `<div class="detailBlock">${groups || '<div class="notice">No extra backend details for this row.</div>'}</div>`;
       }
 
+
+      function inferEntityFromDetail(detail = {}){
+        if(detail.listing) return { entity:'listing', id: detail.listing.id || detail.listing._id };
+        if(detail.route) return { entity:'route', id: detail.route.id || detail.route._id };
+        if(detail.schedule) return { entity:'schedule', id: detail.schedule.id || detail.schedule._id };
+        if(detail.vehicle) return { entity:'vehicle', id: detail.vehicle.id || detail.vehicle._id };
+        if(detail.room) return { entity:'room', id: detail.room.id || detail.room._id };
+        if(detail.case) return { entity:'support', id: detail.case.id || detail.case._id };
+        if(detail.review) return { entity:'review', id: detail.review.id || detail.review._id };
+        return null;
+      }
+
       function openDetailModal(label, detail){
         els.crudTitle.textContent = `View ${label || 'record'}`;
-        els.crudSub.textContent = 'Full backend details grouped from the existing dashboard data model.';
-        els.crudBody.innerHTML = detailMarkup(detail || {});
+        els.crudSub.textContent = 'Useful booking, customer, inventory, payment, and status details.';
+        els.crudBody.innerHTML = `${detailMarkup(detail || {})}
+          <div class="modalActionBar">
+            <button class="btn" type="button" data-close-modal><i class="fa-solid fa-xmark"></i> Close</button>
+            <button class="btn" type="button" data-modal="edit" data-type="${escapeHtml(label || 'record')}" data-row-detail="${escapeHtml(encodeDetail(detail || {}))}"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+            <button class="btn" type="button" data-export-row="${escapeHtml(label || 'record')}" data-row-detail="${escapeHtml(encodeDetail(detail || {}))}"><i class="fa-solid fa-file-export"></i> Export</button>
+            
+          </div>`;
         els.crudModal.classList.add('is-open');
       }
 
@@ -1986,6 +2275,7 @@
         tbody.innerHTML = rows.map((r)=>{
           const meta = rowMeta(r);
           const row = rowCells(r);
+          const rowDetailAttr = meta?.detail ? ` data-clickable-row="true" data-row-label="${escapeHtml(meta.label || row[0] || 'record')}" data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
           const first = opts.avatar ? `<div class="nameCell"><div class="miniLogo">${escapeHtml(initials(row[0]))}</div><div><strong>${escapeHtml(row[0])}</strong><span>${escapeHtml(row[1] || '')}</span></div></div>` : escapeHtml(row[0]);
           const cells = row.map((cell, i)=>{
             if(i === 0) return `<td>${first}</td>`;
@@ -1993,7 +2283,7 @@
             if(opts.statusIndex === i) return `<td>${badge(cell)}</td>`;
             return `<td>${escapeHtml(cell)}</td>`;
           }).join('');
-          return `<tr>${cells}<td>${actions(row[0], meta)}</td></tr>`;
+          return `<tr${rowDetailAttr}>${cells}<td>${actions(row[0], meta)}</td></tr>`;
         }).join('');
       }
 
@@ -2021,6 +2311,291 @@
         renderSimpleRows(target, rows, {statusIndex:5, cols:8});
       }
 
+      function seatStatusGroup(seat = {}){
+        const status = String(seat.status || 'available').toLowerCase();
+        if(['taken','booked','checked-in','checked_in','confirmed'].includes(status)) return 'booked';
+        if(['locked','held','hold','selected','reserved'].includes(status)) return 'hold';
+        if(['blocked','maintenance','disabled','cancelled','refunded','voided'].includes(status)) return 'blocked';
+        return 'available';
+      }
+
+      function seatMapLabel(map = {}){
+        return [map.routeLabel || map.listingTitle || 'Schedule', map.departAt || '', map.vehicleName || 'Vehicle'].filter(Boolean).join(' - ');
+      }
+
+      function renderSeatMapDetail(seat = {}, map = {}){
+        if(!els.seatMapDetail) return;
+        const group = seatStatusGroup(seat);
+        const rows = [
+          ['Seat', seat.seatNumber || '-'],
+          ['Status', seat.status || group],
+          ['Class', seat.seatClass || seat.seatType || 'Standard'],
+          ['Schedule', map.scheduleId || '-'],
+          ['Route', map.routeLabel || map.listingTitle || '-'],
+          ['Vehicle', map.vehicleName || '-']
+        ];
+        if(group === 'booked'){
+          rows.push(
+            ['Booking ref', seat.bookingRef || '-'],
+            ['Passenger', seat.passengerName || '-'],
+            ['Phone', seat.passengerPhone || '-'],
+            ['Email', seat.passengerEmail || '-'],
+            ['Ticket', seat.ticketNumber || '-'],
+            ['Payment', seat.paymentStatus || '-'],
+            ['Check-in', seat.checkInStatus || '-']
+          );
+        } else if(group === 'hold'){
+          rows.push(
+            ['Hold ID', seat.lockId || '-'],
+            ['Locked until', seat.lockedUntil ? new Date(seat.lockedUntil).toLocaleString() : '-'],
+            ['Booking ref', seat.bookingRef || 'Not converted'],
+            ['Passenger', seat.passengerName || 'Pending checkout']
+          );
+        } else if(group === 'blocked'){
+          rows.push(['Reason', seat.blockedReason || 'Operational block']);
+        } else {
+          rows.push(['Action', 'Available for checkout or manual booking']);
+        }
+        els.seatMapDetail.innerHTML = `
+          <div class="seatInfoTop">
+            <div><h4>${escapeHtml(seat.seatNumber || 'Seat')}</h4><p>${escapeHtml(group === 'booked' ? 'Booked seat detail' : group === 'hold' ? 'Active hold detail' : group === 'blocked' ? 'Unavailable seat' : 'Available seat')}</p></div>
+            ${badge(seat.status || group)}
+          </div>
+          <div class="seatInfoGrid">${rows.map(([label,value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || '-')}</b></div>`).join('')}</div>
+          ${seat.bookingRef ? `<a class="btn btnBlue" href="/tickets/${encodeURIComponent(seat.bookingRef)}" target="_blank" rel="noopener"><i class="fa-solid fa-ticket"></i> Open ticket</a>` : ''}
+        `;
+      }
+
+      function renderVisualSeatMap(){
+        if(!els.visualSeatMap || !els.seatMapScheduleSelect) return;
+        const maps = Array.isArray(data.seatMaps) ? data.seatMaps : [];
+        if(!maps.length){
+          els.seatMapScheduleSelect.innerHTML = '<option>No seat maps yet</option>';
+          els.visualSeatMap.innerHTML = '<div class="vehicleDeckHeader">Create a vehicle and schedule to generate seats</div>';
+          if(els.seatMapSummary) els.seatMapSummary.innerHTML = '<div class="seatStat"><span>Total</span><b>0</b></div><div class="seatStat"><span>Booked</span><b>0</b></div><div class="seatStat"><span>Held</span><b>0</b></div><div class="seatStat"><span>Available</span><b>0</b></div>';
+          return;
+        }
+        const previous = els.seatMapScheduleSelect.value;
+        els.seatMapScheduleSelect.innerHTML = maps.map(map => `<option value="${escapeHtml(map.scheduleId)}">${escapeHtml(seatMapLabel(map))}</option>`).join('');
+        const current = maps.find(map => map.scheduleId === previous) || maps[0];
+        els.seatMapScheduleSelect.value = current.scheduleId;
+        const seats = Array.isArray(current.seats) ? current.seats.slice() : [];
+        const totals = current.totals || {};
+        if(els.seatMapSummary){
+          els.seatMapSummary.innerHTML = [
+            ['Total', totals.total ?? seats.length],
+            ['Booked', totals.booked ?? seats.filter(seat => seatStatusGroup(seat) === 'booked').length],
+            ['Held', totals.held ?? seats.filter(seat => seatStatusGroup(seat) === 'hold').length],
+            ['Available', totals.available ?? seats.filter(seat => seatStatusGroup(seat) === 'available').length]
+          ].map(([label,value]) => `<div class="seatStat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`).join('');
+        }
+        const rows = [...new Set(seats.map(seat => Number(seat.row || 1)))].sort((a,b)=>a-b);
+        const maxCol = Math.max(4, ...seats.map(seat => Number(seat.col || 1)));
+        const rowHtml = (rows.length ? rows : [1]).map(row => {
+          const cells = [];
+          for(let col = 1; col <= maxCol; col += 1){
+            if(col === 3) cells.push('<span class="seatAisle">AISLE</span>');
+            const seat = seats.find(item => Number(item.row || 1) === row && Number(item.col || 1) === col);
+            if(!seat){
+              cells.push('<span class="seatSpacer" aria-hidden="true"></span>');
+              continue;
+            }
+            const group = seatStatusGroup(seat);
+            const title = `${seat.seatNumber || ''} ${seat.status || group}${seat.passengerName ? ` - ${seat.passengerName}` : ''}`;
+            cells.push(`<button class="seatCell is-${group}" type="button" data-seat-map-seat="${escapeHtml(seat.seatNumber)}" data-seat-map-schedule="${escapeHtml(current.scheduleId)}" title="${escapeHtml(title)}">${escapeHtml(seat.seatNumber || '')}</button>`);
+          }
+          return `<div class="seatMapRow" style="grid-template-columns:repeat(2,42px) 18px repeat(${Math.max(1, maxCol - 2)},42px)">${cells.join('')}</div>`;
+        }).join('');
+        els.visualSeatMap.innerHTML = `<div class="vehicleDeckHeader">${escapeHtml(current.vehicleName || current.routeLabel || 'Vehicle')} - ${escapeHtml(current.status || 'schedule')}</div>${rowHtml}`;
+        const firstBookedOrHold = seats.find(seat => ['booked','hold'].includes(seatStatusGroup(seat))) || seats[0] || {};
+        renderSeatMapDetail(firstBookedOrHold, current);
+        const firstButton = $$('[data-seat-map-seat]', els.visualSeatMap).find(button => button.dataset.seatMapSeat === String(firstBookedOrHold.seatNumber || ''));
+        if(firstButton) firstButton.classList.add('is-selected');
+      }
+
+      function roomStatusGroup(room = {}){
+        const status = String(room.status || 'available').toLowerCase().replace(/_/g, '-');
+        if(['held','hold','reserved'].includes(status)) return 'hold';
+        if(['booked','confirmed'].includes(status)) return 'booked';
+        if(['occupied','checked-in','in-house'].includes(status)) return 'occupied';
+        if(['checked-out','completed'].includes(status)) return 'checkedout';
+        if(['maintenance','cleaning','blocked','disabled'].includes(status)) return 'maintenance';
+        if(['cancelled','canceled'].includes(status)) return 'cancelled';
+        if(['refunded','refund'].includes(status)) return 'refunded';
+        return 'available';
+      }
+
+      function roomMapLabel(map = {}){
+        return [map.roomTypeName || 'Room type', map.propertyName || map.listingTitle || 'Hotel', map.status || 'active'].filter(Boolean).join(' - ');
+      }
+
+      function renderRoomMapDetail(room = {}, map = {}){
+        if(!els.roomMapDetail) return;
+        const group = roomStatusGroup(room);
+        const rows = [
+          ['Room unit', room.unitNumber || '-'],
+          ['Room type', room.roomTypeName || map.roomTypeName || '-'],
+          ['Status', room.status || group],
+          ['Date range', room.dateRange || room.date || '-'],
+          ['Housekeeping', room.housekeepingStatus || '-'],
+          ['Floor / wing', [room.floor && `Floor ${room.floor}`, room.wing].filter(Boolean).join(' / ') || '-']
+        ];
+        if(['booked','occupied','checkedout','hold'].includes(group)){
+          rows.push(
+            ['Booking ref', room.bookingRef || 'Not converted'],
+            ['Guest', room.guestName || '-'],
+            ['Phone', room.guestPhone || '-'],
+            ['Email', room.guestEmail || '-'],
+            ['Check-in', room.checkIn || '-'],
+            ['Check-out', room.checkOut || '-']
+          );
+        }
+        if(group === 'maintenance') rows.push(['Operational note', room.status === 'cleaning' ? 'Cleaning in progress' : 'Maintenance block']);
+        els.roomMapDetail.innerHTML = `
+          <div class="seatInfoTop">
+            <div><h4>${escapeHtml(room.unitNumber || 'Room')}</h4><p>${escapeHtml(map.propertyName || map.listingTitle || 'Hotel room-night detail')}</p></div>
+            ${badge(room.status || group)}
+          </div>
+          <div class="seatInfoGrid">${rows.map(([label,value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || '-')}</b></div>`).join('')}</div>
+          ${room.bookingRef ? `<a class="btn btnBlue" href="/driver/tickets/${encodeURIComponent(room.bookingRef)}" target="_blank" rel="noopener"><i class="fa-solid fa-ticket"></i> Open stay detail</a>` : ''}
+        `;
+      }
+
+      function renderVisualRoomMap(){
+        if(!els.visualRoomMap || !els.roomMapTypeSelect) return;
+        const maps = Array.isArray(data.roomVisualMaps) ? data.roomVisualMaps : [];
+        if(!maps.length){
+          els.roomMapTypeSelect.innerHTML = '<option>No room maps yet</option>';
+          els.visualRoomMap.innerHTML = '<div class="vehicleDeckHeader">Create hotel room types, units, and nightly inventory</div>';
+          if(els.roomMapSummary) els.roomMapSummary.innerHTML = '<div class="seatStat"><span>Total</span><b>0</b></div><div class="seatStat"><span>Available</span><b>0</b></div><div class="seatStat"><span>Booked</span><b>0</b></div><div class="seatStat"><span>Maintenance</span><b>0</b></div>';
+          return;
+        }
+        const previous = els.roomMapTypeSelect.value;
+        els.roomMapTypeSelect.innerHTML = maps.map(map => `<option value="${escapeHtml(map.roomTypeId)}">${escapeHtml(roomMapLabel(map))}</option>`).join('');
+        const current = maps.find(map => map.roomTypeId === previous) || maps[0];
+        els.roomMapTypeSelect.value = current.roomTypeId;
+        const rooms = Array.isArray(current.rooms) ? current.rooms.slice() : [];
+        const totals = current.totals || {};
+        if(els.roomMapSummary){
+          els.roomMapSummary.innerHTML = [
+            ['Total', totals.total ?? rooms.length],
+            ['Available', totals.available ?? rooms.filter(room => roomStatusGroup(room) === 'available').length],
+            ['Booked', totals.booked ?? rooms.filter(room => ['booked','occupied'].includes(roomStatusGroup(room))).length],
+            ['Maintenance', totals.maintenance ?? rooms.filter(room => roomStatusGroup(room) === 'maintenance').length]
+          ].map(([label,value]) => `<div class="seatStat"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`).join('');
+        }
+        if(!rooms.length){
+          els.visualRoomMap.innerHTML = '<div class="vehicleDeckHeader">No room units for this room type</div>';
+          renderRoomMapDetail({}, current);
+          return;
+        }
+        els.visualRoomMap.innerHTML = rooms.map((room) => {
+          const group = roomStatusGroup(room);
+          const title = `${room.unitNumber || ''} ${room.status || group}${room.guestName ? ` - ${room.guestName}` : ''}`;
+          return `<button class="roomCard is-${group}" type="button" data-room-map-unit="${escapeHtml(room.roomUnitId)}" data-room-map-type="${escapeHtml(current.roomTypeId)}" title="${escapeHtml(title)}">
+            <span>${escapeHtml(room.roomTypeName || current.roomTypeName || 'Room')}</span>
+            <strong>${escapeHtml(room.unitNumber || '')}</strong>
+            <small>${escapeHtml(room.status || group)}${room.bookingRef ? ` - ${room.bookingRef}` : ''}</small>
+            <small>${escapeHtml(room.date || room.dateRange || '')}</small>
+          </button>`;
+        }).join('');
+        const firstBookedOrHold = rooms.find(room => ['booked','occupied','hold'].includes(roomStatusGroup(room))) || rooms[0] || {};
+        renderRoomMapDetail(firstBookedOrHold, current);
+        const firstButton = $$('[data-room-map-unit]', els.visualRoomMap).find(button => button.dataset.roomMapUnit === String(firstBookedOrHold.roomUnitId || ''));
+        if(firstButton) firstButton.classList.add('is-selected');
+      }
+
+      function seatBookingDetail(seat = {}, map = {}){
+        return {
+          'Customer information': {
+            name: seat.passengerName || 'Pending passenger',
+            phone: seat.passengerPhone || '',
+            email: seat.passengerEmail || ''
+          },
+          'Booking information': {
+            reference: seat.bookingRef || 'Hold not converted',
+            service: map.listingTitle || 'Bus service',
+            route: map.routeLabel || '',
+            travelDate: map.departAt || map.travelDate || '',
+            schedule: map.scheduleId || '',
+            vehicle: map.vehicleName || ''
+          },
+          'Seat information': {
+            seat: seat.seatNumber || '',
+            class: seat.seatClass || seat.seatType || 'Standard',
+            status: seat.status || ''
+          },
+          'Payment information': {
+            paymentStatus: seat.paymentStatus || '',
+            ticket: seat.ticketNumber || ''
+          },
+          Status: {
+            checkIn: seat.checkInStatus || '',
+            holdExpires: seat.lockedUntil || ''
+          }
+        };
+      }
+
+      function roomBookingDetail(room = {}, map = {}){
+        return {
+          'Customer information': {
+            name: room.guestName || 'Pending guest',
+            phone: room.guestPhone || '',
+            email: room.guestEmail || ''
+          },
+          'Booking information': {
+            reference: room.bookingRef || 'Hold not converted',
+            service: map.listingTitle || map.propertyName || 'Hotel stay',
+            property: map.propertyName || '',
+            roomType: map.roomTypeName || room.roomTypeName || '',
+            checkIn: room.checkIn || '',
+            checkOut: room.checkOut || ''
+          },
+          'Room information': {
+            unit: room.unitNumber || '',
+            floor: room.floor || '',
+            wing: room.wing || '',
+            date: room.date || room.dateRange || '',
+            housekeeping: room.housekeepingStatus || ''
+          },
+          Status: {
+            roomStatus: room.status || '',
+            dateRange: room.dateRange || ''
+          }
+        };
+      }
+
+      function renderBookedGroups(container, groups, kind){
+        if(!container) return;
+        if(!groups.length){
+          container.innerHTML = `<div class="notice">${kind === 'seat' ? 'No booked or held seats for the selected bus schedules yet.' : 'No booked or held rooms for the selected hotel dates yet.'}</div>`;
+          return;
+        }
+        container.innerHTML = groups.map((group, groupIndex) => {
+          const title = kind === 'seat' ? group.routeLabel || 'Route' : group.propertyName || 'Hotel';
+          const sub = kind === 'seat'
+            ? `${group.vehicleName || 'Vehicle'} - ${group.travelDate || 'Date pending'} - ${group.scheduleId || 'Schedule pending'}`
+            : `${group.roomTypeName || 'Room type'} - ${group.dateRange || 'Date range pending'}`;
+          const items = (kind === 'seat' ? group.seats || [] : group.rooms || []).map((item, itemIndex) => {
+            const label = kind === 'seat' ? item.seatNumber : item.unitNumber;
+            const person = kind === 'seat' ? item.passengerName : item.guestName;
+            const ref = item.bookingRef || 'Hold';
+            return `<button class="bookedItem" type="button" data-booked-kind="${kind}" data-booked-group="${groupIndex}" data-booked-index="${itemIndex}">
+              <strong>${escapeHtml(label || 'Selected')}</strong>
+              <span>${escapeHtml(ref)} - ${escapeHtml(item.status || 'status pending')}</span>
+              <span>${escapeHtml(person || 'Customer pending')}</span>
+            </button>`;
+          }).join('');
+          return `<section class="bookedGroup">
+            <div class="bookedGroupHead">
+              <div><h4>${escapeHtml(title)}</h4><p>${escapeHtml(sub)}</p></div>
+              <div class="bookedChips"><span class="bookedChip">${escapeHtml(group.totalBooked || 0)} booked</span><span class="bookedChip">${escapeHtml(group.totalHeld || 0)} held</span></div>
+            </div>
+            <div class="bookedItems">${items}</div>
+          </section>`;
+        }).join('');
+      }
+
       function renderCompanyShell(){
         const company = data.company || {};
         const stats = data.stats || {};
@@ -2041,13 +2616,14 @@
         const welcomeTitle = $('.welcome h2');
         const welcomeText = $('.welcome p');
         if(welcomeTitle) welcomeTitle.textContent = `Welcome back, ${name}. Your dashboard is connected to live partner data.`;
-        if(welcomeText) welcomeText.textContent = `Manage ${stats.activeListings || data.listings.length} listings, ${stats.upcomingTrips || data.schedules.length} schedules, seats, rooms, staff, payouts, promotions, and support from one company console.`;
+        const inventoryLabel = (serviceProfile.inventoryLabel || 'inventory').toLowerCase();
+        if(welcomeText) welcomeText.textContent = `Manage ${stats.activeListings || data.listings.length} ${serviceProfile.primaryLabel || 'company'} services, ${inventoryLabel}, bookings, staff, payouts, promotions, and support from one company console.`;
 
         const liveItems = $$('.liveList .liveItem');
         [
           ['Confirmed bookings', stats.confirmedBookings || data.bookings.length],
-          ['Seats on hold', stats.seatsOnHold || '0'],
-          ['Upcoming trips', stats.upcomingTrips || data.schedules.length],
+          [serviceProfile.supportsHotel && !serviceProfile.supportsBus ? 'Rooms on hold' : serviceProfile.supportsBus ? 'Seats on hold' : 'Inventory holds', stats.seatsOnHold || '0'],
+          [serviceProfile.supportsHotel && !serviceProfile.supportsTransport ? 'Upcoming stays' : 'Upcoming schedules', stats.upcomingTrips || data.schedules.length],
           ['Open support cases', stats.openSupportCases || data.support.length]
         ].forEach(([label, value], index) => {
           const item = liveItems[index];
@@ -2062,7 +2638,7 @@
         [
           [stats.earnings || 'UGX 0', 'Partner earnings', stats.grossRevenue || 'UGX 0 gross'],
           [stats.confirmedBookings || '0', 'Confirmed bookings', `${stats.activeListings || data.listings.length} listings`],
-          [stats.fillRate || '0%', 'Average seat fill rate', `${stats.blockedSeats || '0'} blocked`],
+          [stats.fillRate || '0%', serviceProfile.supportsHotel && !serviceProfile.supportsBus ? 'Room occupancy rate' : 'Average seat fill rate', `${stats.blockedSeats || '0'} blocked`],
           [stats.rating || '0.0/5', 'Customer rating', `${data.reviews.length} reviews`]
         ].forEach(([value, label, trend], index) => {
           const card = statCards[index];
@@ -2131,7 +2707,21 @@
         renderBookings($('#bookingsTable'));
         renderSimpleRows($('#checkinsTable'), data.checkins, {statusIndex:5, cols:7});
         renderSimpleRows($('#inventoryTable'), data.inventory, {statusIndex:6, cols:8});
+        renderSimpleRows($('#hotelPropertiesTable'), data.hotelProperties, {statusIndex:5, cols:7});
+        renderSimpleRows($('#roomTypesTable'), data.roomTypes, {statusIndex:5, cols:7});
+        renderSimpleRows($('#roomUnitsTable'), data.roomUnits, {statusIndex:5, cols:7});
+        renderSimpleRows($('#roomNightInventoryTable'), data.roomNightInventory, {statusIndex:3, cols:8});
+        renderSimpleRows($('#hotelArrivalsTable'), data.hotelArrivals, {statusIndex:6, cols:8});
+        renderSimpleRows($('#hotelDeparturesTable'), data.hotelDepartures, {statusIndex:6, cols:8});
+        renderVisualSeatMap();
+        renderVisualRoomMap();
+        renderBookedGroups(els.bookedSeatGroups, data.bookedSeatGroups, 'seat');
+        renderBookedGroups(els.bookedRoomGroups, data.bookedRoomGroups, 'room');
         renderSimpleRows($('#staffTable'), data.staff, {avatar:true, statusIndex:5, cols:7});
+        renderSimpleRows($('#branchesTable'), data.branches, {statusIndex:5, cols:7});
+        renderSimpleRows($('#policiesTable'), data.policies, {statusIndex:5, cols:7});
+        renderSimpleRows($('#driversTable'), data.drivers, {avatar:true, statusIndex:5, cols:7});
+        renderSimpleRows($('#driverAssignmentsTable'), data.driverAssignments, {statusIndex:5, cols:7});
         renderSimpleRows($('#payoutsTable'), data.payouts, {statusIndex:6, cols:8});
         renderSimpleRows($('#promotionsTable'), data.promotions, {statusIndex:6, cols:8});
         renderSimpleRows($('#reviewsTable'), data.reviews, {avatar:true, statusIndex:5, cols:7});
@@ -2166,6 +2756,7 @@
       }
 
       function openPage(page){
+        if(!visiblePages.has(page)) page = visiblePages.has('overview') ? 'overview' : Array.from(visiblePages)[0] || 'overview';
         $$('.section').forEach(s => s.classList.remove('is-open'));
         const section = $('#' + page);
         if(section) section.classList.add('is-open');
@@ -2458,6 +3049,8 @@
         const vehicleOptions = optionItems(data.options.vehicles, 'Select vehicle');
         const scheduleOptions = optionItems(data.options.schedules, 'Select schedule');
         const roomOptions = optionItems(data.options.rooms, 'Optional room');
+        const branchOptions = optionItems(data.options.branches, 'Optional branch');
+        const driverOptions = optionItems(data.options.drivers, 'Select driver');
         if(key.includes('withdrawal') || key.includes('payout')){
           return {
             action:'/company/payouts',
@@ -2473,7 +3066,7 @@
           return {
             action:'/company/reports/custom',
             fields:[
-              {name:'type', label:'Report type', kind:'select', options:[{value:'bookings',label:'Bookings'},{value:'payouts',label:'Finance'},{value:'schedules',label:'Schedules'},{value:'inventory',label:'Inventory'},{value:'staff',label:'Staff'},{value:'support',label:'Support'}], value:'bookings'},
+              {name:'type', label:'Report type', kind:'select', options:[{value:'bookings',label:'Bookings'},{value:'payouts',label:'Finance'},{value:'schedules',label:'Schedules'},{value:'inventory',label:'Inventory'},{value:'staff',label:'Staff'},{value:'branches',label:'Branches'},{value:'policies',label:'Policies'},{value:'drivers',label:'Drivers'},{value:'driver-assignments',label:'Driver assignments'},{value:'support',label:'Support'}], value:'bookings'},
               {name:'note', label:'Report note', kind:'textarea', placeholder:'Optional note for your exported report'}
             ]
           };
@@ -2490,6 +3083,66 @@
               {name:'email', label:'Customer email', type:'email', placeholder:'customer@example.com'},
               {name:'phone', label:'Customer phone', placeholder:'+256700000000'},
               {name:'addons', label:'Add-ons', placeholder:'extra-luggage,sms-and-whatsapp-ticket'}
+            ]
+          };
+        }
+        if(key.includes('branch') || key.includes('terminal')){
+          return {
+            action:'/company/branches',
+            fields:[
+              {name:'name', label:'Branch / terminal name', required:true, placeholder:'Kampala Main Terminal'},
+              {name:'branchType', label:'Type', kind:'select', options:[{value:'terminal',label:'Terminal'},{value:'office',label:'Office'},{value:'hotel_front_desk',label:'Hotel front desk'},{value:'garage',label:'Garage'}], value:'terminal'},
+              {name:'terminalCode', label:'Terminal code', placeholder:'KLA-01'},
+              {name:'city', label:'City', placeholder:'Kampala'},
+              {name:'country', label:'Country', placeholder:'Uganda'},
+              {name:'address', label:'Address', placeholder:'Street, building, or landmark'},
+              {name:'contactPhone', label:'Contact phone', placeholder:'+256700000000'},
+              {name:'serviceCategories', label:'Services', placeholder:'bus,cargo,parcel'},
+              {name:'operatingHours', label:'Operating hours', placeholder:'05:00-23:00'},
+              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'paused',label:'Paused'}], value:'active'}
+            ]
+          };
+        }
+        if(key.includes('policy')){
+          return {
+            action:'/company/policies',
+            fields:[
+              {name:'title', label:'Policy title', required:true, placeholder:'Boarding policy'},
+              {name:'policyType', label:'Policy type', kind:'select', options:[{value:'boarding',label:'Boarding'},{value:'cancellation',label:'Cancellation'},{value:'baggage',label:'Baggage'},{value:'safety',label:'Safety'},{value:'operations',label:'Operations'}], value:'boarding'},
+              {name:'serviceCategory', label:'Service', kind:'select', options:serviceOptions, value:'bus'},
+              {name:'customerVisible', label:'Customer visible', kind:'select', options:[{value:'on',label:'Yes'},{value:'',label:'No'}], value:'on'},
+              {name:'appliesToBranches', label:'Branches', kind:'select', options:branchOptions},
+              {name:'summary', label:'Summary', kind:'textarea', required:true, placeholder:'Passengers must arrive 30 minutes before departure.'},
+              {name:'status', label:'Status', kind:'select', options:[{value:'active',label:'Active'},{value:'draft',label:'Draft'},{value:'paused',label:'Paused'}], value:'active'}
+            ]
+          };
+        }
+        if(key.includes('driver profile')){
+          return {
+            action: firstValue(data.options.drivers) ? `/company/drivers/${encodeURIComponent(firstValue(data.options.drivers))}/profile` : '/company/employees/invite',
+            fields:[
+              {name:'roleTitle', label:'Role title', value:'Driver'},
+              {name:'branch', label:'Branch', kind:'select', options:branchOptions},
+              {name:'licenseNumber', label:'License number', required:true, placeholder:'DL-0001'},
+              {name:'licenseClass', label:'License class', placeholder:'DE'},
+              {name:'licenseExpiresAt', label:'License expiry', type:'date'},
+              {name:'safetyStatus', label:'Safety status', kind:'select', options:[{value:'cleared',label:'Cleared'},{value:'pending_review',label:'Pending review'},{value:'suspended',label:'Suspended'}], value:'cleared'},
+              {name:'documentType', label:'Document type', kind:'select', options:[{value:'driver_license',label:'Driver license'},{value:'national_id',label:'National ID'},{value:'medical_clearance',label:'Medical clearance'}]},
+              {name:'documentReference', label:'Document reference', placeholder:'DL-0001'},
+              {name:'documentUrl', label:'Document URL', placeholder:'https://...'},
+              {name:'permissions', label:'Permissions', value:'driver_manifest,trip_status,incident_reporting,check_in_assist'}
+            ]
+          };
+        }
+        if(key.includes('driver assignment') || key.includes('assign driver')){
+          return {
+            action: firstValue(data.options.drivers) ? `/company/drivers/${encodeURIComponent(firstValue(data.options.drivers))}/assign` : '/company/employees/invite',
+            fields:[
+              {name:'vehicleId', label:'Vehicle', kind:'select', required:true, options:vehicleOptions, value:firstValue(data.options.vehicles)},
+              {name:'scheduleId', label:'Schedule', kind:'select', options:scheduleOptions, value:firstValue(data.options.schedules)},
+              {name:'assignmentType', label:'Assignment type', kind:'select', options:[{value:'schedule',label:'Schedule'},{value:'vehicle',label:'Vehicle'}], value:'schedule'},
+              {name:'safetyStatus', label:'Safety status', kind:'select', options:[{value:'cleared',label:'Cleared'},{value:'pending_review',label:'Pending review'}], value:'cleared'},
+              {name:'note', label:'Assignment note', kind:'textarea', placeholder:'Driver assigned to this trip.'}
             ]
           };
         }
@@ -2826,11 +3479,23 @@
           return;
         }
 
+        const previewRow = e.target.closest('tr[data-clickable-row="true"]');
+        if(previewRow && !e.target.closest('button,a,form,input,select,textarea,.rowActions')){
+          const detail = parseDetailFromElement(previewRow);
+          if(detail) openDetailModal(previewRow.dataset.rowLabel || 'record', detail);
+          return;
+        }
+
         const modalBtn = e.target.closest('[data-modal]');
         if(modalBtn){
           const detail = parseDetailFromElement(modalBtn);
-          if(modalBtn.dataset.modal === 'view' && detail) openDetailModal(modalBtn.dataset.type, detail);
-          else openCrud(modalBtn.dataset.modal, modalBtn.dataset.type, modalBtn.dataset.entity ? { entity: modalBtn.dataset.entity, id: modalBtn.dataset.id } : null);
+          if(modalBtn.dataset.modal === 'view' && detail) {
+            openDetailModal(modalBtn.dataset.type, detail);
+          } else {
+            const inferred = detail ? inferEntityFromDetail(detail) : null;
+            const meta = modalBtn.dataset.entity ? { entity: modalBtn.dataset.entity, id: modalBtn.dataset.id, detail } : (inferred ? { ...inferred, detail } : null);
+            openCrud(modalBtn.dataset.modal, modalBtn.dataset.type, meta);
+          }
         }
 
         const delBtn = e.target.closest('[data-delete]');
@@ -2889,6 +3554,8 @@
         if(!bookingRef){ showToast('Lookup a ticket first'); return; }
         window.open(`/company/bookings/${encodeURIComponent(bookingRef)}/qr.svg`, '_blank', 'noopener');
       });
+      on(els.seatMapScheduleSelect, 'change', renderVisualSeatMap);
+      on(els.roomMapTypeSelect, 'change', renderVisualRoomMap);
       on(els.companyCheckSearch, 'keydown', (event) => {
         if(event.key === 'Enter'){
           event.preventDefault();
@@ -2920,15 +3587,57 @@
         }
       });
 
+      document.addEventListener('click', e => {
+        const seatButton = e.target.closest('[data-seat-map-seat]');
+        if(!seatButton) return;
+        const map = (data.seatMaps || []).find(item => item.scheduleId === seatButton.dataset.seatMapSchedule);
+        const seat = (map?.seats || []).find(item => String(item.seatNumber) === String(seatButton.dataset.seatMapSeat));
+        if(!map || !seat) return;
+        $$('[data-seat-map-seat]', els.visualSeatMap).forEach(button => button.classList.remove('is-selected'));
+        seatButton.classList.add('is-selected');
+        renderSeatMapDetail(seat, map);
+        if(['booked','hold'].includes(seatStatusGroup(seat))) openDetailModal(`Seat ${seat.seatNumber || ''}`.trim(), seatBookingDetail(seat, map));
+      });
+
+      document.addEventListener('click', e => {
+        const roomButton = e.target.closest('[data-room-map-unit]');
+        if(!roomButton) return;
+        const map = (data.roomVisualMaps || []).find(item => item.roomTypeId === roomButton.dataset.roomMapType);
+        const room = (map?.rooms || []).find(item => String(item.roomUnitId) === String(roomButton.dataset.roomMapUnit));
+        if(!map || !room) return;
+        $$('[data-room-map-unit]', els.visualRoomMap).forEach(button => button.classList.remove('is-selected'));
+        roomButton.classList.add('is-selected');
+        renderRoomMapDetail(room, map);
+        if(['booked','occupied','hold'].includes(roomStatusGroup(room))) openDetailModal(`Room ${room.unitNumber || ''}`.trim(), roomBookingDetail(room, map));
+      });
+
+      document.addEventListener('click', e => {
+        const item = e.target.closest('[data-booked-kind]');
+        if(!item) return;
+        const kind = item.dataset.bookedKind;
+        const groupIndex = Number(item.dataset.bookedGroup || 0);
+        const itemIndex = Number(item.dataset.bookedIndex || 0);
+        if(kind === 'seat'){
+          const group = data.bookedSeatGroups[groupIndex] || {};
+          const seat = (group.seats || [])[itemIndex] || {};
+          openDetailModal(`Seat ${seat.seatNumber || ''}`.trim(), seatBookingDetail(seat, group));
+        } else {
+          const group = data.bookedRoomGroups[groupIndex] || {};
+          const room = (group.rooms || [])[itemIndex] || {};
+          openDetailModal(`Room ${room.unitNumber || ''}`.trim(), roomBookingDetail(room, group));
+        }
+      });
+
       function initialPageFromLocation(){
         const hash = String(location.hash || '').replace('#', '');
-        if(pageMeta[hash]) return hash;
+        if(pageMeta[hash] && visiblePages.has(hash)) return hash;
         const leaf = location.pathname.split('/').filter(Boolean).pop() || 'dashboard';
         const map = { dashboard:'overview', rooms:'seatrooms', employees:'staff' };
         const page = map[leaf] || leaf;
-        return pageMeta[page] ? page : 'overview';
+        return pageMeta[page] && visiblePages.has(page) ? page : 'overview';
       }
 
+      applyServiceProfile();
       renderAll();
       enhanceTables();
       openPage(initialPageFromLocation());

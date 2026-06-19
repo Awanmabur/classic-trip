@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= seo.title %></title>
+  <style>
+    :root{font-family:Inter,Arial,sans-serif;color:#111827;background:#f8fafc}body{margin:0;padding:24px;background:#f8fafc}.sheet{max-width:1240px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:22px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}.hero{padding:26px 28px;background:#111827;color:#fff}.hero h1{margin:0;font-size:28px}.hero p{margin:7px 0 0;color:#cbd5e1;font-weight:800}.tools,.filters{display:flex;gap:10px;flex-wrap:wrap;padding:16px 28px;border-bottom:1px solid #e5e7eb;background:#f8fafc}.btn,button{border:1px solid #cbd5e1;border-radius:999px;padding:10px 14px;color:#111827;text-decoration:none;font-weight:900;background:#fff}.btn.primary,button{background:#2563eb;color:#fff;border-color:#2563eb}input,select{border:1px solid #cbd5e1;border-radius:12px;padding:10px;font-weight:800}.summary{padding:16px 28px;color:#64748b;font-weight:900}table{width:calc(100% - 56px);margin:0 28px 22px;border-collapse:collapse;font-size:12px}th{text-align:left;color:#64748b;text-transform:uppercase;letter-spacing:.06em;font-size:10px;background:#f8fafc}th,td{padding:10px;border-bottom:1px solid #e5e7eb}td{font-weight:750}.pill{border-radius:999px;background:#fef3c7;color:#92400e;padding:5px 8px;font-size:11px;font-weight:900}.pill.ok{background:#dcfce7;color:#166534}.pill.bad{background:#fee2e2;color:#991b1b}.footer{padding:16px 28px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;font-weight:800}@media print{body{padding:0;background:#fff}.sheet{max-width:none;border:0;border-radius:0;box-shadow:none}.tools,.filters{display:none}.hero{print-color-adjust:exact;-webkit-print-color-adjust:exact}a{color:inherit;text-decoration:none}}
+  
+    /* production print polish */
+    .signatureGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 28px 22px}.signatureBox{border:1px dashed #94a3b8;border-radius:14px;padding:13px;min-height:54px;font-size:11px;font-weight:900;color:#475569}.signatureLine{display:block;margin-top:18px;border-top:1px solid #94a3b8;padding-top:5px;color:#111827}.printOnly{display:none}.maskablePhone{white-space:nowrap}
+    @media print{@page{size:A4 landscape;margin:10mm}.printOnly{display:block}.signatureGrid{break-inside:avoid}.seatGrid{break-inside:avoid}table{font-size:10px}th,td{padding:6px}.footer{break-inside:avoid}.sheet{overflow:visible}.pageBreak{break-before:page}}
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <section class="hero"><h1>Customer List / Manifest</h1><p>Filter by route, schedule, vehicle, driver, terminal, date, ticket status, check-in status, payment status, promoter, and booking source.</p></section>
+    <form class="filters" method="GET" action="/company/manifests">
+      <input name="scheduleId" placeholder="Schedule" value="<%= filters.scheduleId || '' %>">
+      <input name="routeId" placeholder="Route ID" value="<%= filters.routeId || '' %>">
+      <input name="vehicleId" placeholder="Vehicle ID" value="<%= filters.vehicleId || '' %>">
+      <input name="driver" placeholder="Driver" value="<%= filters.driver || '' %>">
+      <input name="terminal" placeholder="Terminal / pickup / dropoff" value="<%= filters.terminal || '' %>">
+      <input name="date" type="date" value="<%= filters.date || '' %>">
+      <select name="checkInStatus"><option value="">Any check-in</option><option <%= filters.checkInStatus==='boarding'?'selected':'' %> value="boarding">Boarding</option><option <%= filters.checkInStatus==='checked in'?'selected':'' %> value="checked in">Checked in</option><option <%= filters.checkInStatus==='no-show'?'selected':'' %> value="no-show">No-show</option></select>
+      <select name="paymentStatus"><option value="">Any payment</option><option <%= filters.paymentStatus==='successful'?'selected':'' %> value="successful">Successful</option><option <%= filters.paymentStatus==='pending'?'selected':'' %> value="pending">Pending</option></select>
+      <input name="promoter" placeholder="Promoter" value="<%= filters.promoter || '' %>">
+      <input name="bookingSource" placeholder="Booking source" value="<%= filters.bookingSource || '' %>">
+      <button type="submit">Apply filters</button>
+    </form>
+    <nav class="tools">
+      <button class="btn primary" onclick="window.print();return false;">Print customer list</button>
+      <a class="btn" href="/company/manifests.pdf?<%= new URLSearchParams(filters).toString() %>">Download PDF</a>
+      <a class="btn" href="/company/manifests.csv?<%= new URLSearchParams(filters).toString() %>">Download CSV</a>
+      <a class="btn" href="/company/manifests.xls?<%= new URLSearchParams(filters).toString() %>">Download Excel</a>
+      <a class="btn" href="/company/dashboard">Back to company dashboard</a>
+    </nav>
+    <div class="summary"><%= rows.length %> passenger row(s). Generated by <%= generatedBy %> for <%= companyId %>.</div>
+    <table>
+      <thead><tr><th>#</th><th>Schedule</th><th>Route</th><th>Departure</th><th>Vehicle</th><th>Driver</th><th>Booking</th><th>Ticket</th><th>Passenger</th><th>Seat</th><th>Pickup</th><th>Dropoff</th><th>Payment</th><th>Check-in</th><th>Source</th><th>Promoter</th><th>Notes</th><th>Signature</th></tr></thead>
+      <tbody>
+        <% rows.forEach(function(row, index){ %>
+          <% const statusClass = row.checkInStatus === 'Checked in' ? 'ok' : row.checkInStatus === 'No-show' ? 'bad' : ''; %>
+          <tr><td><%= index + 1 %></td><td><%= row.scheduleId %></td><td><%= row.routeLabel %></td><td><%= row.departureLabel %></td><td><%= row.vehicleLabel || '-' %></td><td><%= row.driverLabel || '-' %></td><td><%= row.bookingRef %></td><td><%= row.ticketNumber %></td><td><%= row.passengerName %></td><td><%= row.seat %></td><td><%= row.pickupPoint %></td><td><%= row.dropoffPoint %></td><td><%= row.paymentStatus %></td><td><span class="pill <%= statusClass %>"><%= row.checkInStatus %></span></td><td><%= row.bookingSource %></td><td><%= row.promoter %></td><td><%= row.notes || '-' %></td><td>________________</td></tr>
+        <% }) %>
+        <% if(!rows.length){ %><tr><td colspan="18">No passenger rows matched these filters.</td></tr><% } %>
+      </tbody>
+    </table>
+    <section class="signatureGrid"><div class="signatureBox">Generated by<span class="signatureLine"><%= generatedBy || 'System' %></span></div><div class="signatureBox">Boarding staff signature<span class="signatureLine">Name / Signature</span></div><div class="signatureBox">Driver / supervisor signature<span class="signatureLine">Name / Signature</span></div></section>
+    <footer class="footer">This list is print-ready before departure and after check-in, with PDF, CSV, and Excel export support.</footer>
+  </main>
+</body>
+</html>

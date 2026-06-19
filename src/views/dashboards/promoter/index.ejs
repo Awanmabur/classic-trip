@@ -1020,7 +1020,8 @@
   <div class="sideBackdrop" id="sideBackdrop"></div>
 
   <div class="app" id="appTop">
-    <aside class="sidebar" id="sidebar" aria-label="Promoter navigation">
+    <%- include('../../partials/dashboard-sidebar', { dashboardShell }) %>
+    <aside class="sidebar legacyDashboardChrome" style="display:none !important" id="sidebar" aria-label="Promoter navigation">
       <div class="sideTop">
         <div class="mark">CT</div>
         <div class="brandText">
@@ -1063,7 +1064,8 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
+      <%- include('../../partials/dashboard-topbar', { dashboardShell }) %>
+      <header class="topbar legacyDashboardChrome" style="display:none !important">
         <div class="topLeft">
           <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
           <div class="pageTitle">
@@ -1227,7 +1229,7 @@
         <section class="section" id="commissions">
           <div class="card" data-tabs>
             <div class="cardHead">
-              <div class="cardTitle"><h3>Commissions</h3><p>Your 3% earnings from completed referral bookings.</p></div>
+              <div class="cardTitle"><h3>Commissions</h3><p>Your 3% earnings from completed referral bookings with Commission release links.</p></div>
               <span class="badge ok"><i class="fa-solid fa-coins"></i> UGX 940K withdrawable</span>
             </div>
             <div class="tabs">
@@ -1343,6 +1345,39 @@
                 <thead><tr><th>Payout</th><th>Period</th><th>Method</th><th>Amount</th><th>Reference</th><th>Status</th><th></th></tr></thead>
                 <tbody id="payoutsTable"></tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="offline-sales">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Agent / offline sales</h3><p>Terminal and office sales issued by your promoter account.</p></div>
+                <a class="btn btnBlue" href="/promoter/reports/offline-sales.csv"><i class="fa-solid fa-download"></i> Export</a>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead><tr><th>Sale</th><th>Booking</th><th>Customer</th><th>Listing</th><th>Method</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody id="offlineSalesTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead"><div class="cardTitle"><h3>Issue offline ticket</h3><p>Create a paid booking, receipt, ticket, ledger entry, and commission record.</p></div></div>
+              <form class="formPanel" method="POST" action="/promoter/offline-sales">
+                <div class="formGrid">
+                  <div class="field"><label>Listing</label><div class="control"><i class="fa-solid fa-route"></i><input name="listingId" value="bus-001" required /></div></div>
+                  <div class="field"><label>Schedule</label><div class="control"><i class="fa-regular fa-calendar"></i><input name="scheduleId" value="schedule-0001" /></div></div>
+                  <div class="field"><label>Seat</label><div class="control"><i class="fa-solid fa-chair"></i><input name="seatNumber" placeholder="A1" /></div></div>
+                  <div class="field"><label>Customer</label><div class="control"><i class="fa-solid fa-user"></i><input name="customerName" required /></div></div>
+                  <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" /></div></div>
+                  <div class="field"><label>Amount</label><div class="control"><i class="fa-solid fa-money-bill"></i><input name="amountCollected" type="number" min="1" required /></div></div>
+                  <div class="field"><label>Payment method</label><div class="control"><i class="fa-solid fa-cash-register"></i><select name="paymentMethod"><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option></select></div></div>
+                  <div class="field"><label>Payment ref</label><div class="control"><i class="fa-solid fa-receipt"></i><input name="paymentReference" /></div></div>
+                </div>
+                <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-ticket"></i> Issue ticket</button>
+              </form>
             </div>
           </div>
         </section>
@@ -1508,69 +1543,27 @@
         confirmDelete: $('#confirmDelete')
       };
 
-      const data = {
-        links: [
-          ['LINK-1001','Kampala ⇄ Nairobi Executive','Bus','3,420','244','Active'],
-          ['LINK-1000','Nile View Deluxe Room','Hotel','1,280','62','Active'],
-          ['LINK-0999','Jinja Nile Adventure','Tour','860','41','Active'],
-          ['LINK-0998','Entebbe ⇄ Kigali Morning','Flight','620','18','Review'],
-          ['LINK-0997','Nairobi ⇄ Mombasa Express','Train','540','15','Paused']
-        ],
-        share: [
-          ['Kampala ⇄ Nairobi Executive','Bus','Classic Express','Uganda ⇄ Kenya','UGX 85,000','High conversion'],
-          ['Nile View Deluxe Room','Hotel','Nile Pearl Hotel','Jinja, Uganda','UGX 180,000','Available'],
-          ['Entebbe ⇄ Kigali Morning','Flight','EastSky Air','Uganda ⇄ Rwanda','USD 186','Few seats'],
-          ['Jinja Nile Adventure','Tour','Safari Link','Jinja, Uganda','UGX 155,000','Promotion'],
-          ['Nairobi ⇄ Mombasa Express','Train','Rift Rail','Kenya','KES 3,400','Available']
-        ],
-        commissions: [
-          ['COM-701','#CT-10501','UGX 85,000','3%','UGX 2,550','Earned'],
-          ['COM-700','#CT-10500','UGX 210,000','3%','UGX 6,300','Pending'],
-          ['COM-699','#CT-10499','USD 186','3%','USD 5.58','Earned'],
-          ['COM-698','#CT-10498','KES 3,400','3%','KES 102','Hold'],
-          ['COM-697','#CT-10497','UGX 155,000','3%','UGX 4,650','Paid out']
-        ],
-        withdrawals: [
-          ['WD-401','Mobile Money','+256 700 112233','2026-05-04','UGX 500K','Paid'],
-          ['WD-400','Mobile Money','+256 700 112233','2026-04-28','UGX 300K','Paid'],
-          ['WD-399','Bank','Stanbic ••••2109','2026-04-20','UGX 750K','Paid'],
-          ['WD-398','Mobile Money','+256 700 112233','2026-05-06','UGX 940K','Pending']
-        ],
-        bookings: [
-          ['#CT-10501','Kampala ⇄ Nairobi Executive','Amina K.','UGX 85,000','UGX 2,550','Paid'],
-          ['#CT-10500','Nile View Deluxe Room','John M.','UGX 210,000','UGX 6,300','Pending'],
-          ['#CT-10499','Entebbe ⇄ Kigali Morning','Sarah L.','USD 186','USD 5.58','Paid'],
-          ['#CT-10498','Nairobi ⇄ Mombasa Express','Ali S.','KES 3,400','KES 102','Pending'],
-          ['#CT-10497','Jinja Nile Adventure','Evelyn T.','UGX 155,000','UGX 4,650','Paid'],
-          ['#CT-10496','Lake Victoria Ferry','Okello P.','UGX 40,000','UGX 1,200','Cancelled']
-        ],
-        campaigns: [
-          ['WhatsApp Bus Deals','WhatsApp','12','4,280','318','UGX 1.3M','Running'],
-          ['Weekend Hotel Push','Facebook','5','1,920','64','UGX 410K','Running'],
-          ['Jinja Tour Promo','TikTok','3','860','41','UGX 190K','Paused'],
-          ['Flight Saver Links','Instagram','4','620','18','USD 86','Review']
-        ],
-        payouts: [
-          ['PO-801','May 2026','Mobile Money','UGX 940K','MM-998120','Pending'],
-          ['PO-800','April 2026','Mobile Money','UGX 1.4M','MM-882110','Paid'],
-          ['PO-799','March 2026','Bank','UGX 980K','BNK-20981','Paid'],
-          ['PO-798','February 2026','Mobile Money','UGX 720K','MM-774321','Paid']
-        ],
-        fraud: [
-          ['Click quality','WhatsApp','97% real traffic','Low','Approved'],
-          ['Repeated IPs','Facebook','12 repeats','Low','Approved'],
-          ['Self-booking pattern','Direct link','1 match','Medium','Review'],
-          ['Cancelled bookings','All sources','2 cancelled','Low','Approved']
-        ],
-        support: [
-          ['SUP-901','Withdrawal pending','High','Open','Today'],
-          ['SUP-900','Commission not showing','Normal','Resolved','Yesterday'],
-          ['SUP-899','Referral link issue','Normal','Open','2 days ago']
-        ]
-      };
-      let pendingArchive = null;
-
-      Object.assign(data, backendDashboardData);
+      const data = {};
+      function mergeDashboardData(target, source) {
+    if (!source || typeof source !== 'object') return target;
+    Object.entries(source).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) target[key] = value;
+        return;
+      }
+      if (value && typeof value === 'object') {
+        if (!Array.isArray(target[key]) && target[key] && typeof target[key] === 'object') {
+          target[key] = { ...target[key], ...value };
+        } else if (Object.keys(value).length) {
+          target[key] = value;
+        }
+        return;
+      }
+      if (value !== undefined && value !== null && value !== '') target[key] = value;
+    });
+    return target;
+  }
+  mergeDashboardData(data, backendDashboardData);
 
       const pageMeta = {
         overview:['Promoter Dashboard','Manage referral links, commissions, withdrawals, shared listings, performance, payout history, and support.'],
@@ -1782,6 +1775,7 @@
         renderRows($('#bookingsTable'), data.bookings || [], {statusIndex:5, cols:7});
         renderRows($('#campaignsTable'), data.campaigns || [], {statusIndex:6, cols:8});
         renderRows($('#payoutsTable'), data.payouts || [], {statusIndex:5, cols:7});
+        renderRows($('#offlineSalesTable'), data.offlineSales || [], {statusIndex:6, cols:8});
         renderRows($('#fraudTable'), data.fraud || [], {statusIndex:4, cols:6});
         renderRows($('#supportTable'), data.support || [], {statusIndex:3, cols:6});
 
@@ -2088,7 +2082,8 @@
           withdrawals: data.withdrawals || [],
           referralBookings: data.bookings || [],
           payouts: data.payouts || [],
-          campaigns: data.campaigns || []
+          campaigns: data.campaigns || [],
+          offlineSales: data.offlineSales || []
         }, 'Promoter dashboard');
         showToast('PDF export opened');
       });

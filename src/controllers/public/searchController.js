@@ -1,5 +1,5 @@
 const searchService = require('../../services/search/searchService');
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 
 function searchPage(req, res) {
   const { results, meta } = searchService.searchWithMeta(req.query);

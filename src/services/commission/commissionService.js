@@ -1,5 +1,5 @@
 const calculateCommission = require('../../utils/calculateCommission');
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 
 function createCommission(booking, hasValidReferral, existingSplit = null) {
   const duplicate = store.state.commissions.find((item) => item.bookingId === booking.id);

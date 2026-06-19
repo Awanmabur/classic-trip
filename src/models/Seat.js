@@ -9,6 +9,11 @@ const seatSchema = new Schema({
   status: { type: String, enum: ['available', 'locked', 'taken', 'blocked'], default: 'available', index: true },
   lockedUntil: Date,
   lockId: String,
+  bookingRef: { type: String, index: true },
+  bookingId: { type: String, index: true },
+  passengerName: String,
+  passengerPhone: String,
+  passengerEmail: String,
 }, { timestamps: true });
 
 seatSchema.index({ scheduleId: 1, seatNumber: 1 }, { unique: true });

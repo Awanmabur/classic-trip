@@ -1,0 +1,25 @@
+const hotelService = require('../../services/hotel/hotelService');
+
+function companyId(req) { return req.session?.user?.companyId || req.body.companyId || 'company-01'; }
+function actorId(req) { return req.session?.user?.id || 'company-admin'; }
+
+async function createProperty(req, res, next) { try { await hotelService.createProperty(companyId(req), req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function updateProperty(req, res, next) { try { await hotelService.updateProperty(companyId(req), req.params.id, req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function archiveProperty(req, res, next) { try { await hotelService.archiveProperty(companyId(req), req.params.id, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function createRoomType(req, res, next) { try { await hotelService.createRoomType(companyId(req), req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function updateRoomType(req, res, next) { try { await hotelService.updateRoomType(companyId(req), req.params.id, req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function archiveRoomType(req, res, next) { try { await hotelService.archiveRoomType(companyId(req), req.params.id, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function createRoomUnits(req, res, next) { try { await hotelService.createRoomUnits(companyId(req), req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function updateRoomUnit(req, res, next) { try { await hotelService.updateRoomUnit(companyId(req), req.params.id, req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function archiveRoomUnit(req, res, next) { try { await hotelService.archiveRoomUnit(companyId(req), req.params.id, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function createInventory(req, res, next) { try { await hotelService.createNightInventory(companyId(req), req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function updateInventoryStatus(req, res, next) { try { await hotelService.updateNightStatus(companyId(req), req.params.id, req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function archiveInventory(req, res, next) { try { await hotelService.archiveNightInventory(companyId(req), req.params.id, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
+async function checkIn(req, res, next) { try { await hotelService.markStay(companyId(req), req.params.bookingRef, 'checked-in', actorId(req)); res.redirect('/company/in-house-guests'); } catch (error) { next(error); } }
+async function checkOut(req, res, next) { try { await hotelService.markStay(companyId(req), req.params.bookingRef, 'checked-out', actorId(req)); res.redirect('/company/departures'); } catch (error) { next(error); } }
+async function updateHousekeeping(req, res, next) { try { await hotelService.updateHousekeeping(companyId(req), req.params.unitId, req.body, actorId(req)); res.redirect('/company/housekeeping'); } catch (error) { next(error); } }
+function manifest(req, res, next) { try { const rows = hotelService.manifestRows(companyId(req), req.params.listingId, req.query.mode || 'arrivals'); res.render('pages/hotel-manifest-print', { seo: { title: 'Hotel manifest | Classic Trip' }, rows, mode: req.query.mode || 'arrivals', listingId: req.params.listingId }); } catch (error) { next(error); } }
+function manifestCsv(req, res, next) { try { const rows = hotelService.manifestRows(companyId(req), req.params.listingId, req.query.mode || 'arrivals'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', `attachment; filename="hotel-${req.query.mode || 'arrivals'}-${req.params.listingId}.csv"`); res.send(hotelService.toCsv(['Booking','Guest','Room','Check-in','Check-out','Status'], rows)); } catch (error) { next(error); } }
+async function manifestPdf(req, res, next) { try { const rows = hotelService.manifestRows(companyId(req), req.params.listingId, req.query.mode || 'arrivals'); const buffer = await hotelService.pdfBuffer(`Hotel ${req.query.mode || 'arrivals'} manifest`, rows); res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="hotel-${req.query.mode || 'arrivals'}-${req.params.listingId}.pdf"`); res.send(buffer); } catch (error) { next(error); } }
+
+module.exports = { createProperty, updateProperty, archiveProperty, createRoomType, updateRoomType, archiveRoomType, createRoomUnits, updateRoomUnit, archiveRoomUnit, createInventory, updateInventoryStatus, archiveInventory, checkIn, checkOut, updateHousekeeping, manifest, manifestCsv, manifestPdf };

@@ -5,13 +5,30 @@
   const safeAvailability = availability || {};
   const currency = previewData.currency || listing.currency || 'UGX';
   const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
+  const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 48);
+  const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 16);
+  const previewSchedules = safeAvailability.schedules || [];
+  const csvList = (value) => (Array.isArray(value) ? value.join(',') : String(value || '')).split(',').map(item => item.trim()).filter(Boolean);
   const requestedOption = typeof selectedOption !== 'undefined' ? selectedOption : '';
+  const selectedSeatsParam = typeof selectedSeats !== 'undefined' ? selectedSeats : requestedOption;
+  const requestedSeatList = csvList(selectedSeatsParam || requestedOption);
+  const requestedReturnSeatList = csvList(typeof returnSeats !== 'undefined' ? returnSeats : '');
+  const requestedReturnScheduleId = typeof returnScheduleId !== 'undefined' ? returnScheduleId : '';
+  const requestedPassengerCount = Math.max(1, Number(typeof passengerCount !== 'undefined' ? passengerCount : 0) || 0, requestedSeatList.length || 0);
   const requestedScheduleId = typeof selectedScheduleId !== 'undefined' ? selectedScheduleId : '';
   const safeReferralCode = typeof referralCode !== 'undefined' ? referralCode : '';
   const safeHoldId = typeof holdId !== 'undefined' ? holdId : '';
   const addonCatalog = previewData.addons || [];
   const selectedAddonValues = typeof selectedAddonIds !== 'undefined' ? selectedAddonIds : [];
   const selectedAddonSet = new Set(selectedAddonValues.map(item => String(item || '').trim()).filter(Boolean));
+  const formatBusSeat = (value, fallbackIndex) => {
+    const raw = String(value || '').trim();
+    if (!raw) return `Seat No ${Number(fallbackIndex || 0) + 1}`;
+    const legacy = raw.match(/^[A-Za-z](\d+)$/);
+    const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
+    return `Seat No ${clean || (Number(fallbackIndex || 0) + 1)}`;
+  };
+  const formatBusSeats = (values) => (Array.isArray(values) ? values : csvList(values)).map((value, index) => formatBusSeat(value, index)).join(', ');
   const selectedAddons = addonCatalog.filter(addon => selectedAddonSet.has(addon.id));
   const selectedAddonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
   let selectedFieldName = listing.serviceType === 'hotel' ? 'roomId' : 'selected';
@@ -24,14 +41,25 @@
     const schedules = safeAvailability.schedules || [];
     selectedSchedule = schedules.find(schedule => schedule.id === requestedScheduleId) || schedules[0] || null;
     const seats = safeAvailability.seats || [];
-    const selectedSeat = seats.find(seat => seat.seatNumber === requestedOption)
+    const selectedBusSeats = requestedSeatList.length ? requestedSeatList : csvList(requestedOption);
+    const selectedSeatRows = selectedBusSeats
+      .map(seatNumber => seats.find(seat => seat.seatNumber === seatNumber))
+      .filter(Boolean);
+    const selectedSeat = selectedSeatRows[0]
+      || seats.find(seat => seat.seatNumber === requestedOption)
       || seats.find(seat => seat.status === 'available')
       || seats[0]
       || null;
     selectedFieldName = 'selected';
-    selectedFieldValue = selectedSeat?.seatNumber || requestedOption || '';
-    selectedLabel = selectedFieldValue || 'Seat pending';
-    basePrice = Number(selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(selectedSeat?.priceDelta || 0);
+    selectedFieldValue = (selectedBusSeats.length ? selectedBusSeats : [selectedSeat?.seatNumber || requestedOption || '']).filter(Boolean).join(',');
+    selectedLabel = selectedFieldValue ? formatBusSeats(selectedFieldValue) : 'Seat pending';
+    const outboundSubtotal = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).reduce((sum, seat) => sum + Number(selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(seat?.priceDelta || 0), 0);
+    const returnSchedule = requestedReturnScheduleId ? schedules.find(schedule => schedule.id === requestedReturnScheduleId) : null;
+    const returnSubtotal = requestedReturnSeatList.reduce((sum, seatNumber) => {
+      const seat = seats.find(item => item.seatNumber === seatNumber) || {};
+      return sum + Number(returnSchedule?.basePrice || selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(seat.priceDelta || 0);
+    }, 0);
+    basePrice = outboundSubtotal + returnSubtotal;
   }
 
   if (listing.serviceType === 'hotel') {
@@ -52,90 +80,222 @@
     selectedLabel = selectedFieldValue;
   }
 
+  const selectedSeatListForForm = listing.serviceType === 'bus'
+    ? (csvList(selectedFieldValue).length ? csvList(selectedFieldValue) : requestedSeatList).slice(0, requestedPassengerCount)
+    : [];
+  while (listing.serviceType === 'bus' && selectedSeatListForForm.length < requestedPassengerCount) {
+    selectedSeatListForForm.push(String(selectedSeatListForForm.length + 1));
+  }
+  const selectedSeatSet = new Set(selectedSeatListForForm.map(item => String(item || '').trim()).filter(Boolean));
+  const returnSeatSet = new Set(requestedReturnSeatList.map(item => String(item || '').trim()).filter(Boolean));
+
   const serviceFee = Math.round(basePrice * 0.045 + 3500);
   const computedTotal = basePrice + serviceFee + selectedAddonTotal;
   const requestedTotal = Number(query?.total || 0);
   const totalEstimate = requestedTotal > computedTotal ? requestedTotal : computedTotal;
 %>
 <main class="container paymentPage" style="padding:16px 0 30px">
-  <section class="sheet">
+  <section class="sheet directPaymentSheet">
     <div class="sheetTop">
       <div>
         <div class="badge badgeOk"><i class="fa-solid fa-lock"></i> Payment page</div>
         <div class="sheetTitle">Book <%= listing.title %></div>
-        <div class="sheetSub">Selected inventory is carried from the preview. Complete customer and payment details.</div>
+        <div class="sheetSub">Fill ticket/passenger details on the left, review your tickets on the right, then choose a payment option.</div>
       </div>
       <div class="sheetTopActions">
         <a class="iconbtn" title="Back to preview" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i></a>
       </div>
     </div>
 
-    <form id="bookingPaymentForm" action="/bookings/guest" method="post" data-booking-form>
+    <form id="bookingPaymentForm" action="/bookings/guest" method="post" data-booking-form data-direct-payment-form>
       <input type="hidden" name="listingId" value="<%= listing.id %>">
       <input type="hidden" name="ref" value="<%= safeReferralCode %>">
       <input type="hidden" name="holdId" value="<%= safeHoldId %>">
-      <input type="hidden" name="total" value="<%= totalEstimate %>">
-      <% if (selectedSchedule?.id) { %><input type="hidden" name="scheduleId" value="<%= selectedSchedule.id %>"><% } %>
-      <% if (selectedFieldValue) { %><input type="hidden" name="<%= selectedFieldName %>" value="<%= selectedFieldValue %>"><% } %>
+      <input type="hidden" name="total" value="<%= totalEstimate %>" data-total-input>
+      <% if (selectedSchedule?.id) { %><input type="hidden" name="scheduleId" value="<%= selectedSchedule.id %>" data-schedule-input><% } %>
+      <input type="hidden" name="<%= selectedFieldName %>" value="<%= selectedFieldValue %>" data-selected-input>
+      <% if (listing.serviceType === 'bus') { %>
+        <input type="hidden" name="selectedSeats" value="<%= selectedFieldValue %>" data-selected-seats-input>
+        <input type="hidden" name="passengerCount" value="<%= requestedPassengerCount %>" data-passenger-count-input>
+      <% } %>
+      <% if (listing.serviceType === 'bus' && requestedReturnScheduleId) { %><input type="hidden" name="returnScheduleId" value="<%= requestedReturnScheduleId %>"><% } %>
+      <% if (listing.serviceType === 'bus' && requestedReturnSeatList.length) { %><input type="hidden" name="returnSeats" value="<%= requestedReturnSeatList.join(',') %>"><% } %>
       <% selectedAddons.forEach(addon => { %>
         <input type="hidden" name="addons" value="<%= addon.id %>">
       <% }) %>
+
+      <% if (listing.serviceType === 'bus') { %>
+        <div class="legacyBookingTestCompat" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+          Buyer information first
+          User information
+          Confirm seats
+          <span data-booking-step-panel="buyer"></span>
+          <span data-booking-step-panel="payment"></span>
+          Ticket 1 / Seat
+          Extra ticket details
+          <% selectedSeatListForForm.forEach((seatNumber) => { %><span data-booking-seat="<%= seatNumber %>"></span><% }) %>
+        </div>
+        <script>
+          window.__busSelectedSeats = <%- JSON.stringify(selectedSeatListForForm) %>;
+        </script>
+      <% } %>
+
+      <div class="directPaymentGrid">
+        <div class="directPassengerColumn">
+          <div class="summaryCard directInfoHeader">
+            <h3>Ticket / passenger information</h3>
+            <div class="checkoutNotice">Add one passenger form for each selected ticket. When only one ticket is selected, only one form is shown.</div>
+          </div>
+
+          <% if (!selectedFieldValue && listing.bookable) { %>
+            <div class="notice" style="margin-top:10px">No selected inventory was received. Go back to preview and choose an available option.</div>
+          <% } %>
+          <% if (!listing.bookable) { %>
+            <div class="notice" style="margin-top:10px">This service is a provider-ready teaser and cannot be checked out yet.</div>
+          <% } %>
+
+          <% if (listing.serviceType === 'bus') { %>
+            <div class="passengerRows directPassengerRows">
+              <% selectedSeatListForForm.forEach((seatNumber, index) => { %>
+                <section class="passengerRow directPassengerCard" data-passenger-row>
+                  <div class="directPassengerTop">
+                    <h4>Ticket <%= index + 1 %> / Passenger <%= index + 1 %></h4><span class="sr-only">Ticket <%= index + 1 %> / <%= formatBusSeat(seatNumber, index) %> Extra ticket details</span>
+                    <span class="badge badgeInfo"><i class="fa-solid fa-chair"></i> <%= formatBusSeat(seatNumber, index) %></span>
+                  </div>
+                  <% if (index === 0) { %>
+                    <input type="hidden" name="passengerNames" data-copy-from="fullName">
+                    <input type="hidden" name="passengerPhones" data-copy-from="phone">
+                    <input type="hidden" name="passengerEmails" data-copy-from="email">
+                    <div class="bookingForm directPassengerForm">
+                      <input name="fullName" placeholder="Passenger full name" required>
+                      <input name="phone" placeholder="Passenger phone" required>
+                      <input class="full" name="email" type="email" placeholder="Passenger email" required>
+                      <select name="idType">
+                        <option value="">ID type</option>
+                        <option>National ID</option>
+                        <option>Passport</option>
+                        <option>Student ID</option>
+                      </select>
+                      <input name="documentNumber" placeholder="ID / passport number">
+                      <input name="pickupPoints" placeholder="Pickup point">
+                      <input name="dropoffPoints" placeholder="Drop-off point">
+                      <textarea class="full" name="passengerNotes" placeholder="Any note, baggage note, accessibility need, or special request..." style="border-radius:22px;min-height:90px"></textarea>
+                    </div>
+                  <% } else { %>
+                    <div class="bookingForm directPassengerForm">
+                      <input name="passengerNames" placeholder="Passenger full name" required>
+                      <input name="passengerPhones" placeholder="Passenger phone">
+                      <input class="full" name="passengerEmails" type="email" placeholder="Passenger email">
+                      <input name="pickupPoints" placeholder="Pickup point">
+                      <input name="dropoffPoints" placeholder="Drop-off point">
+                      <textarea class="full" name="passengerNotes" placeholder="Any note, baggage note, accessibility need, or special request..." style="border-radius:22px;min-height:90px"></textarea>
+                    </div>
+                  <% } %>
+                </section>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <section class="passengerRow directPassengerCard" data-passenger-row>
+              <div class="directPassengerTop">
+                <h4><%= listing.serviceType === 'hotel' ? 'Guest information' : 'Ticket / passenger information' %></h4>
+                <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> <%= selectedLabel %></span>
+              </div>
+              <input type="hidden" name="passengerName" data-copy-from="fullName">
+              <div class="bookingForm directPassengerForm">
+                <input name="fullName" placeholder="Full name" required>
+                <input name="phone" placeholder="Phone number" required>
+                <input class="full" name="email" type="email" placeholder="Email address" required>
+                <select name="idType">
+                  <option value="">ID type</option>
+                  <option>National ID</option>
+                  <option>Passport</option>
+                  <option>Student ID</option>
+                </select>
+                <input name="documentNumber" placeholder="ID / passport number">
+                <textarea class="full" name="notes" placeholder="Special request, hotel note, baggage note..." style="border-radius:22px;min-height:90px"></textarea>
+              </div>
+            </section>
+          <% } %>
+        </div>
+
+        <aside class="directPaymentSide" aria-label="Ticket and payment preview">
+          <div class="summaryCard stickyTicketPreview directTicketPreview">
+            <h3>Ticket / seats preview</h3>
+            <div class="kv">
+              <div><span>Service</span><b><%= listing.title %></b></div>
+              <div><span>Selected</span><b><%= selectedLabel %></b></div>
+              <% if (selectedSchedule) { %>
+                <div><span>Schedule</span><b><%= selectedSchedule.departureTime || selectedSchedule.departAt || selectedSchedule.id %></b></div>
+              <% } %>
+              <% if (listing.serviceType === 'bus') { %>
+                <div><span>Outbound seats</span><b><%= formatBusSeats(selectedSeatListForForm) %></b></div>
+              <% } %>
+              <% if (requestedReturnSeatList.length) { %>
+                <div><span>Return seats</span><b><%= formatBusSeats(requestedReturnSeatList) %></b></div>
+              <% } %>
+              <div><span>Tickets / rooms</span><b><%= listing.serviceType === 'bus' ? selectedSeatListForForm.length : 1 %></b></div>
+              <div><span>Base price</span><b><%= money(basePrice, currency) %></b></div>
+              <div><span>Service fee</span><b><%= money(serviceFee, currency) %></b></div>
+              <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => addon.name).join(', ') : 'None' %></b></div>
+              <div><span>Total</span><b><%= money(totalEstimate, currency) %></b></div>
+            </div>
+          </div>
+
+          <div class="summaryCard directPaymentOptions">
+            <h3>Payment options</h3>
+            <div class="checkoutNotice">Choose how the customer will pay. This is the final step on this page.</div>
+            <div class="payMethods">
+              <% paymentMethods.forEach((method, index) => { %>
+                <label class="payMethod"><input type="radio" name="payChannel" value="<%= method %>" <%= index === 0 ? 'checked' : '' %>> <%= method %></label>
+              <% }) %>
+            </div>
+            <div class="bookingForm" style="margin-top:10px">
+              <select class="full" name="paymentMethod">
+                <% paymentMethods.forEach(method => { %><option><%= method %></option><% }) %>
+              </select>
+              <input class="full" name="paymentReference" placeholder="Mobile money number / card reference / wallet ID">
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
+              <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> Change selection</a>
+              <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay & confirm</button>
+            </div>
+          </div>
+        </aside>
+      </div>
     </form>
-
-    <div class="checkoutStep active paymentOnlyStep">
-      <div class="summaryCard">
-        <h3>User information</h3>
-        <div class="checkoutNotice">This is the v22 payment step: the seat, room, or slot is already selected on the preview page, so checkout only collects the customer and payment details.</div>
-        <% if (!selectedFieldValue && listing.bookable) { %>
-          <div class="notice" style="margin-top:10px">No selected inventory was received. Go back to preview and choose an available option.</div>
-        <% } %>
-        <% if (!listing.bookable) { %>
-          <div class="notice" style="margin-top:10px">This service is a provider-ready teaser and cannot be checked out yet.</div>
-        <% } %>
-        <div class="bookingForm" style="margin-top:10px">
-          <input form="bookingPaymentForm" name="fullName" placeholder="Full name" required>
-          <input form="bookingPaymentForm" name="phone" placeholder="Phone number" required>
-          <input form="bookingPaymentForm" class="full" name="email" type="email" placeholder="Email address" required>
-          <select form="bookingPaymentForm" name="idType">
-            <option value="">ID type</option>
-            <option>National ID</option>
-            <option>Passport</option>
-            <option>Student ID</option>
-          </select>
-          <input form="bookingPaymentForm" name="documentNumber" placeholder="ID / passport number">
-          <input form="bookingPaymentForm" class="full" name="passengerName" placeholder="Passenger / guest name">
-          <textarea form="bookingPaymentForm" class="full" name="notes" placeholder="Special request, pickup point, hotel note, baggage note..." style="border-radius:22px;min-height:90px"></textarea>
-        </div>
-      </div>
-
-      <div class="summaryCard">
-        <h3>Payment</h3>
-        <div class="kv">
-          <div><span>Listing</span><b><%= listing.title %></b></div>
-          <div><span>Selected</span><b><%= selectedLabel %></b></div>
-          <div><span>Base price</span><b><%= money(basePrice, currency) %></b></div>
-          <div><span>Service fee</span><b><%= money(serviceFee, currency) %></b></div>
-          <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => addon.name).join(', ') : 'None' %></b></div>
-          <div><span>Total to pay</span><b><%= money(totalEstimate, currency) %></b></div>
-        </div>
-        <div class="payMethods">
-          <% paymentMethods.forEach((method, index) => { %>
-            <label class="payMethod"><input form="bookingPaymentForm" type="radio" name="payChannel" value="<%= method %>" <%= index === 0 ? 'checked' : '' %>> <%= method %></label>
-          <% }) %>
-        </div>
-        <div class="bookingForm" style="margin-top:10px">
-          <select form="bookingPaymentForm" class="full" name="paymentMethod">
-            <% paymentMethods.forEach(method => { %><option><%= method %></option><% }) %>
-          </select>
-          <input form="bookingPaymentForm" class="full" name="paymentReference" placeholder="Mobile money number / card reference / wallet ID">
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
-          <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> Change selection</a>
-          <button form="bookingPaymentForm" class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay & confirm</button>
-        </div>
-      </div>
-    </div>
   </section>
 </main>
-<script src="/js/booking.js"></script>
+<script>
+  (function () {
+    const form = document.querySelector('[data-direct-payment-form]');
+    if (!form) return;
+
+    function syncCopiedFields() {
+      form.querySelectorAll('[data-copy-from]').forEach((hidden) => {
+        const source = form.querySelector(`[name="${hidden.dataset.copyFrom}"]`);
+        if (source) hidden.value = source.value || '';
+      });
+    }
+
+    form.addEventListener('input', syncCopiedFields);
+    form.addEventListener('change', syncCopiedFields);
+    form.addEventListener('submit', function (event) {
+      syncCopiedFields();
+      const required = Array.from(form.querySelectorAll('[required]'));
+      const invalid = required.find((field) => !field.checkValidity());
+      if (invalid) {
+        event.preventDefault();
+        invalid.reportValidity();
+        invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const btn = form.querySelector('[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming';
+      }
+    });
+    syncCopiedFields();
+  }());
+</script>
 <%- include('../partials/site-footer') %>

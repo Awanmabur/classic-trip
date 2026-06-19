@@ -1,4 +1,4 @@
-const store = require('../services/data/demoStore');
+const store = require('../services/data/persistentStore');
 
 function audit(action) {
   return (req, res, next) => {

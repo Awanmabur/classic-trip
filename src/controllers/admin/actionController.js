@@ -1,8 +1,10 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const bookingService = require('../../services/booking/bookingService');
 const notificationService = require('../../services/notification/notificationService');
 const walletService = require('../../services/wallet/walletService');
 const workflowService = require('../../services/support/workflowService');
+const timelineService = require('../../services/support/timelineService');
+const correspondenceService = require('../../services/support/correspondenceService');
 const { mongoose } = require('../../config/db');
 
 function cleanText(value) {
@@ -415,6 +417,169 @@ async function updateTemplate(req, res, next) {
   }
 }
 
+async function replySupport(req, res, next) {
+  try {
+    await timelineService.replySupportTicket({
+      ticketId: req.params.id || req.params.ticketId,
+      actorType: 'admin',
+      actorId: req.session?.user?.id || 'admin-system',
+      message: req.body.message,
+      status: req.body.status || 'open',
+      visibility: req.body.visibility || 'shared',
+    });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function createInternalNote(req, res, next) {
+  try {
+    await correspondenceService.createInternalNote({
+      bookingRef: req.body.bookingRef,
+      supportTicketId: req.body.supportTicketId,
+      subject: req.body.subject || 'Internal note',
+      message: req.body.message || req.body.note,
+      actorType: 'admin',
+      actorId: req.session?.user?.id || 'admin-system',
+      actorName: req.session?.user?.fullName || req.session?.user?.email || 'Admin',
+      metadata: { source: 'admin_internal_note' },
+    });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function approveReschedule(req, res, next) {
+  try {
+    await timelineService.reviewReschedule(req.params.id, {
+      status: 'approved',
+      actorId: req.session?.user?.id || 'admin-system',
+      approvedScheduleId: req.body.approvedScheduleId || req.body.requestedScheduleId || '',
+      reviewNote: req.body.reviewNote || 'Approved for operations follow-up.',
+    });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function rejectReschedule(req, res, next) {
+  try {
+    await timelineService.reviewReschedule(req.params.id, {
+      status: 'rejected',
+      actorId: req.session?.user?.id || 'admin-system',
+      reviewNote: req.body.reviewNote || 'Rejected after support review.',
+    });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+async function approveDriverRequest(req, res, next) {
+  try {
+    ensureCollections();
+    if (!Array.isArray(store.state.companyEmployees)) store.state.companyEmployees = [];
+    if (!Array.isArray(store.state.driverAssignments)) store.state.driverAssignments = [];
+    const ticket = store.state.supportTickets.find((item) => item.id === req.params.id && item.category === 'driver_invitation_request');
+    if (!ticket) {
+      const error = new Error('Driver request not found');
+      error.status = 404;
+      throw error;
+    }
+    const company = store.findCompany(ticket.companyId || ticket.ownerId) || {};
+    const requested = ticket.requestedDriver || {};
+    const email = cleanText(requested.email || req.body.email || `${(requested.phone || Date.now()).replace(/[^0-9a-z]/gi, '')}@driver.classictrip.example`).toLowerCase();
+    const user = store.upsertUser({
+      fullName: cleanText(requested.fullName || req.body.fullName || 'Approved driver'),
+      email,
+      phone: cleanText(requested.phone || req.body.phone || ''),
+      role: 'driver',
+      companyId: company.id || ticket.companyId || ticket.ownerId,
+      status: 'active',
+      isVerified: true,
+      invitedBy: req.session?.user?.id || 'admin-system',
+      invitedAt: ticket.createdAt || new Date().toISOString(),
+      verifiedAt: new Date().toISOString(),
+    });
+    let employee = store.state.companyEmployees.find((item) => item.companyId === user.companyId && item.userId === user.id);
+    if (!employee) {
+      employee = {
+        id: nextId('company-employee', store.state.companyEmployees),
+        companyId: user.companyId,
+        userId: user.id,
+        roleTitle: 'Driver',
+        branch: cleanText(req.body.branch || company.city || 'Main branch'),
+        permissions: ['driver_manifest', 'trip_status', 'check_in_assist'],
+        status: 'active',
+        licenseNumber: cleanText(requested.licenseNumber || req.body.licenseNumber || ''),
+        licenseClass: cleanText(requested.licenseClass || req.body.licenseClass || ''),
+        safetyStatus: 'approved',
+        approvedBy: req.session?.user?.id || 'admin-system',
+        approvedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      store.state.companyEmployees.push(employee);
+    }
+    const assignmentNeeded = requested.vehicleId || requested.scheduleId || req.body.vehicleId || req.body.scheduleId;
+    if (assignmentNeeded) {
+      const assignment = {
+        id: nextId('driver-assignment', store.state.driverAssignments),
+        companyId: user.companyId,
+        employeeId: employee.id,
+        driverUserId: user.id,
+        vehicleId: cleanText(requested.vehicleId || req.body.vehicleId || ''),
+        scheduleId: cleanText(requested.scheduleId || req.body.scheduleId || ''),
+        assignmentType: requested.scheduleId || req.body.scheduleId ? 'schedule' : 'vehicle',
+        safetyStatus: 'approved',
+        status: 'active',
+        note: `Created from Super Admin approval of ${ticket.id}`,
+        assignedBy: req.session?.user?.id || 'admin-system',
+        createdAt: new Date().toISOString(),
+      };
+      store.state.driverAssignments.push(assignment);
+      await persist('DriverAssignment', assignment);
+    }
+    ticket.status = 'approved';
+    ticket.approvedBy = req.session?.user?.id || 'admin-system';
+    ticket.approvedAt = new Date().toISOString();
+    ticket.driverUserId = user.id;
+    ticket.driverEmployeeId = employee.id;
+    ticket.message = `${ticket.message || ''}\nApproved driver account ${user.email}.`.trim();
+    await persist('SupportTicket', ticket);
+    await persist('User', user);
+    await persist('CompanyEmployee', employee);
+    await audit(req, 'admin.driver_request.approved', ticket.id, { companyId: user.companyId, driverUserId: user.id });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function rejectDriverRequest(req, res, next) {
+  try {
+    ensureCollections();
+    const ticket = store.state.supportTickets.find((item) => item.id === req.params.id && item.category === 'driver_invitation_request');
+    if (!ticket) {
+      const error = new Error('Driver request not found');
+      error.status = 404;
+      throw error;
+    }
+    ticket.status = 'rejected';
+    ticket.rejectedBy = req.session?.user?.id || 'admin-system';
+    ticket.rejectedAt = new Date().toISOString();
+    ticket.rejectionReason = cleanText(req.body.reason || req.body.note || 'Rejected by Super Admin');
+    await persist('SupportTicket', ticket);
+    await audit(req, 'admin.driver_request.rejected', ticket.id, { companyId: ticket.companyId || ticket.ownerId, reason: ticket.rejectionReason });
+    redirect(res, '/admin/support');
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createBooking,
   createListing,
@@ -423,6 +588,8 @@ module.exports = {
   sendNotification,
   createCustomerNote,
   inviteAdmin,
+  approveDriverRequest,
+  rejectDriverRequest,
   createVerificationTask,
   createRefund,
   runPayout,
@@ -430,4 +597,8 @@ module.exports = {
   updateFinanceRules,
   updatePriceRule,
   updateTemplate,
+  replySupport,
+  createInternalNote,
+  approveReschedule,
+  rejectReschedule,
 };

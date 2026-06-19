@@ -156,7 +156,7 @@
               <button class="submit" type="submit"><i class="fa-solid fa-right-to-bracket"></i>Login</button>
               <div class="divider">or continue with</div>
               <div class="socialGrid">
-                <button class="social" type="button"><i class="fa-brands fa-google"></i>Google</button>
+                <a class="social" id="googleLoginLink" href="/auth/google?intent=login"><i class="fa-brands fa-google"></i>Google</a>
                 <button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button>
               </div>
             </form>
@@ -181,10 +181,10 @@
                 <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" name="email" placeholder="Email address" autocomplete="email" required></div></div>
                 <div class="field"><label>Phone</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" placeholder="WhatsApp phone" autocomplete="tel" required></div></div>
               </div>
-              <div class="field partnerOnly" style="display:none"><label>Company / brand name</label><div class="control"><i class="fa-solid fa-building"></i><input name="company" placeholder="Bus, hotel, airline, train company"></div></div>
+              <div class="field partnerOnly" style="display:none"><label>Company / brand name</label><div class="control"><i class="fa-solid fa-building"></i><input id="companyInput" name="company" placeholder="Bus, hotel, airline, train company"></div></div>
               <div class="row2 partnerOnly" style="display:none">
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select name="businessType"><option>Bus company</option><option>Hotel / apartments</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option></select></div></div>
-                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
+                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select id="businessTypeInput" name="businessType"><option>Bus company</option><option>Hotel / apartments</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option></select></div></div>
+                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select id="countryInput" name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
               </div>
               <div class="row2">
                 <div class="field"><label>Password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="password" placeholder="Create password" autocomplete="new-password" required><button type="button" class="passwordToggle" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
@@ -193,7 +193,7 @@
               <div class="checkLine"><label><input type="checkbox" required> I agree to Terms, Privacy Policy, Refund Policy and partner rules.</label></div>
               <button class="submit" type="submit"><i class="fa-solid fa-user-plus"></i>Create account</button>
               <div class="divider">or signup with</div>
-              <div class="socialGrid"><button class="social" type="button"><i class="fa-brands fa-google"></i>Google</button><button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button></div>
+              <div class="socialGrid"><a class="social" id="googleSignupLink" href="/auth/google?role=customer"><i class="fa-brands fa-google"></i>Google</a><button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button></div>
             </form>
           </div>
           <div class="miniDash">
@@ -326,6 +326,11 @@
     const drawer = document.getElementById('drawer');
     const successBox = document.getElementById('successBox');
     const toast = document.getElementById('toast');
+    const roleInput = document.getElementById('roleInput');
+    const googleSignupLink = document.getElementById('googleSignupLink');
+    const companyInput = document.getElementById('companyInput');
+    const businessTypeInput = document.getElementById('businessTypeInput');
+    const countryInput = document.getElementById('countryInput');
 
     function showToast(message){ toast.textContent = message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 2200); }
     function setTheme(mode){ html.setAttribute('data-theme', mode); localStorage.setItem('ct_auth_theme', mode); themeIcon.className = mode === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
@@ -353,10 +358,25 @@
       document.querySelectorAll('.role').forEach(btn => btn.classList.toggle('active', btn.dataset.role === role));
       const isPartner = role === 'partner' || role === 'employee';
       document.querySelectorAll('.partnerOnly').forEach(el => el.style.display = isPartner ? '' : 'none');
+      roleInput.value = role;
+      document.querySelectorAll('.partnerOnly input, .partnerOnly select').forEach(field => { field.required = isPartner; });
       const submitText = {customer:'Create customer account', promoter:'Create promoter account', partner:'Create partner account', employee:'Create employee account'}[role];
       document.querySelector('#signupForm .submit').innerHTML = '<i class="fa-solid fa-user-plus"></i>' + submitText;
+      updateGoogleSignupLink();
     }
     document.querySelectorAll('.role').forEach(btn => btn.addEventListener('click', ()=> setRole(btn.dataset.role)));
+    function updateGoogleSignupLink(){
+      const params = new URLSearchParams({ role: roleInput.value || 'customer' });
+      if(roleInput.value === 'partner' || roleInput.value === 'employee'){
+        if(companyInput.value.trim()) params.set('companyName', companyInput.value.trim());
+        if(businessTypeInput.value) params.set('companyType', businessTypeInput.value);
+        if(countryInput.value) params.set('country', countryInput.value);
+      }
+      googleSignupLink.href = '/auth/google?' + params.toString();
+    }
+    [companyInput,businessTypeInput,countryInput].forEach(el => el.addEventListener('input', updateGoogleSignupLink));
+    [businessTypeInput,countryInput].forEach(el => el.addEventListener('change', updateGoogleSignupLink));
+    updateGoogleSignupLink();
 
     document.querySelectorAll('.passwordToggle').forEach(btn => btn.addEventListener('click', ()=>{
       const input = btn.parentElement.querySelector('input');

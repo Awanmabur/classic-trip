@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= seo?.title || 'Bus and Hotel Admin Dashboard | Classic Trip' %></title>
+  <meta name="description" content="Classic Trip bus and hotel company admin dashboard for routes, vehicles, schedules, rooms, bookings, manifests, check-ins, revenue, settlement, support, and reports." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/dashboard-bus-hotel-admin.css">
+  <script src="/js/csrf.js" defer></script>
+</head>
+<body>
+<%
+  const d = dashboardData || {};
+  const company = d.company || {};
+  const stats = d.stats || {};
+  const rows = (name) => Array.isArray(d[name]) ? d[name] : [];
+  const safe = (v, fallback = '-') => (v === undefined || v === null || v === '' ? fallback : v);
+  const statusClass = (value) => {
+    const s = String(value || '').toLowerCase();
+    if (/verified|active|paid|confirmed|checked|completed|available|success|resolved|approved/.test(s)) return 'ok';
+    if (/pending|hold|review|draft|boarding|reserved|invited/.test(s)) return 'warn';
+    if (/cancel|refund|reject|suspend|failed|blocked|maintenance|closed/.test(s)) return 'bad';
+    return 'info';
+  };
+  const displayCell = (cell) => {
+    if (cell && typeof cell === 'object') return '';
+    return safe(cell);
+  };
+%>
+<div class="sideBackdrop" id="sideBackdrop"></div>
+<div class="app dashboardShellApp">
+  <%- include('../../partials/dashboard-sidebar', { dashboardShell }) %>
+  <main class="main">
+    <%- include('../../partials/dashboard-topbar', { dashboardShell }) %>
+
+    <section class="section is-active" id="overview">
+      <div class="hero">
+        <div class="heroTop">
+          <div>
+            <span class="eyebrow"><i class="fa-solid fa-building-circle-check"></i> Bus / Hotel Company Admin</span>
+            <h2><%= company.name || dashboardShell?.title || 'Company Operations' %></h2>
+            <p>One clean Super Admin-style workspace for company profile, staff, bus routes, vehicles, seat maps, hotel rooms, bookings, manifests, check-ins, support, revenue, settlement, and reports.</p>
+          </div>
+          <div class="quickActions">
+            <button class="btn btnPrimary" data-page-jump="schedules"><i class="fa-solid fa-calendar-plus"></i> Create schedule</button>
+            <button class="btn btnBlue" data-page-jump="hotel-rooms"><i class="fa-solid fa-bed"></i> Manage rooms</button>
+            <button class="btn" data-page-jump="manifests"><i class="fa-solid fa-print"></i> Print manifest</button>
+          </div>
+        </div>
+        <div class="statsGrid">
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-money-bill-wave"></i></div><strong><%= stats.grossRevenue || 'UGX 0' %></strong><span>Gross revenue</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div><strong><%= stats.confirmedBookings || '0' %></strong><span>Company bookings</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-route"></i></div><strong><%= stats.upcomingTrips || '0' %></strong><span>Upcoming trips</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-bed"></i></div><strong><%= stats.roomTypes || '0' %></strong><span>Room types</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-chair"></i></div><strong><%= stats.seatsOnHold || '0' %></strong><span>Seats / rooms on hold</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-qrcode"></i></div><strong><%= stats.checkedIn || '0' %></strong><span>Checked in</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-star"></i></div><strong><%= stats.rating || '0.0/5' %></strong><span>Company rating</span></div>
+          <div class="statCard"><div class="statIcon"><i class="fa-solid fa-headset"></i></div><strong><%= stats.openSupportCases || '0' %></strong><span>Open support cases</span></div>
+        </div>
+      </div>
+      <div class="contentGrid" style="margin-top:16px">
+        <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correct operational flow</h3><p>Every dashboard action must stay connected to inventory, booking, ticketing, finance, and audit truth.</p></div></div><div class="flowList">
+          <div class="flowItem"><i class="fa-solid fa-user-shield"></i><div><strong>1. Super Admin gate</strong><span>Company must be invited, documented, verified, and active before publishing inventory.</span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-building"></i><div><strong>2. Company setup</strong><span>Complete profile, branches, staff, policies, payout account, routes, vehicles, seat maps, hotel properties, and rooms.</span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-calendar-days"></i><div><strong>3. Publish inventory</strong><span>Publish only validated bus schedules and room-night availability from verified active supply.</span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-ticket"></i><div><strong>4. Booking operations</strong><span>Customer search creates protected holds, one payment creates tickets/QRs, and manifests update immediately.</span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-wallet"></i><div><strong>5. Completion and settlement</strong><span>Check-in/completion releases earnings, support/refund events reverse ledger entries correctly.</span></div></div>
+        </div></div>
+        <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Company readiness</h3><p>Publishing controls for the company workspace.</p></div></div><div class="flowList">
+          <div class="flowItem"><i class="fa-solid fa-id-card"></i><div><strong>Status</strong><span><span class="badge <%= statusClass(company.verificationStatus) %>"><%= safe(company.verificationStatus, 'pending') %></span></span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-location-dot"></i><div><strong>Location</strong><span><%= [company.city, company.country].filter(Boolean).join(', ') || '-' %></span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-phone"></i><div><strong>Support</strong><span><%= company.supportPhone || company.supportEmail || company.supportWhatsapp || '-' %></span></div></div>
+          <div class="flowItem"><i class="fa-solid fa-building-columns"></i><div><strong>Payout account</strong><span><%= company.payoutAccount || 'Missing payout account' %></span></div></div>
+        </div></div>
+      </div>
+    </section>
+
+    <% function renderTable(sectionId, title, description, columns, dataRows, actionsHtml) { %>
+      <section class="section" id="<%= sectionId %>">
+        <div class="card">
+          <div class="cardHead"><div class="cardTitle"><h3><%= title %></h3><p><%= description %></p></div><div class="actionRow"><%- actionsHtml || '' %></div></div>
+          <% if (!dataRows.length) { %><div class="emptyState">No records yet. Create the required setup record before publishing live inventory.</div><% } else { %>
+          <div class="tableWrap"><table><thead><tr><% columns.forEach(function(col){ %><th><%= col %></th><% }) %><th>Status</th></tr></thead><tbody>
+            <% dataRows.forEach(function(row){ const meta = row[row.length - 1] && typeof row[row.length - 1] === 'object' ? row[row.length - 1] : null; const visible = meta ? row.slice(0, -1) : row; const status = meta?.status || visible[visible.length - 1]; %>
+              <tr><% visible.slice(0, columns.length).forEach(function(cell){ %><td><%= displayCell(cell) %></td><% }) %><td><span class="badge <%= statusClass(status) %>"><%= safe(status) %></span></td></tr>
+            <% }) %>
+          </tbody></table></div><% } %>
+        </div>
+      </section>
+    <% } %>
+
+    <% renderTable('company-profile', 'Company profile', 'Branches, support contacts, payout account, policies, and verification data must be complete before publishing.', ['Item','Type','Location','Scope','Value'], [
+      ['Company', company.type || 'partner', [company.city, company.country].filter(Boolean).join(', ') || '-', 'Profile', company.name, company.verificationStatus],
+      ['Support', 'Contacts', company.supportPhone || '-', 'Customer care', company.supportEmail || company.supportWhatsapp || '-', company.supportPhone || company.supportEmail ? 'active' : 'pending'],
+      ['Payout', 'Finance', company.defaultCurrency || 'UGX', 'Settlement', company.payoutAccount || 'Not configured', company.payoutAccount ? 'active' : 'pending'],
+      ...rows('branches'), ...rows('policies')
+    ], '<button class="btn btnPrimary"><i class="fa-solid fa-pen"></i> Update profile</button>'); %>
+
+    <% renderTable('staff', 'Staff and driver requests', 'Company admin can invite non-driver employees. Driver invitations require Super Admin approval.', ['Name','Role','Branch','Permissions','Last seen'], [...rows('staff'), ...rows('drivers'), ...rows('driverAssignments')], '<button class="btn btnPrimary"><i class="fa-solid fa-user-plus"></i> Invite staff</button><button class="btn"><i class="fa-solid fa-id-card"></i> Request driver</button>'); %>
+
+    <% renderTable('routes', 'Bus routes and stops', 'Route setup must connect terminals, stops, policies, and active schedules.', ['Route','Listing','Boarding','Drop-off','Corridor'], [...rows('routes'), ...rows('routeStops')], '<button class="btn btnPrimary"><i class="fa-solid fa-route"></i> Add route</button>'); %>
+
+    <% renderTable('vehicles', 'Vehicles and fleet', 'Vehicles need capacity, seat layout, documents, maintenance status, and valid schedule assignment.', ['Vehicle','Type','Plate / code','Capacity','Layout'], rows('vehicles'), '<button class="btn btnPrimary"><i class="fa-solid fa-bus"></i> Add vehicle</button>'); %>
+
+    <section class="section" id="seat-maps">
+      <div class="grid2">
+        <% const seatMaps = Array.isArray(d.seatMaps) ? d.seatMaps : []; %>
+        <% if (!seatMaps.length) { %><div class="card"><div class="emptyState">No bus seat maps found. Create vehicle layout and schedule seat snapshot.</div></div><% } %>
+        <% seatMaps.slice(0, 4).forEach(function(map){ %>
+          <div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= map.routeLabel || map.listingTitle || map.scheduleId %></h3><p><%= map.vehicleName || 'Vehicle' %> · <%= map.departAt || '' %></p></div><span class="badge <%= statusClass(map.status) %>"><%= map.status || 'active' %></span></div>
+            <div class="inventoryMap"><% (map.seats || []).slice(0, 80).forEach(function(seat){ %><div class="inventoryCell <%= String(seat.status || '').toLowerCase() %>" title="<%= seat.passengerName || seat.status || '' %>"><%= seat.seatNumber || seat.label %></div><% }) %></div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <% renderTable('schedules', 'Bus schedules and fares', 'A customer books a schedule, not only a route. Schedule must connect route, vehicle, driver, seat snapshot, fare, and policy.', ['Schedule','Route / listing','Departure','Vehicle','Sold / capacity'], rows('schedules'), '<button class="btn btnPrimary"><i class="fa-solid fa-calendar-plus"></i> Create schedule</button>'); %>
+
+    <section class="section" id="hotel-rooms">
+      <div class="grid2">
+        <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Hotel properties and rooms</h3><p>Room setup must connect property, room type, room unit, room-night inventory, price, and stay policies.</p></div><button class="btn btnPrimary"><i class="fa-solid fa-bed"></i> Add room</button></div>
+          <% const roomRows = [...rows('hotelProperties'), ...rows('roomTypes'), ...rows('roomUnits'), ...rows('roomNightInventory')]; %>
+          <% if (!roomRows.length) { %><div class="emptyState">No hotel room inventory found.</div><% } else { %><div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Property</th><th>Capacity/date</th><th>Price</th><th>Status</th></tr></thead><tbody><% roomRows.slice(0, 40).forEach(function(row){ const meta=row[row.length-1]&&typeof row[row.length-1]==='object'?row[row.length-1]:null; const visible=meta?row.slice(0,-1):row; const status=meta?.status||visible[visible.length-1]; %><tr><% visible.slice(0,5).forEach(function(cell){ %><td><%= displayCell(cell) %></td><% }) %><td><span class="badge <%= statusClass(status) %>"><%= safe(status) %></span></td></tr><% }) %></tbody></table></div><% } %>
+        </div>
+        <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Room visual status</h3><p>Booked or held rooms open booking/stay details based on role permission.</p></div></div>
+          <% const roomMaps = Array.isArray(d.roomVisualMaps) ? d.roomVisualMaps : []; %>
+          <% if (!roomMaps.length) { %><div class="emptyState">No room visual map available.</div><% } %>
+          <% roomMaps.slice(0, 2).forEach(function(map){ %><h4><%= map.propertyName || map.roomTypeName %></h4><div class="inventoryMap"><% (map.rooms || []).slice(0, 40).forEach(function(room){ %><div class="inventoryCell <%= String(room.status || '').toLowerCase() %>" title="<%= room.guestName || room.status || '' %>"><%= room.unitNumber || room.roomUnitId %></div><% }) %></div><% }) %>
+        </div>
+      </div>
+    </section>
+
+    <% renderTable('bookings', 'Bookings', 'All bus and hotel bookings must connect to customer, inventory, payment, ticket/QR, timeline, support, and ledger.', ['Ref','Service','Customer','Seat / room','Created','State'], rows('bookings'), '<button class="btn"><i class="fa-solid fa-download"></i> Export bookings</button>'); %>
+
+    <section class="section" id="manifests">
+      <div class="grid2">
+        <% renderTable('manifest-bus-inline', 'Bus customer manifests', 'Printable schedule manifest for drivers, check-in staff, and company admin.', ['Schedule','Route','Vehicle/date','Booked','Held'], (d.bookedSeatGroups || []).map(g => [g.scheduleId, g.routeLabel, `${g.vehicleName} / ${g.travelDate}`, String(g.totalBooked), String(g.totalHeld), g.status]), '<button class="btn btnPrimary"><i class="fa-solid fa-print"></i> Print bus manifest</button>'); %>
+        <% renderTable('manifest-hotel-inline', 'Hotel manifests', 'Arrivals, departures, and in-house guest lists.', ['Ref','Guest','Room','Check-in','Check-out'], [...rows('hotelArrivals'), ...rows('hotelDepartures'), ...rows('hotelInHouse')], '<button class="btn btnPrimary"><i class="fa-solid fa-print"></i> Print hotel manifest</button>'); %>
+      </div>
+    </section>
+
+    <% renderTable('checkins', 'Check-ins and scanner oversight', 'QR or manual check-in validates company scope, ticket status, payment status, cancellation/refund state, and duplicate scan.', ['Ref','Passenger / guest','Service','Seat / room','Checked at'], rows('checkins'), '<button class="btn btnPrimary"><i class="fa-solid fa-qrcode"></i> Open scanner</button>'); %>
+    <% renderTable('support', 'Support and correspondence', 'Support must separate internal notes from customer-visible replies and keep every action on the booking timeline.', ['Case','Audience','Subject','Priority','State'], rows('support'), '<button class="btn btnPrimary"><i class="fa-solid fa-reply"></i> Reply</button>'); %>
+    <% renderTable('reviews', 'Reviews', 'Company can respond to reviews but moderation and fraud decisions remain platform controlled.', ['Customer','Service','Rating','Comment','Reply/date'], rows('reviews'), '<button class="btn"><i class="fa-solid fa-star"></i> Export reviews</button>'); %>
+    <% renderTable('revenue', 'Revenue', 'Company revenue is visible here. Payout approval remains controlled by Super Admin finance.', ['Txn','Booking / type','Gross','Company earning','Platform fee'], rows('payouts'), '<button class="btn"><i class="fa-solid fa-wallet"></i> Request payout</button>'); %>
+    <% renderTable('settlement', 'Settlement', 'Earnings stay pending until trip/stay check-in or completion rules release them.', ['Txn','Booking / type','Gross','Company earning','Platform fee'], rows('payouts'), '<button class="btn"><i class="fa-solid fa-file-invoice-dollar"></i> Statement</button>'); %>
+    <% renderTable('reports', 'Reports', 'Export operational and finance reports by route, schedule, vehicle, driver, room, booking source, and settlement status.', ['Report','Scope','Metric','Period','Value'], [
+      ['Route performance','Bus', stats.routeCount || '0 routes','Current','Export ready','active'],
+      ['Vehicle occupancy','Bus', stats.fillRate || '0%','Current','Export ready','active'],
+      ['Room occupancy','Hotel', stats.roomTypes || '0 room types','Current','Export ready','active'],
+      ['Settlement statement','Finance', stats.earnings || 'UGX 0','Current','Export ready','pending'],
+      ['Support report','Operations', stats.openSupportCases || '0 cases','Current','Export ready','active']
+    ], '<button class="btn btnPrimary"><i class="fa-solid fa-download"></i> Export reports</button>'); %>
+  </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const sections = Array.from(document.querySelectorAll('.section'));
+  const navBtns = Array.from(document.querySelectorAll('.navBtn[data-page]'));
+  const openMenu = document.getElementById('openMenu');
+  const sideBackdrop = document.getElementById('sideBackdrop');
+  const themeBtn = document.getElementById('btnTheme');
+  const themeIcon = document.getElementById('themeIcon');
+  function showPage(page) {
+    const target = document.getElementById(page) || document.getElementById('overview');
+    sections.forEach(s => s.classList.toggle('is-active', s === target));
+    navBtns.forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === target.id));
+    const heading = document.getElementById('pageHeading');
+    const active = navBtns.find(btn => btn.dataset.page === target.id);
+    if (heading && active) heading.textContent = active.textContent.trim();
+    document.body.classList.remove('menu-open');
+  }
+  document.addEventListener('click', function (event) {
+    const nav = event.target.closest('.navBtn[data-page]');
+    if (nav) { event.preventDefault(); showPage(nav.dataset.page); return; }
+    const jump = event.target.closest('[data-page-jump]');
+    if (jump) { event.preventDefault(); showPage(jump.dataset.pageJump); return; }
+  });
+  if (openMenu) openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
+  if (sideBackdrop) sideBackdrop.addEventListener('click', () => document.body.classList.remove('menu-open'));
+  if (themeBtn) themeBtn.addEventListener('click', function () { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; if (themeIcon) themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; });
+  const sideSearch = document.getElementById('sideSearch');
+  if (sideSearch) sideSearch.addEventListener('input', function (e) { const q = e.target.value.toLowerCase().trim(); navBtns.forEach(btn => { btn.style.display = btn.textContent.toLowerCase().includes(q) ? 'flex' : 'none'; }); });
+  const switcher = document.getElementById('dashboardRoleSwitcher');
+  if (switcher) switcher.addEventListener('change', () => { if (switcher.value) window.location.href = switcher.value; });
+  showPage('overview');
+});
+</script>
+</body>
+</html>

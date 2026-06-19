@@ -1,4 +1,4 @@
-const store = require('../services/data/demoStore');
+const store = require('../services/data/persistentStore');
 const notificationService = require('../services/notification/notificationService');
 
 function recipient(booking = {}) {

@@ -1,4 +1,4 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const { mongoose } = require('../../config/db');
 const { sendEmail } = require('./emailService');
 const { sendSms } = require('./smsService');
@@ -8,16 +8,28 @@ function mongoReady() {
   return mongoose.connection.readyState === 1;
 }
 
-async function persistNotifications(rows) {
-  if (!mongoReady() || !rows.length) return;
-  const Notification = require('../../models/Notification');
-  await Notification.bulkWrite(rows.map((row) => ({
-    updateOne: {
-      filter: { id: row.id },
-      update: { $set: row },
-      upsert: true,
-    },
-  })));
+async function persistNotifications(rows, attempts = []) {
+  if (!mongoReady()) return;
+  if (rows.length) {
+    const Notification = require('../../models/Notification');
+    await Notification.bulkWrite(rows.map((row) => ({
+      updateOne: {
+        filter: { id: row.id },
+        update: { $set: row },
+        upsert: true,
+      },
+    })));
+  }
+  if (attempts.length) {
+    const NotificationDeliveryAttempt = require('../../models/NotificationDeliveryAttempt');
+    await NotificationDeliveryAttempt.bulkWrite(attempts.map((attempt) => ({
+      updateOne: {
+        filter: { id: attempt.id },
+        update: { $set: attempt },
+        upsert: true,
+      },
+    })));
+  }
 }
 
 function cleanText(value) {
@@ -42,6 +54,7 @@ async function queueNotification({
   const cleanMessage = cleanText(message || '');
   const rows = [];
   const deliveryTasks = [];
+  const attempts = [];
   const uniqueChannels = Array.from(new Set(Array.isArray(channels) ? channels : [channels])).filter(Boolean);
 
   for (const channel of uniqueChannels) {
@@ -65,9 +78,24 @@ async function queueNotification({
     store.state.notifications.push(row);
     rows.push(row);
 
-    if (channel === 'email') deliveryTasks.push({ row, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: cleanMessage, meta }) });
-    if (channel === 'sms') deliveryTasks.push({ row, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
-    if (channel === 'whatsapp') deliveryTasks.push({ row, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
+    const attempt = {
+      id: `notification-attempt-${row.id}`,
+      notificationId: row.id,
+      referenceType,
+      referenceId,
+      bookingRef: meta.bookingRef || '',
+      userId: userId || '',
+      channel,
+      recipient,
+      provider: channel,
+      status: 'queued',
+      attemptedAt: new Date().toISOString(),
+      metadata: meta,
+    };
+    attempts.push(attempt);
+    if (channel === 'email') deliveryTasks.push({ row, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: cleanMessage, meta }) });
+    if (channel === 'sms') deliveryTasks.push({ row, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
+    if (channel === 'whatsapp') deliveryTasks.push({ row, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
   }
 
   const deliveries = await Promise.allSettled(deliveryTasks.map((item) => item.promise));
@@ -84,8 +112,14 @@ async function queueNotification({
     row.deliveredCount = row.status === 'sent' ? 1 : 0;
     row.failedCount = row.status === 'failed' ? 1 : 0;
     if (row.status === 'sent') row.sentAt = new Date().toISOString();
+    const attempt = deliveryTasks[index].attempt;
+    attempt.status = row.deliveryStatus;
+    attempt.provider = row.deliveryProvider;
+    attempt.response = row.deliveryResponse;
+    attempt.error = row.status === 'failed' ? row.deliveryResponse : '';
+    attempt.completedAt = new Date().toISOString();
   });
-  await persistNotifications(rows);
+  await persistNotifications(rows, attempts);
   return rows;
 }
 

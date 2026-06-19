@@ -14,8 +14,8 @@ if (google.enabled) {
     passReqToCallback: true,
   }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-      const role = req.session?.googleIntentRole || 'customer';
-      const user = await googleAuthService.findOrCreateGoogleUser(profile, role);
+      const intent = req.session?.googleIntent || { role: req.session?.googleIntentRole || 'customer' };
+      const user = await googleAuthService.findOrCreateGoogleUser(profile, intent);
       return done(null, user);
     } catch (error) {
       return done(error);

@@ -11,6 +11,10 @@ const jobs = {
     schedule: () => env.jobs.releaseCommission,
     module: () => require('./releaseCommission'),
   },
+  expirePaymentIntents: {
+    schedule: () => env.jobs.expirePaymentIntents,
+    module: () => require('./expirePaymentIntents'),
+  },
   bookingReminders: {
     schedule: () => env.jobs.bookingReminders,
     module: () => require('./bookingReminders'),

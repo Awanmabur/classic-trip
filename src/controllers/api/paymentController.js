@@ -10,7 +10,7 @@ async function initiate(req, res, next) {
 }
 async function webhook(req, res, next) {
   try {
-    const result = await webhookService.processPaymentWebhook(req.body, req.headers);
+    const result = await webhookService.processPaymentWebhook(req.body, { ...req.headers, __rawBody: req.rawBody || '' });
     res.json(result);
   } catch (error) {
     next(error);

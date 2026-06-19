@@ -3,3 +3,13 @@ npm-debug.log
 .DS_Store
 /*.env
 /public/uploads
+
+# Runtime and generated artifacts
+*.log
+/logs/
+/src.zip
+/word/
+/.tmp-docx/
+/.tmp-blueprint.zip
+/.tmp_*/
+/Classic_Trip_Final_Master_Document.pdf

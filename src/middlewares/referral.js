@@ -1,4 +1,4 @@
-const store = require('../services/data/demoStore');
+const store = require('../services/data/persistentStore');
 
 function attachReferral(req, res, next) {
   const ref = req.query.ref || req.cookies?.ct_ref;

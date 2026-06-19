@@ -1,10 +1,10 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const companyService = require('../company/companyService');
 const paymentService = require('../payment/paymentService');
 const notificationService = require('../notification/notificationService');
 const generateCode = require('../../utils/generateCode');
 const { env } = require('../../config/env');
-const { mongoose } = require('../../config/db');
+const repositories = require('../../repositories');
 
 const PLAN_CATALOG = [
   {
@@ -42,10 +42,6 @@ const PLAN_CATALOG = [
     limits: { listings: 0, staff: 0, campaigns: 0 },
   },
 ];
-
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
-}
 
 function ensureBillingState() {
   if (!Array.isArray(store.state.subscriptionOrders)) store.state.subscriptionOrders = [];
@@ -100,25 +96,27 @@ function activeSubscription(companyId) {
 }
 
 async function persistCompany(company) {
-  if (!mongoReady() || !company) return;
-  const Company = require('../../models/Company');
-  await Company.updateOne({ id: company.id }, { $set: company }, { upsert: true, runValidators: true });
+  await repositories.companies.upsert(company);
 }
 
 async function persistUser(user) {
-  if (!mongoReady() || !user) return;
-  const User = require('../../models/User');
-  await User.updateOne({ id: user.id }, { $set: user }, { upsert: true, runValidators: true });
+  await repositories.users.upsert(user);
 }
 
 async function persistPayment(payment) {
-  if (!mongoReady() || !payment) return;
-  const Payment = require('../../models/Payment');
-  await Payment.updateOne(
-    { idempotencyKey: payment.idempotencyKey },
-    { $set: payment },
-    { upsert: true, runValidators: true }
-  );
+  await repositories.payments.upsert(payment);
+}
+
+async function persistOrder(order) {
+  await repositories.subscriptionOrders.upsert(order);
+}
+
+async function persistSubscription(subscription) {
+  await repositories.subscriptions.upsert(subscription);
+}
+
+async function persistSupportTicket(ticket) {
+  await repositories.supportTickets.upsert(ticket);
 }
 
 function orderContact(payload = {}, user = {}) {
@@ -204,7 +202,7 @@ async function createOnboardingOrder(payload = {}, req = null) {
     contact,
     actorId: user.id || contact.email || 'public-onboarding',
   });
-  store.state.supportTickets.unshift({
+  const ticket = {
     id: nextId('support', store.state.supportTickets),
     ownerType: 'company',
     ownerId: company.id,
@@ -218,9 +216,12 @@ async function createOnboardingOrder(payload = {}, req = null) {
     createdBy: contact.email || 'partner-onboarding',
     createdAt: new Date().toISOString(),
     meta: { source: 'plan_onboarding', companySlug: company.slug, orderRef: order.orderRef, ip: req?.ip || '' },
-  });
+  };
+  store.state.supportTickets.unshift(ticket);
   await persistCompany(company);
   await persistUser(user);
+  await persistOrder(order);
+  await persistSupportTicket(ticket);
   return { company, user, order, plan: findPlan(order.planId) };
 }
 
@@ -248,6 +249,7 @@ async function createUpgradeOrder(companyId, planId, actor = {}) {
   };
   company.updatedAt = new Date().toISOString();
   await persistCompany(company);
+  await persistOrder(order);
   return { company, order, plan: findPlan(order.planId) };
 }
 
@@ -349,6 +351,9 @@ async function activateOrder(order, payment = null) {
     status: 'success',
     createdAt: new Date().toISOString(),
   });
+  if (previous) await persistSubscription(previous);
+  await persistSubscription(subscription);
+  await persistOrder(order);
   await persistCompany(company);
   await notificationService.queueNotification({
     userId: company.ownerId || null,
@@ -398,6 +403,7 @@ async function initiateOrderPayment(orderRef, payload = {}) {
     idempotencyKey: `init:${order.orderRef}:${order.providerReference || order.provider}`,
   }, order.paymentStatus);
   await persistPayment(payment);
+  await persistOrder(order);
   if (order.paymentStatus === 'successful') {
     const activated = await activateOrder(order, payment);
     return { ...activated, payment, idempotent };
@@ -434,6 +440,7 @@ async function processPaymentWebhook(payload = {}) {
   order.providerReference = payload.providerReference || payload.reference || order.providerReference;
   order.updatedAt = new Date().toISOString();
   await persistPayment(payment);
+  await persistOrder(order);
   if (status === 'successful') {
     const activated = await activateOrder(order, payment);
     return { valid: true, processed: true, payment, ...activated };

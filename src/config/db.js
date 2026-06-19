@@ -4,7 +4,10 @@ const logger = require('./logger');
 
 async function connectDb() {
   if (!env.mongoUri) {
-    logger.warn('MONGO_URI is not set; using in-memory demo store only.');
+    if (!env.demoMode) {
+      throw new Error('MONGO_URI is required for the MongoDB-backed application');
+    }
+    logger.warn('MONGO_URI is not set; only test-mode empty cache can run without MongoDB.');
     return null;
   }
   try {
@@ -15,8 +18,10 @@ async function connectDb() {
     logger.info('MongoDB connected', { host: conn.connection.host, db: conn.connection.name });
     return conn;
   } catch (error) {
-    if (env.isProduction) throw error;
-    logger.warn('MongoDB connection failed; continuing with in-memory demo store.', { error: error.message });
+    if (env.isProduction || !env.demoMode) {
+      throw new Error(`MongoDB connection failed: ${error.message}`);
+    }
+    logger.warn('MongoDB connection failed; continuing only because test/development fallback is explicitly enabled.', { error: error.message });
     return null;
   }
 }

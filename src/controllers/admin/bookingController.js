@@ -1,3 +1,3 @@
-const store = require('../../services/data/demoStore');
-function list(req, res) { res.json(store.state.bookings); }
+const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
+async function list(req, res, next) { try { res.json(await mongoDashboardService.listEntity('bookings', {}, { limit: req.query.limit || 500 })); } catch (error) { next(error); } }
 module.exports = { list };

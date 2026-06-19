@@ -1,6 +1,8 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 const walletService = require('../wallet/walletService');
 const ledgerService = require('../wallet/ledgerService');
+const timelineService = require('./timelineService');
+const repositories = require('../../repositories');
 
 function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -32,13 +34,73 @@ function requestRefund({ bookingRef, requesterId = 'guest', amount, reason = 'Cu
     id: `support-${store.state.supportTickets.length + 1}`,
     ownerType: 'customer',
     ownerId: requesterId,
+    companyId: booking.companyId,
+    bookingId: booking.id,
+    bookingRef: booking.bookingRef,
     subject: `Refund request ${booking.bookingRef}`,
     message: cleanReason,
     priority: refund.amount > 500000 ? 'high' : 'medium',
     status: 'open',
     createdAt: new Date().toISOString(),
   });
+  timelineService.recordEvent({
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId,
+    customerUserId: booking.customerUserId || requesterId,
+    entityType: 'refund_request',
+    entityId: refund.id,
+    action: 'refund.requested',
+    title: `Refund requested for ${booking.bookingRef}`,
+    message: cleanReason,
+    status: 'pending',
+    actorType: 'customer',
+    actorId: requesterId,
+    metadata: { amount: refund.amount, currency: refund.currency },
+  }).catch(() => {});
+  if (repositories.mongoReady()) repositories.refundRequests.upsert(refund).catch(() => {});
   return refund;
+}
+
+
+async function persistRefundWorkflow(booking, refund) {
+  if (!repositories.mongoReady()) return;
+  await repositories.refundRequests.upsert(refund);
+  if (booking?.bookingRef) await repositories.bookings.upsert(booking);
+  const seatClaims = (booking?.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
+  if (booking?.serviceType === 'bus' && refund.fullRefund && seatClaims.length && booking.checkInStatus !== 'checked_in') {
+    await repositories.seats.updateMany(
+      { $or: seatClaims.map((claim) => ({ scheduleId: claim.scheduleId, seatNumber: claim.seatNumber })) },
+      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } }
+    );
+    const scheduleCounts = seatClaims.reduce((acc, claim) => { acc[claim.scheduleId] = (acc[claim.scheduleId] || 0) + 1; return acc; }, {});
+    await repositories.schedules.Model.bulkWrite(Object.entries(scheduleCounts).map(([id, count]) => ({ updateOne: { filter: { id }, update: { $inc: { availableSeats: count } } } })), { ordered: false });
+  }
+}
+
+function releaseRefundInventory(booking = {}, refund = {}) {
+  if (!booking || !refund.fullRefund) return;
+  if (booking.serviceType === 'bus' && booking.checkInStatus !== 'checked_in') {
+    const seatClaims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
+    seatClaims.forEach((claim) => {
+      const seat = store.state.seats.find((item) => item.scheduleId === claim.scheduleId && item.seatNumber === claim.seatNumber);
+      if (seat && seat.status === 'taken') {
+        seat.status = 'available';
+        seat.lockedUntil = null;
+        seat.lockId = null;
+      }
+      const schedule = store.state.schedules.find((item) => item.id === claim.scheduleId);
+      if (schedule) schedule.availableSeats = Number(schedule.availableSeats || 0) + 1;
+    });
+  }
+  (booking.ticketLegs || []).forEach((leg) => {
+    leg.status = 'refunded';
+    leg.checkInStatus = 'refunded';
+    leg.refundId = refund.id;
+  });
+  (booking.passengers || []).forEach((passenger) => {
+    passenger.checkInStatus = 'refunded';
+    passenger.refundId = refund.id;
+  });
 }
 
 function roundMoney(value) {
@@ -124,6 +186,7 @@ function approveRefund(refundId, adminId = 'admin-system') {
   if (booking) {
     applyRefundReversals(booking, refund, adminId);
     const fullRefund = refund.fullRefund !== false;
+    releaseRefundInventory(booking, refund);
     booking.bookingStatus = fullRefund ? 'refunded' : 'partially_refunded';
     booking.paymentStatus = fullRefund ? 'refunded' : 'partially_refunded';
     booking.refundedAt = new Date().toISOString();
@@ -144,10 +207,11 @@ function approveRefund(refundId, adminId = 'admin-system') {
     const notificationService = require('../notification/notificationService');
     notificationService.refundApproved(booking, refund).catch(() => {});
   }
+  persistRefundWorkflow(booking, refund).catch(() => {});
   return refund;
 }
 
-function rejectRefund(refundId, adminId = 'admin-system', reason = 'Refund rejected after review') {
+async function rejectRefund(refundId, adminId = 'admin-system', reason = 'Refund rejected after review') {
   const refund = store.state.refundRequests.find((item) => item.id === refundId || item.bookingRef === refundId);
   if (!refund) {
     const error = new Error('Refund request not found');
@@ -170,6 +234,7 @@ function rejectRefund(refundId, adminId = 'admin-system', reason = 'Refund rejec
     ticket.resolvedBy = adminId;
     ticket.resolvedAt = new Date().toISOString();
   }
+  if (repositories.mongoReady()) await repositories.refundRequests.upsert(refund);
   return refund;
 }
 

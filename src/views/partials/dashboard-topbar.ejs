@@ -1,0 +1,45 @@
+
+<style>
+  .dashboardShellTopbar .topSearch, .dashboardShellTopbar .searchBox, .dashboardShellTopbar .control {
+    min-height: 42px; display:flex; align-items:center; gap:10px;
+    border:1px solid rgba(148,163,184,.22); border-radius:999px;
+    background:rgba(15,23,42,.74); padding:0 14px; color:var(--text,#f8fafc);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .dashboardShellTopbar .topSearch input, .dashboardShellTopbar .searchBox input, .dashboardShellTopbar .control input {
+    border:0!important; outline:0!important; background:transparent!important; color:inherit!important;
+    min-width:220px; height:38px; font-weight:700;
+  }
+  .dashboardShellTopbar .topSearch:focus-within {
+    border-color:rgba(79,140,255,.65); box-shadow:0 0 0 3px rgba(79,140,255,.14);
+  }
+  .dashboardShellTopbar .pageTitle h1 { font-size:18px!important; line-height:1.1; margin:2px 0!important; }
+  .dashboardShellTopbar .pageTitle p { display:none!important; }
+  .sidebar .brandText span { opacity:.72; font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+</style>
+<% const shell = dashboardShell || {}; const allItems = []; (shell.groups || []).forEach(function(group){ (group.items || []).forEach(function(item){ allItems.push(item); }); }); const activeItem = allItems.find(function(item){ return item.page === (shell.activePage || 'overview'); }) || allItems[0] || {}; %>
+<header class="topbar dashboardShellTopbar">
+  <div class="topLeft">
+    <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu" aria-controls="sidebar"><i class="fa-solid fa-bars"></i></button>
+    <div class="pageTitle">
+      <div class="breadcrumbs" aria-label="Breadcrumbs"><%= (shell.breadcrumbs || ['Dashboard', shell.label || 'Workspace']).join(' / ') %></div>
+      <h1 id="pageHeading"><%= activeItem.label || shell.label || 'Dashboard' %></h1>
+      <p id="pageSub"><%= activeItem.helper || 'Use the tools on this page.' %></p>
+    </div>
+  </div>
+
+  <div class="topActions">
+    <label class="topSearch hideMobile" aria-label="Search dashboard">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input id="dashboardGlobalSearch" placeholder="Search dashboard..." autocomplete="off" />
+    </label>
+    <button class="iconBtn notificationBell" id="dashboardNotifications" title="Notifications" aria-label="Notifications">
+      <i class="fa-solid fa-bell"></i>
+      <span class="notificationBadge"><%= shell.notificationCount || 0 %></span>
+    </button>
+    <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+    <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
+    <button class="btn btnBlue" id="btnNew"><i class="fa-solid fa-plus"></i><span><%= shell.createLabel || 'Create' %></span></button>
+    <button class="btn btnPrimary hideMobile"><i class="fa-solid <%= shell.statusIcon || 'fa-user-check' %>"></i> <%= shell.statusLabel || shell.label || 'Dashboard' %></button>
+  </div>
+</header>

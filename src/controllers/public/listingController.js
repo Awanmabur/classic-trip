@@ -1,7 +1,8 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const qrService = require('../../services/qr/qrService');
 const bookingService = require('../../services/booking/bookingService');
 const ticketPdfService = require('../../services/pdf/ticketPdfService');
+const futureServiceArchitecture = require('../../services/release/futureServiceArchitecture');
 
 function normalize(value) {
   return String(value || '').toLowerCase().trim();
@@ -95,6 +96,13 @@ function listingDetails(req, res, next) {
 function bookingForm(req, res, next) {
   const listing = store.findListing(req.params.slug, req.params.serviceType);
   if (!listing) return next();
+  const futureModule = futureServiceArchitecture.findModule(listing.serviceType);
+  if (futureModule && listing.bookable === false) {
+    return res.status(409).render('pages/future-service-detail', {
+      seo: { title: `${futureModule.label} coming soon | Classic Trip` },
+      module: futureModule,
+    });
+  }
   const availability = store.getAvailability(listing.id);
   const company = store.findCompany(listing.companySlug || listing.companyId);
   const preview = store.listingPreview(listing, availability, company);
@@ -111,7 +119,11 @@ function bookingForm(req, res, next) {
     referralCode: req.query.ref || req.cookies?.ct_ref || '',
     holdId: req.query.holdId || '',
     selectedOption: req.query.selected || req.query.roomId || '',
+    selectedSeats: req.query.selectedSeats || req.query.selected || '',
     selectedScheduleId: req.query.scheduleId || '',
+    returnScheduleId: req.query.returnScheduleId || '',
+    returnSeats: req.query.returnSeats || '',
+    passengerCount: req.query.passengerCount || '',
     selectedAddonIds,
   });
 }
@@ -121,7 +133,12 @@ async function ticketPage(req, res, next) {
   if (!booking) return next();
   const listing = store.findListing(booking.listingId);
   const qrDataUrl = await qrService.toDataUrl(booking.qrCodeValue);
-  return res.render('pages/ticket', { seo: { title: `${booking.bookingRef} ticket | Classic Trip` }, booking, listing, qrDataUrl });
+  const ticketLegs = await Promise.all((booking.ticketLegs || []).map(async (leg, index) => ({
+    ...leg,
+    passenger: (booking.passengers || [])[Number(leg.passengerIndex || index)] || {},
+    qrDataUrl: await qrService.toDataUrl(store.qrPublicValueForLeg(booking.bookingRef, leg) || booking.qrCodeValue),
+  })));
+  return res.render('pages/ticket', { seo: { title: `${booking.bookingRef} ticket | Classic Trip` }, booking, listing, qrDataUrl, ticketLegs });
 }
 
 async function ticketPdf(req, res, next) {

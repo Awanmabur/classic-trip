@@ -29,6 +29,7 @@ const paymentSchema = new Schema({
   metadata: Schema.Types.Mixed,
 }, { timestamps: true });
 
-paymentSchema.index({ provider: 1, providerReference: 1 });
+paymentSchema.index({ provider: 1, providerReference: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+paymentSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
 module.exports = model('Payment', paymentSchema);

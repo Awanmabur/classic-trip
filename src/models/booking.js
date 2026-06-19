@@ -6,6 +6,7 @@ const bookingSchema = new Schema({
   guestLookupCode: { type: String, index: true },
   serviceType: { type: String, required: true, index: true },
   guestSnapshot: Schema.Types.Mixed,
+  buyerSnapshot: Schema.Types.Mixed,
   customerUserId: { type: String, index: true },
   companyId: { type: String, index: true },
   tenantId: { type: String, index: true },
@@ -16,6 +17,10 @@ const bookingSchema = new Schema({
   tripId: { type: String, index: true },
   vehicleId: { type: String, index: true },
   passengers: [Schema.Types.Mixed],
+  bookingItems: [Schema.Types.Mixed],
+  bookingLegs: [Schema.Types.Mixed],
+  ticketLegs: [Schema.Types.Mixed],
+  tripType: { type: String, default: 'one_way', index: true },
   addons: [Schema.Types.Mixed],
   quantity: { type: Number, default: 1 },
   pricing: moneySchema,
@@ -57,4 +62,6 @@ bookingSchema.index({ companyId: 1, guestLookupCode: 1 });
 bookingSchema.index({ companyId: 1, paymentRef: 1 });
 bookingSchema.index({ customerUserId: 1, createdAt: -1 });
 bookingSchema.index({ referralCode: 1, createdAt: -1 });
+bookingSchema.index({ 'ticketLegs.qrTokenHash': 1 }, { sparse: true });
+bookingSchema.index({ companyId: 1, scheduleId: 1, 'bookingItems.seatNumber': 1, bookingStatus: 1 });
 module.exports = model('Booking', bookingSchema);

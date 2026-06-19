@@ -41,7 +41,7 @@ function renderCheckout(req, res, next) {
   return res.render('pages/billing-checkout', {
     seo: { title: `Pay ${order.planName} plan | Classic Trip` },
     order,
-    company: require('../../services/data/demoStore').findCompany(order.companyId),
+    company: require('../../services/data/persistentStore').findCompany(order.companyId),
     plan: billingService.findPlan(order.planId),
     providers: require('../../services/payment/paymentService').providerSummary(),
     defaultProvider: env.paymentProvider,
@@ -60,7 +60,7 @@ async function payOrder(req, res, next) {
 function renderSuccess(req, res, next) {
   const order = billingService.findOrder(req.params.orderRef);
   if (!order) return next();
-  const company = require('../../services/data/demoStore').findCompany(order.companyId);
+  const company = require('../../services/data/persistentStore').findCompany(order.companyId);
   return res.render('pages/billing-success', {
     seo: { title: `Plan ${order.paymentStatus === 'successful' ? 'active' : 'pending'} | Classic Trip` },
     order,
@@ -82,7 +82,7 @@ async function createUpgrade(req, res, next) {
 
 function renderCompanyBilling(req, res) {
   const companyId = req.session?.user?.companyId || 'company-01';
-  const store = require('../../services/data/demoStore');
+  const store = require('../../services/data/persistentStore');
   return res.render('pages/company-billing', {
     seo: { title: 'Company billing | Classic Trip' },
     company: store.findCompany(companyId),

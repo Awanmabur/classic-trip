@@ -20,7 +20,7 @@ function actorContext(req) {
 }
 
 function scannerValue(req) {
-  return String(req.params.bookingRef || req.body.qrCodeValue || req.body.bookingRef || req.body.guestLookupCode || req.body.paymentRef || req.body.query || req.body.value || '').trim();
+  return String(req.params.bookingRef || req.body.qrToken || req.body.ticketNumber || req.body.qrCodeValue || req.body.bookingRef || req.body.guestLookupCode || req.body.paymentRef || req.body.query || req.body.value || '').trim();
 }
 
 function wantsJson(req) {
@@ -50,7 +50,7 @@ async function lookup(req, res, next) {
     const ctx = actorContext(req);
     const value = requireScannerValue(req, res);
     if (!value) return;
-    const result = await bookingService.lookupTicket(value, ctx.companyId, ctx);
+    const result = await bookingService.lookupTicket(value, ctx.companyId, { ...ctx, source: req.body.source || '', location: req.body.location || '', scheduleId: req.body.scheduleId || '' });
     res.status(result.booking ? 200 : 404).json(result);
   } catch (error) {
     next(error);
@@ -62,7 +62,7 @@ async function checkIn(req, res, next) {
     const ctx = actorContext(req);
     const value = requireScannerValue(req, res);
     if (!value) return;
-    const result = await bookingService.validateTicket(value, ctx.userId, ctx.companyId, { ...ctx, note: req.body.note || '' });
+    const result = await bookingService.validateTicket(value, ctx.userId, ctx.companyId, { ...ctx, note: req.body.note || '', source: req.body.source || '', location: req.body.location || '', scheduleId: req.body.scheduleId || '' });
     if (wantsJson(req)) {
       res.status(result.ok ? 200 : 409).json(result);
       return;
@@ -78,7 +78,7 @@ async function noShow(req, res, next) {
     const ctx = actorContext(req);
     const value = requireScannerValue(req, res);
     if (!value) return;
-    const result = await bookingService.markNoShow(value, ctx.userId, ctx.companyId, req.body.note || '', ctx);
+    const result = await bookingService.markNoShow(value, ctx.userId, ctx.companyId, req.body.note || '', { ...ctx, source: req.body.source || '', location: req.body.location || '', scheduleId: req.body.scheduleId || '' });
     if (wantsJson(req)) {
       res.status(result.ok ? 200 : 409).json(result);
       return;

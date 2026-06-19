@@ -1,12 +1,22 @@
 const authService = require('../../services/auth/authService');
 
 function setGoogleIntent(req, res, next) {
-  req.session.googleIntentRole = req.query.role || 'customer';
+  req.session.googleIntent = {
+    role: authService.normalizeRole(req.query.role || 'customer'),
+    companyName: req.query.companyName || req.query.company || '',
+    companyType: req.query.companyType || req.query.businessType || '',
+    country: req.query.country || '',
+    city: req.query.city || '',
+    phone: req.query.phone || '',
+    signupSource: 'google_oauth',
+  };
   next();
 }
 
 function afterGoogleLogin(req, res) {
   req.session.user = req.user;
+  delete req.session.googleIntent;
+  delete req.session.googleIntentRole;
   res.redirect(authService.redirectForRole(req.user.role));
 }
 

@@ -1,4 +1,4 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 
 function renderHome(req, res) {
   res.render('pages/home', {

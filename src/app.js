@@ -8,8 +8,12 @@ const { env } = require('./config/env');
 const { attachUser } = require('./middlewares/auth');
 const { attachReferral } = require('./middlewares/referral');
 const { csrfToken } = require('./middlewares/csrf');
+const flashMiddleware = require('./middlewares/flash');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
+const store = require('./services/data/persistentStore');
+const { mongoose } = require('./config/db');
+const logger = require('./config/logger');
 
 const app = express();
 
@@ -19,8 +23,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(cookieParser());
 app.use(sessionConfig());
 app.use(passport.initialize());
@@ -28,12 +32,23 @@ app.use(passport.session());
 app.use(attachUser);
 app.use(attachReferral);
 app.use(csrfToken);
+app.use(flashMiddleware);
 app.use((req, res, next) => {
   res.locals.appName = env.appName;
   res.locals.currentPath = req.path;
   res.locals.query = req.query;
   res.locals.money = (amount, currency = 'UGX') => `${currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
   next();
+});
+
+app.use(async (req, res, next) => {
+  try {
+    const shouldRefresh = req.method === 'GET' && (/^\/(admin|company|employee|promoter|customer|tickets|api)/.test(req.path) || req.path === '/');
+    if (shouldRefresh) await store.refreshFromDatabase({ mongoose, logger, minIntervalMs: 5000 });
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use('/', require('./routes/web/public'));

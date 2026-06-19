@@ -1,7 +1,7 @@
 const walletService = require('../wallet/walletService');
 const ledgerService = require('../wallet/ledgerService');
 const commissionService = require('./commissionService');
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 
 function releaseCompletedBooking(bookingRef) {
   const booking = store.findBooking(bookingRef);

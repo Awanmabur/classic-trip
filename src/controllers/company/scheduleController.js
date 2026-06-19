@@ -31,13 +31,49 @@ async function archive(req, res, next) {
   }
 }
 
-async function updateSeat(req, res, next) {
+async function publish(req, res, next) {
   try {
-    await companyService.updateSeatStatus(companyId(req), req.body);
-    res.redirect('/company/rooms');
+    await companyService.publishSchedule(companyId(req), req.params.id);
+    res.redirect('/company/schedules');
   } catch (error) {
     next(error);
   }
 }
 
-module.exports = { create, update, archive, updateSeat };
+async function updateSeat(req, res, next) {
+  try {
+    await companyService.updateSeatStatus(companyId(req), req.body);
+    res.redirect('/company/seat-maps');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transition(req, res, next) {
+  try {
+    await companyService.transitionSchedule(companyId(req), req.params.id, req.body, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function complete(req, res, next) {
+  try {
+    await companyService.completeSchedule(companyId(req), req.params.id, req.body, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/passenger-manifests');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function duplicate(req, res, next) {
+  try {
+    await companyService.duplicateSchedule(companyId(req), req.params.id, req.body, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { create, update, archive, publish, updateSeat, transition, duplicate, complete };

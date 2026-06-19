@@ -1,4 +1,4 @@
-const store = require('../../services/data/demoStore');
+const store = require('../../services/data/persistentStore');
 const { mongoose } = require('../../config/db');
 
 function cleanText(value) {

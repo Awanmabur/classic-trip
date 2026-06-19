@@ -1,12 +1,9 @@
-const walletService = require('../../services/wallet/walletService');
+const settlementService = require('../../services/finance/settlementService');
 
-function request(req, res, next) {
+async function request(req, res, next) {
   try {
-    walletService.requestWithdrawal('promoter', req.session?.user?.id || 'user-promoter-001', Number(req.body.amount || 0), {
-      currency: req.body.currency || 'UGX',
-      referenceType: 'withdrawal',
-      referenceId: `withdrawal-${Date.now()}`,
-    });
+    const promoterId = req.session?.user?.id || 'user-promoter-001';
+    await settlementService.requestOwnerPayout('promoter', promoterId, Number(req.body.amount || 0), req.body, promoterId);
     res.redirect('/promoter/withdrawals');
   } catch (error) {
     next(error);

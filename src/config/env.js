@@ -18,9 +18,11 @@ const env = {
   appName: process.env.APP_NAME || 'Classic Trip',
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
+  demoMode: ['true', '1', 'yes'].includes(String(process.env.DEMO_MODE || '').toLowerCase()) || process.env.NODE_ENV === 'test',
   port: number('PORT', 5000),
   appUrl: process.env.APP_URL || 'http://localhost:5000',
   mongoUri: process.env.MONGO_URI || '',
+  mongoTransactions: ['true', '1', 'yes'].includes(String(process.env.MONGO_TRANSACTIONS || '').toLowerCase()),
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
   cloudinary: {
     cloudName: configuredValue('CLOUDINARY_CLOUD_NAME'),
@@ -42,26 +44,31 @@ const env = {
       apiUrl: process.env.MTN_MOMO_API_URL || process.env.PAYMENT_API_URL || '',
       apiKey: process.env.MTN_MOMO_API_KEY || process.env.PAYMENT_API_KEY || '',
       callbackUrl: process.env.MTN_MOMO_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || '',
+      webhookSecret: process.env.MTN_MOMO_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
     airtel_money: {
       apiUrl: process.env.AIRTEL_MONEY_API_URL || process.env.PAYMENT_API_URL || '',
       apiKey: process.env.AIRTEL_MONEY_API_KEY || process.env.PAYMENT_API_KEY || '',
       callbackUrl: process.env.AIRTEL_MONEY_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || '',
+      webhookSecret: process.env.AIRTEL_MONEY_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
     flutterwave: {
       apiUrl: process.env.FLUTTERWAVE_API_URL || process.env.PAYMENT_API_URL || '',
       apiKey: process.env.FLUTTERWAVE_API_KEY || process.env.PAYMENT_API_KEY || '',
       callbackUrl: process.env.FLUTTERWAVE_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || '',
+      webhookSecret: process.env.FLUTTERWAVE_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
     paystack: {
       apiUrl: process.env.PAYSTACK_API_URL || process.env.PAYMENT_API_URL || '',
       apiKey: process.env.PAYSTACK_API_KEY || process.env.PAYMENT_API_KEY || '',
       callbackUrl: process.env.PAYSTACK_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || '',
+      webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
     dpo: {
       apiUrl: process.env.DPO_API_URL || process.env.PAYMENT_API_URL || '',
       apiKey: process.env.DPO_API_KEY || process.env.PAYMENT_API_KEY || '',
       callbackUrl: process.env.DPO_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || '',
+      webhookSecret: process.env.DPO_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
   },
   commission: {
@@ -90,6 +97,7 @@ const env = {
   jobs: {
     enabled: ['true', '1', 'yes'].includes(String(process.env.ENABLE_JOBS || '').toLowerCase()) || process.env.NODE_ENV === 'production',
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
+    expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
     releaseCommission: process.env.JOB_RELEASE_COMMISSION || '*/10 * * * *',
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
     expirePromotions: process.env.JOB_EXPIRE_PROMOTIONS || '*/30 * * * *',
@@ -113,6 +121,9 @@ function validateEnv() {
   }
   if (env.isProduction && env.sessionSecret === 'dev_classic_trip_secret') {
     throw new Error('SESSION_SECRET must be set to a production value');
+  }
+  if (env.isProduction && env.demoMode) {
+    throw new Error('DEMO_MODE must be disabled in production');
   }
   return true;
 }

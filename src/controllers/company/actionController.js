@@ -8,6 +8,16 @@ function actorId(req) {
   return req.session?.user?.id || 'company-admin';
 }
 
+
+async function createDriverRequest(req, res, next) {
+  try {
+    await actionService.createDriverInviteRequest(companyId(req), req.body, actorId(req));
+    res.redirect('/company/driver-requests');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updateSettings(req, res, next) {
   try {
     await actionService.updateCompanySettings(companyId(req), req.body, actorId(req));
@@ -69,4 +79,5 @@ module.exports = {
   createNotice,
   updateSupport,
   replyToReview,
+  createDriverRequest,
 };

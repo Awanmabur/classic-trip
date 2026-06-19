@@ -1,4 +1,4 @@
-const store = require('../data/demoStore');
+const store = require('../data/persistentStore');
 
 function activeCampaigns(companyId) {
   const now = new Date();

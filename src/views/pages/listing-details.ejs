@@ -7,13 +7,16 @@
   const serviceFee = previewData.serviceFee ?? Math.round((listing.priceFrom || 0) * 0.045 + 3500);
   const totalEstimate = previewData.totalEstimate ?? ((listing.priceFrom || 0) + serviceFee);
   const serviceIcon = previewData.serviceIcon || 'fa-ticket';
-  const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 32);
+  const rawPreviewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 32);
+  const previewSeats = rawPreviewSeats.map((seat, seatIndex) => Object.assign({}, seat, { displaySeatNumber: String(seatIndex + 1), displaySeatLabel: `Seat No ${seatIndex + 1}` }));
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 12);
   const firstSeat = previewData.firstSeat || (previewSeats.find(seat => seat.status === 'available') || previewSeats[0] || {}).seatNumber || '';
   const firstRoom = previewData.firstRoom || (previewRooms.find(room => room.inventory > 0) || previewRooms[0] || {}).id || '';
-  const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || 'Room pending') : (firstSeat || 'Slot S1'));
+  const firstSeatDisplay = (previewSeats.find(seat => seat.seatNumber === firstSeat) || previewSeats[0] || {}).displaySeatLabel || 'Seat No 1';
+  const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || 'Room pending') : firstSeatDisplay);
   const selectedValue = listing.serviceType === 'hotel' ? firstRoom : firstSeat;
   const addons = previewData.addons || [];
+  const previewSchedules = safeAvailability.schedules || [];
   const partnerName = previewData.partnerName || listing.partner || company?.name || 'Classic Trip partner';
   const supportPhone = previewData.supportPhone || company?.supportPhone || company?.phone || '+256 700 000 000';
   const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureTime || listing.time || 'Flexible schedule';
@@ -50,8 +53,8 @@
           <div class="selector">
             <div class="selectorTop">
               <div>
-                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your room' : listing.serviceType === 'bus' ? 'Choose your seat' : 'Choose your slot' %></b>
-                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint">Select an available seat, room, or slot before continuing to payment. Taken items cannot be selected.</div>
+                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your room' : listing.serviceType === 'bus' ? 'Choose your seats' : 'Choose your slot' %></b>
+                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint"><%= listing.serviceType === 'bus' ? 'Select one or many available seats before continuing to payment. Taken items cannot be selected.' : 'Select an available seat, room, or slot before continuing to payment. Taken items cannot be selected.' %></div>
               </div>
               <div class="legend">
                 <span class="leg"><i class="dot free"></i> Available</span>
@@ -65,12 +68,12 @@
                 <div class="vehicleFront">DRIVER - FRONT</div>
                 <% for (let i = 0; i < previewSeats.length; i += 4) { const row = previewSeats.slice(i, i + 4); %>
                   <div class="seatRow">
-                    <% row.slice(0, 2).forEach((seat, seatIndex) => { const unavailable = seat.status === 'taken' || seat.status === 'locked'; %>
-                      <button class="seat <%= seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : (seat.seatNumber === firstSeat || (i === 0 && seatIndex === 0)) ? 'selected' : '' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.seatNumber %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><%= seat.seatNumber %></button>
+                    <% row.slice(0, 2).forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
+                      <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
                     <% }) %>
                     <span class="aisle"></span>
-                    <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked'; %>
-                      <button class="seat <%= seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : '' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.seatNumber %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><%= seat.seatNumber %></button>
+                    <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
+                      <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
                     <% }) %>
                   </div>
                 <% } %>
@@ -115,6 +118,28 @@
             </div>
           </div>
 
+          <% if (listing.serviceType === 'bus') { %>
+            <div class="summaryCard multiTicketPanel">
+              <div class="multiTicketTop">
+                <h3>Multi-ticket mode is on</h3>
+                <span class="badge badgeInfo" id="ticketCountBadge">1 ticket</span>
+              </div>
+              <label class="switchLine"><input type="checkbox" id="returnTripToggle" onchange="toggleReturnTrip()"> Two-way / return ticket</label>
+              <div class="bookingForm" id="returnTripFields" style="display:none">
+                <select class="full" id="returnScheduleSelect" aria-label="Return schedule">
+                  <% previewSchedules.forEach((schedule, index) => { %>
+                    <option value="<%= schedule.id %>" <%= index === 1 ? 'selected' : '' %>><%= schedule.departureTime || schedule.departAt || schedule.id %></option>
+                  <% }) %>
+                </select>
+                <div class="full returnSeatGrid" id="returnSeatGrid">
+                  <% previewSeats.forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
+                    <button class="returnSeat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : 'available' %>" type="button" data-return-seat="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="toggleReturnSeat(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
+                  <% }) %>
+                </div>
+              </div>
+            </div>
+          <% } %>
+
           <div class="summaryCard">
             <h3>Partner and rules</h3>
             <div class="kv">
@@ -130,7 +155,7 @@
             <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-rotate-left"></i> Reset</a>
             <% if (listing.bookable) { %>
               <button class="btn btnBlue" id="holdButton" type="button" onclick="holdSelection(event)"><i class="fa-solid fa-clock"></i> Hold 10 mins</button>
-              <button class="btn btnPrimary" type="button" onclick="goPaymentPage()"><i class="fa-solid fa-lock"></i> Proceed payment</button>
+              <button class="btn btnPrimary" type="button" onclick="goPaymentPage()"><i class="fa-solid fa-lock"></i> Proceed to payment</button>
             <% } else { %>
               <a class="btn btnGhost" href="/services"><i class="fa-regular fa-clock"></i> Coming soon</a>
             <% } %>
@@ -144,6 +169,9 @@
   let activeHoldId = '';
   let activeSelection = <%- JSON.stringify(selectedValue || '') %>;
   let activeSelectionLabel = <%- JSON.stringify(selectedPreview || '') %>;
+  let activeSelections = activeSelection ? [activeSelection] : [];
+  let activeSelectionLabels = activeSelectionLabel ? [activeSelectionLabel] : [];
+  let activeReturnSelections = [];
   let activeRoomId = <%- JSON.stringify(firstRoom || '') %>;
   let holdTimerId = null;
   const previewPricing = {
@@ -164,13 +192,39 @@
   function moneyPreview(amount) {
     return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
   }
+  function selectedButtons() {
+    return Array.from(document.querySelectorAll('[data-choice].selected'));
+  }
   function selectedButton() {
-    return document.querySelector('[data-choice].selected');
+    return selectedButtons()[0] || null;
   }
   function selectedBasePrice(button) {
     if (!button) return previewPricing.basePrice;
     if (button.dataset.price) return Number(button.dataset.price) || previewPricing.basePrice;
     return previewPricing.basePrice + (Number(button.dataset.priceDelta) || 0);
+  }
+  function outboundBasePrice() {
+    if (previewPricing.serviceType !== 'bus') return selectedBasePrice(selectedButton());
+    const buttons = selectedButtons();
+    if (!buttons.length) return previewPricing.basePrice;
+    return buttons.reduce((sum, button) => sum + selectedBasePrice(button), 0);
+  }
+  function returnBasePrice() {
+    if (previewPricing.serviceType !== 'bus' || !document.getElementById('returnTripToggle')?.checked) return 0;
+    return activeReturnSelections.reduce((sum, seatNumber) => {
+      const button = Array.from(document.querySelectorAll('[data-return-seat]')).find((item) => item.dataset.returnSeat === seatNumber);
+      return sum + selectedBasePrice(button);
+    }, 0);
+  }
+  function syncActiveSelectionFromButtons() {
+    if (previewPricing.serviceType !== 'bus') return;
+    const buttons = selectedButtons();
+    activeSelections = buttons.map((button) => button.dataset.choice || '').filter(Boolean);
+    activeSelectionLabels = buttons.map((button) => button.dataset.label || button.dataset.choice || '').filter(Boolean);
+    activeSelection = activeSelections[0] || '';
+    activeSelectionLabel = activeSelectionLabels.join(', ');
+    const badge = document.getElementById('ticketCountBadge');
+    if (badge) badge.textContent = `${Math.max(1, activeSelections.length)} ticket${activeSelections.length === 1 ? '' : 's'}`;
   }
   function activeAddons() {
     return Array.from(document.querySelectorAll('#addons input:checked')).map((input) => {
@@ -183,7 +237,8 @@
     });
   }
   function refreshPreviewTotals(button) {
-    const base = selectedBasePrice(button || selectedButton());
+    if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
+    const base = outboundBasePrice() + returnBasePrice();
     const fee = Math.round(base * 0.045 + 3500);
     const addonTotal = activeAddons().reduce((sum, addon) => sum + addon.price, 0);
     const total = base + fee + addonTotal;
@@ -199,10 +254,16 @@
   }
   function selectPreviewOption(button) {
     if (!button || button.disabled) return;
-    document.querySelectorAll('[data-choice]').forEach(item => item.classList.remove('selected'));
-    button.classList.add('selected');
-    activeSelection = button.dataset.choice || '';
-    activeSelectionLabel = button.dataset.label || activeSelection;
+    if (previewPricing.serviceType === 'bus') {
+      button.classList.toggle('selected');
+      if (!selectedButtons().length) button.classList.add('selected');
+      syncActiveSelectionFromButtons();
+    } else {
+      document.querySelectorAll('[data-choice]').forEach(item => item.classList.remove('selected'));
+      button.classList.add('selected');
+      activeSelection = button.dataset.choice || '';
+      activeSelectionLabel = button.dataset.label || activeSelection;
+    }
     if (previewPricing.serviceType === 'hotel') activeRoomId = activeSelection;
     activeHoldId = '';
     clearInterval(holdTimerId);
@@ -228,7 +289,7 @@
       if (remaining <= 0) {
         clearInterval(holdTimerId);
         activeHoldId = '';
-        selectedButton()?.classList.remove('holding');
+        selectedButtons().forEach((button) => button.classList.remove('holding'));
         const holdButton = document.getElementById('holdButton');
         if (holdButton) {
           holdButton.disabled = false;
@@ -240,7 +301,24 @@
     tick();
     holdTimerId = setInterval(tick, 1000);
   }
+  function toggleReturnTrip() {
+    const fields = document.getElementById('returnTripFields');
+    const enabled = document.getElementById('returnTripToggle')?.checked;
+    if (fields) fields.style.display = enabled ? 'grid' : 'none';
+    if (!enabled) {
+      activeReturnSelections = [];
+      document.querySelectorAll('[data-return-seat].selected').forEach((item) => item.classList.remove('selected'));
+    }
+    refreshPreviewTotals();
+  }
+  function toggleReturnSeat(button) {
+    if (!button || button.disabled) return;
+    button.classList.toggle('selected');
+    activeReturnSelections = Array.from(document.querySelectorAll('[data-return-seat].selected')).map((item) => item.dataset.returnSeat).filter(Boolean);
+    refreshPreviewTotals();
+  }
   async function holdSelection(event) {
+    if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
     if (!activeSelection) {
       notify('Select an available seat, room, or slot first.');
       return;
@@ -258,13 +336,14 @@
         body: JSON.stringify({
           scheduleId: previewPricing.scheduleId,
           selected: previewPricing.serviceType === 'hotel' ? '' : activeSelection,
+          selectedSeats: previewPricing.serviceType === 'bus' ? activeSelections.join(',') : '',
           roomId: previewPricing.serviceType === 'hotel' ? activeRoomId : ''
         })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Unable to hold selection');
       activeHoldId = result.hold.id;
-      selectedButton()?.classList.add('holding');
+      selectedButtons().forEach((button) => button.classList.add('holding'));
       startHoldTimer(result.hold.lockedUntil);
       if (holdButton) holdButton.innerHTML = '<i class="fa-solid fa-check"></i> Held 10 mins';
     } catch (error) {
@@ -279,6 +358,7 @@
   function goPaymentPage() {
     const params = new URLSearchParams();
     const ref = <%- JSON.stringify(referralCode || '') %>;
+    if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
     const selected = previewPricing.serviceType === 'hotel' ? '' : activeSelection;
     const roomId = previewPricing.serviceType === 'hotel' ? activeRoomId : '';
     const scheduleId = previewPricing.scheduleId;
@@ -286,17 +366,32 @@
       notify('Select an available option first.');
       return;
     }
+    const hasReturn = previewPricing.serviceType === 'bus' && document.getElementById('returnTripToggle')?.checked;
+    if (hasReturn && !activeReturnSelections.length) {
+      notify('Select return seats before continuing.');
+      return;
+    }
     if (ref) params.set('ref', ref);
     if (activeHoldId) params.set('holdId', activeHoldId);
     if (scheduleId) params.set('scheduleId', scheduleId);
     if (roomId) params.set('roomId', roomId);
     if (selected) params.set('selected', selected);
+    if (previewPricing.serviceType === 'bus') {
+      params.set('selectedSeats', activeSelections.join(','));
+      params.set('passengerCount', String(activeSelections.length));
+      if (hasReturn) {
+        const returnScheduleId = document.getElementById('returnScheduleSelect')?.value || '';
+        if (returnScheduleId) params.set('returnScheduleId', returnScheduleId);
+        params.set('returnSeats', activeReturnSelections.join(','));
+      }
+    }
     const totals = refreshPreviewTotals();
     params.set('total', String(totals.total));
     activeAddons().forEach((addon) => params.append('addons', addon.id));
     const query = params.toString();
     window.location.href = `/book/<%= listing.serviceType %>/<%= listing.slug %>${query ? '?' + query : ''}`;
   }
+  if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
   refreshPreviewTotals();
 </script>
 <%- include('../partials/site-footer') %>

@@ -5,12 +5,25 @@
   const guest = booking.guestSnapshot || {};
   const passenger = (booking.passengers || [])[0] || {};
   const pricing = booking.pricing || { total: 0, currency: 'UGX' };
+  const ticketLegRows = typeof ticketLegs !== 'undefined' ? ticketLegs : [];
+  const legs = (ticketLegRows && ticketLegRows.length ? ticketLegRows : []).map(function(leg, index) {
+    return Object.assign({ passenger: (booking.passengers || [])[Number(leg.passengerIndex || index)] || {} }, leg);
+  });
+  const isBusTicket = (booking.serviceType || safeListing.serviceType) === 'bus';
+  const formatInventoryLabel = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return 'Selected inventory';
+    if (!isBusTicket) return raw;
+    const legacy = raw.match(/^[A-Za-z](\d+)$/);
+    const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
+    return `Seat No ${clean || raw}`;
+  };
 %>
-<main class="container" style="padding:16px 0 30px">
+<main class="container ticketPage" style="padding:16px 0 30px">
   <section class="ticketPaper">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-      <div><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span><h1 class="heroTitle" style="font-size:30px;margin-top:10px"><%= booking.bookingRef %></h1><p class="heroSub"><%= safeListing.title %></p></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="ticketHeroHeader">
+      <div class="ticketHeroBlock"><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span><h1 class="heroTitle ticketHeroRef"><%= booking.bookingRef %></h1><p class="heroSub ticketHeroRoute"><%= safeListing.title %></p></div>
+      <div class="ticketHeroActions">
         <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
         <span class="ticketCode"><%= booking.bookingStatus %></span>
       </div>
@@ -20,58 +33,60 @@
         <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
         <div class="ticketLine"><span>Email</span><b><%= guest.email || 'Not provided' %></b></div>
         <div class="ticketLine"><span>Phone</span><b><%= guest.phone || 'Not provided' %></b></div>
-        <div class="ticketLine"><span>Seat / room</span><b><%= passenger.seatOrRoom || 'Selected inventory' %></b></div>
+        <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
+        <div class="ticketLine"><span>Service</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
         <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus %></b></div>
         <div class="ticketLine"><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
       </div>
       <div>
         <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:200px;height:200px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
-        <form id="validateTicketForm" action="/employee/scanner/validate" method="post" style="margin-top:12px">
-          <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
-          <button class="btn btnPrimary" style="width:100%"><i class="fa-solid fa-qrcode"></i> Validate QR</button>
-        </form>
+        <p class="heroSub" style="font-size:13px;margin-top:12px">Show this ticket to authorized staff. Staff check-in uses the protected scanner.</p>
       </div>
     </div>
   </section>
+  <section class="ticketPaper" style="margin-top:16px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> Ticket legs and QR check-in state</span>
+        <h2 class="sectionTitle" style="margin-top:10px">Issued tickets</h2>
+        <p class="heroSub">Each leg below has its own one-time QR token, passenger, seat or room, payment state, and check-in state.</p>
+      </div>
+      <span class="ticketCode"><%= legs.length || 1 %> ticket<%= (legs.length || 1) === 1 ? '' : 's' %></span>
+    </div>
+    <% if (legs.length) { %>
+      <div class="detailGrid" style="margin-top:16px">
+        <% legs.forEach(function(leg, index) { %>
+          <article class="ticketLine" style="display:block;padding:14px;border:1px solid rgba(148,163,184,.28);border-radius:14px;background:rgba(15,23,42,.03)">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <span class="badge"><%= leg.legType || ('Leg ' + (index + 1)) %></span>
+                <h3 style="margin:10px 0 6px"><%= leg.ticketNumber || booking.bookingRef %></h3>
+                <div class="ticketLine"><span>Passenger</span><b><%= leg.passengerName || leg.passenger.fullName || guest.fullName || 'Passenger' %></b></div>
+                <div class="ticketLine"><span>Service / leg</span><b><%= leg.serviceType || booking.serviceType || 'service' %> / <%= leg.legType || 'primary' %></b></div>
+                <div class="ticketLine"><span>Schedule</span><b><%= leg.scheduleId || booking.scheduleId || '-' %></b></div>
+                <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(leg.seatNumber || leg.roomNumber || leg.passenger.seatOrRoom || passenger.seatOrRoom || '-') %></b></div>
+                <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus || 'pending' %></b></div>
+                <div class="ticketLine"><span>Status</span><b><%= leg.status || booking.bookingStatus || 'valid' %></b></div>
+                <div class="ticketLine"><span>Check-in</span><b><%= leg.checkInStatus || booking.checkInStatus || 'boarding' %></b></div>
+                <div class="ticketLine"><span>QR preview</span><b><%= leg.qrTokenPreview || 'Hidden for security' %></b></div>
+              </div>
+              <div class="qrBox" style="width:150px;height:150px;min-width:150px"><% if (leg.qrDataUrl) { %><img src="<%= leg.qrDataUrl %>" alt="Ticket leg QR" style="width:140px;height:140px"><% } else { %><span><%= leg.qrTokenPreview || booking.bookingRef %></span><% } %></div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="detailGrid" style="margin-top:16px">
+        <div>
+          <div class="ticketLine"><span>Ticket</span><b><%= booking.bookingRef %></b></div>
+          <div class="ticketLine"><span>Passenger</span><b><%= passenger.fullName || guest.fullName || 'Passenger' %></b></div>
+          <div class="ticketLine"><span>Service</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
+          <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
+          <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus || 'pending' %></b></div>
+          <div class="ticketLine"><span>Status</span><b><%= booking.bookingStatus || 'confirmed' %></b></div>
+        </div>
+      </div>
+    <% } %>
+  </section>
 </main>
-<script>
-  (function () {
-    const form = document.getElementById('validateTicketForm');
-    const qrCodeValue = <%- JSON.stringify(booking.qrCodeValue || '') %>;
-    const button = form?.querySelector('button');
-
-    function notify(message) {
-      const toast = document.getElementById('toast');
-      if (!toast) return;
-      toast.textContent = message;
-      toast.classList.add('show');
-      clearTimeout(window.__ticketToast);
-      window.__ticketToast = setTimeout(() => toast.classList.remove('show'), 2400);
-    }
-
-    form?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (button) {
-        button.disabled = true;
-        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating';
-      }
-      try {
-        const response = await fetch('/api/scanner/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ qrCodeValue })
-        });
-        const result = await response.json().catch(() => ({}));
-        notify(result.message || result.result || (response.ok ? 'Ticket validated.' : 'Unable to validate ticket.'));
-      } catch (error) {
-        notify(error.message || 'Unable to validate ticket.');
-      } finally {
-        if (button) {
-          button.disabled = false;
-          button.innerHTML = '<i class="fa-solid fa-qrcode"></i> Validate QR';
-        }
-      }
-    });
-  })();
-</script>
 <%- include('../partials/site-footer') %>

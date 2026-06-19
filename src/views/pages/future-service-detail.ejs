@@ -1,0 +1,28 @@
+<%- include('../partials/site-head', { seo }) %>
+<body>
+<%- include('../partials/site-header') %>
+<main class="container pageSection">
+  <section class="heroCard">
+    <span class="eyebrow">Coming soon / read-only</span>
+    <h1><%= module.label %></h1>
+    <p><%= module.publicMessage %></p>
+    <a class="btn btnPrimary" href="/services">Back to services</a>
+  </section>
+  <section class="card">
+    <h2>Required architecture entities</h2>
+    <ul>
+      <% module.entities.forEach((item) => { %><li><%= item %></li><% }) %>
+    </ul>
+    <h2>Workflow design</h2>
+    <ul>
+      <% module.workflows.forEach((item) => { %><li><%= item %></li><% }) %>
+    </ul>
+    <h2>Activation checklist</h2>
+    <ul>
+      <% module.readinessChecklist.forEach((item) => { %><li><%= item %></li><% }) %>
+    </ul>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>
+</body>
+</html>

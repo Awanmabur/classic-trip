@@ -21,6 +21,16 @@ function buildTicketPdfPayload(booking) {
   };
 }
 
+function displaySeatNo(value, serviceType = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return 'Selected inventory';
+  if (serviceType !== 'bus') return raw;
+  const withoutPrefix = raw.replace(/^seat\s*(no\.?|number)?\s*/i, '').trim();
+  const legacy = withoutPrefix.match(/^[A-Za-z](\d+)$/);
+  const clean = legacy ? legacy[1] : withoutPrefix;
+  return `Seat No ${clean || raw}`;
+}
+
 function writeLine(doc, label, value, y) {
   doc.fontSize(9).fillColor('#64748b').text(label.toUpperCase(), 48, y, { width: 160 });
   doc.fontSize(12).fillColor('#111827').text(clean(value, '-'), 190, y, { width: 230 });
@@ -60,7 +70,7 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
       writeLine(doc, 'Customer', guest.fullName || 'Guest customer', y); y += 30;
       writeLine(doc, 'Email', guest.email || 'Not provided', y); y += 30;
       writeLine(doc, 'Phone', guest.phone || 'Not provided', y); y += 30;
-      writeLine(doc, 'Seat / room', passenger.seatOrRoom || 'Selected inventory', y); y += 30;
+      writeLine(doc, booking.serviceType === 'bus' ? 'Seat' : 'Seat / room', displaySeatNo(passenger.seatOrRoom, booking.serviceType), y); y += 30;
       writeLine(doc, 'Payment', booking.paymentStatus || 'pending', y); y += 30;
       writeLine(doc, 'Total', money(pricing.total, pricing.currency || 'UGX'), y); y += 30;
       writeLine(doc, 'Reference', booking.paymentRef || booking.paymentProvider || '-', y);

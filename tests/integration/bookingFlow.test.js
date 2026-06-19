@@ -1,9 +1,11 @@
-const store = require('../../src/services/data/demoStore');
+const store = require('../../src/services/data/persistentStore');
 const bookingService = require('../../src/services/booking/bookingService');
 const walletService = require('../../src/services/wallet/walletService');
 const promoterService = require('../../src/services/promoter/promoterService');
 const promotionService = require('../../src/services/promotion/promotionService');
 const workflowService = require('../../src/services/support/workflowService');
+const seatLockService = require('../../src/services/booking/seatLockService');
+const roomReservationService = require('../../src/services/booking/roomReservationService');
 
 test('creates a guest booking for a bookable listing', () => {
   const listing = store.state.listings.find((item) => item.bookable);
@@ -46,9 +48,55 @@ test('marketplace catalog enriches listings with live availability and route int
   expect(meta.typeStats.some((item) => item.type === 'bus' && item.count > 0)).toBe(true);
 });
 
+test('seat and room holds are recorded and consumed during checkout', async () => {
+  const busListing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
+  const schedule = store.schedulesForListing(busListing.id)[0];
+  const seat = store.seatsForSchedule(schedule.id).find((item) => item.status === 'available');
+  const seatHold = await seatLockService.lockSeatPersistent(schedule.id, seat.seatNumber, 10, {
+    listingId: busListing.id,
+    companyId: busListing.companyId,
+  });
+
+  expect(store.state.inventoryHolds.find((hold) => hold.id === seatHold.id).status).toBe('active');
+
+  await bookingService.createGuestBooking({
+    listingId: busListing.id,
+    scheduleId: schedule.id,
+    seatNumber: seat.seatNumber,
+    holdId: seatHold.id,
+    fullName: 'Held Seat Guest',
+    email: `held-seat-${Date.now()}@example.com`,
+    phone: '+256700111333',
+  });
+
+  expect(store.state.inventoryHolds.find((hold) => hold.id === seatHold.id).status).toBe('consumed');
+
+  const hotelListing = store.state.listings.find((item) => item.bookable && item.serviceType === 'hotel');
+  const room = store.roomsForListing(hotelListing.id).find((item) => item.status === 'active' && item.inventory > 0);
+  const roomHold = await roomReservationService.reserveRoomPersistent(room.id, { fullName: 'Held Room Guest' }, 10, {
+    listingId: hotelListing.id,
+    companyId: hotelListing.companyId,
+    selectedLabel: room.roomType,
+  });
+
+  expect(store.state.inventoryHolds.find((hold) => hold.id === roomHold.id).status).toBe('active');
+
+  await bookingService.createGuestBooking({
+    listingId: hotelListing.id,
+    roomId: room.id,
+    holdId: roomHold.id,
+    fullName: 'Held Room Guest',
+    email: `held-room-${Date.now()}@example.com`,
+    phone: '+256700111334',
+  });
+
+  expect(store.state.inventoryHolds.find((hold) => hold.id === roomHold.id).status).toBe('consumed');
+});
+
 test('scanner validates a paid ticket once', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
   const booking = store.createBooking({ listingId: listing.id, fullName: 'Scan Guest', email: 'scan@example.com', phone: '+256700111222' });
+  const scanCountBefore = store.state.ticketScans.length;
 
   const firstScan = await bookingService.validateTicket(booking.qrCodeValue, 'employee-test');
   expect(firstScan.ok).toBe(true);
@@ -58,6 +106,10 @@ test('scanner validates a paid ticket once', async () => {
   const secondScan = await bookingService.validateTicket(booking.qrCodeValue, 'employee-test');
   expect(secondScan.ok).toBe(false);
   expect(secondScan.result).toBe('already_used');
+  const scans = store.state.ticketScans.filter((scan) => scan.bookingRef === booking.bookingRef);
+  expect(store.state.ticketScans.length).toBe(scanCountBefore + 2);
+  expect(scans.map((scan) => scan.result)).toEqual(expect.arrayContaining(['validated', 'already_used']));
+  expect(scans.every((scan) => scan.employeeId === 'employee-test' && scan.companyId === booking.companyId)).toBe(true);
 });
 
 test('scanner rejects unpaid tickets', async () => {
@@ -75,7 +127,7 @@ test('booking creates pending earnings and scanner releases company and promoter
   const link = promoterService.createLink({
     promoterId: 'user-promoter-e2e',
     listingId: listing.id,
-    code: `E2E-${Date.now()}`,
+    code: `18E-${Date.now()}`,
   });
 
   const booking = store.createBooking({
@@ -163,7 +215,7 @@ test('sponsored campaign is active and counts new bookings', () => {
       .filter((campaign) => campaign.listingId === listing.id && campaign.status === 'active')
       .forEach((campaign) => { campaign.status = 'paused'; });
   }
-  const result = promotionService.markSponsored(listing.id, { name: 'E2E sponsored route', budget: 50000 });
+  const result = promotionService.markSponsored(listing.id, { name: '18E sponsored route', budget: 50000 });
   const beforeBookings = result.campaign.bookings;
 
   expect(result.listing.isSponsored).toBe(true);

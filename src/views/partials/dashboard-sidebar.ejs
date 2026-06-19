@@ -1,0 +1,62 @@
+<% const shell = dashboardShell || {}; const groups = shell.groups || []; %>
+<aside class="sidebar dashboardSidebar dashboardShellSidebar" id="sidebar" aria-label="<%= shell.label || 'Dashboard' %> navigation" data-dashboard-role="<%= shell.currentRole || shell.roleKey || '' %>">
+  <div class="sideTop">
+    <div class="mark">CT</div>
+    <div class="brandText">
+      <strong>Classic Trip</strong>
+      <span><%= shell.consoleName || 'Workspace' %></span>
+    </div>
+  </div>
+
+  <div class="sideSearch">
+    <label class="searchBox">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input id="sideSearch" class="dashboardMenuSearch" placeholder="Search menu..." autocomplete="off" />
+    </label>
+  </div>
+
+  <nav class="sideNav dashboardMenu" id="sideNav" data-config-driven="true">
+    <% groups.forEach(function(group){ %>
+      <span class="navGroup"><%= group.label || 'Menu' %></span>
+      <% (group.items || []).forEach(function(item){ %>
+        <button class="navBtn <%= item.page === (shell.activePage || 'overview') ? 'is-active' : '' %>" data-page="<%= item.page %>" type="button"><i class="fa-solid <%= item.icon || 'fa-circle' %>"></i><span><%= item.label %></span></button>
+      <% }) %>
+    <% }) %>
+    <form class="logoutForm" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="navBtn navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
+  </nav>
+
+  <% if (((shell.roleSwitcher || []).length > 1) || ((shell.companies || []).length > 1)) { %>
+    <div class="sideSearch dashboardQuickSwitches">
+      <% if ((shell.roleSwitcher || []).length > 1) { %>
+        <label class="control" style="border-radius:16px;margin-bottom:8px">
+          <i class="fa-solid fa-user-shield"></i>
+          <select id="dashboardRoleSwitcher" aria-label="Switch dashboard role">
+            <% shell.roleSwitcher.forEach(function(role){ %>
+              <option value="<%= role.href %>" <%= role.active ? 'selected' : '' %>><%= role.label %></option>
+            <% }) %>
+          </select>
+        </label>
+      <% } %>
+      <% if ((shell.companies || []).length > 1) { %>
+        <label class="control" style="border-radius:16px">
+          <i class="fa-solid fa-building"></i>
+          <select id="dashboardCompanySelector" aria-label="Select company">
+            <% shell.companies.forEach(function(company){ %>
+              <option value="<%= company.id || company._id || '' %>" <%= String(shell.currentCompanyId || '') === String(company.id || company._id || '') ? 'selected' : '' %>><%= company.name || company.companyName || 'Company' %></option>
+            <% }) %>
+          </select>
+        </label>
+      <% } %>
+    </div>
+  <% } %>
+
+  <div class="sideFoot">
+    <div class="miniProfile">
+      <div class="avatar"><%= shell.avatar || 'CT' %></div>
+      <div class="profileMeta">
+        <strong><%= shell.profileName || shell.userName || 'Classic Trip user' %></strong>
+        <span><%= shell.profileMeta || shell.label || 'Dashboard user' %></span>
+      </div>
+    </div>
+  </div>
+</aside>
