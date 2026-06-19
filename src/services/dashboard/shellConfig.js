@@ -4,7 +4,7 @@ const { SERVICE_DASHBOARDS } = require('../../config/dashboardFeatures');
 
 const COMPANY_SERVICE_MENU_CONFIG = {
   bus: {
-    createLabel: 'Create Schedule',
+    createLabel: 'Create Departure',
     groups: [
       { label: 'Company', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
@@ -88,7 +88,7 @@ const COMPANY_SERVICE_MENU_CONFIG = {
     ],
   },
   train: {
-    createLabel: 'Create Train Schedule',
+    createLabel: 'Create Train Departure',
     groups: [
       { label: 'Provider', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },

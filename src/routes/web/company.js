@@ -114,9 +114,9 @@ router.post('/company/schedules/:id/duplicate', requireCompanyService('bus', 'fl
 router.post('/company/schedules/:id/archive', requireCompanyService('bus', 'flight', 'train', 'tour', 'car_rental', 'event', 'cargo'), scheduleController.archive);
 router.post('/company/schedules/:id/complete', requireCompanyService('bus', 'flight', 'train', 'tour', 'car_rental', 'event', 'cargo'), scheduleController.complete);
 router.post('/company/seats/status', requireCompanyService('bus', 'flight', 'train', 'event'), scheduleController.updateSeat);
-router.post('/company/rooms', requireCompanyService('hotel'), upload.single('imageFile'), roomController.create);
-router.post('/company/rooms/:id/inventory', requireCompanyService('hotel'), upload.single('imageFile'), roomController.updateInventory);
-router.post('/company/rooms/:id/archive', requireCompanyService('hotel'), roomController.archive);
+router.post('/company/rooms', upload.single('imageFile'), roomController.create);
+router.post('/company/rooms/:id/inventory', upload.single('imageFile'), roomController.updateInventory);
+router.post('/company/rooms/:id/archive', roomController.archive);
 router.post('/company/hotels/properties', requireCompanyService('hotel'), hotelController.createProperty);
 router.post('/company/hotels/properties/:id', requireCompanyService('hotel'), hotelController.updateProperty);
 router.post('/company/hotels/properties/:id/archive', requireCompanyService('hotel'), hotelController.archiveProperty);

@@ -1716,7 +1716,7 @@
 
     /* shared stabilization: flash messages and form validation */
     .actionFlashStack{display:grid;gap:8px;margin:0 0 10px;}
-    .actionFlash{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--line2);border-radius:18px;padding:11px 12px;background:var(--soft);box-shadow:var(--shadow2);}
+    .actionFlash{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--line2);border-radius:18px;padding:11px 12px;background:var(--soft);box-shadow:var(--shadow2);transition:opacity .2s ease,transform .2s ease;}
     .actionFlash strong{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.35;}
     .actionFlash p{margin:2px 0 0;color:var(--muted);font-size:12px;font-weight:850;line-height:1.45;}
     .actionFlash.success{border-color:rgba(34,197,94,.34);background:rgba(34,197,94,.10);}
@@ -2007,8 +2007,8 @@
                 <% if(isCompanyDashboard && companySupportsBus){ %>
                 <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Add bus service profile before routes, vehicles, and schedules.</span></button>
                 <button class="quickCard" data-modal="create" data-type="route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Add route, stops, and operating details.</span></button>
-                <button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Add vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
-                <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create schedule</strong><span>Publish departure, fare, vehicle, and seat inventory.</span></button>
+                <button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
+                <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create departure</strong><span>Publish departure, fare, vehicle, and seat inventory.</span></button>
                 <a class="quickCard" href="/company/manifests"><div class="quickIcon"><i class="fa-solid fa-file-lines"></i></div><strong>Open manifest</strong><span>Review, print, and export passengers and boarding check-ins.</span></a>
                 <% } else if(isCompanyDashboard && companySupportsHotel){ %>
                 <button class="quickCard" data-modal="create" data-type="hotel property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Add hotel profile, location, amenities, and policies.</span></button>
@@ -2098,9 +2098,9 @@
 
       <section class="section" id="routes"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Routes</h3><p>All transport routes across partner companies, linked listings, stops, schedules, and route status.</p></div><button class="btn btnBlue" data-modal="create" data-type="route"><i class="fa-solid fa-plus"></i> Create route</button></div><div class="tableWrap"><table><thead><tr><th>Route</th><th>Listing</th><th>Partner</th><th>Stops</th><th>Schedules</th><th>Status</th><th></th></tr></thead><tbody id="adminRoutesTable"></tbody></table></div></div></section>
 
-      <section class="section" id="vehicles"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Vehicles</h3><p>All partner vehicles, aircraft, and fleet inventory linked to listings and schedules.</p></div><button class="btn btnBlue" data-modal="create" data-type="vehicle"><i class="fa-solid fa-plus"></i> Add vehicle</button></div><div class="tableWrap"><table><thead><tr><th>Vehicle</th><th>Partner</th><th>Type</th><th>Plate / Code</th><th>Seats</th><th>Status</th><th></th></tr></thead><tbody id="adminVehiclesTable"></tbody></table></div></div></section>
+      <section class="section" id="vehicles"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Vehicles</h3><p>All partner vehicles, aircraft, and fleet inventory linked to listings and schedules.</p></div><button class="btn btnBlue" data-modal="create" data-type="vehicle"><i class="fa-solid fa-plus"></i> Create vehicle</button></div><div class="tableWrap"><table><thead><tr><th>Vehicle</th><th>Partner</th><th>Type</th><th>Plate / Code</th><th>Seats</th><th>Status</th><th></th></tr></thead><tbody id="adminVehiclesTable"></tbody></table></div></div></section>
 
-      <section class="section" id="schedules"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Assigned schedules' : 'Schedules' %></h3><p><%= isEmployeeDashboard ? 'Review assigned departures, manifests, seat maps, availability, and delay notices.' : 'Departures, assigned vehicles, available capacity, prices, and publishing status.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="<%= isEmployeeDashboard ? 'delay notice' : 'schedule' %>"><i class="fa-solid <%= isEmployeeDashboard ? 'fa-triangle-exclamation' : 'fa-plus' %>"></i> <%= isEmployeeDashboard ? 'Send delay notice' : 'Create schedule' %></button></div><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div></div></section>
+      <section class="section" id="schedules"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Assigned schedules' : 'Schedules' %></h3><p><%= isEmployeeDashboard ? 'Review assigned departures, manifests, seat maps, availability, and delay notices.' : 'Departures, assigned vehicles, available capacity, prices, and publishing status.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="<%= isEmployeeDashboard ? 'delay notice' : 'schedule' %>"><i class="fa-solid <%= isEmployeeDashboard ? 'fa-triangle-exclamation' : 'fa-plus' %>"></i> <%= isEmployeeDashboard ? 'Send delay notice' : 'Create departure' %></button></div><div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div></div></section>
 
       <% const featureServices = Array.isArray(dashboardData?.dashboardFeatures?.services) ? dashboardData.dashboardFeatures.services : []; %>
       <% featureServices.forEach(function(service){ %>
@@ -2586,7 +2586,7 @@
 
       <section class="section" id="customers"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Customers</h3><p>View customer booking history, receipts, saved items, refunds, and support activity.</p></div><button class="btn" data-modal="create" data-type="customer note"><i class="fa-solid fa-user-plus"></i> Add note</button></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Email / phone</th><th>Bookings</th><th>Spent</th><th>Last activity</th><th>Status</th><th></th></tr></thead><tbody id="customersTable"></tbody></table></div></div></section>
 
-      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isCompanyDashboard ? '/company/support/notices' : isEmployeeDashboard ? '/employee/support/notice' : '/admin/notices' %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
+      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isEmployeeDashboard ? '/employee/support/notice' : (isCompanyDashboard ? '/company/support/notices' : '/admin/notices') %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
 
       <section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
 
@@ -2815,9 +2815,21 @@ window.addEventListener('DOMContentLoaded', function () {
     return true;
   }
 
+  function dismissFlash(flash) {
+    if (!flash || flash.dataset.dismissing === 'true') return;
+    flash.dataset.dismissing = 'true';
+    flash.style.opacity = '0';
+    flash.style.transform = 'translateY(-6px)';
+    window.setTimeout(() => flash.remove(), 220);
+  }
+
   document.addEventListener('click', (event) => {
     const close = event.target.closest('[data-dismiss-flash]');
-    if (close) close.closest('.actionFlash')?.remove();
+    if (close) dismissFlash(close.closest('.actionFlash'));
+  });
+
+  document.querySelectorAll('[data-flash-stack] .actionFlash').forEach((flash, index) => {
+    window.setTimeout(() => dismissFlash(flash), 4000 + (index * 250));
   });
 
   document.addEventListener('input', (event) => {
@@ -3749,8 +3761,8 @@ window.addEventListener('DOMContentLoaded', function () {
   function canonicalPage(page) {
     const role = shell.currentRole || 'admin';
     const aliases = {
-      employee: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' },
-      driver: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' },
+      employee: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules', 'driver-incidents': 'support', customers: 'manifests' },
+      driver: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules', 'driver-incidents': 'support', customers: 'manifests' },
       operations: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' }
     };
     return aliases[role]?.[page] || page;
@@ -3771,7 +3783,9 @@ window.addEventListener('DOMContentLoaded', function () {
       main.appendChild(target);
     }
     if (target) target.classList.add('is-open');
-    $$('.navBtn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.page === requestedPage || canonicalPage(btn.dataset.page) === page));
+    const navButtons = $$('.navBtn');
+    const hasExactNav = navButtons.some(btn => btn.dataset.page === requestedPage);
+    navButtons.forEach(btn => btn.classList.toggle('is-active', hasExactNav ? btn.dataset.page === requestedPage : canonicalPage(btn.dataset.page) === page));
     const meta = pageMeta[requestedPage] || pageMeta[page] || pageMeta.overview;
     if (els.pageHeading) els.pageHeading.textContent = meta[0];
     if (els.pageSub) els.pageSub.textContent = meta[1];
@@ -3822,12 +3836,14 @@ window.addEventListener('DOMContentLoaded', function () {
     const dis = disabled ? 'disabled' : '';
     const required = field.required ? 'required' : '';
     const help = field.help ? `<small class="fieldHelp">${escapeHtml(field.help)}</small>` : '';
+    const showFor = field.showFor ? ` data-show-for="${escapeHtml([].concat(field.showFor).join(','))}"` : '';
+    const requiredMeta = field.required ? ' data-original-required="true"' : '';
     if (field.type === 'hidden') return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || '')}">`;
     if (field.type === 'textarea') {
-      return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}>${escapeHtml(field.value || '')}</textarea></div>${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}>${escapeHtml(field.value || '')}</textarea></div>${help}</div>`;
     }
     if (field.type === 'select') {
-      return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}>${selectOptions(field.options, field.value || '')}</select></div>${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}${requiredMeta}>${selectOptions(field.options, field.value || '')}</select></div>${help}</div>`;
     }
     if (field.type === 'multiselect') {
       const name = String(field.name).endsWith('[]') ? field.name : `${field.name}[]`;
@@ -3840,9 +3856,9 @@ window.addEventListener('DOMContentLoaded', function () {
         const checked = selectedValues.includes(String(value)) ? 'checked' : '';
         return `<label class="foldOption" title="${escapeHtml(optionLabel)}"><input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked} ${dis}><span>${escapeHtml(optionLabel)}</span></label>`;
       }).join('') || `<div class="notice">No options available yet. Add the related records first.</div>`;
-      return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><details class="foldSelect" data-fold-select><summary><span class="foldSelectTitle"><i class="fa-solid ${field.icon || 'fa-list-check'}"></i><span>${escapeHtml(field.placeholder || 'Select options')}</span></span><span class="foldSelectCount" data-fold-count>0 selected <i class="fa-solid fa-chevron-down"></i></span></summary><div class="foldSelectPanel">${options}</div></details>${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><details class="foldSelect" data-fold-select><summary><span class="foldSelectTitle"><i class="fa-solid ${field.icon || 'fa-list-check'}"></i><span>${escapeHtml(field.placeholder || 'Select options')}</span></span><span class="foldSelectCount" data-fold-count>0 selected <i class="fa-solid fa-chevron-down"></i></span></summary><div class="foldSelectPanel">${options}</div></details>${help}</div>`;
     }
-    return `<div class="field ${field.full ? 'full' : ''}"><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}></div>${help}</div>`;
+    return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}></div>${help}</div>`;
   }
 
   function adminFormConfig(type, label = '', detail = {}, mode = 'create') {
@@ -4265,6 +4281,17 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'country', label:'Country', type:'select', icon:'fa-earth-africa', options:['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo'], value:'Uganda' },
         { name:'from', label: companyServiceType === 'hotel' ? 'Location / area' : 'From', icon:'fa-location-dot', placeholder:'Kampala' },
         { name:'to', label: companyServiceType === 'hotel' ? 'Nearby landmark' : 'To / destination', icon:'fa-location-dot', placeholder: companyServiceType === 'hotel' ? 'City center' : 'Nairobi' },
+        { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Plot 1 Main Street', showFor:['hotel','car_rental','event','insurance'] },
+        { name:'layout', label:'Default layout', type:'select', icon:'fa-chair', options:['bus-2-2','bus-2-1','flight','train','slots'], showFor:['bus','flight','train','tour','event'] },
+        { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:'14:00', showFor:'hotel' },
+        { name:'checkOutTime', label:'Check-out time', type:'time', icon:'fa-clock', value:'11:00', showFor:'hotel' },
+        { name:'amenities', label:'Amenities', icon:'fa-wifi', placeholder:'Wi-Fi, Breakfast, Parking', showFor:['hotel','car_rental','event'] },
+        { name:'roomType', label:'First room type', icon:'fa-bed', placeholder:'Standard Queen', showFor:'hotel' },
+        { name:'capacity', label:'Room capacity', type:'number', icon:'fa-users', value:'2', showFor:'hotel' },
+        { name:'nightlyPrice', label:'Nightly price', type:'number', icon:'fa-coins', placeholder:'180000', showFor:'hotel' },
+        { name:'inventory', label:'Room stock', type:'number', icon:'fa-door-open', value:'1', showFor:'hotel' },
+        { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus','flight','train','tour','car_rental','cargo'] },
+        { name:'dropoffInstructions', label:'Dropoff instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus','flight','train','tour','cargo'] },
         { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
         { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','published','paused'] },
@@ -4290,7 +4317,7 @@ window.addEventListener('DOMContentLoaded', function () {
       ]
     };
     if (isCompanyRole && key === 'vehicle') return {
-      action: '/company/vehicles', submit: companyServiceType === 'flight' ? 'Add aircraft' : companyServiceType === 'train' ? 'Add coach' : companyServiceType === 'car_rental' ? 'Add rental vehicle' : 'Add vehicle',
+      action: '/company/vehicles', submit: companyServiceType === 'flight' ? 'Create aircraft' : companyServiceType === 'train' ? 'Create coach' : companyServiceType === 'car_rental' ? 'Create rental vehicle' : 'Create vehicle',
       fields: [
         { name:'listingId', label:`${serviceLabel} listing`, type:'select', icon:'fa-layer-group', options:listings, required:true },
         { name:'serviceType', type:'hidden', value: companyServiceType },
@@ -4306,7 +4333,7 @@ window.addEventListener('DOMContentLoaded', function () {
       ]
     };
     if (isCompanyRole && key === 'schedule') return {
-      action: '/company/schedules', submit: 'Create schedule',
+      action: '/company/schedules', submit: 'Create departure',
       fields: [
         { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
         { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true },
@@ -4509,6 +4536,17 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'serviceType', label:'Service type', type:'select', icon:'fa-layer-group', options:['bus','hotel','flight','train','tour','car_rental','event','cargo','insurance','corporate','loyalty'] },
         { name:'from', label:'From', icon:'fa-location-dot', placeholder:'Kampala' },
         { name:'to', label:'To / location', icon:'fa-location-dot', placeholder:'Nairobi' },
+        { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Plot 1 Main Street', showFor:['hotel','car_rental','event','insurance'] },
+        { name:'layout', label:'Default layout', type:'select', icon:'fa-chair', options:['bus-2-2','bus-2-1','flight','train','slots'], showFor:['bus','flight','train','tour','event'] },
+        { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:'14:00', showFor:'hotel' },
+        { name:'checkOutTime', label:'Check-out time', type:'time', icon:'fa-clock', value:'11:00', showFor:'hotel' },
+        { name:'amenities', label:'Amenities', icon:'fa-wifi', placeholder:'Wi-Fi, Breakfast, Parking', showFor:['hotel','car_rental','event'] },
+        { name:'roomType', label:'First room type', icon:'fa-bed', placeholder:'Standard Queen', showFor:'hotel' },
+        { name:'capacity', label:'Room capacity', type:'number', icon:'fa-users', value:'2', showFor:'hotel' },
+        { name:'nightlyPrice', label:'Nightly price', type:'number', icon:'fa-coins', placeholder:'180000', showFor:'hotel' },
+        { name:'inventory', label:'Room stock', type:'number', icon:'fa-door-open', value:'1', showFor:'hotel' },
+        { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus','flight','train','tour','car_rental','cargo'] },
+        { name:'dropoffInstructions', label:'Dropoff instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus','flight','train','tour','cargo'] },
         { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
         { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'description', label:'Description', type:'textarea', full:true, placeholder:'Listing details' }
@@ -4639,6 +4677,26 @@ window.addEventListener('DOMContentLoaded', function () {
       scope.querySelectorAll('[data-fold-select]').forEach(updateFoldSelectCount);
     }
 
+    function normalizedServiceValue(value) {
+      return String(value || '').trim().replace(/-/g, '_').toLowerCase();
+    }
+
+    function applyShowForFields(scope = document) {
+      scope.querySelectorAll('form').forEach((form) => {
+        const serviceField = form.querySelector('[name="serviceType"]');
+        const serviceValue = normalizedServiceValue(serviceField?.value || runtimeCompanyServiceType);
+        form.querySelectorAll('[data-show-for]').forEach((field) => {
+          const allowed = String(field.dataset.showFor || '').split(',').map(normalizedServiceValue).filter(Boolean);
+          const shouldShow = !allowed.length || allowed.includes(serviceValue);
+          field.hidden = !shouldShow;
+          field.querySelectorAll('input,select,textarea').forEach((input) => {
+            if (input.dataset.originalRequired === 'true') input.required = shouldShow;
+            if (!shouldShow) input.setCustomValidity('');
+          });
+        });
+      });
+    }
+
   function openCrud(mode, type, label = '', detail = {}) {
     if (mode === 'delete') {
       const entity = String(detail?.entity || type || '').toLowerCase();
@@ -4684,6 +4742,7 @@ window.addEventListener('DOMContentLoaded', function () {
         </form>`;
       els.crudModal.classList.add('is-open');
       initFoldSelects(els.crudModal);
+      applyShowForFields(els.crudModal);
       return;
     }
     const config = adminFormConfig(cleanType, label, detail, mode);
@@ -4695,6 +4754,7 @@ window.addEventListener('DOMContentLoaded', function () {
         </div>`;
       els.crudModal.classList.add('is-open');
       initFoldSelects(els.crudModal);
+      applyShowForFields(els.crudModal);
       return;
     }
     const fields = config.fields.map(field => adminFieldHtml(field, readonly, disabled)).join('');
@@ -4709,6 +4769,7 @@ window.addEventListener('DOMContentLoaded', function () {
       </form>`;
     els.crudModal.classList.add('is-open');
     initFoldSelects(els.crudModal);
+    applyShowForFields(els.crudModal);
   }
 
   function bindEvents() {
@@ -4719,6 +4780,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (filterBox) applyDashboardFilter(filterBox);
       const seatMapSelect = e.target.closest('[data-seat-map-select]');
       if (seatMapSelect) syncSelectedSeatMap();
+      if (e.target.matches('[name="serviceType"]')) applyShowForFields(e.target.closest('form') || document);
     });
 
     document.addEventListener('input', function (e) {

@@ -2094,12 +2094,15 @@ function companyDashboardData(companyId, listings, bookings) {
   const visibleSchedules = serviceProfile.supportsTransport ? schedules.filter((schedule) => listingSupportsVisibleService(schedule.listingId)) : [];
   const busSchedules = serviceProfile.supportsBus ? visibleSchedules.filter((schedule) => normalize(findListing(schedule.listingId)?.serviceType) === 'bus') : [];
   const visibleVehicles = serviceProfile.supportsTransport ? vehicles.filter((vehicle) => listingSupportsVisibleService(vehicle.listingId) || serviceProfile.serviceTypes.includes(normalize(vehicle.serviceType))) : [];
-  const visibleRooms = serviceProfile.supportsHotel ? rooms : [];
-  const visibleHotelProperties = serviceProfile.supportsHotel ? hotelProperties : [];
-  const visibleRoomTypes = serviceProfile.supportsHotel ? roomTypes : [];
-  const visibleRoomUnits = serviceProfile.supportsHotel ? roomUnits : [];
-  const visibleRoomNightInventories = serviceProfile.supportsHotel ? roomNightInventories : [];
-  const hotelBookings = serviceProfile.supportsHotel ? bookings.filter((booking) => booking.serviceType === 'hotel') : [];
+  const hasOwnedHotelInventory = serviceProfile.supportsHotel
+    || listings.some((listing) => normalize(listing.serviceType) === 'hotel')
+    || rooms.length || hotelProperties.length || roomTypes.length || roomUnits.length || roomNightInventories.length;
+  const visibleRooms = hasOwnedHotelInventory ? rooms : [];
+  const visibleHotelProperties = hasOwnedHotelInventory ? hotelProperties : [];
+  const visibleRoomTypes = hasOwnedHotelInventory ? roomTypes : [];
+  const visibleRoomUnits = hasOwnedHotelInventory ? roomUnits : [];
+  const visibleRoomNightInventories = hasOwnedHotelInventory ? roomNightInventories : [];
+  const hotelBookings = hasOwnedHotelInventory ? bookings.filter((booking) => booking.serviceType === 'hotel') : [];
   const supportTickets = state.supportTickets.filter((ticket) => ticket.companyId === companyId || (ticket.ownerType === 'company' && (!ticket.ownerId || ticket.ownerId === companyId)));
   const grossRevenue = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
