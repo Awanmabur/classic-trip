@@ -682,6 +682,9 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   expect(dashboard.text).toContain('/employee/bookings');
   expect(dashboard.text).toContain('/employee/support/notice');
   expect(dashboard.text).toContain('/employee/handovers');
+  expect(dashboard.text).toContain('id="handover"');
+  expect(dashboard.text).toContain('id="profile"');
+  expect(dashboard.text).toContain('id="employeeHandoversTable"');
   expect(dashboard.text).not.toContain('/admin/finance/release-eligible');
   expect(dashboard.text).not.toContain('Saved successfully');
   const listing = await companyService.createListing('company-01', {
