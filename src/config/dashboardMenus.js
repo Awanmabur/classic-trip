@@ -74,7 +74,7 @@ const ROLE_DASHBOARDS = {
       { label: 'Control', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
         { page: 'company-profile', label: 'Company Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
+        { page: 'staff', label: 'Staff & Roles', icon: 'fa-user-tie' },
       ] },
       { label: 'Work', items: [
         { page: 'listings', label: 'Services', icon: 'fa-layer-group' },
@@ -85,6 +85,7 @@ const ROLE_DASHBOARDS = {
       { label: 'Money', items: [
         { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
         { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
+        { page: 'payouts', label: 'Payouts', icon: 'fa-money-bill-transfer' },
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
       ] },
     ],

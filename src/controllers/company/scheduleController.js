@@ -36,6 +36,7 @@ async function publish(req, res, next) {
     await companyService.publishSchedule(companyId(req), req.params.id);
     res.redirect('/company/schedules');
   } catch (error) {
+    if (error.status === 422) return res.status(422).send(error.message);
     next(error);
   }
 }

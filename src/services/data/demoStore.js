@@ -1691,7 +1691,8 @@ function buildCompanyServiceProfile(company = {}, listings = [], assets = {}) {
     || ((assets.hotelProperties || []).length || (assets.roomTypes || []).length || (assets.roomUnits || []).length || (assets.rooms || []).length ? 'hotel' : '')
     || ((assets.vehicles || []).length || (assets.schedules || []).length ? 'bus' : '')
     || 'partner';
-  const primaryServiceType = companyType && companyType !== 'partner' ? companyType : fallbackType;
+  const genericCompanyTypes = new Set(['partner', 'transport', 'travel', 'service', 'services', 'company', 'operator', 'marketplace', 'multi_service', 'multi-service']);
+  const primaryServiceType = companyType && !genericCompanyTypes.has(companyType) ? companyType : fallbackType;
   const serviceTypes = primaryServiceType && primaryServiceType !== 'partner' ? [primaryServiceType] : [];
   const supportsHotel = primaryServiceType === 'hotel';
   const supportsBus = primaryServiceType === 'bus';
@@ -1700,7 +1701,7 @@ function buildCompanyServiceProfile(company = {}, listings = [], assets = {}) {
   const supportsTransport = ROUTED_SERVICE_TYPES.includes(primaryServiceType);
   const primaryLabel = SERVICE_LABELS[primaryServiceType] || (primaryServiceType === 'partner' ? 'Partner' : primaryServiceType);
   const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : `${primaryLabel} inventory`;
-  const dashboardLabel = primaryServiceType && primaryServiceType !== 'partner' ? `${primaryLabel} Dashboard` : 'Company Dashboard';
+  const dashboardLabel = supportsBus ? 'Bus Operations Dashboard' : primaryServiceType && primaryServiceType !== 'partner' ? `${primaryLabel} Dashboard` : 'Company Dashboard';
   const visiblePages = new Set(COMPANY_SERVICE_PAGE_MAP[primaryServiceType] || COMPANY_SERVICE_PAGE_MAP.partner);
 
   const pageMeta = {

@@ -52,6 +52,61 @@ function companyForUser(user = {}) {
   }
 }
 
+function rowBelongsToCompany(row = {}, companyId) {
+  if (!row || !companyId) return false;
+  return String(row.companyId || row.ownerId || '') === String(companyId);
+}
+
+function ownedRequestServiceMatches(req, companyId, allowedServices) {
+  if (!companyId) return false;
+  try {
+    const store = require('../services/data/persistentStore');
+    const body = req.body || {};
+    const query = req.query || {};
+    const params = req.params || {};
+    const path = String(req.path || req.originalUrl || '');
+
+    const listingId = body.listingId || query.listingId || params.listingId || body.slug || query.slug || params.slug;
+    const listing = listingId ? (store.state.listings || []).find((item) => (String(item.id) === String(listingId) || String(item.slug) === String(listingId)) && rowBelongsToCompany(item, companyId)) : null;
+    if (listing && serviceMatches(listing.serviceType || listing.group || listing.type, allowedServices)) return true;
+
+    const routeId = body.routeId || query.routeId || params.routeId;
+    const route = routeId ? (store.state.routes || []).find((item) => String(item.id) === String(routeId) && rowBelongsToCompany(item, companyId)) : null;
+    const routeListing = route ? (store.state.listings || []).find((item) => String(item.id) === String(route.listingId) && rowBelongsToCompany(item, companyId)) : null;
+    if (routeListing && serviceMatches(routeListing.serviceType || routeListing.group || routeListing.type, allowedServices)) return true;
+
+    const scheduleId = body.scheduleId || query.scheduleId || params.scheduleId || (path.includes('/company/schedules/') ? params.id : '');
+    const schedule = scheduleId ? (store.state.schedules || []).find((item) => String(item.id) === String(scheduleId) && rowBelongsToCompany(item, companyId)) : null;
+    const scheduleListing = schedule ? (store.state.listings || []).find((item) => String(item.id) === String(schedule.listingId) && rowBelongsToCompany(item, companyId)) : null;
+    if (schedule && serviceMatches(schedule.serviceType || scheduleListing?.serviceType || scheduleListing?.group, allowedServices)) return true;
+
+    const vehicleId = body.vehicleId || query.vehicleId || params.vehicleId;
+    const vehicle = vehicleId ? (store.state.vehicles || []).find((item) => String(item.id) === String(vehicleId) && rowBelongsToCompany(item, companyId)) : null;
+    if (vehicle && serviceMatches(vehicle.serviceType || vehicle.type, allowedServices)) return true;
+
+    const bookingRef = body.bookingRef || query.bookingRef || params.bookingRef;
+    const booking = bookingRef ? (store.state.bookings || []).find((item) => String(item.bookingRef) === String(bookingRef) && rowBelongsToCompany(item, companyId)) : null;
+    if (booking && serviceMatches(booking.serviceType, allowedServices)) return true;
+
+    const hotelIds = [
+      body.propertyId, query.propertyId, params.propertyId,
+      body.roomTypeId, query.roomTypeId, params.roomTypeId,
+      body.roomUnitId, query.roomUnitId, params.roomUnitId,
+      body.unitId, query.unitId, params.unitId,
+      body.inventoryId, query.inventoryId, params.inventoryId,
+      path.includes('/company/hotels/') ? params.id : '',
+    ].filter(Boolean).map(String);
+    if (hotelIds.length && serviceMatches('hotel', allowedServices)) {
+      const hotelCollections = ['hotelProperties', 'roomTypes', 'roomUnits', 'roomNightInventories'];
+      const ownsHotelEntity = hotelCollections.some((key) => (store.state[key] || []).some((item) => hotelIds.includes(String(item.id)) && rowBelongsToCompany(item, companyId)));
+      if (ownsHotelEntity) return true;
+    }
+  } catch (error) {
+    return false;
+  }
+  return false;
+}
+
 function requireCompanyOwnService(fieldName = 'serviceType') {
   return (req, res, next) => {
     const user = req.session?.user || {};
@@ -87,6 +142,7 @@ function requireCompanyService(...allowedServices) {
     const company = companyForUser(user);
     const companyType = user.companyType || company.companyType || company.type || company.serviceType;
     if (serviceMatches(companyType, allowedServices)) return next();
+    if (ownedRequestServiceMatches(req, user.companyId, allowedServices)) return next();
     return forbidden(
       req,
       res,

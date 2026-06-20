@@ -685,6 +685,10 @@ test('employee dashboard workflow actions persist bookings, inventory, payments,
   expect(dashboard.text).toContain('id="handover"');
   expect(dashboard.text).toContain('id="profile"');
   expect(dashboard.text).toContain('id="employeeHandoversTable"');
+  expect(dashboard.text).toContain('id="driver-ops"');
+  expect(dashboard.text).toContain('id="driver-manifest"');
+  expect(dashboard.text).toContain('id="driver-incidents"');
+  expect(dashboard.text).toContain('id="driverManifestTable"');
   expect(dashboard.text).not.toContain('/admin/finance/release-eligible');
   expect(dashboard.text).not.toContain('Saved successfully');
   const listing = await companyService.createListing('company-01', {
@@ -782,7 +786,13 @@ test('customer dashboard actions persist saved trips wallet security and promote
   });
   const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
   const agent = await login(user.email);
-  await agent.get('/account').expect(200);
+  const customerDashboard = await agent.get('/account').expect(200);
+  expect(customerDashboard.text).toContain('id="passengers"');
+  expect(customerDashboard.text).toContain('id="customer-profile"');
+  expect(customerDashboard.text).toContain('id="customerPassengersTable"');
+  expect(customerDashboard.text).toContain('id="customerWalletTable"');
+  expect(customerDashboard.text).toContain('id="customerSupportTable"');
+  expect(customerDashboard.text).toContain('/account/profile');
 
   await agent.post('/account/saved').type('form').send({ listingId: listing.id, notes: 'Save for later' }).expect(302);
   expect(store.state.savedListings.some((row) => row.userId === user.id && row.listingId === listing.id)).toBe(true);
@@ -815,7 +825,12 @@ test('promoter dashboard campaign and verification forms persist to dashboard da
   });
   const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
   const agent = await login(promoter.email);
-  await agent.get('/promoter/dashboard').expect(200);
+  const promoterDashboard = await agent.get('/promoter/dashboard').expect(200);
+  expect(promoterDashboard.text).toContain('id="links"');
+  expect(promoterDashboard.text).toContain('id="withdrawals"');
+  expect(promoterDashboard.text).toContain('id="promoter-profile"');
+  expect(promoterDashboard.text).toContain('id="promoterCommissionsTable"');
+  expect(promoterDashboard.text).toContain('id="promoterWithdrawalsTable"');
 
   await agent.post('/promoter/campaigns').type('form').send({ listingId: listing.id, name: 'Promoter 18E campaign', placement: 'social', budget: 50000 }).expect(302);
   expect(store.state.promotionCampaigns.some((row) => row.promoterId === promoter.id && row.name === 'Promoter 18E campaign')).toBe(true);
@@ -828,9 +843,15 @@ test('promoter dashboard campaign and verification forms persist to dashboard da
 
 test('admin dashboard actions create operational records and exports', async () => {
   const agent = await login('admin@classictrip.test');
+  const dashboard = await agent.get('/admin/dashboard').expect(200);
+  expect(dashboard.text).toContain('data-type="bus listing"');
+  expect(dashboard.text).toContain('data-type="event listing"');
   const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
   const wallet = walletService.creditAvailable('promoter', 'user-promoter-001', 25000, { currency: 'UGX', referenceType: 'test_seed', referenceId: 'admin-payout-e2e' });
   const withdrawal = walletService.requestWithdrawal('promoter', 'user-promoter-001', 1000, { currency: wallet.currency, referenceType: 'withdrawal', referenceId: 'admin-payout-e2e' }).transaction;
+
+  await agent.post('/admin/listings').type('form').send({ companyId: 'company-01', title: 'Admin event category listing', serviceType: 'event', from: 'Kampala', to: 'Expo Hall', priceFrom: 120000 }).expect(302);
+  expect(store.state.listings.some((row) => row.title === 'Admin event category listing' && row.serviceType === 'event')).toBe(true);
 
   await agent.post('/admin/promotions').type('form').send({ listingId: listing.id, name: 'Admin 18E campaign', placement: 'marketplace_top', budget: 75000 }).expect(302);
   expect(store.state.promotionCampaigns.some((row) => row.name === 'Admin 18E campaign')).toBe(true);

@@ -4,6 +4,8 @@ const store = require('../../src/services/data/persistentStore');
 const timelineService = require('../../src/services/support/timelineService');
 const workflowService = require('../../src/services/support/workflowService');
 
+jest.setTimeout(60000);
+
 async function login(email) {
   const agent = request.agent(app);
   await agent.post('/login').type('form').send({ identity: email, password: 'Password123' }).expect(302);

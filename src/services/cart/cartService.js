@@ -224,7 +224,7 @@ function validateHotelItem(cart, item, listing) {
 function validateCoupon(cart, subtotal) {
   const code = clean(cart.couponCode || '').toUpperCase();
   if (!code) return { code: '', amount: 0, label: 'No coupon' };
-  const discounts = { CLASSIC10: 0.10, WELCOME5: 0.05 };
+  const discounts = { CLASSIC10: 0.10, CLASSI90: 0.10, WELCOME5: 0.05 };
   const percent = discounts[code];
   if (!percent) { const error = new Error('Coupon is invalid or expired'); error.status = 422; throw error; }
   return { code, percent, amount: Math.round(subtotal * percent), label: `${Math.round(percent * 100)}% discount` };

@@ -315,7 +315,7 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
     groups: [
       { label: 'Bus Shift', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'checkin', label: 'Boarding Check-in', icon: 'fa-qrcode' },
+        { page: 'checkin', label: 'Ticket Check-in', icon: 'fa-qrcode' },
         { page: 'bookings', label: 'Bus Bookings', icon: 'fa-ticket' },
         { page: 'schedule', label: 'Assigned Schedules', icon: 'fa-calendar-days' },
       ] },
@@ -399,7 +399,7 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
 
 const ROLE_SWITCH_TARGETS = [
   { key: 'admin', role: 'super_admin', label: 'Super Admin', href: '/admin' },
-  { key: 'company', role: 'company_admin', label: 'Company Dashboard', href: '/company/dashboard' },
+  { key: 'company', role: 'company_admin', label: 'Company Workspace', href: '/company/dashboard' },
   { key: 'driver', role: 'driver', label: 'Driver', href: '/driver/dashboard' },
   { key: 'employee', role: 'company_employee', label: 'Company Staff', href: '/employee/dashboard' },
   { key: 'customer', role: 'customer', label: 'Customer', href: '/account' },
@@ -492,6 +492,7 @@ function menuHref(roleKey, page) {
       reviews: '/company/dashboard/reviews',
       revenue: '/company/revenue',
       settlement: '/company/settlement',
+      payouts: '/company/payouts',
       reports: '/company/reports',
       'bus-dashboard': '/company/bus-dashboard',
       'hotel-dashboard': '/company/hotel-dashboard',
@@ -539,7 +540,8 @@ function buildDashboardShell(requestedRole, options = {}) {
     menu = applyEmployeeServiceProfile(menu, options.serviceProfile);
   }
   menu = attachMenuHrefs(menu);
-  const userName = user.fullName || user.name || menu.profileName;
+  const preferMenuIdentity = menu.roleKey === 'company' && menu.profileName;
+  const userName = preferMenuIdentity ? menu.profileName : (user.fullName || user.name || menu.profileName);
   const roles = roleSetFor(user, requestedRole);
   const roleSwitcher = ROLE_SWITCH_TARGETS
     .filter((target) => roles.includes(target.role) || target.key === menu.roleKey)
@@ -552,7 +554,7 @@ function buildDashboardShell(requestedRole, options = {}) {
     currentRole: menu.roleKey,
     userName,
     profileName: userName,
-    profileMeta: user.email || menu.profileMeta,
+    profileMeta: preferMenuIdentity ? (menu.profileMeta || user.email) : (user.email || menu.profileMeta),
     avatar: initials(userName || menu.profileName || menu.label),
     notificationCount,
     roleSwitcher,

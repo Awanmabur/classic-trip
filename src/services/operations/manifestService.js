@@ -292,7 +292,18 @@ function bookingForCompany(companyId, bookingRef) {
 
 function bookingForSeat(companyId, scheduleId, seatNumber) {
   const schedule = findScheduleForCompany(companyId, scheduleId);
-  const booking = store.state.bookings.find((item) => item.companyId === companyId && bookingMatchesSchedule(item, schedule.id) && (item.passengers || []).some((pax) => passengerSeat(pax) === seatNumber));
+  const requestedSeat = clean(seatNumber);
+  const requestedLabel = formatSeatNo(requestedSeat);
+  const booking = store.state.bookings.find((item) => item.companyId === companyId && bookingMatchesSchedule(item, schedule.id) && (item.passengers || []).some((pax) => {
+    const values = [
+      pax.seatOrRoom,
+      pax.seatNumber,
+      pax.seat,
+      passengerSeat(pax),
+      formatSeatNo(pax.seatOrRoom || pax.seatNumber || pax.seat || ''),
+    ].map(clean);
+    return values.includes(requestedSeat) || values.includes(requestedLabel);
+  }));
   if (!booking) throw error('No booked ticket found for this seat', 404);
   return bookingForCompany(companyId, booking.bookingRef);
 }

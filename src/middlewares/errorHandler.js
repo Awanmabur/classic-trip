@@ -23,6 +23,10 @@ function errorHandler(error, req, res, next) {
 
   if (wantsJson(req)) return res.status(status).json({ error: message });
 
+  if (req.method !== 'GET' && status === 415) {
+    return res.status(status).send(message);
+  }
+
   if (req.method !== 'GET' && status < 500) {
     pushFlash(req, 'error', message);
     return res.redirect(safeBack(req));

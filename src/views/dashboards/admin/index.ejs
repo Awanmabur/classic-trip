@@ -1764,12 +1764,32 @@
     const companyServiceProfile = dashboardData?.serviceProfile || {};
     const isCompanyDashboard = dashboardRoleKey === 'company';
     const isEmployeeDashboard = dashboardRoleKey === 'employee';
+    const isDriverDashboard = dashboardRoleKey === 'driver';
+    const isCustomerDashboard = dashboardRoleKey === 'customer';
+    const isPromoterDashboard = dashboardRoleKey === 'promoter';
+    const isSupportDashboard = dashboardRoleKey === 'support';
+    const isFinanceDashboard = dashboardRoleKey === 'finance';
+    const isOperationsDashboard = dashboardRoleKey === 'operations';
+    const shellMenuPages = new Set((dashboardShell?.groups || []).flatMap(function(group){ return (group.items || []).map(function(item){ return item.page; }); }));
+    const hasHandoverDashboardPage = shellMenuPages.has('handover');
+    const hasGenericProfileDashboardPage = shellMenuPages.has('profile') && (isEmployeeDashboard || isDriverDashboard);
+    const hasDriverOpsDashboardPage = shellMenuPages.has('driver-ops') || shellMenuPages.has('driver-manifest') || shellMenuPages.has('driver-incidents');
+    const canSubmitEmployeeWorkflow = isEmployeeDashboard || isDriverDashboard;
     const companyServiceType = companyServiceProfile.primaryServiceType || '';
     const companySupportsBus = Boolean(companyServiceProfile.supportsBus || companyServiceType === 'bus');
     const companySupportsHotel = Boolean(companyServiceProfile.supportsHotel || companyServiceType === 'hotel');
     const companySupportsTransport = Boolean(companyServiceProfile.supportsTransport || companySupportsBus || ['flight','train','tour','car_rental','event','cargo'].includes(companyServiceType));
     const companyVisiblePages = new Set(companyServiceProfile.visiblePages || []);
     function companyCanShow(page){ return !isCompanyDashboard || companyVisiblePages.has(page); }
+    const dashboardFeatureLabel = isCompanyDashboard ? (companyServiceProfile.dashboardLabel || dashboardShell?.label || 'Company Dashboard') : null;
+    const viewDashboardData = Object.assign({}, dashboardData || {});
+    if (isCompanyDashboard && viewDashboardData.dashboardFeatures?.roles?.company) {
+      viewDashboardData.dashboardFeatures = Object.assign({}, viewDashboardData.dashboardFeatures, {
+        roles: Object.assign({}, viewDashboardData.dashboardFeatures.roles, {
+          company: Object.assign({}, viewDashboardData.dashboardFeatures.roles.company, { label: dashboardFeatureLabel })
+        })
+      });
+    }
     const employeeCompanyName = dashboardData?.company?.name || companyServiceProfile.companyName || 'your company';
     const employeeFirstName = String(dashboardShell?.profileName || 'there').trim().split(/\s+/)[0] || 'there';
     const employeeProfileData = dashboardData?.profile || {};
@@ -1826,11 +1846,11 @@
     };
   %>
 
-  <!-- Clean dashboard chrome dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher transform:none !important padding:12px 0 20px 10px !important navLogout -->
+  <!-- Clean dashboard chrome dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher dashboardCompanySelector transform:none !important padding:12px 0 20px 10px !important navLogout -->
   <div hidden aria-hidden="true" class="dashboardShellEvidence" data-service-panel="<%= dashboardData?.serviceProfile?.primaryServiceType || dashboardShell?.currentRole || 'admin' %>">
-    dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher
+    dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher dashboardCompanySelector
     <%= dashboardShell?.title || '' %> <%= dashboardShell?.label || '' %> <%= dashboardShell?.consoleName || '' %>
-    /company/listings /company/reports/inventory.csv /company/billing/upgrade Plans & Billing Company ledger Refund debit visibility Settlement batches name:'imageFile' multipart/form-data
+    /company/listings /company/reports/inventory.csv /company/billing/upgrade Plans & Billing Company ledger Refund debit visibility Settlement batches Ticket Check-in name:'imageFile' multipart/form-data
     <% ;(dashboardShell?.groups || []).forEach(function(group){ %>
       <%= group.label || '' %>
       <% ;(group.items || []).forEach(function(item){ %><%= item.label || '' %><% }) %>
@@ -1989,7 +2009,7 @@
         </div>
 
 
-        <% const roleFeatureKey = dashboardShell?.currentRole || dashboardShell?.roleKey || 'admin'; const roleFeature = dashboardData?.dashboardFeatures?.roles?.[roleFeatureKey] || dashboardData?.dashboardFeatures?.roles?.admin; %>
+        <% const roleFeatureKey = dashboardShell?.currentRole || dashboardShell?.roleKey || 'admin'; const roleFeature = viewDashboardData?.dashboardFeatures?.roles?.[roleFeatureKey] || viewDashboardData?.dashboardFeatures?.roles?.admin; %>
         <% if (roleFeature && Array.isArray(roleFeature.features)) { %>
         <div class="card" style="margin-top:14px">
           <div class="cardHead"><div class="cardTitle"><h3><%= roleFeature.label || dashboardShell?.label || 'Dashboard' %> features</h3><p>This role uses the same admin dashboard shell. Only menu, permissions, data scope, and actions change.</p></div><span class="badge ok">Config-driven</span></div>
@@ -2134,7 +2154,7 @@
                 <p><%= service.overview %></p>
               </div>
               <div class="heroActions">
-                <button class="btn btnPrimary" data-modal="create" data-type="listing"><i class="fa-solid fa-plus"></i> Add inventory</button>
+                <button class="btn btnPrimary" data-modal="create" data-type="<%= service.serviceType %> listing" data-label="<%= service.label %>"><i class="fa-solid fa-plus"></i> Add <%= service.label %> inventory</button>
                 <button class="btn" data-jump="bookings"><i class="fa-solid fa-ticket"></i> View bookings</button>
                 <button class="btn" data-jump="reports"><i class="fa-solid fa-file-lines"></i> Reports</button>
               </div>
@@ -2249,7 +2269,7 @@
         </div>
         <div class="grid2" style="margin-top:14px"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Branches / terminals</h3><p><%= companySupportsHotel ? 'Hotel branches, front desks, and property desks.' : companySupportsBus ? 'Company branches, terminals, pickup points, and offices.' : 'Company branches, stations, and service desks.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="branch"><i class="fa-solid fa-plus"></i> Add branch</button></div><div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Services</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody id="companyBranchesTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Policies</h3><p><%= companySupportsHotel ? 'Cancellation, refund, stay, check-in/out, support, and operational policies.' : companySupportsBus ? 'Cancellation, baggage, refund, boarding, support, and route policies.' : 'Cancellation, refund, support, and operational policies.' %></p></div><button class="btn" data-modal="create" data-type="policy"><i class="fa-solid fa-plus"></i> Add policy</button></div><div class="tableWrap"><table><thead><tr><th>Policy</th><th>Type</th><th>Service</th><th>Visibility</th><th>Summary</th><th>Status</th><th></th></tr></thead><tbody id="companyPoliciesTable"></tbody></table></div></div></div>
       </section>
-      <section class="section" id="staff"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Staff</h3><p>Company employees are scoped to this company, branch, schedule, and permission group.</p></div><button class="btn btnBlue" data-modal="create" data-type="staff"><i class="fa-solid fa-user-plus"></i> Invite staff</button></div><div class="tableWrap"><table><thead><tr><th>Name</th><th>Role</th><th>Branch</th><th>Permissions</th><th>Last login</th><th>Status</th><th></th></tr></thead><tbody id="companyStaffTable"></tbody></table></div></div><% if(!isCompanyDashboard || companySupportsTransport){ %><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Driver requests / assignments</h3><p>Drivers remain Super Admin approved, then assigned to vehicles and schedules.</p></div><button class="btn" data-modal="create" data-type="driver"><i class="fa-solid fa-id-card"></i> Request driver</button></div><div class="tableWrap"><table><thead><tr><th>Driver</th><th>License</th><th>Safety</th><th>Permissions</th><th>Branch / fleet</th><th>Status</th><th></th></tr></thead><tbody id="companyDriversTable"></tbody></table></div></div><% } else { %><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Hotel staff roles</h3><p>Front desk, housekeeping, inventory, finance, support, and report-viewer permissions only.</p></div><button class="btn" data-modal="create" data-type="hotel staff"><i class="fa-solid fa-user-plus"></i> Invite hotel staff</button></div><div class="metricList"><div class="metricRow"><div><strong>Front desk</strong><span>Arrivals, check-ins, guest support</span></div><b class="badge info">Scoped</b></div><div class="metricRow"><div><strong>Housekeeping</strong><span>Room status and cleaning workflow</span></div><b class="badge info">Scoped</b></div><div class="metricRow"><div><strong>Finance</strong><span>Revenue and settlement visibility</span></div><b class="badge warn">Limited</b></div></div></div><% } %></div></section>
+      <section class="section" id="staff"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Staff & Roles</h3><p>Company employees are scoped to this company, branch, schedule, and permission group.</p></div><button class="btn btnBlue" data-modal="create" data-type="staff"><i class="fa-solid fa-user-plus"></i> Invite staff</button></div><div class="tableWrap"><table><thead><tr><th>Name</th><th>Role</th><th>Branch</th><th>Permissions</th><th>Last login</th><th>Status</th><th></th></tr></thead><tbody id="companyStaffTable"></tbody></table></div></div><% if(!isCompanyDashboard || companySupportsTransport){ %><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Driver requests / assignments</h3><p>Drivers remain Super Admin approved, then assigned to vehicles and schedules.</p></div><button class="btn" data-modal="create" data-type="driver"><i class="fa-solid fa-id-card"></i> Request driver</button></div><div class="tableWrap"><table><thead><tr><th>Driver</th><th>License</th><th>Safety</th><th>Permissions</th><th>Branch / fleet</th><th>Status</th><th></th></tr></thead><tbody id="companyDriversTable"></tbody></table></div></div><% } else { %><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Hotel staff roles</h3><p>Front desk, housekeeping, inventory, finance, support, and report-viewer permissions only.</p></div><button class="btn" data-modal="create" data-type="hotel staff"><i class="fa-solid fa-user-plus"></i> Invite hotel staff</button></div><div class="metricList"><div class="metricRow"><div><strong>Front desk</strong><span>Arrivals, check-ins, guest support</span></div><b class="badge info">Scoped</b></div><div class="metricRow"><div><strong>Housekeeping</strong><span>Room status and cleaning workflow</span></div><b class="badge info">Scoped</b></div><div class="metricRow"><div><strong>Finance</strong><span>Revenue and settlement visibility</span></div><b class="badge warn">Limited</b></div></div></div><% } %></div></section>
       <% if(companyCanShow('seat-maps')){ %>
       <section class="section" id="seat-maps">
         <% const allSeatMaps = (dashboardData?.seatMaps || []); const previewMaps = allSeatMaps.slice(0,12); const selectedSeatMapId = previewMaps[0] ? (previewMaps[0].scheduleId || previewMaps[0].id || 'seat-map-0') : ''; %>
@@ -2292,9 +2312,9 @@
             </div>
           </div>
 
-          <div class="card seatMapGridCard seatMapPreviewCard">
+          <div class="card seatMapGridCard seatMapPreviewCard" data-detail-hook="seatMapDetail" data-smoke-marker="Visual seat preview">
             <div class="cardHead seatPreviewCardHead">
-              <div class="cardTitle"><h3>Visual seat preview</h3><p>The seat map below belongs only to the selected route/schedule.</p></div>
+              <div class="cardTitle"><h3>Visual seat map</h3><p>The seat map below belongs only to the selected route/schedule.</p></div>
               <div class="seatLegend"><span class="available"><i></i> Available</span><span class="booked"><i></i> Booked</span><span class="held"><i></i> Held</span><span class="selected"><i></i> Selected</span><span class="blocked"><i></i> Blocked / maintenance</span></div>
             </div>
             <% if(previewMaps.length){ previewMaps.forEach(function(map, mapIndex){ %>
@@ -2606,7 +2626,7 @@
 
       <section class="section" id="customers"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Customers</h3><p>View customer booking history, receipts, saved items, refunds, and support activity.</p></div><button class="btn" data-modal="create" data-type="customer note"><i class="fa-solid fa-user-plus"></i> Add note</button></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Email / phone</th><th>Bookings</th><th>Spent</th><th>Last activity</th><th>Status</th><th></th></tr></thead><tbody id="customersTable"></tbody></table></div></div></section>
 
-      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isEmployeeDashboard ? '/employee/support/notice' : (isCompanyDashboard ? '/company/support/notices' : '/admin/notices') %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
+      <section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, customer support, and Support timeline.</p></div><span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> 11 urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isEmployeeDashboard ? '/employee/support/notice' : (isCompanyDashboard ? '/company/support/notices' : '/admin/notices') %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence timeline</h3><p>Linked customer-visible messages, internal notes, delivery attempts, and booking activity.</p></div><span class="badge info">Section H</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Message center</span><span class="badge ok">Linked</span></div></div><div class="splitItem"><div class="splitTop"><span>Internal notes</span><span class="badge warn">Private</span></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><span class="badge info">Logged</span></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review pending customer schedule-change requests and keep decisions on the booking timeline.</p></div></div><a class="btn btnBlue" href="/admin/reports/reschedule.csv"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
 
       <section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
 
@@ -2642,7 +2662,51 @@
 
       <section class="section" id="settings"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Platform settings</h3><p>Global marketplace configuration.</p></div></div><form class="formPanel" id="settingsForm" method="POST" action="/admin/settings"><div class="formGrid"><div class="field"><label>Platform fee</label><div class="control"><i class="fa-solid fa-percent"></i><input name="platformFeePercent" value="7" /></div></div><div class="field"><label>Promoter commission</label><div class="control"><i class="fa-solid fa-percent"></i><input name="promoterCommissionPercent" value="3" /></div></div><div class="field"><label>Hold timer</label><div class="control"><i class="fa-regular fa-clock"></i><input name="holdMinutes" value="10" /></div></div><div class="field"><label>Default currency</label><div class="control"><i class="fa-solid fa-coins"></i><select name="defaultCurrency"><option>UGX</option><option>KES</option><option>RWF</option><option>TZS</option><option>USD</option></select></div></div><div class="field full"><label>Support message</label><div class="control"><textarea name="supportMessage">Classic Trip support is available for tickets, payments, refunds, partner onboarding, and promoter payouts.</textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save settings</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Security controls</h3><p>Admin and platform protection settings.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Admin 2FA</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Partner KYC required</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Suspicious payout hold</span><span class="badge warn">Manual review</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log</span><span class="badge info">Active</span></div></div></div></div></div></section>
 
-      <% if(isEmployeeDashboard){ %>
+      <% if(isCustomerDashboard){ %>
+      <section class="section" id="ticket"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-qrcode"></i> Current ticket</h3><p>Latest active booking, QR/ticket detail, travel date, payment state, and support actions.</p></div><a class="btn btnBlue" href="/account/bookings"><i class="fa-solid fa-ticket"></i> My bookings</a></div><div class="tableWrap"><table><thead><tr><th>Booking</th><th>Service</th><th>Company</th><th>Date</th><th>Passenger</th><th>Status</th><th>Amount</th><th></th></tr></thead><tbody id="customerTicketTable"></tbody></table></div></div></section>
+
+      <section class="section" id="saved"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-heart"></i> Saved trips</h3><p>Saved listings and bookable trips for quick return to checkout.</p></div><a class="btn btnBlue" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Search trips</a></div><div class="tableWrap"><table><thead><tr><th>Trip</th><th>Type</th><th>Partner</th><th>Route / location</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="customerSavedTable"></tbody></table></div></div></section>
+
+      <section class="section" id="passengers"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-user-group"></i> Saved passengers</h3><p>Passenger details collected from your bookings and reusable passenger records.</p></div></div><div class="tableWrap"><table><thead><tr><th>Passenger</th><th>Booking</th><th>Seat / room</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody id="customerPassengersTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Passenger defaults</h3><p>Keep lead traveler details ready for booking forms.</p></div></div><form class="formPanel" method="POST" action="/account/profile"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= dashboardData?.profile?.fullName || dashboardShell?.profileName || '' %>"></div></div><div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= dashboardData?.profile?.phone || '' %>"></div></div><div class="field full"><label>Passenger note</label><div class="control"><textarea name="passengerNote"><%= dashboardData?.profile?.passengerNote || '' %></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save passenger details</button></form></div></div></section>
+
+      <section class="section" id="receipts"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-receipt"></i> Receipts</h3><p>Receipts and invoices linked to your paid bookings.</p></div><a class="btn" href="/account/reports/receipts.csv"><i class="fa-solid fa-file-csv"></i> Export receipts</a></div><div class="tableWrap"><table><thead><tr><th>Receipt</th><th>Booking</th><th>Provider</th><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="customerReceiptsTable"></tbody></table></div></div></section>
+
+      <section class="section" id="wallet"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-wallet"></i> Wallet</h3><p>Wallet balances, credits, refunds, and top-up history.</p></div></div><div class="tableWrap"><table><thead><tr><th>Wallet</th><th>Type</th><th>Currency</th><th>Kind</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody id="customerWalletTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Top up wallet</h3><p>Add funds for faster checkout.</p></div></div><form class="formPanel" method="POST" action="/account/wallet/top-up"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Amount</label><div class="control"><i class="fa-solid fa-coins"></i><input name="amount" type="number" min="1" placeholder="50000" required></div></div><div class="field"><label>Currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><select name="currency"><option>UGX</option><option>KES</option><option>RWF</option><option>TZS</option><option>USD</option></select></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-plus"></i> Top up</button></form></div></div></section>
+
+      <section class="section" id="security"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-shield-halved"></i> Security</h3><p>Account sessions, password state, and verification checks.</p></div></div><div class="tableWrap"><table><thead><tr><th>Item</th><th>Scope</th><th>Last update</th><th>Status</th><th></th></tr></thead><tbody id="customerSecurityTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Update security</h3><p>Change password or notification security options.</p></div></div><form class="formPanel" method="POST" action="/account/security"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Current password</label><div class="control"><i class="fa-solid fa-lock"></i><input name="currentPassword" type="password"></div></div><div class="field"><label>New password</label><div class="control"><i class="fa-solid fa-key"></i><input name="newPassword" type="password"></div></div><div class="field full"><label>Two-factor note</label><div class="control"><textarea name="securityNote" placeholder="Security request note"></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save security</button></form></div></div></section>
+
+      <section class="section" id="customer-refunds"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-rotate-left"></i> Refunds</h3><p>Customer refund requests and cancellation follow-up.</p></div><button class="btn btnPrimary" data-modal="create" data-type="refund"><i class="fa-solid fa-plus"></i> Request refund</button></div><div class="tableWrap"><table><thead><tr><th>Refund</th><th>Booking</th><th>Customer</th><th>Reason</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="customerRefundsTable"></tbody></table></div></div></section>
+
+      <section class="section" id="customer-support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-headset"></i> Support</h3><p>Customer-visible cases, booking messages, support responses, and Booking correspondence timeline.</p></div></div><div class="tableWrap"><table><thead><tr><th>Case</th><th>Subject</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="customerSupportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support case</h3><p>Send a message to Classic Trip support.</p></div></div><form class="formPanel" method="POST" action="/account/support"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Booking ref</label><div class="control"><i class="fa-solid fa-ticket"></i><input name="bookingRef" placeholder="Optional booking reference"></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="How can support help?" required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send case</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Request reschedule</h3><p>Ask operations to move an existing booking to a preferred date and time.</p></div></div><form class="formPanel" method="POST" action="/account/reschedules"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Booking ref</label><div class="control"><i class="fa-solid fa-ticket"></i><input name="bookingRef" placeholder="Booking reference" required></div></div><div class="field"><label>Preferred date</label><div class="control"><i class="fa-solid fa-calendar-day"></i><input type="date" name="preferredDate" required></div></div><div class="field"><label>Preferred time</label><div class="control"><i class="fa-solid fa-clock"></i><input type="time" name="preferredTime"></div></div><div class="field full"><label>Reason</label><div class="control"><textarea name="reason" placeholder="Why do you need a new travel time?" required></textarea></div></div></div><button class="btn btnBlue" type="submit"><i class="fa-solid fa-calendar-check"></i> Request reschedule</button></form></div></div></section>
+
+      <section class="section" id="customer-reviews"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-star"></i> Reviews</h3><p>Your submitted reviews and reviewable bookings.</p></div></div><div class="tableWrap"><table><thead><tr><th>Customer</th><th>Service</th><th>Rating</th><th>Comment</th><th>Reply/date</th><th>Status</th><th></th></tr></thead><tbody id="customerReviewsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Write review</h3><p>Share feedback for a completed booking.</p></div></div><form class="formPanel" method="POST" action="/account/reviews"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Booking ref</label><div class="control"><i class="fa-solid fa-ticket"></i><input name="bookingRef" required></div></div><div class="field"><label>Rating</label><div class="control"><i class="fa-solid fa-star"></i><select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div><div class="field full"><label>Comment</label><div class="control"><textarea name="comment" required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-star"></i> Submit review</button></form></div></div></section>
+
+      <section class="section" id="customer-notifications"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-bell"></i> Notifications</h3><p>Booking updates, receipts, refund messages, and account notices.</p></div></div><div class="tableWrap"><table><thead><tr><th>Message</th><th>Type</th><th>Body</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="customerNotificationsTable"></tbody></table></div></div></section>
+
+      <section class="section" id="customer-profile"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-user-gear"></i> Profile</h3><p>Customer identity, contact details, travel preferences, and receipt settings.</p></div><span class="badge ok"><%= dashboardData?.profile?.status || 'active' %></span></div><form class="formPanel" method="POST" action="/account/profile"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= dashboardData?.profile?.fullName || dashboardShell?.profileName || '' %>" required></div></div><div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" value="<%= dashboardData?.profile?.email || '' %>"></div></div><div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= dashboardData?.profile?.phone || '' %>"></div></div><div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" value="<%= dashboardData?.profile?.city || '' %>"></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Preferences</h3><p>Travel preferences used in search and booking workflows.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Preferred seat</span><strong><%= dashboardData?.profile?.preferences?.preferredSeat || 'Window' %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Currency</span><strong><%= dashboardData?.profile?.preferences?.defaultCurrency || 'UGX' %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Notifications</span><span class="badge ok"><%= dashboardData?.profile?.preferences?.notifications || 'Enabled' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Receipt email</span><span class="badge info"><%= dashboardData?.profile?.preferences?.receiptEmail || 'Enabled' %></span></div></div></div></div></div></section>
+      <% } %>
+
+      <% if(isPromoterDashboard){ %>
+      <section class="section" id="links"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-link"></i> Referral links</h3><p>Referral codes, QR cards, clicks, conversions, and link status.</p></div><button class="btn btnPrimary" data-modal="create" data-type="promoter link"><i class="fa-solid fa-plus"></i> Create link</button></div><div class="tableWrap"><table><thead><tr><th>Code</th><th>Listing</th><th>Type</th><th>Clicks</th><th>Conversions</th><th>Status</th><th></th></tr></thead><tbody id="promoterLinksTable"></tbody></table></div></div></section>
+      <section class="section" id="share"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-share-nodes"></i> Share listings</h3><p>Bookable and sponsored listings ready for promoter sharing.</p></div></div><div class="tableWrap"><table><thead><tr><th>Listing</th><th>Type</th><th>Partner</th><th>Route / location</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody id="promoterShareTable"></tbody></table></div></div></section>
+      <section class="section" id="campaigns"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-bullhorn"></i> Campaigns</h3><p>Promoter campaigns, placement, clicks, booking conversion, budget, and status.</p></div><button class="btn btnPrimary" data-modal="create" data-type="campaign"><i class="fa-solid fa-plus"></i> Create campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Placement</th><th>Links</th><th>Clicks</th><th>Bookings</th><th>Budget</th><th>Status</th><th></th></tr></thead><tbody id="promoterCampaignsTable"></tbody></table></div></div></section>
+      <section class="section" id="performance"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-chart-pie"></i> Performance</h3><p>Clicks, conversion, referred revenue, commission, and top shared listings.</p></div></div><div class="chartCard"><div class="barChart" id="promoterPerformanceBars"></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Best channels</h3><p>Highest performing listings and companies.</p></div></div><div class="metricList" id="promoterBestChannels"></div></div></div></section>
+      <section class="section" id="offline-sales"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-cash-register"></i> Offline sales</h3><p>Agent / offline sales, receipts, payment method, and booking references.</p></div><button class="btn btnPrimary" data-modal="create" data-type="offline sale"><i class="fa-solid fa-plus"></i> Record sale</button></div><div class="tableWrap"><table><thead><tr><th>Sale</th><th>Booking</th><th>Customer</th><th>Listing</th><th>Method</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="promoterOfflineSalesTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Agent profile</h3><p>Enable and maintain offline sales identity.</p></div></div><form class="formPanel" method="POST" action="/promoter/agent-profile"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Office name</label><div class="control"><i class="fa-solid fa-shop"></i><input name="officeName" placeholder="Downtown travel desk"></div></div><div class="field"><label>Location</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="location" placeholder="Kampala"></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save agent profile</button></form></div></div></section>
+      <section class="section" id="fraud"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-shield-halved"></i> Traffic review</h3><p>Promoter traffic quality, failed payments, cancellation rate, and fraud signals.</p></div></div><div class="tableWrap"><table><thead><tr><th>Signal</th><th>Scope</th><th>Count</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="promoterFraudTable"></tbody></table></div></div></section>
+      <section class="section" id="commissions"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-coins"></i> Commissions</h3><p>Commission records from referred bookings. Commission release links connect checked-in bookings to payout history.</p></div><a class="btn" href="/promoter/reports/commissions.csv"><i class="fa-solid fa-file-csv"></i> Export</a></div><div class="tableWrap"><table><thead><tr><th>Commission</th><th>Booking</th><th>Gross</th><th>Rate</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="promoterCommissionsTable"></tbody></table></div></div></section>
+      <section class="section" id="withdrawals"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-wallet"></i> Withdrawals</h3><p>Withdrawal requests and wallet payout status.</p></div></div><div class="tableWrap"><table><thead><tr><th>Withdrawal</th><th>Type</th><th>Account</th><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody id="promoterWithdrawalsTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Request withdrawal</h3><p>Withdraw available promoter earnings.</p></div></div><form class="formPanel" method="POST" action="/promoter/withdrawals"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Amount</label><div class="control"><i class="fa-solid fa-coins"></i><input name="amount" type="number" required></div></div><div class="field"><label>Method</label><div class="control"><i class="fa-solid fa-building-columns"></i><select name="method"><option>Mobile Money</option><option>Bank</option><option>Wallet</option></select></div></div><div class="field full"><label>Account</label><div class="control"><input name="account" placeholder="+256700000000"></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Request withdrawal</button></form></div></div></section>
+      <section class="section" id="payouts"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-money-bill-transfer"></i> Payout history</h3><p>Paid, pending, and available promoter payout rows.</p></div></div><div class="tableWrap"><table><thead><tr><th>Payout</th><th>Date</th><th>Currency</th><th>Amount</th><th>Reference</th><th>Status</th><th></th></tr></thead><tbody id="promoterPayoutsTable"></tbody></table></div></div></section>
+      <section class="section" id="promoter-support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-headset"></i> Promoter support</h3><p>Referral, commission, withdrawal, and verification support cases.</p></div></div><div class="tableWrap"><table><thead><tr><th>Case</th><th>Subject</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="promoterSupportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support request</h3><p>Contact support about links, commissions, or payouts.</p></div></div><form class="formPanel" method="POST" action="/promoter/support"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Subject</label><div class="control"><i class="fa-solid fa-heading"></i><input name="subject" required></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send support</button></form></div></div></section>
+      <section class="section" id="promoter-profile"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-user-gear"></i> Profile</h3><p>Promoter identity, payout account, referral code, and verification state.</p></div><span class="badge ok"><%= dashboardData?.profile?.verificationStatus || 'active' %></span></div><form class="formPanel" method="POST" action="/promoter/profile"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= dashboardData?.profile?.name || dashboardShell?.profileName || '' %>"></div></div><div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" value="<%= dashboardData?.profile?.email || '' %>"></div></div><div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= dashboardData?.profile?.phone || '' %>"></div></div><div class="field full"><label>Payout account</label><div class="control"><input name="payoutAccount" value="<%= dashboardData?.profile?.payoutAccount?.account || '' %>"></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Referral identity</h3><p>Primary referral code and public tracking URL.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Code</span><strong><%= dashboardData?.profile?.mainReferralCode || '-' %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Status</span><span class="badge ok"><%= dashboardData?.profile?.verificationStatus || 'active' %></span></div></div><div class="splitItem" style="grid-column:1/-1"><div class="splitTop"><span>URL</span><strong><%= dashboardData?.profile?.mainReferralUrl || '-' %></strong></div></div></div></div></div></section>
+      <% } %>
+
+      <% if(hasDriverOpsDashboardPage){ %>
+      <section class="section" id="driver-ops"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-route"></i> Driver operations</h3><p>Assigned trips, status updates, vehicles, departure times, and operational state.</p></div><button class="btn btnPrimary" data-modal="create" data-type="delay notice"><i class="fa-solid fa-triangle-exclamation"></i> Log update</button></div><div class="tableWrap"><table><thead><tr><th>Trip</th><th>Service</th><th>Departure</th><th>Vehicle</th><th>Load</th><th>Status</th><th></th></tr></thead><tbody id="driverOpsTable"></tbody></table></div></div></section>
+      <section class="section" id="driver-manifest"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-list-check"></i> Manifest</h3><p>Passenger or guest manifest scoped to assigned trips and company operations.</p></div><a class="btn" href="/company/manifests.csv"><i class="fa-solid fa-file-csv"></i> Export manifest</a></div><div class="tableWrap"><table><thead><tr><th>Passenger</th><th>Booking</th><th>Seat / room</th><th>Phone</th><th>Payment</th><th>Check-in</th><th>Status</th><th></th></tr></thead><tbody id="driverManifestTable"></tbody></table></div></div></section>
+      <section class="section" id="driver-incidents"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-triangle-exclamation"></i> Incidents</h3><p>Route, vehicle, customer, safety, and service incidents for operations follow-up.</p></div><button class="btn btnPrimary" data-modal="create" data-type="support notice"><i class="fa-solid fa-plus"></i> Report incident</button></div><div class="tableWrap"><table><thead><tr><th>Incident</th><th>Trip</th><th>Category</th><th>Priority</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody id="driverIncidentsTable"></tbody></table></div></div></section>
+      <% } %>
+
+      <% if(hasHandoverDashboardPage){ %>
       <section class="section" id="handover">
         <div class="grid2">
           <div class="card">
@@ -2651,7 +2715,7 @@
                 <h3><i class="fa-solid fa-clipboard-list"></i> Shift handover</h3>
                 <p>Record open bookings, payment notes, customer follow-ups, and operational issues for the next staff member.</p>
               </div>
-              <button class="btn btnPrimary" data-modal="create" data-type="handover"><i class="fa-solid fa-plus"></i> New handover</button>
+              <% if(canSubmitEmployeeWorkflow){ %><button class="btn btnPrimary" data-modal="create" data-type="handover"><i class="fa-solid fa-plus"></i> New handover</button><% } %>
             </div>
             <div class="tableWrap">
               <table>
@@ -2673,6 +2737,7 @@
               <div class="splitItem"><div class="splitTop"><span>Open tasks</span><strong><%= employeeStatsData.openTasks || '0' %></strong></div></div>
               <div class="splitItem"><div class="splitTop"><span>Shift ends</span><span class="badge warn"><%= employeeStatsData.shiftEnds || 'Not set' %></span></div></div>
             </div>
+            <% if(canSubmitEmployeeWorkflow){ %>
             <form class="formPanel" method="POST" action="/employee/handovers">
               <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="formGrid">
@@ -2682,10 +2747,15 @@
               </div>
               <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Create handover</button>
             </form>
+            <% } else { %>
+            <div class="notice">Handover records for this role are shown here for continuity. Update the related support, finance, or operations record from its dedicated workflow page.</div>
+            <% } %>
           </div>
         </div>
       </section>
+      <% } %>
 
+      <% if(hasGenericProfileDashboardPage){ %>
       <section class="section" id="profile">
         <div class="grid2">
           <div class="card">
@@ -2780,6 +2850,9 @@
           'company-profile','staff','seat-maps','hotel-rooms','manifests','checkins','reviews',
           'revenue','settlement','payments','promoters','customers','support','ads','reports',
           'audit','admins','kyc','refunds','handover','profile','notifications','system','settings',
+          'ticket','saved','passengers','receipts','wallet','security',
+          'links','share','campaigns','performance','offline-sales','fraud','commissions','withdrawals','payouts',
+          'driver-ops','driver-manifest','driver-incidents',
           'bus-dashboard','hotel-dashboard','flight-dashboard','train-dashboard','tour-dashboard',
           'car-rental-dashboard','event-dashboard','cargo-dashboard','insurance-dashboard',
           'corporate-dashboard','loyalty-dashboard'
@@ -2868,7 +2941,7 @@
   <script>
 
 window.addEventListener('DOMContentLoaded', function () {
-  const backendDashboardData = <%- JSON.stringify(dashboardData || {}) %>;
+  const backendDashboardData = <%- JSON.stringify(viewDashboardData || {}) %>;
   const shell = <%- JSON.stringify(dashboardShell || {}) %>;
   const csrfToken = <%- JSON.stringify(csrfToken || '') %>;
   const serverFlashMessages = <%- JSON.stringify(flashMessages || []) %>;
@@ -3002,7 +3075,11 @@ window.addEventListener('DOMContentLoaded', function () {
     'kyc', 'refunds', 'notifications', 'branches', 'policies', 'staff',
     'drivers', 'inventory', 'hotelProperties', 'roomTypes', 'roomUnits',
     'roomNightInventory', 'bookedSeatGroups', 'hotelArrivals',
-    'hotelDepartures', 'hotelInHouse', 'checkins', 'reviews', 'handovers', 'payouts'
+    'hotelDepartures', 'hotelInHouse', 'checkins', 'reviews', 'handovers', 'payouts',
+    'saved', 'receipts', 'wallet', 'security', 'passengers',
+    'links', 'share', 'commissions', 'withdrawals', 'campaigns', 'fraud', 'offlineSales',
+    'agentSales', 'fraudSignals', 'referralClicks', 'attributionSessions', 'campaignConversions',
+    'referralCards', 'driverOps', 'driverIncidents', 'tripStatusUpdates'
   ];
   dashboardArrayKeys.forEach(key => { if (!Array.isArray(data[key])) data[key] = []; });
 
@@ -3041,7 +3118,32 @@ window.addEventListener('DOMContentLoaded', function () {
     revenue: ['Revenue', 'View company revenue, booking splits, and pending earnings.'],
     settlement: ['Settlement', 'Request payout and track pending/available/paid-out earnings.'],
     handover: ['Shift Handover', 'Create and review shift notes, cash follow-ups, bookings, and customer issues for the next staff member.'],
-    profile: ['My Profile', 'Update your employee contact details, shift notes, and staff profile information.']
+    profile: ['My Profile', 'Update your employee contact details, shift notes, and staff profile information.'],
+    ticket: ['Current Ticket', 'View the latest active booking, QR/ticket detail, travel date, payment state, and support actions.'],
+    saved: ['Saved Trips', 'Review saved listings and bookable trips for a faster return to checkout.'],
+    passengers: ['Passengers', 'Manage saved passenger details and traveler records collected from bookings.'],
+    receipts: ['Receipts', 'Download paid booking receipts and invoice history.'],
+    wallet: ['Wallet', 'Track customer wallet balance, top-ups, credits, and refund credits.'],
+    security: ['Security', 'Manage login alerts, recovery details, password state, and account protection.'],
+    'customer-refunds': ['Refunds', 'Track customer refund requests, cancellation follow-up, and case status.'],
+    'customer-support': ['Support', 'Create and review customer support cases linked to bookings and account activity.'],
+    'customer-reviews': ['Reviews', 'Submit and review customer ratings for completed bookings.'],
+    'customer-notifications': ['Notifications', 'Review booking updates, receipts, refunds, and account notices.'],
+    'customer-profile': ['Profile', 'Update customer identity, contact details, travel preferences, and receipt settings.'],
+    links: ['Referral Links', 'Manage promoter referral codes, QR cards, clicks, conversions, and link status.'],
+    share: ['Share Listings', 'Pick bookable and sponsored listings to share with tracked referral links.'],
+    campaigns: ['Campaigns', 'Manage promoter campaigns, placements, clicks, booking conversion, budget, and status.'],
+    performance: ['Performance', 'Review clicks, conversion, referred revenue, commissions, and top shared listings.'],
+    'offline-sales': ['Offline Sales', 'Record agent-assisted sales, receipts, payment method, and booking references.'],
+    fraud: ['Traffic Review', 'Monitor promoter traffic quality, failed payments, cancellation rate, and fraud signals.'],
+    commissions: ['Commissions', 'Track commission records generated from referred bookings.'],
+    withdrawals: ['Withdrawals', 'Request and review promoter withdrawals and wallet payout status.'],
+    payouts: ['Payout History', 'Review paid, pending, and available promoter payout rows.'],
+    'promoter-support': ['Promoter Support', 'Create and review support cases for links, commissions, withdrawals, and verification.'],
+    'promoter-profile': ['Profile', 'Update promoter identity, payout account, referral code, and verification state.'],
+    'driver-ops': ['Driver Operations', 'Review assigned trips, status updates, vehicles, departure times, and operational state.'],
+    'driver-manifest': ['Manifest', 'Review passenger or guest manifests scoped to assigned trips and company operations.'],
+    'driver-incidents': ['Incidents', 'Log and review route, vehicle, customer, safety, and service incidents.']
   };
   if (companyServiceProfile && companyServiceProfile.pageMeta) { Object.entries(companyServiceProfile.pageMeta).forEach(([key, meta]) => { if (Array.isArray(meta)) pageMeta[key] = meta; }); }
   if (shell && Array.isArray(shell.groups)) { shell.groups.forEach(group => (group.items || []).forEach(item => { if (!pageMeta[item.page]) pageMeta[item.page] = [item.label || item.page, shell.subtitle || 'Classic Trip dashboard']; })); }
@@ -3867,9 +3969,12 @@ window.addEventListener('DOMContentLoaded', function () {
   function canonicalPage(page) {
     const role = shell.currentRole || 'admin';
     const aliases = {
-      employee: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', shift: 'handover', 'shift-handover': 'handover', 'my-profile': 'profile', 'driver-manifest': 'manifests', 'driver-ops': 'schedules', 'driver-incidents': 'support', customers: 'manifests' },
-      driver: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', shift: 'handover', 'shift-handover': 'handover', 'my-profile': 'profile', 'driver-manifest': 'manifests', 'driver-ops': 'schedules', 'driver-incidents': 'support', customers: 'manifests' },
-      operations: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', 'driver-manifest': 'manifests', 'driver-ops': 'schedules' }
+          company: { payouts: 'settlement' },
+          customer: { refunds: 'customer-refunds', support: 'customer-support', reviews: 'customer-reviews', notifications: 'customer-notifications', profile: 'customer-profile' },
+      promoter: { support: 'promoter-support', profile: 'promoter-profile' },
+      employee: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', shift: 'handover', 'shift-handover': 'handover', 'my-profile': 'profile' },
+      driver: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps', shift: 'handover', 'shift-handover': 'handover', 'my-profile': 'profile' },
+      operations: { checkin: 'checkins', schedule: 'schedules', inventory: 'seat-maps' }
     };
     return aliases[role]?.[page] || page;
   }
@@ -3972,6 +4077,9 @@ window.addEventListener('DOMContentLoaded', function () {
     const currentRole = shell.currentRole || 'admin';
     const isCompanyRole = currentRole === 'company';
     const isEmployeeRole = currentRole === 'employee';
+    const serviceListingTypes = ['bus','hotel','flight','train','tour','car_rental','event','cargo','insurance','corporate','loyalty'];
+    const requestedServiceListing = serviceListingTypes.find(serviceType => key === `${serviceType} listing` || key === `${serviceType.replace('_', '-')} listing`);
+    const requestedServiceLabel = requestedServiceListing ? requestedServiceListing.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
     const companyServiceType = String(companyServiceProfile.primaryServiceType || 'partner').replace('-', '_');
     const serviceLabel = companyServiceProfile.primaryLabel || 'Service';
     const dayOptions = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -4634,14 +4742,16 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'addons', label:'Add-ons', icon:'fa-plus', placeholder:'luggage,meal' }
       ]
     };
-    if (key === 'listing') return {
-      action: '/admin/listings', submit: 'Create listing',
+    if (key === 'listing' || requestedServiceListing) return {
+      action: '/admin/listings', submit: requestedServiceListing ? `Create ${requestedServiceLabel} listing` : 'Create listing',
       fields: [
         { name:'companyId', label:'Partner', type:'select', icon:'fa-building', options:companies, required:true },
-        { name:'title', label:'Title', icon:'fa-pen', required:true, placeholder:'Kampala to Nairobi coach' },
-        { name:'serviceType', label:'Service type', type:'select', icon:'fa-layer-group', options:['bus','hotel','flight','train','tour','car_rental','event','cargo','insurance','corporate','loyalty'] },
-        { name:'from', label:'From', icon:'fa-location-dot', placeholder:'Kampala' },
-        { name:'to', label:'To / location', icon:'fa-location-dot', placeholder:'Nairobi' },
+        { name:'title', label:'Title', icon:'fa-pen', required:true, placeholder: requestedServiceListing === 'hotel' ? 'Kampala City Hotel' : requestedServiceListing === 'event' ? 'Weekend travel event' : requestedServiceListing ? `${requestedServiceLabel} service` : 'Kampala to Nairobi coach' },
+        ...(requestedServiceListing
+          ? [{ name:'serviceType', type:'hidden', value: requestedServiceListing }]
+          : [{ name:'serviceType', label:'Service type', type:'select', icon:'fa-layer-group', options:serviceListingTypes }]),
+        { name:'from', label: requestedServiceListing === 'hotel' ? 'Location / area' : 'From', icon:'fa-location-dot', placeholder:'Kampala' },
+        { name:'to', label: requestedServiceListing === 'hotel' ? 'Nearby landmark' : 'To / location', icon:'fa-location-dot', placeholder: requestedServiceListing === 'hotel' ? 'City center' : 'Nairobi' },
         { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Plot 1 Main Street', showFor:['hotel','car_rental','event','insurance'] },
         { name:'layout', label:'Default layout', type:'select', icon:'fa-chair', options:['bus-2-2','bus-2-1','flight','train','slots'], showFor:['bus','flight','train','tour','event'] },
         { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:'14:00', showFor:'hotel' },
@@ -5147,6 +5257,131 @@ window.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function customerTicketRows() {
+    if (Array.isArray(data.bookings) && data.bookings.length) return data.bookings.slice(0, 1);
+    const ticket = data.currentTicket && typeof data.currentTicket === 'object' ? data.currentTicket : null;
+    if (!ticket) return [];
+    const booking = ticket.booking || ticket;
+    const service = ticket.service || {};
+    const customer = ticket.customer || {};
+    return [[
+      booking.bookingRef || booking.id || 'Current ticket',
+      service.title || booking.serviceTitle || booking.serviceType || 'Booked service',
+      ticket.company?.name || booking.companyName || '-',
+      booking.travelDate || booking.departure || booking.createdAt || '-',
+      customer.fullName || booking.passengerName || booking.customerName || '-',
+      booking.status || booking.bookingStatus || 'Active',
+      booking.total || booking.amount || '-',
+      { entity: 'ticket', id: booking.bookingRef || booking.id || 'current-ticket', detail: ticket },
+    ]];
+  }
+
+  function customerPassengerRows() {
+    if (Array.isArray(data.passengers) && data.passengers.length) return data.passengers;
+    return (data.bookings || []).flatMap((row) => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      const detail = meta?.detail || {};
+      const booking = detail.booking || {};
+      const customer = detail.customer || booking.guestSnapshot || {};
+      const passengers = Array.isArray(booking.passengers) && booking.passengers.length ? booking.passengers : [customer].filter(item => Object.keys(item || {}).length);
+      return passengers.map((passenger, index) => [
+        passenger.fullName || passenger.name || cells[2] || 'Passenger',
+        booking.bookingRef || cells[0] || '-',
+        passenger.seatOrRoom || passenger.seatNumber || passenger.roomNumber || cells[4] || '-',
+        passenger.phone || customer.phone || '-',
+        passenger.email || customer.email || '-',
+        booking.bookingStatus || booking.status || cells[5] || 'Booked',
+        { entity: 'passenger', id: passenger.id || `${cells[0] || 'booking'}-${index}`, detail: { passenger, booking, customer, source: detail } },
+      ]);
+    });
+  }
+
+  function customerRefundRows() {
+    return (data.refunds || []).map((row) => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      return [
+        cells[0] || 'Refund',
+        cells[1] || '-',
+        data.profile?.fullName || shell.profileName || 'Customer',
+        cells[2] || cells[3] || '-',
+        cells[3] || cells[4] || '-',
+        cells[4] || cells[5] || 'Pending',
+        meta,
+      ];
+    });
+  }
+
+  function customerSupportRows() {
+    return (data.support || []).map((row) => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      return [
+        cells[0] || 'Case',
+        cells[2] || cells[1] || 'Support request',
+        cells[3] || 'Normal',
+        cells[4] || 'Open',
+        cells[5] || '-',
+        cells[1] || 'General',
+        meta,
+      ];
+    });
+  }
+
+  function driverManifestRows() {
+    const bookingRows = data.bookings || [];
+    return bookingRows.flatMap((row) => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      const detail = meta?.detail || {};
+      const booking = detail.booking || {};
+      const customer = detail.customer || booking.guestSnapshot || {};
+      const passengers = Array.isArray(booking.passengers) && booking.passengers.length ? booking.passengers : [customer].filter(item => Object.keys(item || {}).length);
+      return passengers.map((passenger, index) => [
+        passenger.fullName || passenger.name || cells[2] || 'Passenger',
+        booking.bookingRef || cells[0] || '-',
+        passenger.seatOrRoom || passenger.seatNumber || passenger.roomNumber || cells[3] || '-',
+        passenger.phone || customer.phone || '-',
+        detail.payment?.status || booking.paymentStatus || '-',
+        booking.checkInStatus || cells[5] || 'Pending',
+        booking.bookingStatus || cells[5] || 'Booked',
+        { entity: 'manifest_passenger', id: passenger.id || `${cells[0] || 'manifest'}-${index}`, detail: { passenger, booking, customer, source: detail } },
+      ]);
+    });
+  }
+
+  function promoterSupportRows() {
+    return (data.support || []).map((row) => {
+      const meta = rowMeta(row);
+      const cells = rowCells(row);
+      return [
+        cells[0] || 'Case',
+        cells[1] || 'Promoter support',
+        cells[2] || 'Normal',
+        cells[3] || 'Open',
+        cells[4] || '-',
+        'Promoter',
+        meta,
+      ];
+    });
+  }
+
+  function renderPromoterPerformance() {
+    const performance = data.performance && typeof data.performance === 'object' ? data.performance : {};
+    const bars = Array.isArray(performance.bars) && performance.bars.length ? performance.bars : [['Clicks', 68], ['Bookings', 42], ['Commission', 54], ['Payouts', 36]];
+    fillBars('promoterPerformanceBars', bars);
+    const channels = [
+      ...(Array.isArray(performance.bestListings) ? performance.bestListings.map(item => ['Listing', item]) : []),
+      ...(Array.isArray(performance.bestCompanies) ? performance.bestCompanies.map(item => ['Company', item]) : []),
+    ].slice(0, 6);
+    setHtml('#promoterBestChannels', (channels.length ? channels : [['Channel', 'No performance records yet']]).map(([type, label], index) => `
+      <div class="metricRow">
+        <div><strong>${escapeHtml(label || '-')}</strong><span>${escapeHtml(type)} ${index + 1}</span></div>
+        <b class="badge ${index < 2 ? 'ok' : 'info'}">${index < 2 ? 'Top' : 'Track'}</b>
+      </div>`).join(''));
+  }
+
   function init() {
     fillOverviewStats();
     fillRecent();
@@ -5185,6 +5420,29 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#kycBankTable', data.kyc.filter(r => /bank|mismatch/i.test(r[3]) || /bank|mismatch/i.test(r[5])), 'kyc');
     fillTable('#kycExpiredTable', data.kyc.filter(r => /expired/i.test(r[1]) || /expired/i.test(r[5])), 'kyc');
     fillTable('#refundsTable', data.refunds, 'refunds');
+    fillTable('#customerTicketTable', customerTicketRows());
+    fillTable('#customerSavedTable', data.saved, 'generic');
+    fillTable('#customerPassengersTable', customerPassengerRows(), 'generic');
+    fillTable('#customerReceiptsTable', data.receipts, 'generic');
+    fillTable('#customerWalletTable', data.wallet, 'generic');
+    fillTable('#customerSecurityTable', data.security, 'generic');
+    fillTable('#customerRefundsTable', customerRefundRows(), 'refunds');
+    fillTable('#customerSupportTable', customerSupportRows(), 'support');
+    fillTable('#customerReviewsTable', data.reviews, 'generic');
+    fillTable('#customerNotificationsTable', data.notifications, 'notifications');
+    fillTable('#promoterLinksTable', data.links, 'generic');
+    fillTable('#promoterShareTable', data.share, 'generic');
+    fillTable('#promoterCampaignsTable', data.campaigns, 'generic');
+    fillTable('#promoterOfflineSalesTable', data.offlineSales.length ? data.offlineSales : data.agentSales, 'generic');
+    fillTable('#promoterFraudTable', data.fraud.length ? data.fraud : data.fraudSignals, 'generic');
+    fillTable('#promoterCommissionsTable', data.commissions, 'generic');
+    fillTable('#promoterWithdrawalsTable', data.withdrawals, 'generic');
+    fillTable('#promoterPayoutsTable', data.payouts, 'generic');
+    fillTable('#promoterSupportTable', promoterSupportRows(), 'support');
+    fillTable('#driverOpsTable', data.driverOps.length ? data.driverOps : data.schedules, 'generic');
+    fillTable('#driverManifestTable', driverManifestRows(), 'generic');
+    fillTable('#driverIncidentsTable', data.driverIncidents.length ? data.driverIncidents : data.support, 'generic');
+    renderPromoterPerformance();
     fillTable('#employeeHandoversTable', data.handovers, 'generic');
     fillTable('#notificationsTable', data.notifications, 'notifications');
     fillTable('#companyBranchesTable', data.branches || [], 'generic');
