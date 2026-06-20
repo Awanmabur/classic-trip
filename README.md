@@ -1,6 +1,6 @@
 # Classic Trip Platform
 
-This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built from the uploaded Classic Trip blueprint and the provided HTML designs. The marketplace design is preserved from `classic_trip_multi_tenant_booking_pages_v22(1).html`; the uploaded dashboards are copied into role routes unchanged so the visual direction stays intact.
+Classic Trip is a Node.js + Express + MongoDB + Mongoose + EJS monolith for a multi-tenant travel marketplace. Public booking, company operations, employee/driver tools, customer accounts, promoter workflows, and super-admin controls now run through one production dashboard system with role-scoped data and actions.
 
 ## What is implemented
 
@@ -22,10 +22,11 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
   - `/tickets/:bookingRef.pdf`
   - `/blogs`
   - `/health`
-- Role dashboard routes using the uploaded visual prototypes:
+- Unified role dashboard routes:
   - `/admin`
   - `/company/dashboard`
   - `/employee/dashboard`
+  - `/driver/dashboard`
   - `/account`
   - `/promoter/dashboard`
 - Clean route file names: `public.js`, `auth.js`, `customer.js`, `company.js`, `employee.js`, `promoter.js`, `admin.js`.
@@ -42,7 +43,7 @@ This is a Node.js + Express + MongoDB + Mongoose + EJS monolith scaffold built f
 - Promotion/sponsored listing logic where sponsored listings remain visibly labeled.
 - Scheduled jobs for commission release, promotion expiry, booking reminders, expired locks and payout reports. They run in production or when `ENABLE_JOBS=true`.
 - Release roadmap API for v1, teaser, architecture-ready, and future platform features.
-- Integration and unit coverage for booking flow, commission splits, company management, platform hardening, scheduled jobs, ticket PDFs, webhooks and promoter link archive behavior.
+- Integration and unit coverage for booking flow, driver manifests, hotel operations, support timelines, commission splits, company management, platform hardening, ticket PDFs, webhooks, promoter/agent workflows, and acceptance criteria.
 
 ## First run
 
@@ -116,4 +117,23 @@ Production ticket PDFs are generated with PDFKit at `/tickets/:bookingRef.pdf`. 
 
 The implementation is MongoDB-first with seeded platform records, transaction-style checkout persistence, seat and hotel room-night locking, signed/idempotent webhook processing, scoped dashboard routes, support/partner onboarding, refund and wallet reversal flows, scheduled cleanup jobs, configurable payment providers, and locally generated ticket PDFs with Cloudinary upload support when production credentials are present.
 
-See `FINAL_CHANGE_REPORT.md` for the full implementation summary and verification results.
+Recommended release checks:
+
+```bash
+npm run check
+npm run check:dashboards
+npm run check:dashboard-smoke-static
+npm run acceptance:matrix
+npm run test:acceptance
+npm test
+```
+
+## Production package cleanup
+
+Tests and audit evidence stay in the repository so the platform remains verifiable. They are excluded from production deploy/package payloads through `.slugignore`, `.npmignore`, and `.dockerignore`.
+
+Runtime-required folders are:
+
+- `src/` application code, views, models, routes, services, seeds, jobs, config, and middleware.
+- `public/` active CSS/JS assets served by Express.
+- `package.json`, `package-lock.json`, `Procfile`, `.env.example`, and runtime config files.

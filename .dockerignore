@@ -1,0 +1,11 @@
+node_modules
+tests
+docs
+coverage
+.nyc_output
+tmp
+*.zip
+*.log
+.env
+.git
+

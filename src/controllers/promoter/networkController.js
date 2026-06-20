@@ -20,7 +20,7 @@ function createEnhancedLink(req, res, next) {
 function qrCard(req, res, next) {
   try {
     const card = networkService.createQrReferralCard(promoterId(req), req.params.id);
-    res.render('pages/promoter-qr-card', { title: 'Promoter QR Referral Card', layout: 'layouts/main', card, csrfToken: req.csrfToken?.() || '' });
+    res.render('pages/promoter-qr-card', { title: 'Promoter QR Referral Card', card, csrfToken: req.csrfToken?.() || '' });
   } catch (error) { next(error); }
 }
 

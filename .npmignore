@@ -1,0 +1,10 @@
+# Exclude non-runtime assets if this app is packaged.
+tests/
+docs/
+coverage/
+.nyc_output/
+tmp/
+*.zip
+*.log
+.env
+

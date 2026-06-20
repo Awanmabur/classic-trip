@@ -1,0 +1,9 @@
+# Keep production deploy slugs focused on runtime code.
+tests/
+docs/
+coverage/
+.nyc_output/
+tmp/
+*.zip
+*.log
+
