@@ -197,10 +197,21 @@
             <a class="btn btnPrimary" href="/company/dashboard#promotions"><i class="fa-solid fa-plus"></i> Promote listing</a>
           </div>
           <div class="gridCards" id="adsCards">
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda ⇄ Kenya.</p><button class="btn btnGhost" onclick="scrollToSectionId('bus')">View buses</button></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-hotel"></i></div><h3>Promote hotel rooms</h3><p>Advertise rooms, apartments, houses and special weekend offers.</p><button class="btn btnGhost" onclick="scrollToSectionId('hotel')">View hotels</button></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-plane"></i></div><h3>Flight campaign</h3><p>Promote flights with baggage deals, class upgrades and seasonal prices.</p><button class="btn btnGhost" onclick="scrollToSectionId('flight')">View flights</button></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><a class="btn btnGhost" href="/company/dashboard#promotions">Open analytics</a></article>
+<% var sponsored = (bootstrap.listings || []).filter(function(l) { return l.isSponsored; }).slice(0, 4); %>
+<% if (sponsored.length) { sponsored.forEach(function(l) { var svcIcon = l.serviceType === 'hotel' ? 'fa-hotel' : l.serviceType === 'flight' ? 'fa-plane' : l.serviceType === 'train' ? 'fa-train' : l.serviceType === 'ferry' ? 'fa-ship' : l.serviceType === 'tour' ? 'fa-map-location-dot' : l.serviceType === 'car_rental' ? 'fa-car' : 'fa-bus'; %>
+            <article class="promoCard">
+              <div class="promoIcon"><i class="fa-solid <%= svcIcon %>"></i></div>
+              <span class="badge badgeWarn" style="width:max-content;margin-bottom:8px"><i class="fa-solid fa-star"></i> Promoted</span>
+              <h3><%= l.title %></h3>
+              <p><%= l.partner || l.companyName || '' %><% if (l.routeLabel || l.origin) { %> &bull; <%= l.routeLabel || l.origin %><% } %></p>
+              <a class="btn btnGhost" href="<%= l.url %>"><i class="fa-regular fa-eye"></i> View listing</a>
+            </article>
+<% }); } else { %>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda ⇄ Kenya.</p><a class="btn btnGhost" href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> View buses</a></article>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-hotel"></i></div><h3>Promote hotel rooms</h3><p>Advertise rooms, apartments, houses and special weekend offers.</p><a class="btn btnGhost" href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> View hotels</a></article>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-plane"></i></div><h3>Flight campaign</h3><p>Promote flights with baggage deals, class upgrades and seasonal prices.</p><a class="btn btnGhost" href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> View flights</a></article>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><a class="btn btnGhost" href="/company/dashboard#promotions"><i class="fa-solid fa-chart-line"></i> Open analytics</a></article>
+<% } %>
           </div>
         </section>
 
@@ -220,6 +231,24 @@
             <a class="btn btnGhost" href="/admin/dashboard#content"><i class="fa-solid fa-pen-nib"></i> Write blog</a>
           </div>
           <div class="gridCards" id="blogCards">
+<% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
+            <article class="promoCard blogCard">
+              <div class="blogImage">
+                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
+                <span class="badge <%= badgeCls %> blogTag"><%= post.tag || 'Guide' %></span>
+                <div class="blogIconActions">
+                  <a class="miniIcon" href="<%= post.url %>" title="Read"><i class="fa-regular fa-eye"></i></a>
+                  <button class="miniIcon" title="Share" data-t="<%= post.title %>" data-u="<%= post.url %>" onclick="try{navigator.share({title:this.dataset.t,url:location.origin+this.dataset.u})}catch(e){}"><i class="fa-solid fa-share-nodes"></i></button>
+                </div>
+              </div>
+              <div class="blogBody">
+                <h3><%= post.title %></h3>
+                <div class="blogMeta"><% if (post.publishedAt) { %><span><i class="fa-regular fa-calendar"></i> <%= new Date(post.publishedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) %></span><% } %></div>
+                <p><%= post.excerpt %></p>
+                <div class="blogActions"><a class="btn btnGhost" href="<%= post.url %>"><i class="fa-regular fa-eye"></i> Read more</a></div>
+              </div>
+            </article>
+<% }); } else { %>
             <article class="promoCard blogCard">
               <div class="blogImage">
                 <img src="https://images.unsplash.com/photo-1517840901100-8179e982acb7?auto=format&fit=crop&w=1200&q=70" alt="Kampala to Nairobi route guide">
@@ -234,7 +263,7 @@
                 <h3>Kampala to Nairobi: what travelers should know</h3>
                 <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 06 May 2026</span><span><i class="fa-regular fa-clock"></i> 4 min read</span><span><i class="fa-solid fa-location-dot"></i> Uganda ⇄ Kenya</span></div>
                 <p>Departure points, border documents, luggage tips, seat selection and how the 10-minute hold works.</p>
-                <div class="blogActions"><button class="btn btnGhost" onclick="openBlog('route')"><i class="fa-regular fa-eye"></i> Read more</button></div>
+                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
               </div>
             </article>
 
@@ -252,7 +281,7 @@
                 <h3>How to choose rooms, houses and apartments safely</h3>
                 <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 04 May 2026</span><span><i class="fa-regular fa-clock"></i> 3 min read</span><span><i class="fa-solid fa-door-open"></i> Room map</span></div>
                 <p>Compare rooms, view structures, check amenities, save favorites and open receipts later.</p>
-                <div class="blogActions"><button class="btn btnGhost" onclick="openBlog('hotel')"><i class="fa-regular fa-eye"></i> Read more</button></div>
+                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
               </div>
             </article>
 
@@ -270,7 +299,7 @@
                 <h3>How partner promotions help companies get bookings</h3>
                 <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 01 May 2026</span><span><i class="fa-regular fa-clock"></i> 5 min read</span><span><i class="fa-solid fa-chart-line"></i> Ads</span></div>
                 <p>Boosted listings, banners, referral links and ad analytics can grow partner sales.</p>
-                <div class="blogActions"><button class="btn btnGhost" onclick="openBlog('promo')"><i class="fa-regular fa-eye"></i> Read more</button></div>
+                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
               </div>
             </article>
 
@@ -288,9 +317,10 @@
                 <h3>Where to find tickets after Gmail or WhatsApp delivery</h3>
                 <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 29 Apr 2026</span><span><i class="fa-regular fa-clock"></i> 2 min read</span><span><i class="fa-solid fa-envelope-circle-check"></i> My bookings</span></div>
                 <p>Open receipts, resend tickets, view QR codes and access bookings from the customer dashboard.</p>
-                <div class="blogActions"><button class="btn btnGhost" onclick="openBlog('tickets')"><i class="fa-regular fa-eye"></i> Read more</button></div>
+                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
               </div>
             </article>
+<% } %>
           </div>
         </section>
 
@@ -338,35 +368,33 @@
 
       <div class="footerCol">
         <h3>Book & manage</h3>
-        <a href="#bus" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-bus"></i> Buses</a>
-        <a href="#hotel" onclick="scrollToSectionId('hotel')"><i class="fa-solid fa-hotel"></i> Hotels</a>
-        <a href="#flight" onclick="scrollToSectionId('flight')"><i class="fa-solid fa-plane"></i> Flights</a>
-        <a href="#train" onclick="scrollToSectionId('train')"><i class="fa-solid fa-train"></i> Trains</a>
-        <a href="#my-bookings" onclick="scrollToSectionId('my-bookings')"><i class="fa-solid fa-ticket"></i> My bookings</a>
-        <a href="#saved" onclick="scrollToSectionId('saved')"><i class="fa-regular fa-heart"></i> Saved trips</a>
-        <a href="#blogs" onclick="scrollToSectionId('blogs')"><i class="fa-regular fa-newspaper"></i> Travel blogs</a>
+        <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
+        <a href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> Hotels</a>
+        <a href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> Flights</a>
+        <a href="/search?serviceType=train"><i class="fa-solid fa-train"></i> Trains</a>
+        <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
+        <a href="/account"><i class="fa-regular fa-user"></i> My account</a>
+        <a href="/blogs"><i class="fa-regular fa-newspaper"></i> Travel blogs</a>
       </div>
 
       <div class="footerCol">
-        <h3>Promotions & partners</h3>
-        <a href="#ads" onclick="scrollToSectionId('ads')"><i class="fa-solid fa-bullhorn"></i> Promoted listings</a>
-        <span><i class="fa-solid fa-chart-line"></i> Boost company services</span>
-        <span><i class="fa-solid fa-users"></i> Promoter referral links</span>
-        <span><i class="fa-solid fa-percent"></i> 3% promoter commission</span>
-        <span><i class="fa-solid fa-building"></i> Partner dashboards</span>
-        <span><i class="fa-solid fa-wallet"></i> Payout tracking</span>
+        <h3>Partners & promoters</h3>
+        <a href="/pricing"><i class="fa-solid fa-layer-group"></i> Partner plans</a>
+        <a href="/partner/onboarding"><i class="fa-solid fa-arrow-right"></i> Become a partner</a>
+        <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
+        <a href="/companies"><i class="fa-solid fa-building"></i> Browse partners</a>
+        <a href="/company/dashboard"><i class="fa-solid fa-chart-line"></i> Partner dashboard</a>
+        <a href="/pricing"><i class="fa-solid fa-percent"></i> 3% promoter commission</a>
       </div>
 
       <div class="footerCol">
-        <h3>Brand, legal & help</h3>
-        <span><i class="fa-solid fa-circle-info"></i> About Classic Trip</span>
-        <span><i class="fa-solid fa-book-open"></i> Brand story & media kit</span>
-        <span><i class="fa-solid fa-file-contract"></i> Terms & conditions</span>
-        <span><i class="fa-solid fa-user-shield"></i> Privacy policy</span>
-        <span><i class="fa-solid fa-cookie-bite"></i> Cookie policy</span>
-        <span><i class="fa-solid fa-rotate-left"></i> Refund policy</span>
-        <span><i class="fa-solid fa-triangle-exclamation"></i> Cancellation rules</span>
-        <span><i class="fa-solid fa-envelope"></i> Contact support</span>
+        <h3>Legal & help</h3>
+        <a href="/how-it-works"><i class="fa-solid fa-circle-info"></i> About Classic Trip</a>
+        <a href="/terms"><i class="fa-solid fa-file-contract"></i> Terms & conditions</a>
+        <a href="/privacy"><i class="fa-solid fa-user-shield"></i> Privacy policy</a>
+        <a href="/terms#refunds"><i class="fa-solid fa-rotate-left"></i> Refund policy</a>
+        <a href="/terms#cancellation"><i class="fa-solid fa-triangle-exclamation"></i> Cancellation rules</a>
+        <a href="/support"><i class="fa-solid fa-envelope"></i> Contact support</a>
       </div>
     </div>
     <div class="footerBottom">

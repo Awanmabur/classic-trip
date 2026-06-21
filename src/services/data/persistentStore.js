@@ -1076,6 +1076,7 @@ function homeBootstrap() {
     bookings: state.bookings.slice(0, 8).map(frontendBooking),
     promoterLinks: state.promoterLinks.slice(0, 12).map(publicPromoterLink),
     campaigns: state.promotionCampaigns.map(publicCampaign),
+    blogs: state.blogs.filter((b) => b.status === 'published').slice(0, 4).map(publicBlog),
     serviceStats: serviceStats(),
     corridorStats: corridorStats(),
     marketplace,
@@ -1166,6 +1167,20 @@ function publicCampaign(campaign) {
     ...campaign,
     listing: findListing(campaign.listingId),
     company: findCompany(campaign.companyId),
+  };
+}
+
+function publicBlog(blog) {
+  return {
+    id: blog.id,
+    slug: blog.slug,
+    title: blog.title,
+    excerpt: blog.excerpt || '',
+    tag: blog.tag || 'Guide',
+    image: blog.image || '',
+    imageAlt: blog.imageAlt || blog.title || '',
+    publishedAt: blog.publishedAt ? new Date(blog.publishedAt).toISOString() : null,
+    url: `/blogs/${blog.slug}`,
   };
 }
 
@@ -5020,6 +5035,7 @@ module.exports = {
   frontendBooking,
   publicPromoterLink,
   publicCampaign,
+  publicBlog,
   buildListingCatalog,
   marketplaceInfo,
   listingPreview,
