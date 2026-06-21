@@ -2499,7 +2499,7 @@
         <div class="manifestLayout <%= (!isCompanyDashboard && companySupportsTransport && companySupportsHotel) ? 'is-split' : '' %>">
           <% if(!isCompanyDashboard || companySupportsTransport){ %>
           <div class="card">
-            <div class="financeHeroTop" style="padding-bottom:16px;border-bottom:1px solid var(--line2);margin-bottom:16px">
+            <div class="financeHeroTop" style="padding:16px;border-bottom:1px solid var(--line2);margin-bottom:0">
               <div>
                 <h3 style="margin:0;font-size:22px;letter-spacing:-.5px">Passenger Manifests</h3>
                 <p style="margin:6px 0 0;color:var(--muted);line-height:1.55;font-size:13px;font-weight:780">Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p>
@@ -2511,7 +2511,7 @@
             <div class="cardHead" style="padding-bottom:12px">
               <div class="cardTitle"><h3>Schedule summary</h3><p>Live snapshot of departure schedules, seat occupancy, and manifest readiness.</p></div>
             </div>
-            <div class="financeKpis">
+            <div class="financeKpis" style="padding:0 16px">
               <div class="financeKpi"><span>Schedules</span><strong><%= busManifestCount %></strong><small>Active departures</small></div>
               <div class="financeKpi"><span>Booked seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalBooked||0),0) %></strong><small>Confirmed passengers</small></div>
               <div class="financeKpi"><span>Held seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalHeld||0),0) %></strong><small>Pending payment</small></div>
@@ -2520,25 +2520,26 @@
             <div class="cardHead">
               <div class="cardTitle"><h3>Filter schedules</h3><p>Search by route, vehicle, date, or manifest status.</p></div>
             </div>
-            <div class="dashboardFilters" data-filter-target="#companyBusManifestTable">
+            <div class="dashboardFilters" style="margin:0 16px 12px" data-filter-target="#companyBusManifestTable">
               <div class="field"><label>Search schedules</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Schedule, route, vehicle, date"></div></div>
               <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="published">Published</option><option value="boarding">Boarding</option><option value="departed">Departed</option><option value="completed">Completed</option><option value="active">Active</option></select></div></div>
               <div class="field"><label>Manifest type</label><div class="control"><i class="fa-solid fa-list-check"></i><select data-filter-select><option value="">All manifests</option><option value="booked">Booked seats</option><option value="held">Held seats</option><option value="ready">Ready for print</option></select></div></div>
               <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
             </div>
             <div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route</th><th>Vehicle</th><th>Date / departure</th><th>Booked</th><th>Held</th><th>Status</th><th></th></tr></thead><tbody id="companyBusManifestTable"></tbody></table></div>
-            <div class="filterEmpty" data-empty-for="#companyBusManifestTable">No manifests match the current filters.</div>
+            <div class="filterEmpty" style="padding:0 16px" data-empty-for="#companyBusManifestTable">No manifests match the current filters.</div>
             <div class="manifestPassengerBlock">
               <div class="cardHead"><div class="cardTitle"><h3>Passenger-level boarding list</h3><p>Seat-by-seat passengers with ticket, phone, payment, check-in, no-show, and operational actions.</p></div><a class="btn" href="/company/manifests.csv"><i class="fa-solid fa-file-csv"></i> Export passengers</a></div>
-              <div class="dashboardFilters" data-filter-target="#companyBusPassengerManifestTable">
+              <div class="dashboardFilters" style="margin:0 16px 12px" data-filter-target="#companyBusPassengerManifestTable">
                 <div class="field"><label>Search passengers</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Passenger, booking, phone, seat"></div></div>
                 <div class="field"><label>Payment</label><div class="control"><i class="fa-solid fa-money-check"></i><select data-filter-select><option value="">All payments</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div></div>
                 <div class="field"><label>Check-in</label><div class="control"><i class="fa-solid fa-qrcode"></i><select data-filter-select><option value="">All check-ins</option><option value="checked">Checked in</option><option value="pending">Pending</option><option value="no-show">No-show</option></select></div></div>
                 <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
               </div>
               <div class="tableWrap"><table><thead><tr><th>Seat</th><th>Passenger</th><th>Booking</th><th>Phone</th><th>Payment</th><th>Check-in</th><th>Status</th><th></th></tr></thead><tbody id="companyBusPassengerManifestTable"></tbody></table></div>
-              <div class="filterEmpty" data-empty-for="#companyBusPassengerManifestTable">No passengers match the current filters.</div>
+              <div class="filterEmpty" style="padding:0 16px" data-empty-for="#companyBusPassengerManifestTable">No passengers match the current filters.</div>
             </div>
+            <div style="height:16px"></div>
           </div>
           <% } %>
           <% if(!isCompanyDashboard || companySupportsHotel){ %>
