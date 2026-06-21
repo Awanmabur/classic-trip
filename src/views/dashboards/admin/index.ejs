@@ -27,6 +27,7 @@
       --ok:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
+      --danger:#ef4444;
       --shadow:0 22px 70px rgba(0,0,0,.26);
       --shadow2:0 14px 38px rgba(0,0,0,.18);
     }
@@ -36,6 +37,7 @@
       --bg1:#050814;
       --cardA:rgba(255,255,255,.07);
       --cardB:rgba(255,255,255,.035);
+      --card:#07101f;
       --soft:rgba(255,255,255,.048);
       --line:rgba(255,255,255,.10);
       --line2:rgba(255,255,255,.065);
@@ -54,6 +56,7 @@
       --bg1:#e6edf7;
       --cardA:rgba(255,255,255,.92);
       --cardB:rgba(255,255,255,.78);
+      --card:#eef2ff;
       --soft:rgba(15,23,42,.045);
       --line:rgba(15,23,42,.105);
       --line2:rgba(15,23,42,.065);
@@ -70,7 +73,13 @@
     }
 
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
+    html{
+      scroll-behavior:smooth;
+      background:var(--bg0);
+      scrollbar-color:rgba(255,255,255,.22) var(--bg0);
+      scrollbar-width:thin;
+    }
+    html[data-theme="light"]{scrollbar-color:rgba(15,23,42,.28) var(--bg0)}
     body{
       margin:0;
       min-height:100vh;
@@ -98,11 +107,11 @@
     button{cursor:pointer}
     :focus,:focus-visible{outline:none!important;box-shadow:none!important}
 
-    ::-webkit-scrollbar{width:10px;height:10px}
-    ::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:20px}
-    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:20px;border:2px solid transparent;background-clip:content-box}
-    html[data-theme="light"] ::-webkit-scrollbar-track{background:rgba(15,23,42,.04)}
-    html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.16);border:2px solid transparent;background-clip:content-box}
+    ::-webkit-scrollbar{width:8px;height:8px}
+    ::-webkit-scrollbar-track{background:var(--bg0)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:20px;border:2px solid var(--bg0);background-clip:padding-box}
+    html[data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg0)}
+    html[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.28);border-radius:20px;border:2px solid var(--bg0);background-clip:padding-box}
 
     .app{
       width:var(--container);
@@ -1414,7 +1423,9 @@
       padding:7px 4px 3px;
       justify-content:center;
       scrollbar-width:thin;
+      scrollbar-color:rgba(255,255,255,.13) rgba(255,255,255,.035);
     }
+    html[data-theme="light"] .busCabinDeck{scrollbar-color:rgba(15,23,42,.16) rgba(15,23,42,.04)}
     .busSeatRow{
       display:grid;
       grid-template-columns:66px 66px 34px 66px 66px;
@@ -1435,7 +1446,7 @@
       border-radius:15px 15px 11px 11px;
       border:1px solid var(--line2);
       background:var(--input);
-      color:#fff;
+      color:var(--text);
       font-size:10px;
       font-weight:1000;
       line-height:1.05;
@@ -1737,7 +1748,7 @@
     .mediaUploadForm .field.full{grid-column:1/-1;}
     .mediaUploadForm .btn{grid-column:1/-1;justify-content:center;}
     .documentList{display:grid;gap:9px;max-height:330px;overflow:auto;padding-right:2px;}
-    .documentItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff;}
+    .documentItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--soft);}
     .documentItem strong{display:block;font-size:12px;line-height:1.25;}
     .documentItem span{display:block;font-size:11px;color:var(--muted);font-weight:800;margin-top:2px;}
     .documentActions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
@@ -2598,9 +2609,9 @@
         </div>
         <div class="card">
           <div class="cardHead"><div class="cardTitle"><h3>Booking-level revenue ledger</h3><p>Each booking shows the split, refund debit, and settlement status.</p></div></div>
-          <div class="dashboardFilters" data-filter-target="#companyRevenueTable"><div class="field"><label>Search revenue</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Booking, transaction, bus, hotel, status"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="pending">Pending</option><option value="release ready">Release ready</option><option value="released">Released</option><option value="paid">Paid</option><option value="refund">Refund impact</option></select></div></div><div class="field"><label>Service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select data-filter-select><option value="">All services</option><option value="bus">Bus</option><option value="hotel">Hotel</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div>
+          <div class="dashboardFilters" style="margin:0 16px 12px" data-filter-target="#companyRevenueTable"><div class="field"><label>Search revenue</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Booking, transaction, bus, hotel, status"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="pending">Pending</option><option value="release ready">Release ready</option><option value="released">Released</option><option value="paid">Paid</option><option value="refund">Refund impact</option></select></div></div><div class="field"><label>Service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select data-filter-select><option value="">All services</option><option value="bus">Bus</option><option value="hotel">Hotel</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div>
           <div class="tableWrap"><table><thead><tr><th>Txn</th><th>Booking</th><th>Service</th><th>Gross</th><th>Company</th><th>Platform</th><th>Promoter</th><th>Refund</th><th>Net</th><th>Status</th><th></th></tr></thead><tbody id="companyRevenueTable"></tbody></table></div>
-          <div class="filterEmpty" data-empty-for="#companyRevenueTable">No revenue rows match the current filters.</div>
+          <div class="filterEmpty" style="padding:0 16px" data-empty-for="#companyRevenueTable">No revenue rows match the current filters.</div>
         </div>
       </section>
       <section class="section" id="settlement">
@@ -2609,7 +2620,7 @@
           <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Payout requests</h3><p>Company payout requests with risk and payout-batch visibility.</p></div><button class="btn btnBlue" data-modal="create" data-type="payout"><i class="fa-solid fa-wallet"></i> Request payout</button></div><div class="tableWrap"><table><thead><tr><th>Request</th><th>Txn</th><th>Amount</th><th>Method</th><th>Account</th><th>Batch</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody id="companyPayoutRequestTable"></tbody></table></div></div>
         </div>
         <div class="financeTableGrid" style="margin-top:14px">
-          <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Wallet / settlement ledger</h3><p>Every company credit, debit, payout, refund reversal, and settlement transaction.</p></div><a class="btn" href="/company/reports/settlementLedger.csv"><i class="fa-solid fa-file-csv"></i> Export ledger</a></div><div class="dashboardFilters" data-filter-target="#companySettlementLedgerTable"><div class="field"><label>Search ledger</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Transaction, booking, payout, status"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="pending">Pending</option><option value="released">Released</option><option value="paid">Paid</option><option value="refund">Refund</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div><div class="tableWrap"><table><thead><tr><th>Txn</th><th>Reference</th><th>Type</th><th>Direction</th><th>Amount</th><th>Batch</th><th>Payout</th><th>Status</th><th></th></tr></thead><tbody id="companySettlementLedgerTable"></tbody></table></div><div class="filterEmpty" data-empty-for="#companySettlementLedgerTable">No ledger rows match the current filters.</div></div>
+          <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Wallet / settlement ledger</h3><p>Every company credit, debit, payout, refund reversal, and settlement transaction.</p></div><a class="btn" href="/company/reports/settlementLedger.csv"><i class="fa-solid fa-file-csv"></i> Export ledger</a></div><div class="dashboardFilters" style="margin:0 16px 12px" data-filter-target="#companySettlementLedgerTable"><div class="field"><label>Search ledger</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Transaction, booking, payout, status"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="pending">Pending</option><option value="released">Released</option><option value="paid">Paid</option><option value="refund">Refund</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div><div class="tableWrap"><table><thead><tr><th>Txn</th><th>Reference</th><th>Type</th><th>Direction</th><th>Amount</th><th>Batch</th><th>Payout</th><th>Status</th><th></th></tr></thead><tbody id="companySettlementLedgerTable"></tbody></table></div><div class="filterEmpty" style="padding:0 16px" data-empty-for="#companySettlementLedgerTable">No ledger rows match the current filters.</div></div>
           <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Finance statements</h3><p>Generated statement history and printable/exportable summary rows.</p></div><a class="btn" href="/company/reports/financeStatements.csv"><i class="fa-solid fa-file-lines"></i> Export statements</a></div><div class="tableWrap"><table><thead><tr><th>Statement</th><th>Start</th><th>End</th><th>Gross</th><th>Closing / earning</th><th>Refunds</th><th>Status</th><th></th></tr></thead><tbody id="companyFinanceStatementTable"></tbody></table></div></div>
         </div>
       </section>
