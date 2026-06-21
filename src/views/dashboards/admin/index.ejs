@@ -2300,18 +2300,58 @@
           <div class="seatOpsPanel card">
             <div class="seatOpsHeader">
               <div>
-                <strong>Select route / schedule</strong>
-                <span>Only the selected departure seat map and table rows are shown, so actions stay scoped and safe.</span>
+                <strong>Filter seat map</strong>
+                <span>Select a route or schedule to load its visual seat map and passenger table below.</span>
               </div>
               <span class="badge info">Company scoped</span>
             </div>
-            <div class="seatMapSelectorPanel is-redesigned">
-              <div class="field seatMapSelectField"><label>Route / schedule</label><div class="control"><i class="fa-solid fa-route"></i><select id="seatMapRouteSelector" data-seat-map-select><% previewMaps.forEach(function(map, idx){ const mapId = map.scheduleId || map.id || ('seat-map-' + idx); const total = Number(map.totalSeats || (map.seats || []).length || 0); const booked = Number(map.soldSeats || map.bookedSeats || (map.seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0); const held = Number(map.heldSeats || (map.seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0); const blocked = Number(map.blockedSeats || (map.seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0); %><option value="<%= mapId %>" data-total="<%= total %>" data-booked="<%= booked %>" data-held="<%= held %>" data-blocked="<%= blocked %>"><%= map.routeLabel || map.listingTitle || 'Route' %> · <%= map.vehicleName || 'Vehicle' %> · <%= map.departAt || map.travelDate || mapId %></option><% }) %></select></div></div>
-              <div class="miniStat"><span>Total</span><strong data-seat-map-total><%= previewMaps[0] ? Number(previewMaps[0].totalSeats || (previewMaps[0].seats || []).length || 0) : 0 %></strong></div>
-              <div class="miniStat"><span>Booked</span><strong data-seat-map-booked><%= previewMaps[0] ? Number(previewMaps[0].soldSeats || previewMaps[0].bookedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0) : 0 %></strong></div>
-              <div class="miniStat"><span>Held</span><strong data-seat-map-held><%= previewMaps[0] ? Number(previewMaps[0].heldSeats || (previewMaps[0].seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0) : 0 %></strong></div>
-              <div class="miniStat"><span>Blocked</span><strong data-seat-map-blocked><%= previewMaps[0] ? Number(previewMaps[0].blockedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0) : 0 %></strong></div>
-              <button class="btn" type="button" data-seat-map-focus-list><i class="fa-solid fa-table-list"></i> View table</button>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px">
+              <div class="field" style="margin:0">
+                <label>Route / schedule</label>
+                <div class="control"><i class="fa-solid fa-route"></i>
+                  <select id="seatMapRouteSelector" data-seat-map-select>
+                    <% previewMaps.forEach(function(map, idx){ var mapId = map.scheduleId || map.id || ('seat-map-' + idx); var total = Number(map.totalSeats || (map.seats || []).length || 0); var booked = Number(map.soldSeats || map.bookedSeats || (map.seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0); var held = Number(map.heldSeats || (map.seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0); var blocked = Number(map.blockedSeats || (map.seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0); %>
+                    <option value="<%= mapId %>" data-total="<%= total %>" data-booked="<%= booked %>" data-held="<%= held %>" data-blocked="<%= blocked %>"><%= map.routeLabel || map.listingTitle || 'Route' %> &middot; <%= map.vehicleName || 'Vehicle' %></option>
+                    <% }); %>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Vehicle</label>
+                <div class="control"><i class="fa-solid fa-bus-simple"></i>
+                  <select>
+                    <option value="">All vehicles</option>
+                    <% var _seenVehicles = {}; previewMaps.forEach(function(m){ var vn = m.vehicleName || ''; if(vn && !_seenVehicles[vn]){ _seenVehicles[vn]=1; %><option value="<%= vn %>"><%= vn %></option><% } }); %>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Travel date</label>
+                <div class="control"><i class="fa-regular fa-calendar"></i>
+                  <input type="date">
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Status</label>
+                <div class="control"><i class="fa-solid fa-circle-check"></i>
+                  <select>
+                    <option value="">All statuses</option>
+                    <option value="published">Published</option>
+                    <option value="boarding">Boarding</option>
+                    <option value="departed">Departed</option>
+                    <option value="active">Active</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="financeKpis">
+              <div class="financeKpi"><span>Total seats</span><strong data-seat-map-total><%= previewMaps[0] ? Number(previewMaps[0].totalSeats || (previewMaps[0].seats || []).length || 0) : 0 %></strong><small>Selected bus capacity</small></div>
+              <div class="financeKpi"><span>Booked</span><strong data-seat-map-booked><%= previewMaps[0] ? Number(previewMaps[0].soldSeats || previewMaps[0].bookedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Confirmed passengers</small></div>
+              <div class="financeKpi"><span>Held</span><strong data-seat-map-held><%= previewMaps[0] ? Number(previewMaps[0].heldSeats || (previewMaps[0].seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Awaiting payment</small></div>
+              <div class="financeKpi"><span>Blocked</span><strong data-seat-map-blocked><%= previewMaps[0] ? Number(previewMaps[0].blockedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Maintenance / restricted</small></div>
+            </div>
+            <div style="margin-top:12px">
+              <button class="btn btnBlue" type="button" data-seat-map-focus-list><i class="fa-solid fa-table-list"></i> View table</button>
             </div>
           </div>
 
@@ -2459,20 +2499,26 @@
         <div class="manifestLayout <%= (!isCompanyDashboard && companySupportsTransport && companySupportsHotel) ? 'is-split' : '' %>">
           <% if(!isCompanyDashboard || companySupportsTransport){ %>
           <div class="card">
-            <div class="financeHeroTop" style="margin-bottom:14px">
+            <div class="financeHeroTop" style="padding-bottom:16px;border-bottom:1px solid var(--line2);margin-bottom:16px">
               <div>
                 <h3 style="margin:0;font-size:22px;letter-spacing:-.5px">Passenger Manifests</h3>
-                <p style="margin:5px 0 0;color:var(--muted);line-height:1.5">Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p>
+                <p style="margin:6px 0 0;color:var(--muted);line-height:1.55;font-size:13px;font-weight:780">Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p>
               </div>
               <div class="financeActions">
                 <a class="btn btnBlue" href="/company/manifests"><i class="fa-solid fa-print"></i> Open printable manifest</a>
               </div>
             </div>
-            <div class="financeKpis" style="margin-bottom:14px">
+            <div class="cardHead" style="padding-bottom:12px">
+              <div class="cardTitle"><h3>Schedule summary</h3><p>Live snapshot of departure schedules, seat occupancy, and manifest readiness.</p></div>
+            </div>
+            <div class="financeKpis">
               <div class="financeKpi"><span>Schedules</span><strong><%= busManifestCount %></strong><small>Active departures</small></div>
               <div class="financeKpi"><span>Booked seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalBooked||0),0) %></strong><small>Confirmed passengers</small></div>
               <div class="financeKpi"><span>Held seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalHeld||0),0) %></strong><small>Pending payment</small></div>
               <div class="financeKpi"><span>Ready for print</span><strong><%= busManifestCount %></strong><small>Manifests ready</small></div>
+            </div>
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Filter schedules</h3><p>Search by route, vehicle, date, or manifest status.</p></div>
             </div>
             <div class="dashboardFilters" data-filter-target="#companyBusManifestTable">
               <div class="field"><label>Search schedules</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Schedule, route, vehicle, date"></div></div>
