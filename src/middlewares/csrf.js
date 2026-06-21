@@ -6,6 +6,8 @@ const SKIPPED_PATHS = [
   /^\/auth\/google(?:\/callback)?$/,
 ];
 
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, matches session cookie
+
 function shouldSkip(req) {
   if (process.env.NODE_ENV === 'test') return true;
   if (SAFE_METHODS.has(req.method)) return true;
@@ -26,6 +28,18 @@ function submittedToken(req) {
     || '';
 }
 
+function timingSafeEqual(a, b) {
+  if (!a || !b) return false;
+  try {
+    const aBuf = Buffer.from(String(a));
+    const bBuf = Buffer.from(String(b));
+    if (aBuf.length !== bBuf.length) return false;
+    return crypto.timingSafeEqual(aBuf, bBuf);
+  } catch {
+    return false;
+  }
+}
+
 function csrfToken(req, res, next) {
   const token = ensureToken(req);
   res.locals.csrfToken = token;
@@ -35,12 +49,13 @@ function csrfToken(req, res, next) {
       httpOnly: false,
       sameSite: 'lax',
       secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+      maxAge: COOKIE_MAX_AGE_MS,
     });
   }
 
   if (shouldSkip(req)) return next();
 
-  if (submittedToken(req) === token) return next();
+  if (timingSafeEqual(submittedToken(req), token)) return next();
 
   const error = new Error('Invalid or missing CSRF token');
   error.status = 403;

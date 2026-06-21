@@ -1,6 +1,30 @@
 const rateLimit = require('express-rate-limit');
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 50, standardHeaders: true, legacyHeaders: false });
-const paymentLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 80, standardHeaders: true, legacyHeaders: false });
+// Brute-force protection for login / register / password flows: 10 attempts per 15 min per IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again after 15 minutes.' },
+});
 
-module.exports = { authLimiter, paymentLimiter };
+// Stricter limiter for password-reset requests to prevent email flooding: 5 per 15 min.
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests, please try again after 15 minutes.' },
+});
+
+// Payment and checkout flows: 30 per 15 min per IP.
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many payment requests, please slow down.' },
+});
+
+module.exports = { authLimiter, forgotPasswordLimiter, paymentLimiter };

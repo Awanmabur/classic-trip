@@ -12,12 +12,29 @@
 
     function money(n, c='UGX'){return `${c} ${Math.round(n).toLocaleString()}`}
     function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-    function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
+    function toast(msg){const t=$('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
+    function csrfToken(){return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}
+    function jsonHeaders(){const h={'Content-Type':'application/json'}; const token=csrfToken(); if(token) h['x-csrf-token']=token; return h}
+    function listingUrl(item){return item?.url || (item ? `/listings/${item.serviceType}/${item.slug}` : window.location.pathname)}
+    function bookingUrl(item){return item?.bookingUrl || (item?.bookable ? `/book/${item.serviceType}/${item.slug}` : listingUrl(item))}
+    function copyFallback(text, message){
+      const input = document.createElement('textarea');
+      input.value = text;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.left = '-9999px';
+      document.body.appendChild(input);
+      input.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+      input.remove();
+      toast(copied ? message : 'Share link ready to copy from the address bar.');
+    }
     function copyText(text, message){
       if(navigator.clipboard?.writeText){
-        navigator.clipboard.writeText(text).then(()=>toast(message)).catch(()=>toast('Share link ready to copy from the address bar.'));
+        navigator.clipboard.writeText(text).then(()=>toast(message)).catch(()=>copyFallback(text, message));
       } else {
-        toast('Share link ready to copy from the address bar.');
+        copyFallback(text, message);
       }
     }
 
@@ -48,9 +65,12 @@
     function shareBlog(id){
       const ev = window.event; if(ev) ev.stopPropagation();
       const b = blogs[id]; const title = b ? b.title : 'Classic Trip blog';
-      if(navigator.share){ navigator.share({title, text:`Read this on Classic Trip: ${title}`}).catch(()=>{}); }
-      else copyText(`${window.location.origin}${window.location.pathname}#blog-${id}`, 'Blog share link copied.');
+      const url = `${window.location.origin}${window.location.pathname}#blog-${id || ''}`;
+      if(navigator.share){ navigator.share({title, text:`Read this on Classic Trip: ${title}`, url}).catch(()=>copyText(url, 'Blog share link copied.')); }
+      else copyText(url, 'Blog share link copied.');
     }
+    function loveActiveBlog(){ loveBlog(activeBlogId); }
+    function shareActiveBlog(){ shareBlog(activeBlogId); }
 
     const backendBookings = (window.CLASSIC_TRIP_DATA && window.CLASSIC_TRIP_DATA.bookings) || [];
     let myBookings = backendBookings;
@@ -67,13 +87,15 @@
       const ev = window.event; if(ev) ev.stopPropagation();
       const item = listings.find(x=>x.id===id);
       const title = item ? item.title : 'Classic Trip listing';
+      const href = new URL(listingUrl(item), window.location.origin).href;
       if(navigator.share){
-        navigator.share({title, text:`Check this on Classic Trip: ${title}`}).catch(()=>{});
+        navigator.share({title, text:`Check this on Classic Trip: ${title}`, url: href}).catch(()=>copyText(href, 'Share link copied.'));
       } else {
-        const href = item?.url || (item ? `/listings/${item.serviceType}/${item.slug}` : window.location.pathname);
-        copyText(new URL(href, window.location.origin).href, 'Share link copied.');
+        copyText(href, 'Share link copied.');
       }
     }
+    function saveCurrentListing(){ saveListing(current?.id || ''); }
+    function shareCurrentListing(){ shareListing(current?.id || ''); }
 
     function renderSaved(){
       const wrap = $('#savedCards'); if(!wrap) return;
@@ -193,14 +215,15 @@
       ev?.stopPropagation();
       const item = listings.find(x=>x.id===id);
       if(!item) return toast('Listing not found.');
-      window.location.href = item.url || `/listings/${item.serviceType}/${item.slug}`;
+      window.location.href = listingUrl(item);
     }
 
     function goBook(id, ev){
       ev?.stopPropagation();
       const item = listings.find(x=>x.id===id);
       if(!item) return toast('Listing not found.');
-      window.location.href = item.url || `/listings/${item.serviceType}/${item.slug}`;
+      if(item.bookable){ openListing(id, true); return; }
+      window.location.href = listingUrl(item);
     }
 
     const groupConfig = {
@@ -333,6 +356,7 @@
 
     function openListing(id, bookNow=false){
       current = listings.find(x=>x.id===id); selected=[]; held=[]; holdId=''; addonTotal=0; seconds=600;
+      if(!current) return toast('Listing not found.');
       $('#modalType').innerHTML = `<i class="fa-solid ${icons[current.type]||'fa-ticket'}"></i> ${current.type}`;
       $('#modalTitle').textContent=current.title; $('#modalSub').textContent=`${current.partner} • ${current.from} → ${current.to} • ${current.time}`;
       $('#modalImg').src=current.img; $('#modalHeroTitle').textContent=current.title; $('#modalHeroSub').textContent=current.sub;
@@ -359,7 +383,7 @@
     }
 
     function cell(code, cls='seat', label=code){
-      const taken = current.taken.includes(code);
+      const taken = (current.taken || []).includes(code);
       const isSel = selected.includes(code);
       const isHeld = held.includes(code);
       const safeCode = String(code).replace(/'/g, '&#39;');
@@ -402,7 +426,7 @@
     }
 
     function roomCell(code){
-      const taken = current.taken.includes(code), isSel=selected.includes(code), isHeld=held.includes(code);
+      const taken = (current.taken || []).includes(code), isSel=selected.includes(code), isHeld=held.includes(code);
       return `<button class="room ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${code}')"><span>${code}</span><small>${taken?'Booked':'Available'}</small></button>`;
     }
 
@@ -437,8 +461,8 @@
       try {
         const response = await fetch(`/api/listings/${current.id}/hold`, {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ selected:selected[0] })
+          headers:jsonHeaders(),
+          body:JSON.stringify({ selected:selected[0], selectedSeats: current.group === 'bus' ? selected.join(',') : '', roomId: current.group === 'hotel' ? selected[0] : '' })
         });
         const data = await response.json();
         if(!response.ok) throw new Error(data.error || 'Hold failed');
@@ -493,7 +517,7 @@
       try {
         const response = await fetch('/api/bookings', {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
+          headers:jsonHeaders(),
           body:JSON.stringify({ listingId:current.id, fullName:name, passengerName:name, phone, email, selected:choice[0], holdId, total, notes:`Homepage quick checkout via ${method}` })
         });
         const data = await response.json();
@@ -594,6 +618,41 @@
       });
       setActiveNavById(currentId);
     }, {passive:true});
+
+    Object.assign(window, {
+      toast,
+      openBlog,
+      closeBlog,
+      loveBlog,
+      shareBlog,
+      loveActiveBlog,
+      shareActiveBlog,
+      saveListing,
+      shareListing,
+      saveCurrentListing,
+      shareCurrentListing,
+      renderSaved,
+      renderBookings,
+      openReceipt,
+      closeReceipt,
+      goListing,
+      goBook,
+      render,
+      showMore,
+      scrollToSectionId,
+      filterCards,
+      filterRoute,
+      runSearch,
+      openListing,
+      closeModal,
+      togglePick,
+      calc,
+      holdSelection,
+      resetSelection,
+      goPaymentPage,
+      backToSelection,
+      confirmBooking
+    });
 
     renderMarketplaceSurface();
     render();

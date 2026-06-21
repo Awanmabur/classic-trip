@@ -9,7 +9,7 @@ const registerRules = [
   body('email').isEmail().normalizeEmail(),
   body('phone').notEmpty().trim(),
   body('role').optional().trim(),
-  body('password').isLength({ min: 6 }),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('confirmPassword').custom((value, { req }) => {
     if (value && value !== req.body.password) throw new Error('Passwords do not match');
     return true;

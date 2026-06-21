@@ -35,7 +35,7 @@
         </div>
         <div class="sheetTopActions">
           <a class="iconbtn" title="Partner profile" href="/companies/<%= listing.companySlug %>"><i class="fa-solid fa-building"></i></a>
-          <a class="iconbtn" title="Share" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-share-nodes"></i></a>
+          <button class="iconbtn" title="Share" type="button" onclick="sharePreviewListing(event)"><i class="fa-solid fa-share-nodes"></i></button>
           <a class="iconbtn" title="Close preview" href="/search"><i class="fa-solid fa-xmark"></i></a>
         </div>
       </div>
@@ -181,6 +181,15 @@
     scheduleId: <%- JSON.stringify((safeAvailability.schedules || [])[0]?.id || '') %>
   };
   const previewAddonOptions = <%- JSON.stringify(addons) %>;
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  }
+  function jsonHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = csrfToken();
+    if (token) headers['x-csrf-token'] = token;
+    return headers;
+  }
   function notify(message) {
     const toast = document.getElementById('toast');
     if (!toast) return;
@@ -188,6 +197,36 @@
     toast.classList.add('show');
     clearTimeout(window.__listingToast);
     window.__listingToast = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+  function copyPreviewLink(url) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => notify('Share link copied.')).catch(() => copyPreviewLinkFallback(url));
+      return;
+    }
+    copyPreviewLinkFallback(url);
+  }
+  function copyPreviewLinkFallback(url) {
+    const input = document.createElement('textarea');
+    input.value = url;
+    input.setAttribute('readonly', '');
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    document.body.appendChild(input);
+    input.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+    input.remove();
+    notify(copied ? 'Share link copied.' : 'Share link ready to copy from the address bar.');
+  }
+  function sharePreviewListing(event) {
+    event?.preventDefault();
+    const url = window.location.href;
+    const title = <%- JSON.stringify(listing.title || 'Classic Trip listing') %>;
+    if (navigator.share) {
+      navigator.share({ title, text: `Check this on Classic Trip: ${title}`, url }).catch(() => copyPreviewLink(url));
+      return;
+    }
+    copyPreviewLink(url);
   }
   function moneyPreview(amount) {
     return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
@@ -332,7 +371,7 @@
     try {
       const response = await fetch('/api/listings/<%= listing.id %>/hold', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({
           scheduleId: previewPricing.scheduleId,
           selected: previewPricing.serviceType === 'hotel' ? '' : activeSelection,
@@ -391,6 +430,15 @@
     const query = params.toString();
     window.location.href = `/book/<%= listing.serviceType %>/<%= listing.slug %>${query ? '?' + query : ''}`;
   }
+  Object.assign(window, {
+    sharePreviewListing,
+    togglePreviewAddon,
+    selectPreviewOption,
+    toggleReturnTrip,
+    toggleReturnSeat,
+    holdSelection,
+    goPaymentPage
+  });
   if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
   refreshPreviewTotals();
 </script>

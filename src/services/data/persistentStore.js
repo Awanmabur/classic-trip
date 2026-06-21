@@ -924,7 +924,7 @@ function listingCatalogItem(listing = {}) {
     bookable,
     instantConfirmation: Boolean(company?.settings?.instantConfirmation !== false && bookable),
     refundable: /refund|free cancellation|cancellation/.test(policyText),
-    bookingUrl: bookable ? `/listings/${serviceType}/${listing.slug}` : '',
+    bookingUrl: bookable ? `/book/${serviceType}/${listing.slug}` : '',
     bookableReason: bookable ? 'Instant checkout' : availability.remaining <= 0 ? 'Sold out or pending inventory' : 'Provider preview',
   };
 }
@@ -1100,7 +1100,7 @@ function frontendListing(listing) {
     group: listing.group,
     type: listing.type,
     url: `/listings/${listing.serviceType}/${listing.slug}`,
-    bookingUrl: listing.bookable ? `/listings/${listing.serviceType}/${listing.slug}` : '',
+    bookingUrl: listing.bookable ? `/book/${listing.serviceType}/${listing.slug}` : '',
     companyUrl: `/companies/${listing.companySlug}`,
   };
 }
@@ -1128,7 +1128,7 @@ function publicRoute(route) {
     scheduleCount: schedules.length,
     availableSeats: schedules.reduce((total, schedule) => total + (Number(schedule.availableSeats) || 0), 0),
     nextDepartAt: nextSchedule?.departAt || null,
-    bookingUrl: listing?.bookable ? `/listings/${listing.serviceType}/${listing.slug}` : '',
+    bookingUrl: listing?.bookable ? `/book/${listing.serviceType}/${listing.slug}` : '',
     listingUrl: listing ? `/listings/${listing.serviceType}/${listing.slug}` : '',
   };
 }

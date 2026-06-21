@@ -21,10 +21,27 @@ app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(helmet({ contentSecurityPolicy: false }));
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://unpkg.com', 'https://cdnjs.cloudflare.com'],
+  scriptSrcAttr: ["'unsafe-inline'"],
+  styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+  fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
+  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://images.unsplash.com'],
+  connectSrc: ["'self'"],
+  frameSrc: ["'none'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+};
+if (env.isProduction) cspDirectives.upgradeInsecureRequests = [];
+app.use(helmet({
+  contentSecurityPolicy: { directives: cspDirectives },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.urlencoded({ extended: true, verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
-app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
+app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
+app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(cookieParser());
 app.use(sessionConfig());
 app.use(passport.initialize());

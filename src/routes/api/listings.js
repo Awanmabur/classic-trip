@@ -8,9 +8,7 @@ const router = express.Router();
 function cleanSeatToken(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  const withoutPrefix = raw.replace(/^seat\s*(no\.?|number)?\s*/i, '').trim();
-  const legacy = withoutPrefix.match(/^[A-Za-z](\d+)$/);
-  return legacy ? legacy[1] : withoutPrefix;
+  return raw.replace(/^seat\s*(no\.?|number)?\s*/i, '').trim();
 }
 
 function seatList(value) {

@@ -5,6 +5,14 @@ function welcomeName(user = {}) {
   return String(user.fullName || user.name || user.email || 'there').trim().split(/\s+/)[0] || 'there';
 }
 
+// Only allow same-origin relative paths; reject absolute or protocol-relative URLs.
+function safeRedirectUrl(url, fallback) {
+  if (!url) return fallback;
+  const str = String(url).trim();
+  if (str.startsWith('/') && !str.startsWith('//')) return str;
+  return fallback;
+}
+
 function showLogin(req, res) {
   res.render('pages/auth/login', {
     seo: { title: 'Login or signup | Classic Trip' },
@@ -31,6 +39,8 @@ async function login(req, res, next) {
       });
       return res.redirect('/login?error=invalid');
     }
+    // Regenerate the session to prevent session fixation attacks.
+    await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
     req.session.user = user;
     await securityService.recordLoginAttempt({
       user,
@@ -39,7 +49,7 @@ async function login(req, res, next) {
       req,
     });
     if (req.flash) req.flash('success', `Welcome back, ${welcomeName(user)}. Your dashboard is ready.`);
-    const nextUrl = req.body.next || req.query.next || authService.redirectForRole(user.role);
+    const nextUrl = safeRedirectUrl(req.body.next || req.query.next, authService.redirectForRole(user.role));
     return res.redirect(nextUrl);
   } catch (error) {
     return next(error);

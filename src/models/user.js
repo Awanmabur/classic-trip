@@ -2,7 +2,7 @@ const { Schema, model } = require('./_helpers');
 
 const userSchema = new Schema({
   id: { type: String, index: true },
-  role: { type: String, enum: ['super_admin', 'admin', 'finance_admin', 'support_admin', 'content_admin', 'company_admin', 'company_employee', 'customer', 'promoter'], default: 'customer', index: true },
+  role: { type: String, enum: ['super_admin', 'admin', 'finance_admin', 'support_admin', 'operations_admin', 'content_admin', 'company_admin', 'company_employee', 'driver', 'customer', 'promoter'], default: 'customer', index: true },
   fullName: { type: String, required: true, trim: true },
   email: { type: String, lowercase: true, trim: true, index: true },
   phone: { type: String, trim: true, index: true },

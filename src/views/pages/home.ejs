@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classic Trip | Multi-Tenant Booking Platform</title>
   <meta name="description" content="Classic Trip multi-tenant booking platform for buses, hotels, flights, trains, ferries, car rentals, events and tours with seat/room selection and 10 minute holds." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +13,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <link rel="stylesheet" href="/css/pages/home.css">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <script src="/js/csrf.js" defer></script>
 </head>
 <body class="homePage">
   <header class="nav">
@@ -23,8 +26,8 @@
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconbtn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
-        <button class="btn btnGhost login" onclick="window.location.href='/login'"><i class="fa-regular fa-user"></i> Login</button>
-        <button class="btn btnPrimary" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button>
+        <a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a>
+        <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button>
       </div>
     </div>
   </header>
@@ -45,10 +48,10 @@
         <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="drawerLinks">
-        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="#saved">Saved</a><a href="#my-bookings">My bookings</a>
+        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="#saved">Saved</a><a href="#my-bookings">My bookings</a><a href="/login"><i class="fa-regular fa-user"></i> Login</a>
       </div>
       <div class="drawerFilters" id="drawerFilters"></div>
-      <button class="btn btnPrimary"><i class="fa-solid fa-bolt"></i> Start booking</button>
+      <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus');document.getElementById('drawer')?.classList.remove('open')"><i class="fa-solid fa-bolt"></i> Start booking</button>
     </div>
   </div>
 
@@ -390,8 +393,8 @@
           <div class="sheetSub" id="modalSub">Partner • route • date</div>
         </div>
         <div class="sheetTopActions">
-          <button class="iconbtn" title="Save" onclick="saveListing(current?.id)"><i class="fa-regular fa-heart"></i></button>
-          <button class="iconbtn" title="Share" onclick="shareListing(current?.id)"><i class="fa-solid fa-share-nodes"></i></button>
+          <button class="iconbtn" title="Save" onclick="saveCurrentListing()"><i class="fa-regular fa-heart"></i></button>
+          <button class="iconbtn" title="Share" onclick="shareCurrentListing()"><i class="fa-solid fa-share-nodes"></i></button>
           <button class="iconbtn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
@@ -519,8 +522,8 @@
           <div class="sheetSub" id="blogModalSub">Date • read time</div>
         </div>
         <div class="sheetTopActions">
-          <button class="iconbtn" title="Love" onclick="loveBlog(activeBlogId)"><i class="fa-regular fa-heart"></i></button>
-          <button class="iconbtn" title="Share" onclick="shareBlog(activeBlogId)"><i class="fa-solid fa-share-nodes"></i></button>
+          <button class="iconbtn" title="Love" onclick="loveActiveBlog()"><i class="fa-regular fa-heart"></i></button>
+          <button class="iconbtn" title="Share" onclick="shareActiveBlog()"><i class="fa-solid fa-share-nodes"></i></button>
           <button class="iconbtn" onclick="closeBlog()"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
@@ -534,8 +537,8 @@
         </div>
         <article class="blogArticle" id="blogArticleBody"></article>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding:0 14px 14px">
-          <button class="btn btnGhost" onclick="shareBlog(activeBlogId)"><i class="fa-solid fa-share-nodes"></i> Share</button>
-          <button class="btn btnGhost" onclick="loveBlog(activeBlogId)"><i class="fa-regular fa-heart"></i> Save</button>
+          <button class="btn btnGhost" onclick="shareActiveBlog()"><i class="fa-solid fa-share-nodes"></i> Share</button>
+          <button class="btn btnGhost" onclick="loveActiveBlog()"><i class="fa-regular fa-heart"></i> Save</button>
           <button class="btn btnPrimary" onclick="closeBlog()"><i class="fa-solid fa-check"></i> Done</button>
         </div>
       </div>

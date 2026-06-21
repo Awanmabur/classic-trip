@@ -67,6 +67,19 @@ async function lockSeatPersistent(scheduleId, seatNumber, minutes = 10, context 
   }
 
   const now = new Date();
+
+  // Expire stale holds and release expired seat locks in MongoDB so they don't block new ones.
+  await Promise.all([
+    repositories.inventoryHolds.updateMany(
+      { scheduleId, seatNumber, holdType: 'seat', status: 'active', expiresAt: { $lte: now } },
+      { $set: { status: 'expired', releasedAt: now, releaseReason: 'expired' } }
+    ),
+    repositories.seats.updateMany(
+      { scheduleId, seatNumber, status: 'locked', lockedUntil: { $lte: now } },
+      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } }
+    ),
+  ]);
+
   const lockedUntil = addMinutes(now, minutes);
   const nextHoldId = holdId();
   const activeHoldCount = await repositories.inventoryHolds.count({ holdType: 'seat', scheduleId, seatNumber, status: 'active', expiresAt: { $gt: now } });
@@ -93,6 +106,13 @@ async function lockSeatPersistent(scheduleId, seatNumber, minutes = 10, context 
   );
 
   if (!seat) {
+    // Seat not in MongoDB (created in-memory only by ensureBookableInventory). Fall back to in-memory lock.
+    const memSeat = store.state.seats.find((item) => item.scheduleId === scheduleId && item.seatNumber === seatNumber);
+    if (memSeat && !['taken', 'booked', 'checked-in', 'checked_in', 'locked'].includes(String(memSeat.status || '').toLowerCase())) {
+      const hold = lockSeat(scheduleId, seatNumber, minutes);
+      await inventoryHoldService.recordSeatHold(hold, context);
+      return hold;
+    }
     const error = new Error('Seat is temporarily locked');
     error.status = 409;
     throw error;

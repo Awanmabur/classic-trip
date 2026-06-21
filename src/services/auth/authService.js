@@ -21,8 +21,11 @@ function normalizeRole(role) {
     employee: 'company_employee',
     staff: 'company_employee',
     company_employee: 'company_employee',
+    driver: 'driver',
     promoter: 'promoter',
     customer: 'customer',
+    // Admin roles are not self-registerable — map to customer as safe fallback.
+    // Admins are provisioned directly in the database or via invite flows.
   };
   return aliases[key] || 'customer';
 }
@@ -298,15 +301,23 @@ async function resetPassword(token, password) {
     local: { enabled: true },
   };
   user.passwordReset = null;
+  user.passwordChangedAt = new Date().toISOString();
   user.updatedAt = new Date().toISOString();
+  await persist('users', user);
   return { ...user, passwordHash: undefined };
 }
 
 function redirectForRole(role) {
   const map = {
     super_admin: '/admin',
+    admin: '/admin',
+    finance_admin: '/finance/dashboard',
+    support_admin: '/support/dashboard',
+    operations_admin: '/operations/dashboard',
+    content_admin: '/admin',
     company_admin: '/company/dashboard',
     company_employee: '/employee/dashboard',
+    driver: '/driver/dashboard',
     promoter: '/promoter/dashboard',
     customer: '/account',
   };

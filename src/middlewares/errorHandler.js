@@ -16,10 +16,23 @@ function safeBack(req) {
   }
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+function publicMessage(status, message) {
+  if (!isProduction) return message;
+  if (status >= 500) return 'An unexpected error occurred. Please try again.';
+  return message;
+}
+
 function errorHandler(error, req, res, next) {
-  logger.error(error.message, { stack: error.stack, path: req.originalUrl });
   const status = error.status || 500;
-  const message = error.message || 'Something went wrong.';
+  if (status >= 500) {
+    logger.error(error.message, { stack: error.stack, path: req.originalUrl, status });
+  } else {
+    logger.warn(error.message, { path: req.originalUrl, status });
+  }
+
+  const message = publicMessage(status, error.message || 'Something went wrong.');
 
   if (wantsJson(req)) return res.status(status).json({ error: message });
 
