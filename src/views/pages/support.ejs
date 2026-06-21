@@ -1,0 +1,75 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 40px">
+
+  <section class="card heroCard" style="margin-bottom:16px">
+    <span class="badge badgeInfo"><i class="fa-solid fa-headset"></i> Support</span>
+    <h1 class="heroTitle">How can we help?</h1>
+    <p class="heroSub">Have a question about your booking, a refund, or our platform? Fill out the form below and our team will get back to you within 24 hours. For ticket lookup, use the link below.</p>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
+      <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How it works</a>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start">
+
+    <div class="card" style="padding:20px">
+      <h2 style="margin:0 0 14px;font-size:17px">Send us a message</h2>
+      <form action="/support" method="post" style="display:grid;gap:12px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:850;color:var(--muted);margin-bottom:6px">YOUR NAME</label>
+          <input name="fullName" placeholder="Full name" required style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:850;color:var(--muted);margin-bottom:6px">EMAIL OR PHONE</label>
+          <input name="contact" placeholder="Email or phone number" required style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:850;color:var(--muted);margin-bottom:6px">BOOKING REFERENCE (optional)</label>
+          <input name="bookingRef" placeholder="e.g. CT-BUS-1042" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:850;color:var(--muted);margin-bottom:6px">TOPIC</label>
+          <select name="category" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px;outline:none">
+            <option value="Booking issue">Booking issue</option>
+            <option value="Refund request">Refund request</option>
+            <option value="Ticket not received">Ticket not received</option>
+            <option value="Payment issue">Payment issue</option>
+            <option value="Partner inquiry">Partner inquiry</option>
+            <option value="Promoter inquiry">Promoter inquiry</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:850;color:var(--muted);margin-bottom:6px">MESSAGE *</label>
+          <textarea name="message" rows="5" placeholder="Describe your issue or question in detail..." required style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:inherit"></textarea>
+        </div>
+        <button class="btn btnPrimary" type="submit" style="height:46px;font-size:14px"><i class="fa-solid fa-paper-plane"></i> Send message</button>
+      </form>
+    </div>
+
+    <div style="display:grid;gap:12px">
+      <div class="card" style="padding:16px;display:grid;gap:10px">
+        <div class="muted" style="font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.5px">Contact options</div>
+        <div style="display:grid;gap:8px">
+          <a href="mailto:support@classictrip.com" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:850;color:var(--text);text-decoration:none"><i class="fa-solid fa-envelope" style="color:var(--primary);width:18px"></i> support@classictrip.com</a>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820;color:var(--muted)"><i class="fa-solid fa-clock" style="color:var(--primary);width:18px"></i> Mon – Sat, 7am – 9pm EAT</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820;color:var(--muted)"><i class="fa-solid fa-hourglass-half" style="color:var(--primary);width:18px"></i> Response within 24 hours</div>
+        </div>
+      </div>
+      <div class="card" style="padding:16px;display:grid;gap:10px">
+        <div class="muted" style="font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.5px">Quick links</div>
+        <div style="display:grid;gap:8px">
+          <a class="btn btnGhost" href="/tickets" style="justify-content:flex-start;gap:10px;height:40px"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
+          <a class="btn btnGhost" href="/account" style="justify-content:flex-start;gap:10px;height:40px"><i class="fa-regular fa-user"></i> My bookings</a>
+          <a class="btn btnGhost" href="/terms#refunds" style="justify-content:flex-start;gap:10px;height:40px"><i class="fa-solid fa-rotate-left"></i> Refund policy</a>
+          <a class="btn btnGhost" href="/how-it-works" style="justify-content:flex-start;gap:10px;height:40px"><i class="fa-solid fa-circle-question"></i> How it works</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+<%- include('../partials/site-footer') %>

@@ -67,8 +67,21 @@ router.get('/tickets/:bookingRef.pdf', listingController.ticketPdf);
 router.get('/tickets/:bookingRef', listingController.ticketPage);
 router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
+router.get('/support', (req, res) => res.render('pages/support', {
+  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with your booking, refund, or any Classic Trip question. Our support team responds within 24 hours.' },
+}));
 router.post('/support', supportRules, validateRequest, supportController.create);
 router.post('/partner-requests', companyRules, validateRequest, partnerController.create);
+router.get('/how-it-works', (req, res) => res.render('pages/how-it-works', {
+  seo: { title: 'How Classic Trip Works | Travel Marketplace East Africa', description: 'Learn how to search, book, pay, and receive tickets on Classic Trip. For passengers, partners, and promoters.' },
+}));
+router.get('/terms', (req, res) => res.render('pages/terms', {
+  seo: { title: 'Terms & Conditions | Classic Trip', description: 'Classic Trip terms of service covering bookings, payments, refunds, cancellations, and partner obligations.' },
+}));
+router.get('/privacy', (req, res) => res.render('pages/privacy', {
+  seo: { title: 'Privacy Policy | Classic Trip', description: 'How Classic Trip collects, uses, and protects your personal data. Your rights and our data practices.' },
+}));
+
 router.get('/health', (req, res) => res.json({
   ok: true,
   app: 'Classic Trip',

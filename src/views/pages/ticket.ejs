@@ -18,75 +18,113 @@
     const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
     return `Seat No ${clean || raw}`;
   };
+  const statusBadge = {
+    confirmed: 'badgeOk', pending: 'badgeWarn', cancelled: 'badgeHot',
+    refunded: 'badgeInfo', partially_refunded: 'badgeInfo'
+  }[booking.bookingStatus] || '';
 %>
 <main class="container ticketPage" style="padding:16px 0 30px">
-  <section class="ticketPaper">
-    <div class="ticketHeroHeader">
-      <div class="ticketHeroBlock"><span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span><h1 class="heroTitle ticketHeroRef"><%= booking.bookingRef %></h1><p class="heroSub ticketHeroRoute"><%= safeListing.title %></p></div>
-      <div class="ticketHeroActions">
-        <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
-        <span class="ticketCode"><%= booking.bookingStatus %></span>
-      </div>
-    </div>
-    <div class="detailGrid">
-      <div>
-        <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
-        <div class="ticketLine"><span>Email</span><b><%= guest.email || 'Not provided' %></b></div>
-        <div class="ticketLine"><span>Phone</span><b><%= guest.phone || 'Not provided' %></b></div>
-        <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
-        <div class="ticketLine"><span>Service</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
-        <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus %></b></div>
-        <div class="ticketLine"><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
-      </div>
-      <div>
-        <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:200px;height:200px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
-        <p class="heroSub" style="font-size:13px;margin-top:12px">Show this ticket to authorized staff. Staff check-in uses the protected scanner.</p>
-      </div>
-    </div>
-  </section>
-  <section class="ticketPaper" style="margin-top:16px">
+
+  <section class="card heroCard" style="margin-bottom:16px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div>
-        <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> Ticket legs and QR check-in state</span>
-        <h2 class="sectionTitle" style="margin-top:10px">Issued tickets</h2>
-        <p class="heroSub">Each leg below has its own one-time QR token, passenger, seat or room, payment state, and check-in state.</p>
+        <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span>
+        <h1 class="heroTitle" style="margin:10px 0 6px;font-size:clamp(22px,3vw,32px)"><%= booking.bookingRef %></h1>
+        <p class="heroSub" style="margin:0"><%= safeListing.title %><% if (safeListing.origin && safeListing.destination) { %> &nbsp;&bull;&nbsp; <%= safeListing.origin %> &rarr; <%= safeListing.destination %><% } %></p>
       </div>
-      <span class="ticketCode"><%= legs.length || 1 %> ticket<%= (legs.length || 1) === 1 ? '' : 's' %></span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <span class="badge <%= statusBadge %>"><%= booking.bookingStatus %></span>
+        <span class="ticketCode"><%= booking.paymentStatus %></span>
+      </div>
     </div>
-    <% if (legs.length) { %>
-      <div class="detailGrid" style="margin-top:16px">
-        <% legs.forEach(function(leg, index) { %>
-          <article class="ticketLine" style="display:block;padding:14px;border:1px solid rgba(148,163,184,.28);border-radius:14px;background:rgba(15,23,42,.03)">
-            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              <div>
-                <span class="badge"><%= leg.legType || ('Leg ' + (index + 1)) %></span>
-                <h3 style="margin:10px 0 6px"><%= leg.ticketNumber || booking.bookingRef %></h3>
-                <div class="ticketLine"><span>Passenger</span><b><%= leg.passengerName || leg.passenger.fullName || guest.fullName || 'Passenger' %></b></div>
-                <div class="ticketLine"><span>Service / leg</span><b><%= leg.serviceType || booking.serviceType || 'service' %> / <%= leg.legType || 'primary' %></b></div>
-                <div class="ticketLine"><span>Schedule</span><b><%= leg.scheduleId || booking.scheduleId || '-' %></b></div>
-                <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(leg.seatNumber || leg.roomNumber || leg.passenger.seatOrRoom || passenger.seatOrRoom || '-') %></b></div>
-                <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus || 'pending' %></b></div>
-                <div class="ticketLine"><span>Status</span><b><%= leg.status || booking.bookingStatus || 'valid' %></b></div>
-                <div class="ticketLine"><span>Check-in</span><b><%= leg.checkInStatus || booking.checkInStatus || 'boarding' %></b></div>
-                <div class="ticketLine"><span>QR preview</span><b><%= leg.qrTokenPreview || 'Hidden for security' %></b></div>
-              </div>
-              <div class="qrBox" style="width:150px;height:150px;min-width:150px"><% if (leg.qrDataUrl) { %><img src="<%= leg.qrDataUrl %>" alt="Ticket leg QR" style="width:140px;height:140px"><% } else { %><span><%= leg.qrTokenPreview || booking.bookingRef %></span><% } %></div>
-            </div>
-          </article>
-        <% }) %>
-      </div>
-    <% } else { %>
-      <div class="detailGrid" style="margin-top:16px">
-        <div>
-          <div class="ticketLine"><span>Ticket</span><b><%= booking.bookingRef %></b></div>
-          <div class="ticketLine"><span>Passenger</span><b><%= passenger.fullName || guest.fullName || 'Passenger' %></b></div>
-          <div class="ticketLine"><span>Service</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
-          <div class="ticketLine"><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
-          <div class="ticketLine"><span>Payment</span><b><%= booking.paymentStatus || 'pending' %></b></div>
-          <div class="ticketLine"><span>Status</span><b><%= booking.bookingStatus || 'confirmed' %></b></div>
-        </div>
-      </div>
-    <% } %>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+      <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Find another ticket</a>
+      <% if (currentUser) { %><a class="btn btnGhost" href="/account/bookings"><i class="fa-solid fa-list"></i> My bookings</a><% } %>
+    </div>
   </section>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;align-items:start">
+
+    <section class="card" style="padding:20px;display:grid;gap:14px">
+      <div class="badge badgeInfo" style="width:max-content"><i class="fa-regular fa-user"></i> Passenger details</div>
+      <div class="kv">
+        <div><span>Passenger</span><b><%= guest.fullName || passenger.fullName || 'Guest' %></b></div>
+        <div><span>Email</span><b><%= guest.email || 'Not provided' %></b></div>
+        <div><span>Phone</span><b><%= guest.phone || 'Not provided' %></b></div>
+        <div><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
+        <div><span>Service type</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
+        <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
+        <div><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
+        <% if (booking.scheduleId) { %><div><span>Schedule</span><b><%= booking.scheduleId %></b></div><% } %>
+        <% if (booking.bookedAt || booking.createdAt) { %><div><span>Booked</span><b><%= new Date(booking.bookedAt || booking.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) %></b></div><% } %>
+      </div>
+      <p class="muted" style="margin:4px 0 0;font-size:12px;font-weight:780;line-height:1.6">Show this ticket to authorised staff at boarding. Staff check-in uses the protected scanner.</p>
+    </section>
+
+    <section class="card" style="padding:20px;display:grid;gap:14px;text-align:center">
+      <div class="badge badgeOk" style="margin:0 auto;width:max-content"><i class="fa-solid fa-qrcode"></i> QR ticket</div>
+      <% if (qrDataUrl) { %>
+        <div style="display:flex;justify-content:center;padding:16px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,183,3,.3);border-radius:18px">
+          <img src="<%= qrDataUrl %>" alt="Ticket QR code" style="width:180px;height:180px;border-radius:12px">
+        </div>
+      <% } else { %>
+        <div class="qrBox" style="min-height:180px"><span class="muted" style="font-size:12px"><%= booking.qrCodeValue || booking.bookingRef %></span></div>
+      <% } %>
+      <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6">One-time QR code. Valid for boarding. Do not share this screen capture with others.</p>
+      <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a>
+    </section>
+
+  </div>
+
+  <% if (legs.length) { %>
+  <section class="card" style="padding:20px;margin-top:16px;display:grid;gap:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> Ticket legs and QR check-in state</span>
+        <h2 style="margin:10px 0 4px;font-size:17px">Issued tickets</h2>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780">Each leg below has its own one-time QR token, passenger, seat or room, payment state, and check-in state.</p>
+      </div>
+      <span class="ticketCode"><%= legs.length %> ticket<%= legs.length === 1 ? '' : 's' %></span>
+    </div>
+    <div style="display:grid;gap:12px">
+      <% legs.forEach(function(leg, index) { %>
+        <article style="padding:16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.02);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start">
+          <div>
+            <span class="badge" style="margin-bottom:10px"><%= leg.legType || ('Leg ' + (index + 1)) %></span>
+            <div class="kv" style="margin-top:8px">
+              <div><span>Ticket</span><b><%= leg.ticketNumber || booking.bookingRef %></b></div>
+              <div><span>Passenger</span><b><%= leg.passengerName || leg.passenger.fullName || guest.fullName || 'Passenger' %></b></div>
+              <div><span>Service</span><b><%= leg.serviceType || booking.serviceType || 'service' %> / <%= leg.legType || 'primary' %></b></div>
+              <div><span><%= isBusTicket ? 'Seat' : 'Room' %></span><b><%= formatInventoryLabel(leg.seatNumber || leg.roomNumber || leg.passenger.seatOrRoom || passenger.seatOrRoom || '-') %></b></div>
+              <div><span>Status</span><b><%= leg.status || booking.bookingStatus || 'valid' %></b></div>
+              <div><span>Check-in</span><b><%= leg.checkInStatus || booking.checkInStatus || 'boarding' %></b></div>
+            </div>
+          </div>
+          <div class="qrBox" style="width:120px;height:120px;min-width:120px;border-radius:14px">
+            <% if (leg.qrDataUrl) { %>
+              <img src="<%= leg.qrDataUrl %>" alt="Leg QR" style="width:110px;height:110px;border-radius:10px">
+            <% } else { %>
+              <span style="font-size:11px;color:var(--muted);padding:8px;word-break:break-word"><%= leg.qrTokenPreview || booking.bookingRef %></span>
+            <% } %>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+  <% } else { %>
+  <section class="card" style="padding:20px;margin-top:16px">
+    <span class="badge badgeInfo" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> Single ticket</span>
+    <div class="kv">
+      <div><span>Ticket</span><b><%= booking.bookingRef %></b></div>
+      <div><span>Passenger</span><b><%= passenger.fullName || guest.fullName || 'Passenger' %></b></div>
+      <div><span>Service</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
+      <div><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
+      <div><span>Payment</span><b><%= booking.paymentStatus || 'pending' %></b></div>
+      <div><span>Status</span><b><%= booking.bookingStatus || 'confirmed' %></b></div>
+    </div>
+  </section>
+  <% } %>
+
 </main>
 <%- include('../partials/site-footer') %>

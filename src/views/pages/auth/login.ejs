@@ -86,18 +86,13 @@
 <body>
   <div class="navWrap">
     <header class="nav">
-      <a class="brand" href="#login" aria-label="Classic Trip Home"><span class="mark">CT</span><span>Classic Trip</span></a>
-      <nav class="navLinks" aria-label="Authentication navigation">
-        <a href="#login" class="active" data-open-panel="login">Login</a>
-        <a href="#signup" data-open-panel="signup">Signup</a>
-        <a href="#partner" data-open-panel="partner">Partners</a>
-        <a href="#support" data-open-panel="support">Support</a>
-      </nav>
+      <a class="brand" href="/" aria-label="Classic Trip Home"><span class="mark">CT</span><span>Classic Trip</span></a>
       <div class="navActions">
+        <a class="btn" href="/"><i class="fa-solid fa-house"></i><span style="font-size:13px">Home</span></a>
+        <a class="btn" href="/search"><i class="fa-solid fa-magnifying-glass"></i><span style="font-size:13px">Search</span></a>
+        <a class="btn" href="/tickets"><i class="fa-solid fa-ticket"></i><span style="font-size:13px">Tickets</span></a>
         <button class="iconBtn" id="themeBtn" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconBtn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
-        <button class="btn" data-open-panel="login"><i class="fa-regular fa-user"></i>Login</button>
-        <button class="btn btnPrimary" data-open-panel="signup"><i class="fa-solid fa-bolt"></i>Start</button>
       </div>
     </header>
   </div>
@@ -291,15 +286,6 @@
     </section>
   </main>
 
-  <footer class="authFooter">
-    <div><strong>Classic Trip</strong><div>Accounts, booking, tickets, partner access, promoter links, and support.</div></div>
-    <div class="footerLinks">
-      <a href="/"><i class="fa-solid fa-house"></i>Home</a>
-      <a href="/search"><i class="fa-solid fa-magnifying-glass"></i>Search</a>
-      <a href="/tickets"><i class="fa-solid fa-ticket"></i>Tickets</a>
-      <a href="/promoters"><i class="fa-solid fa-share-nodes"></i>Promoters</a>
-    </div>
-  </footer>
 
   <div class="drawer" id="drawer" aria-hidden="true">
     <div class="drawerPanel" role="dialog" aria-modal="true" aria-label="Menu">
@@ -307,9 +293,12 @@
       <div class="drawerLinks">
         <a href="#login" data-open-panel="login"><i class="fa-solid fa-right-to-bracket"></i>Login</a>
         <a href="#signup" data-open-panel="signup"><i class="fa-solid fa-user-plus"></i>Signup</a>
-        <a href="#partner" data-open-panel="partner"><i class="fa-solid fa-building"></i>Partner page</a>
-        <a href="#forgot" data-open-panel="forgot"><i class="fa-solid fa-key"></i>Recover account</a>
+        <a href="#partner" data-open-panel="partner"><i class="fa-solid fa-building"></i>Become a partner</a>
+        <a href="#forgot" data-open-panel="forgot"><i class="fa-solid fa-key"></i>Forgot password</a>
         <a href="#support" data-open-panel="support"><i class="fa-solid fa-headset"></i>Support</a>
+        <a href="/"><i class="fa-solid fa-house"></i>Back to home</a>
+        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i>Search trips</a>
+        <a href="/tickets"><i class="fa-solid fa-ticket"></i>Find my ticket</a>
       </div>
     </div>
   </div>

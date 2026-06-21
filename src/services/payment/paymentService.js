@@ -18,6 +18,12 @@ async function handleWebhook(payload) {
   return providerFor(payload.provider || env.paymentProvider).verifyWebhook(payload);
 }
 
+async function initiateRefund(refund) {
+  const provider = providerFor(refund.provider || env.paymentProvider);
+  if (typeof provider.initiateRefund !== 'function') return { status: 'not_supported', provider: refund.provider || env.paymentProvider };
+  return provider.initiateRefund(refund);
+}
+
 function providerSummary() {
   return supportedProviders.map((provider) => ({
     provider,
@@ -26,4 +32,4 @@ function providerSummary() {
   }));
 }
 
-module.exports = { initiatePayment, handleWebhook, providerSummary, supportedProviders };
+module.exports = { initiatePayment, initiateRefund, handleWebhook, providerSummary, supportedProviders };

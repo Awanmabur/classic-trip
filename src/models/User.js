@@ -28,6 +28,8 @@ const userSchema = new Schema({
   promoterProfile: Schema.Types.Mixed,
   payoutAccount: Schema.Types.Mixed,
   emailVerifiedAt: Date,
+  emailVerifyToken: String,
+  emailVerifyTokenExpiresAt: Date,
   lastLoginAt: Date,
 }, { timestamps: true });
 

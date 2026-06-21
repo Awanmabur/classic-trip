@@ -200,6 +200,24 @@ async function verifyLogin(identity, password) {
   return null;
 }
 
+async function sendEmailVerification(user) {
+  if (!user.email) return;
+  const token = crypto.randomBytes(24).toString('hex');
+  user.emailVerifyToken = securityService.sha256(token);
+  user.emailVerifyTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const notificationService = require('../notification/notificationService');
+  await notificationService.queueNotification({
+    userId: user.id,
+    channels: ['email'],
+    title: 'Verify your Classic Trip email',
+    message: `Hello ${(user.fullName || '').split(' ')[0] || 'there'},\n\nPlease verify your email address by clicking the link below:\n\n${env.appUrl}/verify-email/${token}\n\nThis link expires in 24 hours.\n\nIf you did not create a Classic Trip account, you can safely ignore this email.`,
+    recipient: { email: user.email, name: user.fullName },
+    referenceType: 'email_verification',
+    referenceId: user.id,
+  });
+  return token;
+}
+
 async function registerUser(payload) {
   const role = normalizeRole(payload.role || 'customer');
   const passwordHash = payload.password ? await bcrypt.hash(payload.password, 10) : undefined;
@@ -215,7 +233,35 @@ async function registerUser(payload) {
     authProviders: { local: { enabled: Boolean(passwordHash) }, google: { enabled: false } },
   });
   await provisionRoleArtifacts(user, { ...payload, role, signupSource: 'auth_register' });
+  if (user.email) await sendEmailVerification(user);
+  await persist('users', user);
   return scrubUser(user);
+}
+
+async function verifyEmail(token) {
+  const tokenHash = securityService.sha256(token);
+  const user = store.state.users.find((u) => u.emailVerifyToken === tokenHash);
+  if (!user || !user.emailVerifyTokenExpiresAt || new Date(user.emailVerifyTokenExpiresAt) < new Date()) {
+    const error = new Error('Email verification link is invalid or expired');
+    error.status = 400;
+    throw error;
+  }
+  user.emailVerifiedAt = new Date().toISOString();
+  user.isVerified = true;
+  user.emailVerifyToken = undefined;
+  user.emailVerifyTokenExpiresAt = undefined;
+  user.updatedAt = new Date().toISOString();
+  await persist('users', user);
+  return scrubUser(user);
+}
+
+async function resendVerificationEmail(userId) {
+  const user = store.state.users.find((u) => u.id === userId);
+  if (!user || !user.email) return { ok: false };
+  if (user.emailVerifiedAt) return { ok: true, alreadyVerified: true };
+  await sendEmailVerification(user);
+  await persist('users', user);
+  return { ok: true };
 }
 
 async function findOrCreateGoogleUser(profile, intent = {}) {
@@ -332,4 +378,6 @@ module.exports = {
   resetPassword,
   redirectForRole,
   normalizeRole,
+  verifyEmail,
+  resendVerificationEmail,
 };

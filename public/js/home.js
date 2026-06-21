@@ -568,12 +568,7 @@
     });
     const saved = localStorage.getItem('ct_theme'); if(saved){document.documentElement.setAttribute('data-theme',saved); $('#themeIcon').className=saved==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}
     $('#menuBtn')?.addEventListener('click',()=>$('#drawer').classList.add('open'));
-    $('#bottomNav')?.addEventListener('click',e=>{
-      const b=e.target.closest('button'); if(!b) return;
-      if(b.dataset.action==='menu'){ $('#drawer').classList.add('open'); return; }
-      scrollToSectionId(b.dataset.target || 'home');
-      $$('#bottomNav button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
-    });
+
     document.addEventListener('click', e=>{
       const card = e.target.closest('.listing');
       if(!card || e.target.closest('button,a,input,select,textarea,label')) return;
@@ -600,7 +595,6 @@
         const target = (a.getAttribute('href')||'').replace('#','');
         a.classList.toggle('active', target === id);
       });
-      $$('#bottomNav button[data-target]').forEach(b=>b.classList.toggle('active', b.dataset.target === id || (id==='bus' && b.dataset.target==='bus')));
     }
     $$('#navLinks a, .drawerLinks a').forEach(a=>{
       a.addEventListener('click',(e)=>{

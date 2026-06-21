@@ -197,6 +197,21 @@ function approveRefund(refundId, adminId = 'admin-system') {
       referenceType: 'refund',
       referenceId: refund.id,
     });
+    // Fire-and-forget refund to original payment provider (non-blocking).
+    if (booking.payment?.providerReference || booking.payment?.transactionRef) {
+      const paymentService = require('../payment/paymentService');
+      paymentService.initiateRefund({
+        amount: refund.amount,
+        currency: refund.currency || booking.pricing?.currency || 'UGX',
+        bookingRef: booking.bookingRef,
+        refundId: refund.id,
+        originalProviderReference: booking.payment?.providerReference || booking.payment?.transactionRef,
+        provider: booking.payment?.provider,
+      }).then((result) => {
+        refund.providerRefundReference = result?.refundReference;
+        refund.providerRefundStatus = result?.status;
+      }).catch(() => {});
+    }
     const ticket = store.state.supportTickets.find((item) => item.subject === `Refund request ${booking.bookingRef}`);
     if (ticket) {
       ticket.status = 'closed';

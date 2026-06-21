@@ -12,8 +12,20 @@ async function initiatePayment({ amount, currency = 'UGX', customer, bookingRef 
   };
 }
 
+async function initiateRefund({ amount, currency = 'UGX', bookingRef, refundId, originalProviderReference }) {
+  return {
+    provider: 'mock',
+    refundReference: generateCode('MOCKREF', 10),
+    amount,
+    currency,
+    status: 'successful',
+    refundedAt: new Date().toISOString(),
+    rawPayload: { bookingRef, refundId, originalProviderReference, message: 'Mock refund automatically confirmed in development.' },
+  };
+}
+
 async function verifyWebhook(payload) {
   return { valid: true, status: payload.status || 'successful', payload };
 }
 
-module.exports = { initiatePayment, verifyWebhook };
+module.exports = { initiatePayment, initiateRefund, verifyWebhook };

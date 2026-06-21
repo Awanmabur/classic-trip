@@ -1,0 +1,135 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 40px">
+
+  <section class="card heroCard" style="margin-bottom:16px">
+    <span class="badge badgeInfo"><i class="fa-solid fa-circle-question"></i> How it works</span>
+    <h1 class="heroTitle">How Classic Trip works</h1>
+    <p class="heroSub">Classic Trip is a multi-tenant travel marketplace. Passengers book instantly. Partners list and manage their services. Promoters earn commissions. Everything runs through one platform.</p>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Search & book now</a>
+      <a class="btn btnGhost" href="/pricing"><i class="fa-solid fa-store"></i> Become a partner</a>
+    </div>
+  </section>
+
+  <%
+    const tabs = [
+      { id:'passengers', label:'For Passengers', icon:'fa-users' },
+      { id:'partners',   label:'For Partners',   icon:'fa-building' },
+      { id:'promoters',  label:'For Promoters',  icon:'fa-bullhorn' },
+    ];
+  %>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <% tabs.forEach((tab,i) => { %>
+      <a href="#<%= tab.id %>" class="btn <%= i===0?'btnPrimary':'btnGhost' %>" style="height:38px;font-size:13px"><i class="fa-solid <%= tab.icon %>"></i> <%= tab.label %></a>
+    <% }) %>
+  </div>
+
+  <!-- PASSENGERS -->
+  <section id="passengers" style="margin-bottom:20px">
+    <div class="sectionHead" style="margin-bottom:14px">
+      <div><h2 style="margin:0 0 4px"><i class="fa-solid fa-users" style="color:var(--primary)"></i> For Passengers</h2><p style="margin:0" class="muted">Search, book, pay and receive your ticket — in under 5 minutes.</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+      <div class="card" style="padding:20px">
+        <div class="badge badgeInfo" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-1"></i> Search</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Find your route or service</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Use the search bar to find buses, hotels, flights, trains, ferries, tours, and more. Filter by date, price, service type, or company.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeOk" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-2"></i> Select & hold</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Pick your seat or room</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Choose your seat (for buses) or room type (for hotels). Your selection is held for <b style="color:var(--text)">10 minutes</b> while you complete checkout — no risk of being taken.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeWarn" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-3"></i> Pay securely</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Pay with mobile money or card</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">We accept M-Pesa, MTN, Airtel, Visa, Mastercard and bank transfer. Payments are secured and split automatically between the platform and the partner.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeOk" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-4"></i> Get your ticket</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Instant ticket delivery</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Your QR ticket is delivered instantly via email, WhatsApp and SMS. No account required. Retrieve anytime at <a href="/tickets" style="color:var(--primary)">classictrip.com/tickets</a>.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeInfo" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-5"></i> Board & travel</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Show QR at boarding</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Present your QR code (digital or printed) at the bus station, hotel check-in, or boarding point. The agent or driver scans to verify instantly.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-6"></i> Manage & review</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Track bookings & leave reviews</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Create a free account to see all bookings, request refunds, reschedule, and leave reviews. Or use the ticket lookup for guest bookings — no account needed.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARTNERS -->
+  <section id="partners" style="margin-bottom:20px">
+    <div class="sectionHead" style="margin-bottom:14px">
+      <div><h2 style="margin:0 0 4px"><i class="fa-solid fa-building" style="color:var(--primary)"></i> For Partners</h2><p style="margin:0" class="muted">Bus companies, hotels, airlines, tour operators and more can list and sell on Classic Trip.</p></div>
+      <a class="btn btnPrimary" href="/pricing">See partner plans</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+      <div class="card" style="padding:20px;display:grid;gap:10px">
+        <div class="badge badgeOk" style="width:max-content"><i class="fa-solid fa-1"></i> Choose a plan</div>
+        <h3 style="margin:0;font-size:15px">Pick the right plan for your size</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Starter, Growth, and Enterprise plans cover everything from a single-vehicle operator to a large multi-route network. Plans include listing slots, staff accounts, campaign credits, and payout reporting.</p>
+      </div>
+      <div class="card" style="padding:20px;display:grid;gap:10px">
+        <div class="badge badgeInfo" style="width:max-content"><i class="fa-solid fa-2"></i> Complete onboarding</div>
+        <h3 style="margin:0;font-size:15px">Set up your company profile</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Register your company, upload required documents, set your routes and schedules, configure seat maps, add staff accounts, and publish your first listings. A 14-day setup period is included in every plan.</p>
+      </div>
+      <div class="card" style="padding:20px;display:grid;gap:10px">
+        <div class="badge badgeWarn" style="width:max-content"><i class="fa-solid fa-3"></i> Receive bookings</div>
+        <h3 style="margin:0;font-size:15px">Manage bookings in real time</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Your partner dashboard shows all bookings, seat manifests, passenger lists, payment status, and cancellations. Driver and operations staff get their own role-specific dashboards.</p>
+      </div>
+      <div class="card" style="padding:20px;display:grid;gap:10px">
+        <div class="badge" style="width:max-content"><i class="fa-solid fa-4"></i> Collect payouts</div>
+        <h3 style="margin:0;font-size:15px">Automated payout splitting</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">The platform automatically deducts a 7% marketplace fee and any promoter commissions (3%) before releasing your payout. Payout reports and transaction history are always available in your dashboard.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROMOTERS -->
+  <section id="promoters" style="margin-bottom:20px">
+    <div class="sectionHead" style="margin-bottom:14px">
+      <div><h2 style="margin:0 0 4px"><i class="fa-solid fa-bullhorn" style="color:var(--primary)"></i> For Promoters</h2><p style="margin:0" class="muted">Earn a 3% commission on every booking made through your referral link.</p></div>
+      <a class="btn btnGhost" href="/promoters">Join the program</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+      <div class="card" style="padding:20px">
+        <div class="badge badgeOk" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-1"></i> Apply</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Apply to become a promoter</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Sign up on Classic Trip, then apply to the promoter program. Once approved, you receive a unique referral code and a QR card you can print or share digitally.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeInfo" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-2"></i> Share</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Share your referral link or QR</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Share your referral code or QR on social media, at bus stations, hotels, or anywhere travellers are. Every booking made with your code earns you a commission.</p>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="badge badgeWarn" style="margin-bottom:12px;width:max-content"><i class="fa-solid fa-3"></i> Earn</div>
+        <h3 style="margin:0 0 8px;font-size:16px">Earn 3% on every booking</h3>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">Commission is credited to your Classic Trip wallet automatically after the booking is confirmed. Withdraw at any time to mobile money or bank account.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="card" style="padding:20px">
+    <h2 style="margin:0 0 16px;font-size:18px">Frequently asked questions</h2>
+    <div style="display:grid;gap:14px">
+      <div><b>Do I need an account to book?</b><p class="muted" style="margin:4px 0 0;font-size:13px;font-weight:780;line-height:1.6">No. You can complete a booking as a guest. Your ticket is sent to your email, WhatsApp, and SMS. You can retrieve it anytime at <a href="/tickets" style="color:var(--primary)">/tickets</a> with your booking reference.</p></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px"><b>How do I get a refund?</b><p class="muted" style="margin:4px 0 0;font-size:13px;font-weight:780;line-height:1.6">Log in and go to My Bookings. Select the booking and click "Request Refund". Refunds are reviewed by our support team and processed to your original payment method within 3–5 business days.</p></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px"><b>What is the platform fee?</b><p class="muted" style="margin:4px 0 0;font-size:13px;font-weight:780;line-height:1.6">Classic Trip charges a 7% marketplace fee on every booking, automatically deducted before partner payouts. Promoters earn 3% commission on bookings made through their referral code.</p></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px"><b>What services are available?</b><p class="muted" style="margin:4px 0 0;font-size:13px;font-weight:780;line-height:1.6">Buses and hotels are fully bookable now. Flights, trains, ferries, tours, car rentals, transfers, events, cargo, visa support, insurance and packages are available for preview with provider listings going live progressively.</p></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px"><b>Which countries does Classic Trip operate in?</b><p class="muted" style="margin:4px 0 0;font-size:13px;font-weight:780;line-height:1.6">Classic Trip currently covers East Africa including Kenya, Tanzania, Uganda, Rwanda, and Burundi, with expansion to more African markets planned.</p></div>
+    </div>
+  </section>
+
+</main>
+<%- include('../partials/site-footer') %>

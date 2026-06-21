@@ -1,35 +1,94 @@
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
-<main class="container" style="padding:16px 0 30px">
-  <section class="detailGrid">
-    <form class="card" style="padding:16px" action="/tickets" method="get">
-      <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Guest ticket lookup</span>
-      <h1 class="heroTitle" style="font-size:30px;margin-top:10px">Find a ticket without logging in.</h1>
-      <p class="heroSub">Use the booking reference from Gmail, WhatsApp, or the success page. Add phone or email to verify a guest ticket.</p>
-      <div class="bookingForm" style="margin-top:12px">
-        <input name="bookingRef" placeholder="Booking ref, for example CT-BUS-1042" value="<%= query.bookingRef || '' %>" required>
-        <input name="contact" placeholder="Phone or email" value="<%= query.contact || '' %>">
-      </div>
-      <button class="btn btnPrimary" type="submit" style="margin-top:12px;width:100%"><i class="fa-solid fa-magnifying-glass"></i> Find ticket</button>
-      <a class="btn btnGhost" href="/search?bookable=true" style="margin-top:8px;width:100%"><i class="fa-solid fa-ticket"></i> Buy another ticket</a>
-    </form>
+<main class="container" style="padding:16px 0 40px">
 
-    <aside class="sidePanel">
+  <section class="card heroCard" style="margin-bottom:16px">
+    <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Ticket lookup</span>
+    <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">Find your ticket</h1>
+    <p class="heroSub">Enter the booking reference from your confirmation email, WhatsApp, or SMS. Guest tickets also require the phone or email used at checkout — no account needed.</p>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i> Login to see all bookings</a>
+      <a class="btn btnGhost" href="/search?bookable=true"><i class="fa-solid fa-bus"></i> Browse &amp; book a trip</a>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">
+
+    <div class="card" style="padding:20px;display:grid;gap:16px">
+      <div class="badge badgeInfo" style="width:max-content"><i class="fa-solid fa-magnifying-glass"></i> Search ticket</div>
+      <form action="/tickets" method="get" style="display:grid;gap:12px">
+        <div class="field">
+          <label>Booking reference <span style="color:var(--danger)">*</span></label>
+          <div class="control"><i class="fa-solid fa-ticket"></i><input name="bookingRef" placeholder="e.g. CT-BUS-1042" value="<%= query.bookingRef || '' %>" required></div>
+        </div>
+        <div class="field">
+          <label>Phone or email <span style="color:var(--muted);font-weight:700">(for guest tickets)</span></label>
+          <div class="control"><i class="fa-solid fa-phone"></i><input name="contact" placeholder="Phone or email used at checkout" value="<%= query.contact || '' %>"></div>
+        </div>
+        <button class="btn btnPrimary" type="submit" style="height:46px"><i class="fa-solid fa-magnifying-glass"></i> Find Ticket</button>
+      </form>
+
+      <div style="border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px">
+        <span class="muted" style="font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.04em">Where to find your reference</span>
+        <div style="display:grid;gap:7px">
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820"><i class="fa-solid fa-envelope" style="color:var(--primary);width:16px;text-align:center"></i> Your confirmation email</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820"><i class="fab fa-whatsapp" style="color:#22c55e;width:16px;text-align:center"></i> WhatsApp confirmation message</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820"><i class="fa-solid fa-mobile-screen" style="color:var(--accent);width:16px;text-align:center"></i> SMS from Classic Trip</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:820"><i class="fa-solid fa-circle-check" style="color:var(--ok);width:16px;text-align:center"></i> The success page after booking</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
       <% if (booking) { %>
-        <div class="ticketPaper">
-          <div><span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Ticket found</span><h2 style="margin:8px 0 0"><%= booking.bookingRef %></h2><p class="muted" style="margin:4px 0 0;font-weight:800"><%= listing.title %></p></div>
-          <img src="<%= qrDataUrl %>" alt="Ticket QR" style="width:160px;height:160px">
-          <div class="ticketLine"><span>Guest</span><b><%= booking.guestSnapshot.fullName %></b></div>
-          <div class="ticketLine"><span>Status</span><b><%= booking.bookingStatus %></b></div>
-          <div class="ticketLine"><span>Total</span><b><%= money(booking.pricing.total, booking.pricing.currency) %></b></div>
-          <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-qrcode"></i> Open full ticket</a>
+        <div class="card" style="padding:20px;display:grid;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Ticket found</span>
+            <span class="ticketCode"><%= booking.bookingRef %></span>
+          </div>
+          <% if (listing) { %><div style="font-weight:950;font-size:15px"><%= listing.title %></div><% } %>
+          <% if (qrDataUrl) { %>
+            <div style="display:flex;justify-content:center;padding:14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,183,3,.3);border-radius:18px">
+              <img src="<%= qrDataUrl %>" alt="Ticket QR" style="width:140px;height:140px;border-radius:12px">
+            </div>
+          <% } %>
+          <div class="kv">
+            <div><span>Guest</span><b><%= (booking.guestSnapshot || {}).fullName || 'Guest' %></b></div>
+            <div><span>Status</span><b><%= booking.bookingStatus %></b></div>
+            <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
+            <div><span>Amount</span><b><%= money((booking.pricing || {}).total || 0, (booking.pricing || {}).currency) %></b></div>
+          </div>
+          <div class="actions">
+            <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-qrcode"></i> Open Full Ticket</a>
+            <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+          </div>
         </div>
       <% } else if (lookupAttempted) { %>
-        <div class="empty">No ticket matched those details. Check the reference and the phone or email used during checkout.</div>
+        <div class="card" style="padding:20px;display:grid;gap:12px">
+          <span class="badge badgeHot"><i class="fa-solid fa-triangle-exclamation"></i> Not found</span>
+          <p style="margin:0;font-weight:820;line-height:1.6">No ticket matched that reference and contact. Please check:</p>
+          <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:13px;font-weight:820;line-height:2">
+            <li>The booking reference is exactly as in your email or SMS</li>
+            <li>The phone or email matches what you used at checkout</li>
+            <li>Guest tickets require the contact used during booking</li>
+          </ul>
+          <a class="btn btnGhost" href="/tickets" style="justify-content:center"><i class="fa-solid fa-arrow-left"></i> Try again</a>
+        </div>
       <% } else { %>
-        <div class="summaryCard"><h3>How it works</h3><p class="muted">Guest checkout creates a booking reference and QR ticket. This lookup page keeps ticket access available even when the customer has no account.</p></div>
+        <div class="card" style="padding:20px;display:grid;gap:14px">
+          <div class="badge badgeWarn" style="width:max-content"><i class="fa-solid fa-circle-question"></i> How it works</div>
+          <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.65">When you complete a booking, you receive a unique <b style="color:var(--text)">booking reference</b> (e.g. CT-BUS-1042) by email, WhatsApp, and SMS. Enter that reference here to instantly retrieve your ticket and QR code — no account required.</p>
+          <div class="kv">
+            <div><span>Account required?</span><b>No — guest lookup works without logging in</b></div>
+            <div><span>What you get</span><b>Full ticket, QR code, and PDF download</b></div>
+            <div><span>Guest verification</span><b>Phone or email used at checkout</b></div>
+          </div>
+          <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How Classic Trip works</a>
+        </div>
       <% } %>
-    </aside>
-  </section>
+    </div>
+
+  </div>
+
 </main>
 <%- include('../partials/site-footer') %>

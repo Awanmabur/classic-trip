@@ -530,6 +530,17 @@ function attachMenuHrefs(menu) {
   };
 }
 
+function injectNotificationsItem(menu) {
+  const notifItem = { page: 'notifications', label: 'Notifications', icon: 'fa-bell', href: '#notifications' };
+  const alreadyHas = (menu.groups || []).some(function(g) { return (g.items || []).some(function(i) { return i.page === 'notifications'; }); });
+  if (alreadyHas) return menu;
+  const groups = (menu.groups || []).map(function(group, index) {
+    if (index === 0) return Object.assign({}, group, { items: (group.items || []).concat([notifItem]) });
+    return group;
+  });
+  return Object.assign({}, menu, { groups: groups });
+}
+
 function buildDashboardShell(requestedRole, options = {}) {
   const user = options.user || {};
   let menu = cloneMenu(getDashboardMenu(requestedRole));
@@ -538,6 +549,9 @@ function buildDashboardShell(requestedRole, options = {}) {
   }
   if (menu.roleKey === 'employee' && options.serviceProfile) {
     menu = applyEmployeeServiceProfile(menu, options.serviceProfile);
+  }
+  if (menu.roleKey === 'company' || menu.roleKey === 'employee') {
+    menu = injectNotificationsItem(menu);
   }
   menu = attachMenuHrefs(menu);
   const preferMenuIdentity = menu.roleKey === 'company' && menu.profileName;

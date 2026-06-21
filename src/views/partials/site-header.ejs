@@ -1,24 +1,63 @@
-<nav class="nav">
+<nav class="nav" id="siteNav">
   <div class="navIn">
     <a class="brand" href="/"><span class="mark">CT</span><span>Classic Trip</span></a>
-    <div class="navLinks">
+    <div class="navLinks" id="siteNavLinks">
       <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Home</a>
       <a href="/search" class="<%= currentPath.startsWith('/search') ? 'active' : '' %>">Search</a>
+      <a href="/services" class="<%= currentPath.startsWith('/services') || currentPath.startsWith('/future-services') ? 'active' : '' %>">Services</a>
       <a href="/routes" class="<%= currentPath.startsWith('/routes') ? 'active' : '' %>">Routes</a>
-      <a href="/services" class="<%= currentPath.startsWith('/services') ? 'active' : '' %>">Services</a>
-      <a href="/companies" class="<%= currentPath.startsWith('/companies') ? 'active' : '' %>">Partners</a>
       <a href="/pricing" class="<%= currentPath.startsWith('/pricing') || currentPath.startsWith('/partner/onboarding') || currentPath.startsWith('/billing') ? 'active' : '' %>">Plans</a>
-      <a href="/promoters" class="<%= currentPath.startsWith('/promoters') || currentPath.startsWith('/promoter-program') ? 'active' : '' %>">Promoters</a>
-      <a href="/tickets" class="<%= currentPath.startsWith('/tickets') ? 'active' : '' %>">Tickets</a>
       <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>">Guides</a>
     </div>
     <div class="navActions">
+      <button class="iconbtn" id="siteThemeBtn" title="Toggle theme" onclick="(function(){var t=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('ct-theme',t)}catch(e){}var i=document.getElementById('siteThemeIcon');if(i){i.className=t==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}})()"><i class="fa-solid fa-moon" id="siteThemeIcon"></i></button>
+      <a class="btn btnGhost" href="/tickets" style="<%= currentPath.startsWith('/tickets') ? 'background:rgba(255,183,3,.13);border-color:rgba(255,183,3,.30);color:var(--accent)' : '' %>"><i class="fa-solid fa-ticket"></i><span class="navBtnText">Tickets</span></a>
       <% if (currentUser) { %>
-        <a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i>Dashboard</a>
+        <a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i><span class="navBtnText">Dashboard</span></a>
       <% } else { %>
-        <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i>Login</a>
+        <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i><span class="navBtnText">Login</span></a>
       <% } %>
-      <a class="btn btnPrimary" href="/pricing"><i class="fa-solid fa-store"></i>Start selling</a>
+      <a class="btn btnPrimary" href="/pricing"><i class="fa-solid fa-store"></i><span class="navBtnText">Partner</span></a>
+      <button class="iconbtn" id="siteMenuBtn" title="Menu" onclick="document.getElementById('siteDrawer').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>
     </div>
   </div>
 </nav>
+
+<div class="drawer" id="siteDrawer" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="drawerPanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+      <a class="brand" href="/" onclick="document.getElementById('siteDrawer').classList.remove('open')"><span class="mark">CT</span><span>Classic Trip</span></a>
+      <button class="iconbtn" onclick="document.getElementById('siteDrawer').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawerLinks">
+      <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>"><i class="fa-solid fa-house"></i> Home</a>
+      <a href="/search" class="<%= currentPath.startsWith('/search') ? 'active' : '' %>"><i class="fa-solid fa-magnifying-glass"></i> Search</a>
+      <a href="/services" class="<%= currentPath.startsWith('/services') ? 'active' : '' %>"><i class="fa-solid fa-layer-group"></i> Services</a>
+      <a href="/routes" class="<%= currentPath.startsWith('/routes') ? 'active' : '' %>"><i class="fa-solid fa-route"></i> Routes</a>
+      <a href="/companies" class="<%= currentPath.startsWith('/companies') ? 'active' : '' %>"><i class="fa-solid fa-building"></i> Partners</a>
+      <a href="/promoters" class="<%= currentPath.startsWith('/promoters') ? 'active' : '' %>"><i class="fa-solid fa-users"></i> Promoters</a>
+      <a href="/pricing" class="<%= currentPath.startsWith('/pricing') ? 'active' : '' %>"><i class="fa-solid fa-layer-group"></i> Plans & Pricing</a>
+      <a href="/tickets" class="<%= currentPath.startsWith('/tickets') ? 'active' : '' %>"><i class="fa-solid fa-ticket"></i> Find Ticket</a>
+      <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>"><i class="fa-regular fa-newspaper"></i> Travel Guides</a>
+      <a href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How It Works</a>
+    </div>
+    <div style="display:grid;gap:9px;padding-top:12px;border-top:1px solid var(--line)">
+      <% if (currentUser) { %>
+        <a class="btn btnGhost" href="/account" style="justify-content:flex-start;gap:10px"><i class="fa-regular fa-user"></i> My Dashboard</a>
+      <% } else { %>
+        <a class="btn btnGhost" href="/login" style="justify-content:flex-start;gap:10px"><i class="fa-regular fa-user"></i> Login / Sign up</a>
+      <% } %>
+      <a class="btn btnPrimary" href="/pricing" style="justify-content:flex-start;gap:10px"><i class="fa-solid fa-store"></i> Become a Partner</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var saved=null;try{saved=localStorage.getItem('ct-theme')}catch(e){}
+  if(saved){document.documentElement.setAttribute('data-theme',saved);var i=document.getElementById('siteThemeIcon');if(i)i.className=saved==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}
+  var mb=document.getElementById('siteMenuBtn');
+  if(mb){mb.style.display='none';if(window.innerWidth<1051)mb.style.display=''}
+  window.addEventListener('resize',function(){if(mb){mb.style.display=window.innerWidth<1051?'':'none'}});
+})();
+</script>

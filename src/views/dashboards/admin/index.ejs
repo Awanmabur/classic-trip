@@ -390,7 +390,9 @@
       width:36px;
       padding:0;
       flex:0 0 auto;
+      position:relative;
     }
+    .topNotifBadge{position:absolute;top:-5px;right:-5px;background:var(--danger);color:#fff;font-size:9px;font-weight:1000;border-radius:99px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;line-height:1;}
 
     .btnPrimary{
       border-color:transparent;
@@ -1933,6 +1935,7 @@
         <div class="topActions">
           <label class="topSearch hideMobile" aria-label="Search dashboard"><i class="fa-solid fa-magnifying-glass"></i><input id="dashboardGlobalSearch" placeholder="Search dashboard..." autocomplete="off"></label>
           <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+          <a class="iconBtn" href="#notifications" title="Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i><% if ((dashboardShell?.notificationCount || 0) > 0) { %><span class="topNotifBadge"><%= dashboardShell.notificationCount %></span><% } %></a>
           <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
           <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
           <button class="btn btnPrimary hideMobile"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></button>
@@ -2274,24 +2277,24 @@
       <section class="section" id="seat-maps">
         <% const allSeatMaps = (dashboardData?.seatMaps || []); const previewMaps = allSeatMaps.slice(0,12); const selectedSeatMapId = previewMaps[0] ? (previewMaps[0].scheduleId || previewMaps[0].id || 'seat-map-0') : ''; %>
         <div class="seatPageShell">
-          <div class="seatPageHero card">
-            <div class="seatPageHeroText">
-              <span class="eyebrow"><i class="fa-solid fa-chair"></i> Bus seat operations</span>
-              <h3>Seat Maps</h3>
-              <p>Choose one route or schedule, review the real visual seat map, then use the scoped table and actions below. This page only manages bus seat templates, schedule snapshots, blocked seats, booked seats, holds, and ticket access.</p>
+          <div class="financeHero">
+            <div class="financeHeroTop">
+              <div>
+                <h3><i class="fa-solid fa-chair"></i> Seat Maps</h3>
+                <p>Choose one route or schedule, review the real visual seat map, then use the scoped table and actions below. This page only manages bus seat templates, schedule snapshots, blocked seats, booked seats, holds, and ticket access.</p>
+              </div>
+              <div class="financeActions">
+                <button class="btn btnBlue" data-modal="edit" data-type="vehicle seat template"><i class="fa-solid fa-wand-magic-sparkles"></i> Template builder</button>
+                <button class="btn" data-modal="edit" data-type="seat status"><i class="fa-solid fa-chair"></i> Update seat status</button>
+                <a class="btn" href="/company/manifests"><i class="fa-solid fa-file-lines"></i> Open manifest</a>
+              </div>
             </div>
-            <div class="seatPageHeroActions">
-              <button class="btn btnBlue" data-modal="edit" data-type="vehicle seat template"><i class="fa-solid fa-wand-magic-sparkles"></i> Template builder</button>
-              <button class="btn" data-modal="edit" data-type="seat status"><i class="fa-solid fa-chair"></i> Update seat status</button>
-              <a class="btn" href="/company/manifests"><i class="fa-solid fa-file-lines"></i> Open manifest</a>
+            <div class="financeKpis">
+              <div class="financeKpi"><span>Seat maps</span><strong><%= (dashboardData?.seatMaps || []).length %></strong><small>Configured layouts</small></div>
+              <div class="financeKpi"><span>Total seats</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.totalSeats || (m.seats || []).length || 0),0) %></strong><small>Across all maps</small></div>
+              <div class="financeKpi"><span>Booked</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.soldSeats || m.bookedSeats || (m.seats || []).filter(s=>/booked|taken|sold/i.test(s.status||'')).length || 0),0) %></strong><small>Confirmed tickets</small></div>
+              <div class="financeKpi"><span>Held / blocked</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.blockedSeats || m.heldSeats || (m.seats || []).filter(s=>/block|hold|lock|maintenance/i.test(s.status||'')).length || 0),0) %></strong><small>Pending or restricted</small></div>
             </div>
-          </div>
-
-          <div class="seatPageStats">
-            <div class="miniStat"><span>Seat maps</span><strong><%= (dashboardData?.seatMaps || []).length %></strong></div>
-            <div class="miniStat"><span>Total seats</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.totalSeats || (m.seats || []).length || 0),0) %></strong></div>
-            <div class="miniStat"><span>Booked</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.soldSeats || m.bookedSeats || (m.seats || []).filter(s=>/booked|taken|sold/i.test(s.status||'')).length || 0),0) %></strong></div>
-            <div class="miniStat"><span>Held / blocked</span><strong><%= (dashboardData?.seatMaps || []).reduce((sum,m)=>sum + Number(m.blockedSeats || m.heldSeats || (m.seats || []).filter(s=>/block|hold|lock|maintenance/i.test(s.status||'')).length || 0),0) %></strong></div>
           </div>
 
           <div class="seatOpsPanel card">
@@ -2456,15 +2459,20 @@
         <div class="manifestLayout <%= (!isCompanyDashboard && companySupportsTransport && companySupportsHotel) ? 'is-split' : '' %>">
           <% if(!isCompanyDashboard || companySupportsTransport){ %>
           <div class="card">
-            <div class="cardHead">
-              <div class="cardTitle"><h3>Passenger Manifests</h3><p>Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p></div>
-              <a class="btn btnBlue" href="/company/manifests"><i class="fa-solid fa-print"></i> Open printable manifest</a>
+            <div class="financeHeroTop" style="margin-bottom:14px">
+              <div>
+                <h3 style="margin:0;font-size:22px;letter-spacing:-.5px">Passenger Manifests</h3>
+                <p style="margin:5px 0 0;color:var(--muted);line-height:1.5">Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p>
+              </div>
+              <div class="financeActions">
+                <a class="btn btnBlue" href="/company/manifests"><i class="fa-solid fa-print"></i> Open printable manifest</a>
+              </div>
             </div>
-            <div class="manifestSummary">
-              <div class="miniStat"><span>Schedules</span><strong><%= busManifestCount %></strong></div>
-              <div class="miniStat"><span>Booked seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalBooked||0),0) %></strong></div>
-              <div class="miniStat"><span>Held seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalHeld||0),0) %></strong></div>
-              <div class="miniStat"><span>Ready for print</span><strong><%= busManifestCount %></strong></div>
+            <div class="financeKpis" style="margin-bottom:14px">
+              <div class="financeKpi"><span>Schedules</span><strong><%= busManifestCount %></strong><small>Active departures</small></div>
+              <div class="financeKpi"><span>Booked seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalBooked||0),0) %></strong><small>Confirmed passengers</small></div>
+              <div class="financeKpi"><span>Held seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalHeld||0),0) %></strong><small>Pending payment</small></div>
+              <div class="financeKpi"><span>Ready for print</span><strong><%= busManifestCount %></strong><small>Manifests ready</small></div>
             </div>
             <div class="dashboardFilters" data-filter-target="#companyBusManifestTable">
               <div class="field"><label>Search schedules</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Schedule, route, vehicle, date"></div></div>
@@ -2489,15 +2497,20 @@
           <% } %>
           <% if(!isCompanyDashboard || companySupportsHotel){ %>
           <div class="card">
-            <div class="cardHead">
-              <div class="cardTitle"><h3>Hotel Manifests</h3><p>Arrivals, in-house guests, departures, check-in/out status, and printable guest lists.</p></div>
-              <a class="btn btnBlue" href="/company/hotels/<%= (dashboardData?.options?.hotelListings || [])[0]?.value || 'hotel' %>/manifest"><i class="fa-solid fa-print"></i> Open hotel manifest</a>
+            <div class="financeHeroTop" style="margin-bottom:14px">
+              <div>
+                <h3 style="margin:0;font-size:22px;letter-spacing:-.5px">Hotel Manifests</h3>
+                <p style="margin:5px 0 0;color:var(--muted);line-height:1.5">Arrivals, in-house guests, departures, check-in/out status, and printable guest lists.</p>
+              </div>
+              <div class="financeActions">
+                <a class="btn btnBlue" href="/company/hotels/<%= (dashboardData?.options?.hotelListings || [])[0]?.value || 'hotel' %>/manifest"><i class="fa-solid fa-print"></i> Open hotel manifest</a>
+              </div>
             </div>
-            <div class="manifestSummary">
-              <div class="miniStat"><span>Rows</span><strong><%= hotelManifestCount %></strong></div>
-              <div class="miniStat"><span>Arrivals</span><strong><%= (dashboardData?.hotelArrivals || []).length %></strong></div>
-              <div class="miniStat"><span>In-house</span><strong><%= (dashboardData?.hotelInHouse || []).length %></strong></div>
-              <div class="miniStat"><span>Departures</span><strong><%= (dashboardData?.hotelDepartures || []).length %></strong></div>
+            <div class="financeKpis" style="margin-bottom:14px">
+              <div class="financeKpi"><span>Total guests</span><strong><%= hotelManifestCount %></strong><small>All manifest rows</small></div>
+              <div class="financeKpi"><span>Arrivals</span><strong><%= (dashboardData?.hotelArrivals || []).length %></strong><small>Checking in today</small></div>
+              <div class="financeKpi"><span>In-house</span><strong><%= (dashboardData?.hotelInHouse || []).length %></strong><small>Current guests</small></div>
+              <div class="financeKpi"><span>Departures</span><strong><%= (dashboardData?.hotelDepartures || []).length %></strong><small>Checking out today</small></div>
             </div>
             <div class="dashboardFilters" data-filter-target="#companyHotelManifestTable"><div class="field"><label>Search guests</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Guest, booking, room, date"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="booked">Booked</option><option value="checked-in">Checked-in</option><option value="checked-out">Checked-out</option><option value="completed">Completed</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div>
             <div class="innerTabs" data-tab-group="hotel-manifest-tabs"><button type="button" class="tabBtn is-on" data-tab-target="hotel-manifest-all"><i class="fa-solid fa-list"></i> All guests</button><button type="button" class="tabBtn" data-tab-target="hotel-manifest-arrivals"><i class="fa-solid fa-person-walking-luggage"></i> Arrivals</button><button type="button" class="tabBtn" data-tab-target="hotel-manifest-inhouse"><i class="fa-solid fa-door-closed"></i> In-house</button><button type="button" class="tabBtn" data-tab-target="hotel-manifest-departures"><i class="fa-solid fa-door-open"></i> Departures</button></div>
@@ -2797,19 +2810,6 @@
       <% } %>
     </main>
   </div>
-
-  <footer style="width:var(--container,min(1220px,92%));margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));box-shadow:var(--shadow2);padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820">
-    <div>
-      <strong style="color:var(--text)">Classic Trip</strong>
-      <div style="margin-top:4px">Marketplace, dashboards, routes, tickets, promoters, partners, and payments.</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn" href="/">Home</a>
-      <a class="btn" href="/routes">Routes</a>
-      <a class="btn" href="/tickets">Tickets</a>
-      <a class="btn" href="/promoters">Promoters</a>
-    </div>
-  </footer>
 
   <div class="modal" id="crudModal">
     <div class="modalCard">

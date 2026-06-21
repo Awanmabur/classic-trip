@@ -1,0 +1,99 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container" style="padding:16px 0 40px">
+
+  <section class="card heroCard" style="margin-bottom:16px">
+    <span class="badge badgeWarn"><i class="fa-solid fa-file-contract"></i> Legal</span>
+    <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">Terms &amp; Conditions</h1>
+    <p class="heroSub">Last updated: June 2026. By using Classic Trip you agree to these terms. Please read them carefully.</p>
+  </section>
+
+  <div class="card" style="padding:24px;display:grid;gap:20px;line-height:1.75;font-size:14px;font-weight:780">
+
+    <section>
+      <h2 id="overview" style="font-size:17px;margin:0 0 10px">1. Overview</h2>
+      <p style="margin:0;color:var(--muted)">Classic Trip ("the platform", "we", "us") is a multi-tenant travel marketplace that connects passengers with bus operators, hotels, airlines, tour operators, and other travel service providers ("Partners") across East Africa. These Terms govern your access to and use of classictrip.com and any related applications or APIs.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 id="accounts" style="font-size:17px;margin:0 0 10px">2. Accounts</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">You may use the platform as a guest or create a registered account. You are responsible for maintaining the security of your account credentials. Classic Trip is not liable for any loss resulting from unauthorised use of your account. You must be at least 18 years old to create an account or make a booking.</p>
+      <p style="margin:0;color:var(--muted)">Guest bookings are permitted. You do not need a registered account to search, book, or retrieve tickets. Your booking reference and contact details serve as your guest identifier.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 id="bookings" style="font-size:17px;margin:0 0 10px">3. Bookings &amp; seat holds</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">When you select a seat or room, it is held for up to <b style="color:var(--text)">10 minutes</b> while you complete payment. Holds that expire without payment are automatically released. A booking is only confirmed once payment is successfully processed and you receive a booking reference.</p>
+      <p style="margin:0;color:var(--muted)">Classic Trip acts as an agent for Partners. The contract of carriage or accommodation is between you and the Partner. Classic Trip is not a carrier or accommodation provider.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 id="payments" style="font-size:17px;margin:0 0 10px">4. Payments &amp; fees</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">All payments are processed through our integrated payment providers (M-Pesa, MTN, Airtel Money, Visa, Mastercard, bank transfer). Classic Trip collects the full booking amount on behalf of the Partner and deducts a <b style="color:var(--text)">7% platform fee</b> before releasing Partner payouts.</p>
+      <p style="margin:0;color:var(--muted)">Promoters who refer bookings via valid referral codes earn a <b style="color:var(--text)">3% commission</b> credited to their Classic Trip wallet. Prices displayed are inclusive of all platform fees. Partners set their own service prices.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px" id="refunds">
+      <h2 style="font-size:17px;margin:0 0 10px">5. Refund policy</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">Refund eligibility depends on the Partner's cancellation policy, which is displayed on each listing before booking. Classic Trip does not guarantee refunds on behalf of Partners.</p>
+      <ul style="margin:0;padding-left:20px;color:var(--muted)">
+        <li style="margin-bottom:6px">Cancellation more than 24 hours before departure: subject to Partner policy (typically 50–100% refund)</li>
+        <li style="margin-bottom:6px">Cancellation within 24 hours: typically non-refundable unless Partner agrees</li>
+        <li style="margin-bottom:6px">No-show: non-refundable</li>
+        <li style="margin-bottom:6px">Service cancelled by Partner: full refund within 3–5 business days</li>
+      </ul>
+      <p style="margin:8px 0 0;color:var(--muted)">To request a refund, log in to your account and go to My Bookings, or contact support at /support.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px" id="cancellation">
+      <h2 style="font-size:17px;margin:0 0 10px">6. Cancellation rules</h2>
+      <p style="margin:0;color:var(--muted)">Passengers may cancel bookings through their account dashboard. Partners may cancel a service subject to notifying all affected passengers and facilitating refunds. Classic Trip reserves the right to cancel bookings in cases of fraud, technical error, or Force Majeure, with full refunds issued where applicable.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">7. Partner obligations</h2>
+      <p style="margin:0;color:var(--muted)">Partners are responsible for the accuracy of their listings, schedules, pricing, and capacity. Partners must honour confirmed bookings. Partners who repeatedly cancel confirmed bookings or fail to provide agreed services may be suspended or removed from the platform. Partner commissions and payouts are subject to verification and may be withheld pending investigation of disputes.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">8. Prohibited use</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">You must not:</p>
+      <ul style="margin:0;padding-left:20px;color:var(--muted)">
+        <li style="margin-bottom:6px">Use the platform for fraudulent transactions or fake bookings</li>
+        <li style="margin-bottom:6px">Attempt to hold seats or rooms without intent to complete payment</li>
+        <li style="margin-bottom:6px">Scrape, crawl, or extract data from the platform without permission</li>
+        <li style="margin-bottom:6px">Impersonate another passenger, Partner, or Classic Trip employee</li>
+        <li style="margin-bottom:6px">Circumvent payment flows or attempt to book at incorrect prices</li>
+      </ul>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">9. Limitation of liability</h2>
+      <p style="margin:0;color:var(--muted)">Classic Trip is a marketplace and is not liable for accidents, delays, cancellations, losses, or injuries that occur during the provision of services by Partners. Our liability is limited to the booking amount paid. We are not liable for indirect or consequential losses.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">10. Governing law</h2>
+      <p style="margin:0;color:var(--muted)">These terms are governed by the laws of Kenya. Disputes will be resolved through negotiation first, and failing that, through the courts of Nairobi, Kenya.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">11. Changes to these terms</h2>
+      <p style="margin:0;color:var(--muted)">We may update these terms from time to time. Material changes will be communicated via email or an in-app notice at least 14 days before taking effect. Continued use of the platform after changes take effect constitutes acceptance.</p>
+    </section>
+
+    <section style="border-top:1px solid var(--line);padding-top:20px">
+      <h2 style="font-size:17px;margin:0 0 10px">12. Contact</h2>
+      <p style="margin:0;color:var(--muted)">For questions about these terms, contact us through <a href="/support" style="color:var(--primary)">our support page</a> or by email at legal@classictrip.com.</p>
+    </section>
+
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+    <a class="btn btnGhost" href="/privacy"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+    <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How It Works</a>
+    <a class="btn btnGhost" href="/support"><i class="fa-solid fa-envelope"></i> Contact Support</a>
+  </div>
+
+</main>
+<%- include('../partials/site-footer') %>

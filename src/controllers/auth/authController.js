@@ -110,4 +110,30 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { showLogin, showResetPassword, login, register, forgotPassword, resetPassword, logout };
+async function verifyEmail(req, res, next) {
+  try {
+    await authService.verifyEmail(req.params.token);
+    if (req.flash) req.flash('success', 'Email verified. You can now log in.');
+    return res.redirect('/login');
+  } catch (error) {
+    return res.render('pages/auth/verify-email', {
+      seo: { title: 'Verify email | Classic Trip' },
+      error: error.message,
+      token: req.params.token,
+    });
+  }
+}
+
+async function resendVerification(req, res, next) {
+  try {
+    const userId = req.session?.user?.id;
+    if (userId) await authService.resendVerificationEmail(userId);
+    if (req.flash) req.flash('success', 'Verification email sent. Check your inbox.');
+    const back = req.get('Referer') || '/account';
+    return res.redirect(back);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { showLogin, showResetPassword, login, register, forgotPassword, resetPassword, logout, verifyEmail, resendVerification };
