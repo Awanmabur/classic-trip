@@ -10,7 +10,7 @@ const paymentIntentSchema = new Schema({
   customerUserId: { type: String, index: true },
   provider: String,
   providerReference: { type: String, index: true },
-  idempotencyKey: { type: String, index: true },
+  idempotencyKey: { type: String },
   amount: Number,
   currency: { type: String, default: 'UGX' },
   status: { type: String, default: 'created', index: true },

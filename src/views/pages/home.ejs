@@ -16,7 +16,7 @@
   <meta name="csrf-token" content="<%= csrfToken %>">
   <script src="/js/csrf.js" defer></script>
 </head>
-<body class="homePage">
+<body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
     <div class="navIn">
       <a class="brand" href="#home"><span class="mark">CT</span><span>Classic Trip</span></a>
@@ -27,7 +27,7 @@
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconbtn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
         <% if (currentUser) { %><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
-        <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button>
+        <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button></form><% } else { %><button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button><% } %>
       </div>
     </div>
   </header>
@@ -386,7 +386,7 @@
           <div class="sheetSub" id="modalSub">Partner • route • date</div>
         </div>
         <div class="sheetTopActions">
-          <button class="iconbtn" title="Save" onclick="saveCurrentListing()"><i class="fa-regular fa-heart"></i></button>
+          <button class="iconbtn" id="modalSaveBtn" title="Save" onclick="saveCurrentListing()"><i class="fa-regular fa-heart"></i></button>
           <button class="iconbtn" title="Share" onclick="shareCurrentListing()"><i class="fa-solid fa-share-nodes"></i></button>
           <button class="iconbtn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>

@@ -24,7 +24,7 @@ const paymentSchema = new Schema({
   failedAt: Date,
   failureReason: String,
   checkoutUrl: String,
-  idempotencyKey: { type: String, index: true },
+  idempotencyKey: { type: String },
   rawPayload: Schema.Types.Mixed,
   metadata: Schema.Types.Mixed,
 }, { timestamps: true });

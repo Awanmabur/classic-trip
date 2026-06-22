@@ -3,7 +3,7 @@ const { Schema, model } = require('./_helpers');
 const taxFeeRecordSchema = new Schema({
   id: { type: String, index: true },
   bookingId: { type: String, index: true },
-  bookingRef: { type: String, index: true },
+  bookingRef: { type: String },
   paymentId: { type: String, index: true },
   companyId: { type: String, index: true },
   currency: { type: String, default: 'UGX' },

@@ -15,6 +15,17 @@
     function toast(msg){const t=$('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
     function csrfToken(){return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}
     function jsonHeaders(){const h={'Content-Type':'application/json'}; const token=csrfToken(); if(token) h['x-csrf-token']=token; return h}
+    const loggedIn = !!(document.body && document.body.dataset.userId);
+    function getSavedItems(){try{return JSON.parse(localStorage.getItem('ct_saved')||'[]')}catch(e){return[]}}
+    function setSavedItems(arr){try{localStorage.setItem('ct_saved',JSON.stringify(arr))}catch(e){}}
+    function getSavedIds(){return new Set(getSavedItems().map(x=>x.id))}
+    function updateHeartButtons(id,saved){
+      document.querySelectorAll(`[data-save-id="${id}"]`).forEach(btn=>{
+        btn.classList.toggle('loved',saved);
+        const i=btn.querySelector('i'); if(i) i.className=saved?'fa-solid fa-heart':'fa-regular fa-heart';
+      });
+    }
+    function initSavedStates(){getSavedIds().forEach(id=>updateHeartButtons(id,true))}
     function listingUrl(item){return item?.url || (item ? `/listings/${item.serviceType}/${item.slug}` : window.location.pathname)}
     function bookingUrl(item){return item?.bookingUrl || (item?.bookable ? `/book/${item.serviceType}/${item.slug}` : listingUrl(item))}
     function copyFallback(text, message){
@@ -78,10 +89,20 @@
     function bookingIcon(type){ return icons[type] || 'fa-ticket'; }
 
     function saveListing(id){
-      const ev = window.event; if(ev) ev.stopPropagation();
-      const item = listings.find(x=>x.id===id);
-      toast(item ? `${item.title} saved to Love page.` : 'Saved to Love page.');
-      scrollToSectionId('saved');
+      const ev=window.event; if(ev) ev.stopPropagation();
+      const item=listings.find(x=>x.id===id);
+      const ids=getSavedIds();
+      const nowSaved=!ids.has(id);
+      updateHeartButtons(id,nowSaved);
+      const modalBtn=document.getElementById('modalSaveBtn');
+      if(modalBtn&&current?.id===id){modalBtn.classList.toggle('loved',nowSaved);const mi=modalBtn.querySelector('i');if(mi)mi.className=nowSaved?'fa-solid fa-heart':'fa-regular fa-heart';}
+      const items=getSavedItems();
+      if(nowSaved){
+        if(item&&!ids.has(id)) items.unshift({id:item.id,title:item.title,type:item.type,partner:item.partner,img:item.img,price:item.price,currency:item.currency||'UGX',url:listingUrl(item),bookingUrl:bookingUrl(item),rating:item.rating,from:item.from,time:item.time,bookable:!!item.bookable});
+        setSavedItems(items);
+        if(id) fetch('/account/saved',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','x-csrf-token':csrfToken()},body:`listingId=${encodeURIComponent(id)}`}).catch(()=>{});
+      } else { setSavedItems(items.filter(x=>x.id!==id)); }
+      toast(nowSaved?(item?`${item.title} saved.`:'Saved to your list.'):(item?`${item.title} removed.`:'Removed.'));
     }
     function shareListing(id){
       const ev = window.event; if(ev) ev.stopPropagation();
@@ -159,7 +180,7 @@
               <span class="badge badgeInfo blogTag"><i class="fa-solid fa-route"></i> ${escapeHtml(card.tag || 'Guide')}</span>
               <div class="blogIconActions">
                 <a class="miniIcon" title="View" href="${escapeHtml(card.url || '#')}"><i class="fa-regular fa-eye"></i></a>
-                <button class="miniIcon" title="Save" onclick="saveListing('${escapeHtml(card.listingId || '')}')"><i class="fa-regular fa-heart"></i></button>
+                <button class="miniIcon" title="Save" data-save-id="${escapeHtml(card.listingId || '')}" onclick="saveListing('${escapeHtml(card.listingId || '')}')"><i class="fa-regular fa-heart"></i></button>
                 <button class="miniIcon" title="Share" onclick="shareListing('${escapeHtml(card.listingId || '')}')"><i class="fa-solid fa-share-nodes"></i></button>
               </div>
             </div>
@@ -201,7 +222,7 @@
     function cardHTML(x){
       const corner = listingCornerBadge(x);
       return `<article class="listing" data-id="${escapeHtml(x.id)}" data-group="${escapeHtml(x.group)}" data-corridor="${escapeHtml(x.corridor||'regional')}" role="button" tabindex="0" aria-label="Open ${escapeHtml(x.title)}">
-        <div class="thumb"><img src="${escapeHtml(x.img)}" alt="${escapeHtml(x.title)}"><div class="cornerBadge ${corner.cls}"><i class="fa-solid ${corner.icon}"></i> ${escapeHtml(corner.text)}</div><div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating || 'New')}</span><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${escapeHtml(x.typeLabel || x.type)}</span></div><div class="thumbActions"><button class="miniIcon" type="button" title="Save" onclick="saveListing('${escapeHtml(x.id)}')"><i class="fa-regular fa-heart"></i></button><button class="miniIcon" type="button" title="Share" onclick="shareListing('${escapeHtml(x.id)}')"><i class="fa-solid fa-share-nodes"></i></button></div></div>
+        <div class="thumb"><img src="${escapeHtml(x.img)}" alt="${escapeHtml(x.title)}"><div class="cornerBadge ${corner.cls}"><i class="fa-solid ${corner.icon}"></i> ${escapeHtml(corner.text)}</div><div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating || 'New')}</span><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${escapeHtml(x.typeLabel || x.type)}</span></div><div class="thumbActions"><button class="miniIcon" type="button" title="Save" data-save-id="${escapeHtml(x.id)}" onclick="saveListing('${escapeHtml(x.id)}')"><i class="fa-regular fa-heart"></i></button><button class="miniIcon" type="button" title="Share" onclick="shareListing('${escapeHtml(x.id)}')"><i class="fa-solid fa-share-nodes"></i></button></div></div>
         <div class="listingBody">
           <h3 class="listingTitle">${escapeHtml(x.title)}</h3>
           <div class="meta"><span><i class="fa-regular fa-clock"></i> ${escapeHtml(x.nextDepartLabel || x.time || 'Flexible')}</span><span><i class="fa-solid fa-layer-group"></i> ${escapeHtml(x.unitsLabel || 'Live availability')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(x.partner)}</span></div>
@@ -241,6 +262,7 @@
       const data = listings.filter(x=>x.group===group);
       const shown = data.slice(0, visibleCounts[group]);
       $('#' + cfg.container).innerHTML = shown.map(cardHTML).join('');
+      initSavedStates();
       const btn = $('#more-' + group);
       if(btn){
         const left = data.length - shown.length;
@@ -368,6 +390,7 @@
       $('#checkoutStep').classList.remove('active');
       $('.sheetBody').style.display='grid';
       $('#viewModal').classList.add('open'); document.body.style.overflow='hidden';
+      const _mb=document.getElementById('modalSaveBtn'); if(_mb){const _sv=getSavedIds().has(id);_mb.classList.toggle('loved',_sv);const _mi=_mb.querySelector('i');if(_mi)_mi.className=_sv?'fa-solid fa-heart':'fa-regular fa-heart';}
       startTimer();
       if(bookNow) toast('Select an available option, then proceed booking.');
     }
@@ -652,6 +675,7 @@
 
     renderMarketplaceSurface();
     render();
+    initSavedStates();
     renderSaved();
     renderBookings();
   

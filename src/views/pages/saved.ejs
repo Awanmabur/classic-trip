@@ -23,53 +23,134 @@
 
   <% if (savedListings && savedListings.length) { %>
   <div class="gridCards">
+    <% var typeIcons = {Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'}; %>
     <% savedListings.forEach(function(l) { %>
-    <article class="listing" onclick="location.href='<%= l.url %>'">
+    <%
+      var cornerCls, cornerIcon, cornerText;
+      if (l.availability <= 0) { cornerCls='full'; cornerIcon='fa-circle-xmark'; cornerText='No seats'; }
+      else if (l.isSponsored) { cornerCls='promo'; cornerIcon='fa-bullhorn'; cornerText='Sponsored'; }
+      else if (!l.bookable) { cornerCls='promo'; cornerIcon='fa-clock'; cornerText='Teaser'; }
+      else { cornerCls='available'; cornerIcon='fa-circle-check'; cornerText=(l.remainingInventory||l.availability||'Live')+' left'; }
+      var typeIcon = typeIcons[l.type] || 'fa-ticket';
+    %>
+    <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" role="button" tabindex="0" aria-label="Open <%= l.title %>" data-url="<%= l.url %>" onclick="location.href=this.dataset.url">
       <div class="thumb">
-        <% if (l.img) { %>
-        <img src="<%= l.img %>" alt="<%= l.title %>">
-        <% } %>
+        <img src="<%= l.img || '' %>" alt="<%= l.title %>">
+        <div class="cornerBadge <%= cornerCls %>"><i class="fa-solid <%= cornerIcon %>"></i> <%= cornerText %></div>
         <div class="thumbBadges">
-          <% if (l.type) { %><span class="badge"><%= l.type %></span><% } %>
-          <% if (l.bookable) { %><span class="badge badgeOk"><i class="fa-solid fa-bolt"></i> Bookable</span><% } %>
+          <span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= l.rating || 'New' %></span>
+          <span class="badge badgeInfo"><i class="fa-solid <%= typeIcon %>"></i> <%= l.typeLabel || l.type %></span>
         </div>
-        <% if (l.rating) { %><div class="cornerBadge"><i class="fa-solid fa-star" style="color:#ffb703"></i> <%= l.rating %></div><% } %>
+        <div class="thumbActions">
+          <button class="miniIcon loved" type="button" title="Saved" data-id="<%= l.id %>" onclick="event.stopPropagation();ctUnsave(this)"><i class="fa-solid fa-heart"></i></button>
+          <button class="miniIcon" type="button" title="Share" data-url="<%= l.url %>" data-title="<%= l.title %>" onclick="event.stopPropagation();ctShare(this.dataset.url,this.dataset.title)"><i class="fa-solid fa-share-nodes"></i></button>
+        </div>
       </div>
       <div class="listingBody">
         <h3 class="listingTitle"><%= l.title %></h3>
         <div class="meta">
+          <span><i class="fa-regular fa-clock"></i> <%= l.nextDepartLabel || l.time || 'Flexible' %></span>
+          <span><i class="fa-solid fa-layer-group"></i> <%= l.unitsLabel || 'Live availability' %></span>
           <% if (l.partner) { %><span><i class="fa-solid fa-building"></i> <%= l.partner %></span><% } %>
-          <% if (l.time) { %><span><i class="fa-regular fa-clock"></i> <%= l.time %></span><% } %>
-          <% if (!l.time && l.from) { %><span><i class="fa-solid fa-location-dot"></i> <%= l.from %></span><% } %>
         </div>
-        <div class="priceRow" style="margin-top:6px">
-          <span class="price"><% if (l.price) { %><%= l.currency || 'UGX' %> <%= Number(l.price).toLocaleString() %><% } else { %><span class="muted">Price on request</span><% } %></span>
-        </div>
-        <div class="actions" style="margin-top:8px">
-          <% if (l.bookingUrl) { %>
-          <a class="btn btnPrimary" href="<%= l.bookingUrl %>" onclick="event.stopPropagation()" style="height:34px;padding:0 10px;font-size:12px"><i class="fa-solid fa-ticket"></i> Book</a>
-          <% } %>
-          <a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()" style="height:34px;padding:0 10px;font-size:12px"><i class="fa-regular fa-eye"></i> View</a>
+        <p class="desc"><%= [l.sub, l.policy, l.bookableReason || 'Live listing from Classic Trip.'].filter(Boolean).join('. ') %></p>
+        <div class="priceRow">
+          <div>
+            <div class="price"><%= (l.currency || 'UGX') + ' ' + Number(l.price || 0).toLocaleString() %></div>
+            <div class="small"><%= l.bookableReason || (l.bookable ? 'Starting price' : 'Read-only preview') %></div>
+          </div>
+          <div class="actions">
+            <a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()"><i class="fa-regular fa-eye"></i> View</a>
+            <% if (l.bookingUrl) { %><a class="btn btnPrimary" href="<%= l.bookingUrl %>" onclick="event.stopPropagation()"><i class="fa-solid fa-ticket"></i> Book</a><% } else { %><a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()"><i class="fa-regular fa-clock"></i> Soon</a><% } %>
+          </div>
         </div>
       </div>
     </article>
     <% }) %>
   </div>
   <% } else { %>
+
+  <% if (currentUser) { %>
   <div class="card" style="padding:56px 24px;text-align:center;display:grid;place-items:center;gap:16px">
     <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
     <div>
-      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px"><% if (currentUser) { %>No saved trips yet<% } else { %>Sign in to see saved trips<% } %></h2>
-      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch"><% if (currentUser) { %>Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.<% } else { %>Log in to access your saved buses, hotels, flights and more. You can browse and tap the heart now — they&rsquo;ll be waiting after you sign in.<% } %></p>
+      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">No saved trips yet</h2>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.</p>
     </div>
     <div class="actions" style="justify-content:center">
-      <% if (!currentUser) { %><a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
-      <a class="btn <%= currentUser ? 'btnPrimary' : 'btnGhost' %>" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
+      <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
       <a class="btn btnGhost" href="/"><i class="fa-solid fa-house"></i> Home</a>
     </div>
   </div>
+  <% } else { %>
+  <div id="guestSaved" style="display:none">
+    <div class="card" style="margin-bottom:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="badge badgeInfo"><i class="fa-solid fa-circle-info"></i> Device only</span>
+      <span style="font-size:13px;font-weight:760">These saves are on this device only. <a href="/login" style="color:var(--accent)">Sign in</a> to sync across all your devices.</span>
+    </div>
+    <div class="gridCards" id="guestSavedCards"></div>
+  </div>
+  <div id="guestEmptyState" class="card" style="padding:56px 24px;text-align:center;display:grid;place-items:center;gap:16px">
+    <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
+    <div>
+      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">Sign in to see saved trips</h2>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Log in to access your saved buses, hotels, flights and more. Or browse and tap the heart now &mdash; they&rsquo;ll be here after you sign in.</p>
+    </div>
+    <div class="actions" style="justify-content:center">
+      <a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a>
+      <a class="btn btnGhost" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
+    </div>
+  </div>
+  <% } %>
   <% } %>
 
 </main>
+
+<script>
+function ctToast(msg){var t=document.getElementById('ctToastEl');if(!t){t=document.createElement('div');t.id='ctToastEl';t.className='toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(window._ctT);window._ctT=setTimeout(function(){t.classList.remove('show')},2300);}
+function ctShare(url,title){var full=location.origin+url;if(navigator.share){navigator.share({title:title,url:full}).catch(function(){ctCopyLink(full)})}else{ctCopyLink(full)}}
+function ctCopyLink(text){try{navigator.clipboard.writeText(text).then(function(){ctToast('Link copied.')}).catch(function(){ctToast('Copy: '+text)})}catch(e){ctToast('Share link: '+text)}}
+function ctUnsave(btn){
+  var id=btn.dataset.id;
+  try{var items=JSON.parse(localStorage.getItem('ct_saved')||'[]').filter(function(x){return x.id!==id});localStorage.setItem('ct_saved',JSON.stringify(items));}catch(e){}
+  var card=btn.closest('article');
+  if(card){card.style.transition='opacity .2s';card.style.opacity='0';setTimeout(function(){card.remove()},220);}
+  ctToast('Removed from saved.');
+}
+</script>
+
+<% if (!currentUser) { %>
+<script>
+(function(){
+  var saved=[];try{saved=JSON.parse(localStorage.getItem('ct_saved')||'[]')}catch(e){}
+  if(!saved.length) return;
+  var gs=document.getElementById('guestSaved'),ge=document.getElementById('guestEmptyState');
+  if(ge) ge.style.display='none';
+  if(gs) gs.style.display='';
+  var cards=document.getElementById('guestSavedCards');if(!cards) return;
+  function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];})}
+  var iconMap={Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'};
+  function corner(l){if(!l.bookable)return{cls:'promo',icon:'fa-clock',text:'Teaser'};return{cls:'available',icon:'fa-circle-check',text:'Live'};}
+  cards.innerHTML=saved.map(function(l){
+    var c=corner(l),ti=iconMap[l.type]||'fa-ticket';
+    return '<article class="listing" data-id="'+esc(l.id)+'" data-url="'+esc(l.url||'/')+'" role="button" tabindex="0" aria-label="Open '+esc(l.title)+'" onclick="location.href=this.dataset.url">'
+      +'<div class="thumb">'+(l.img?'<img src="'+esc(l.img)+'" alt="'+esc(l.title)+'">':'')
+      +'<div class="cornerBadge '+c.cls+'"><i class="fa-solid '+c.icon+'"></i> '+esc(c.text)+'</div>'
+      +'<div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> '+esc(l.rating||'New')+'</span><span class="badge badgeInfo"><i class="fa-solid '+ti+'"></i> '+esc(l.type||'Service')+'</span></div>'
+      +'<div class="thumbActions">'
+      +'<button class="miniIcon loved" type="button" title="Saved" data-id="'+esc(l.id)+'" onclick="event.stopPropagation();ctUnsave(this)"><i class="fa-solid fa-heart"></i></button>'
+      +'<button class="miniIcon" type="button" title="Share" data-url="'+esc(l.url||'/')+'" data-title="'+esc(l.title)+'" onclick="event.stopPropagation();ctShare(this.dataset.url,this.dataset.title)"><i class="fa-solid fa-share-nodes"></i></button>'
+      +'</div></div>'
+      +'<div class="listingBody"><h3 class="listingTitle">'+esc(l.title)+'</h3>'
+      +'<div class="meta"><span><i class="fa-regular fa-clock"></i> '+esc(l.time||'Flexible')+'</span><span><i class="fa-solid fa-layer-group"></i> Live availability</span>'+(l.partner?'<span><i class="fa-solid fa-building"></i> '+esc(l.partner)+'</span>':'')+'</div>'
+      +'<p class="desc">Live listing from Classic Trip.</p>'
+      +'<div class="priceRow"><div><div class="price">'+(l.price?esc(l.currency||'UGX')+' '+Number(l.price).toLocaleString():'Price on request')+'</div><div class="small">'+(l.bookable?'Starting price':'Read-only preview')+'</div></div>'
+      +'<div class="actions"><a class="btn btnGhost" href="'+esc(l.url||'/')+'" onclick="event.stopPropagation()"><i class="fa-regular fa-eye"></i> View</a>'
+      +(l.bookingUrl?'<a class="btn btnPrimary" href="'+esc(l.bookingUrl)+'" onclick="event.stopPropagation()"><i class="fa-solid fa-ticket"></i> Book</a>':'<a class="btn btnGhost" href="'+esc(l.url||'/')+'" onclick="event.stopPropagation()"><i class="fa-regular fa-clock"></i> Soon</a>')
+      +'</div></div></div></article>';
+  }).join('');
+})();
+</script>
+<% } %>
 
 <%- include('../partials/site-footer') %>

@@ -287,3 +287,7 @@
 
 /* Passenger note textarea restored on direct payment form. */
 .directPassengerForm textarea.full{grid-column:1/-1;border-radius:22px!important;min-height:90px;resize:vertical;line-height:1.45}
+
+/* Heart button filled/loved state */
+.miniIcon.loved i,.iconbtn.loved i{color:#ffb703;transition:color .15s}.miniIcon.loved,.iconbtn.loved{animation:heartPop .22s ease}
+@keyframes heartPop{0%{transform:scale(1)}50%{transform:scale(1.35)}100%{transform:scale(1)}}
