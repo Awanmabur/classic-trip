@@ -69,7 +69,7 @@ async function saveTrip(req, res, next) {
     saved.status = 'saved';
     saved.updatedAt = new Date().toISOString();
     await persist('SavedListing', saved, { userId: saved.userId, listingId: saved.listingId });
-    res.redirect('/account#saved');
+    res.redirect('/saved');
   } catch (error) {
     next(error);
   }

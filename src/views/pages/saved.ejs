@@ -1,0 +1,74 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+
+<main class="container" style="padding:16px 0 40px">
+
+  <section class="card heroCard" style="margin-bottom:20px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <span class="badge badgeHot" style="width:max-content;margin-bottom:10px"><i class="fa-regular fa-heart"></i> Saved trips</span>
+        <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">Your saved listings</h1>
+        <p class="heroSub">Buses, hotels, flights and more you&rsquo;ve marked to book later. Tap the heart on any listing to save it here.</p>
+        <div class="actions" style="margin-top:14px">
+          <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse more</a>
+          <a class="btn btnGhost" href="/my-bookings"><i class="fa-solid fa-ticket"></i> My bookings</a>
+          <a class="btn btnGhost" href="/"><i class="fa-solid fa-house"></i> Home</a>
+        </div>
+      </div>
+      <div style="display:grid;gap:8px;text-align:right;flex-shrink:0">
+        <div class="badge badgeInfo"><i class="fa-solid fa-heart"></i> <%= savedListings.length %> saved</div>
+      </div>
+    </div>
+  </section>
+
+  <% if (savedListings && savedListings.length) { %>
+  <div class="gridCards">
+    <% savedListings.forEach(function(l) { %>
+    <article class="listing" onclick="location.href='<%= l.url %>'">
+      <div class="thumb">
+        <% if (l.img) { %>
+        <img src="<%= l.img %>" alt="<%= l.title %>">
+        <% } %>
+        <div class="thumbBadges">
+          <% if (l.type) { %><span class="badge"><%= l.type %></span><% } %>
+          <% if (l.bookable) { %><span class="badge badgeOk"><i class="fa-solid fa-bolt"></i> Bookable</span><% } %>
+        </div>
+        <% if (l.rating) { %><div class="cornerBadge"><i class="fa-solid fa-star" style="color:#ffb703"></i> <%= l.rating %></div><% } %>
+      </div>
+      <div class="listingBody">
+        <h3 class="listingTitle"><%= l.title %></h3>
+        <div class="meta">
+          <% if (l.partner) { %><span><i class="fa-solid fa-building"></i> <%= l.partner %></span><% } %>
+          <% if (l.time) { %><span><i class="fa-regular fa-clock"></i> <%= l.time %></span><% } %>
+          <% if (!l.time && l.from) { %><span><i class="fa-solid fa-location-dot"></i> <%= l.from %></span><% } %>
+        </div>
+        <div class="priceRow" style="margin-top:6px">
+          <span class="price"><% if (l.price) { %><%= l.currency || 'UGX' %> <%= Number(l.price).toLocaleString() %><% } else { %><span class="muted">Price on request</span><% } %></span>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <% if (l.bookingUrl) { %>
+          <a class="btn btnPrimary" href="<%= l.bookingUrl %>" onclick="event.stopPropagation()" style="height:34px;padding:0 10px;font-size:12px"><i class="fa-solid fa-ticket"></i> Book</a>
+          <% } %>
+          <a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()" style="height:34px;padding:0 10px;font-size:12px"><i class="fa-regular fa-eye"></i> View</a>
+        </div>
+      </div>
+    </article>
+    <% }) %>
+  </div>
+  <% } else { %>
+  <div class="card" style="padding:56px 24px;text-align:center;display:grid;place-items:center;gap:16px">
+    <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
+    <div>
+      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">No saved trips yet</h2>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.</p>
+    </div>
+    <div class="actions" style="justify-content:center">
+      <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
+      <a class="btn btnGhost" href="/"><i class="fa-solid fa-house"></i> Back to home</a>
+    </div>
+  </div>
+  <% } %>
+
+</main>
+
+<%- include('../partials/site-footer') %>

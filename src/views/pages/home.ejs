@@ -21,7 +21,7 @@
     <div class="navIn">
       <a class="brand" href="#home"><span class="mark">CT</span><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
-        <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="#saved">Saved</a><a href="#my-bookings">My bookings</a>
+        <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
       </nav>
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
@@ -40,7 +40,7 @@
         <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="drawerLinks">
-        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="#saved">Saved</a><a href="#my-bookings">My bookings</a><a href="/login"><i class="fa-regular fa-user"></i> Login</a>
+        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a><a href="/login"><i class="fa-regular fa-user"></i> Login</a>
       </div>
       <div class="drawerFilters" id="drawerFilters"></div>
       <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus');document.getElementById('drawer')?.classList.remove('open')"><i class="fa-solid fa-bolt"></i> Start booking</button>
@@ -324,34 +324,6 @@
           </div>
         </section>
 
-        <section class="section" id="saved">
-          <div class="sectionHead">
-            <div>
-              <h2>Saved / loved</h2>
-              <p>Customers can save buses, hotels, flights, trains and offers they want to book later.</p>
-            </div>
-            <span class="badge badgeHot"><i class="fa-regular fa-heart"></i> Wishlist</span>
-          </div>
-          <div class="pageIntro">
-            <div>
-              <h3>Your saved travel picks</h3>
-              <p>Saved items from your account appear here. Every heart button can save a listing to this page.</p>
-            </div>
-            <button class="btn btnGhost" onclick="toast('Saved picks refreshed from your account.')"><i class="fa-solid fa-cloud-arrow-up"></i> Sync saved</button>
-          </div>
-          <div class="gridCards" id="savedCards"></div>
-        </section>
-
-        <section class="section" id="my-bookings">
-          <div class="sectionHead">
-            <div>
-              <h2>My bookings</h2>
-              <p>Tickets sent through Gmail or WhatsApp can also be stored here for quick access.</p>
-            </div>
-            <span class="badge badgeOk"><i class="fa-solid fa-envelope-circle-check"></i> Email + WhatsApp ready</span>
-          </div>
-          <div class="gridCards" id="bookingCards"></div>
-        </section>
       </div>
     </div>
   </main>
@@ -373,8 +345,8 @@
         <a href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> Flights</a>
         <a href="/search?serviceType=train"><i class="fa-solid fa-train"></i> Trains</a>
         <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
-        <a href="/account"><i class="fa-regular fa-user"></i> My account</a>
-        <a href="/blogs"><i class="fa-regular fa-newspaper"></i> Travel blogs</a>
+        <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
+        <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
       </div>
 
       <div class="footerCol">
