@@ -59,12 +59,13 @@
   <div class="card" style="padding:56px 24px;text-align:center;display:grid;place-items:center;gap:16px">
     <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
     <div>
-      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">No saved trips yet</h2>
-      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.</p>
+      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px"><% if (currentUser) { %>No saved trips yet<% } else { %>Sign in to see saved trips<% } %></h2>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch"><% if (currentUser) { %>Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.<% } else { %>Log in to access your saved buses, hotels, flights and more. You can browse and tap the heart now — they&rsquo;ll be waiting after you sign in.<% } %></p>
     </div>
     <div class="actions" style="justify-content:center">
-      <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
-      <a class="btn btnGhost" href="/"><i class="fa-solid fa-house"></i> Back to home</a>
+      <% if (!currentUser) { %><a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
+      <a class="btn <%= currentUser ? 'btnPrimary' : 'btnGhost' %>" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
+      <a class="btn btnGhost" href="/"><i class="fa-solid fa-house"></i> Home</a>
     </div>
   </div>
   <% } %>

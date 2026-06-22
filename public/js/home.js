@@ -598,13 +598,15 @@
     }
     $$('#navLinks a, .drawerLinks a').forEach(a=>{
       a.addEventListener('click',(e)=>{
+        const href=a.getAttribute('href')||'#home';
+        if(!href.startsWith('#')) return;
         e.preventDefault();
-        const id=(a.getAttribute('href')||'#home').replace('#','');
+        const id=href.replace('#','');
         scrollToSectionId(id);
         $('#drawer')?.classList.remove('open');
       });
     });
-    const navSections=['home','bus','hotel','flight','train','more','ads','blogs','saved','my-bookings'].map(id=>document.getElementById(id)).filter(Boolean);
+    const navSections=['home','bus','hotel','flight','train','more','ads','blogs'].map(id=>document.getElementById(id)).filter(Boolean);
     window.addEventListener('scroll',()=>{
       let currentId='home';
       navSections.forEach(sec=>{

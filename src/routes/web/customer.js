@@ -37,34 +37,36 @@ router.post('/account/wallet/top-up', actionController.topUpWallet);
 router.post('/account/promoter', actionController.becomePromoter);
 router.post('/account/security', actionController.updateSecurity);
 
-router.get('/saved', requireAuth, (req, res, next) => {
+router.get('/saved', (req, res, next) => {
   try {
-    const user = req.session?.user || {};
-    const savedListings = (store.state.savedListings || [])
-      .filter((s) => s.userId === user.id && s.status !== 'removed')
-      .map((s) => store.findListing(s.listingId))
-      .filter(Boolean)
-      .map((l) => store.frontendListing(l));
+    const userId = req.session?.user?.id;
+    const savedListings = userId
+      ? (store.state.savedListings || [])
+          .filter((s) => s.userId === userId && s.status !== 'removed')
+          .map((s) => store.findListing(s.listingId))
+          .filter(Boolean)
+          .map((l) => store.frontendListing(l))
+      : [];
     res.render('pages/saved', {
       seo: { title: 'Saved trips | Classic Trip', description: 'Your saved buses, hotels, flights and more.' },
       csrfToken: req.csrfToken ? req.csrfToken() : '',
       savedListings,
-      user,
     });
   } catch (err) { next(err); }
 });
 
-router.get('/my-bookings', requireAuth, (req, res, next) => {
+router.get('/my-bookings', (req, res, next) => {
   try {
-    const user = req.session?.user || {};
-    const bookings = (store.state.bookings || [])
-      .filter((b) => b.customerUserId === user.id)
-      .map((b) => store.frontendBooking(b));
+    const userId = req.session?.user?.id;
+    const bookings = userId
+      ? (store.state.bookings || [])
+          .filter((b) => b.customerUserId === userId)
+          .map((b) => store.frontendBooking(b))
+      : [];
     res.render('pages/my-bookings', {
       seo: { title: 'My bookings | Classic Trip', description: 'All your Classic Trip bookings.' },
       csrfToken: req.csrfToken ? req.csrfToken() : '',
       bookings,
-      user,
     });
   } catch (err) { next(err); }
 });

@@ -61,12 +61,13 @@
   <div class="card" style="padding:56px 24px;text-align:center;display:grid;place-items:center;gap:16px">
     <i class="fa-solid fa-ticket" style="font-size:52px;color:var(--muted)"></i>
     <div>
-      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">No bookings yet</h2>
-      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">When you complete a booking it will appear here. You can also look up any ticket by reference number.</p>
+      <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px"><% if (currentUser) { %>No bookings yet<% } else { %>Sign in to see your bookings<% } %></h2>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch"><% if (currentUser) { %>When you complete a booking it will appear here. You can also look up any ticket by reference number.<% } else { %>Log in to see all your Classic Trip bookings in one place. You can also look up any ticket by reference — no login needed.<% } %></p>
     </div>
     <div class="actions" style="justify-content:center">
-      <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse &amp; book</a>
+      <% if (!currentUser) { %><a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
       <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-ticket"></i> Lookup a ticket</a>
+      <% if (currentUser) { %><a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse &amp; book</a><% } %>
     </div>
   </div>
   <% } %>
