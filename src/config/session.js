@@ -10,8 +10,14 @@ module.exports = function sessionConfig() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: env.isProduction,
-      sameSite: env.isProduction ? 'lax' : 'lax',
+      // 'auto' checks req.secure per-request (respecting `trust proxy`) instead of
+      // hardcoding from NODE_ENV. A hardcoded `secure: env.isProduction` meant the
+      // session cookie was silently dropped by the browser whenever the app ran in
+      // production mode over plain HTTP (e.g. local production-mode testing), since
+      // browsers refuse to store `secure` cookies from a non-HTTPS response - login
+      // would "succeed" (redirect) but never actually persist a session.
+      secure: 'auto',
+      sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   };

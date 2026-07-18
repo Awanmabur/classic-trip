@@ -40,13 +40,34 @@
         <div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div>
         <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
       </div>
+      <% if (currentUser) { %>
+        <a class="drawerProfile" href="/account">
+          <span class="drawerProfileAvatar"><i class="fa-solid fa-user"></i></span>
+          <span class="drawerProfileText"><b><%= currentUser.fullName || currentUser.name || 'Account' %></b><span class="muted">View dashboard</span></span>
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
+      <% } else { %>
+        <a class="drawerProfile" href="/login">
+          <span class="drawerProfileAvatar"><i class="fa-regular fa-user"></i></span>
+          <span class="drawerProfileText"><b>Login / Sign up</b><span class="muted">Access your bookings & account</span></span>
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
+      <% } %>
       <div class="drawerLinks">
-        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a><% if (currentUser) { %><a href="/account"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
+        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
       </div>
       <div class="drawerFilters" id="drawerFilters"></div>
       <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus');document.getElementById('drawer')?.classList.remove('open')"><i class="fa-solid fa-bolt"></i> Start booking</button>
     </div>
   </div>
+
+  <nav class="bottomNav" id="siteBottomNav">
+    <button type="button" onclick="location.href='/'" class="active" title="Home"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button type="button" onclick="location.href='/search'" title="Search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+    <button type="button" onclick="location.href='/tickets'" title="Tickets"><i class="fa-solid fa-ticket"></i><span>Tickets</span></button>
+    <button type="button" onclick="location.href='/saved'" title="Saved"><i class="fa-regular fa-heart"></i><span>Saved</span></button>
+    <button type="button" onclick="document.getElementById('drawer').classList.toggle('open')" title="Menu"><i class="fa-regular fa-user"></i><span>Profile</span></button>
+  </nav>
 
   <main>
     <section class="container hero" id="home">

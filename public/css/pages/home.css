@@ -163,8 +163,7 @@
     @media(max-width:680px){
       .hero{padding:7px 0 5px}
       .heroCard{padding:11px;border-radius:22px}
-      .heroTitle{font-size:15px!important;line-height:1.12;letter-spacing:-.25px;max-width:100%;margin:2px 0 0}.heroTitle .keepLine{white-space:nowrap}
-      .heroSub,.hero .chips,.hero .chipRow,.stats{display:none!important}
+      .heroTitle,.heroSub,.hero .chips,.hero .chipRow,.stats{display:none!important}
       .heroTop{gap:9px}
       .hero .badgeInfo{font-size:10px;padding:5px 8px;gap:5px}
       .searchBox{padding:10px;border-radius:20px}
@@ -237,7 +236,7 @@
       .bottomNav button:active{transform:scale(.96)}
       .sectionHead{flex-wrap:nowrap;align-items:flex-start}.sectionHead>div{min-width:0}.sectionHead .badge{margin-left:auto;flex:0 0 auto;font-size:10px;padding:6px 8px;max-width:44%;overflow:hidden;text-overflow:ellipsis}
       .thumbBadges{right:86px}.miniIcon{width:30px;height:30px}.sheetTop{align-items:flex-start}.sheetTitle{font-size:17px}.sheetTopActions{gap:7px}
-      .drawer.open{padding-bottom:64px}.toast{bottom:68px}
+      .drawer.open{padding-bottom:64px}.toast{bottom:68px}.ctNotifyDock{bottom:78px!important}
       .ticketCard{border-radius:22px;padding:12px}.ticketActions{justify-content:stretch}.ticketActions .btn{flex:1}.ticketCode{font-size:11px}
     }
 
@@ -295,3 +294,34 @@
 /* Heart button filled/loved state */
 .miniIcon.loved i,.iconbtn.loved i{color:#ffb703;transition:color .15s}.miniIcon.loved,.iconbtn.loved{animation:heartPop .22s ease}
 @keyframes heartPop{0%{transform:scale(1)}50%{transform:scale(1.35)}100%{transform:scale(1)}}
+
+/* Bottom nav: show icon + name label instead of icon-only. */
+.bottomNav button{width:auto;height:auto;min-height:46px;padding:6px 2px 5px;border-radius:16px;gap:3px;background:transparent;border-color:transparent}
+.bottomNav button i{font-size:16px;line-height:1;display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;transition:background .15s,color .15s}
+.bottomNav button span{display:block!important;font-size:9px;font-weight:850;line-height:1;letter-spacing:.01em;white-space:nowrap}
+/* Active state: a circular highlight behind the icon only, not the whole button.
+   Profile also lights up while the drawer it opens is open, tracked reactively via
+   :has() so it stays correct regardless of how the drawer gets closed (X button,
+   backdrop click, or another control that auto-closes it). */
+.bottomNav button.active,
+body:has(.drawer.open) .bottomNav button[title="Menu"]{background:transparent;border-color:transparent;box-shadow:none;color:var(--accent)}
+.bottomNav button.active i,
+body:has(.drawer.open) .bottomNav button[title="Menu"] i{background:rgba(255,183,3,.18)!important;color:var(--accent)!important}
+/* While the menu is open, it alone should read as active - suppress any other
+   button's page-location active state so two icons don't light up at once
+   (e.g. Home staying lit while Profile opens the menu from the homepage). */
+body:has(.drawer.open) .bottomNav button.active:not([title="Menu"]){color:var(--muted)}
+body:has(.drawer.open) .bottomNav button.active:not([title="Menu"]) i{background:transparent!important;color:var(--muted)!important}
+
+/* Drawer link rows: icon and label were crowding together with no gap between them. */
+.drawerLinks a{display:flex!important;align-items:center;gap:10px}
+.drawerLinks a i{width:16px;text-align:center;flex-shrink:0}
+
+/* Drawer profile heading: shown first, above the menu links. */
+.drawerProfile{display:flex;align-items:center;gap:12px;padding:12px 6px;margin:10px 0 6px;border-radius:18px;text-decoration:none;color:var(--text);border:1px solid var(--line);background:var(--field)}
+.drawerProfile:hover{background:rgba(255,183,3,.08);border-color:rgba(255,183,3,.24)}
+.drawerProfileAvatar{width:42px;height:42px;flex-shrink:0;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;color:#081026;font-size:17px}
+.drawerProfileText{flex:1;min-width:0;display:grid;gap:2px}
+.drawerProfileText b{font-size:14px;letter-spacing:-.1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawerProfileText .muted{font-size:11px;font-weight:780}
+.drawerProfile>i{color:var(--muted);font-size:13px;flex-shrink:0}
