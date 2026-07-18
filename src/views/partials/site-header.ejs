@@ -13,9 +13,9 @@
       <button class="iconbtn" id="siteThemeBtn" title="Toggle theme" onclick="(function(){var t=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('ct-theme',t)}catch(e){}var i=document.getElementById('siteThemeIcon');if(i){i.className=t==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}})()"><i class="fa-solid fa-moon" id="siteThemeIcon"></i></button>
       <a class="btn btnGhost" href="/tickets" style="<%= currentPath.startsWith('/tickets') ? 'background:rgba(255,183,3,.13);border-color:rgba(255,183,3,.30);color:var(--accent)' : '' %>"><i class="fa-solid fa-ticket"></i><span class="navBtnText">Tickets</span></a>
       <% if (currentUser) { %>
-        <a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i><span class="navBtnText"><%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></span></a>
+        <a class="btn btnGhost login" href="/account"><i class="fa-regular fa-user"></i><span class="navBtnText"><%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></span></a>
       <% } else { %>
-        <a class="btn btnGhost" href="/login"><i class="fa-regular fa-user"></i><span class="navBtnText">Login</span></a>
+        <a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i><span class="navBtnText">Login</span></a>
       <% } %>
       <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i><span class="navBtnText">Logout</span></button></form><% } else { %><a class="btn btnPrimary" href="/pricing"><i class="fa-solid fa-store"></i><span class="navBtnText">Partner</span></a><% } %>
       <button class="iconbtn" id="siteMenuBtn" title="Menu" onclick="document.getElementById('siteDrawer').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>

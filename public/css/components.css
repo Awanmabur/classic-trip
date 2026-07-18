@@ -20,5 +20,11 @@
 .paymentPage .seat:has(input:checked),.paymentPage .room:has(input:checked),.paymentPage .slot:has(input:checked){background:linear-gradient(135deg,var(--accent),var(--hot));color:#091126}
 .authFooter{width:var(--container);margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820}
 .authFooter .footerLinks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.splitGrid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.splitGridEven{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.ticketSplit{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
 @media(max-width:1180px){.routeCardGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:900px){.detailGrid,.metricRow,.routeCardGrid{grid-template-columns:1fr}.routeItem{align-items:flex-start;flex-direction:column}}
+@media(max-width:900px){.detailGrid,.metricRow,.routeCardGrid,.grid3{grid-template-columns:1fr}.routeItem{align-items:flex-start;flex-direction:column}}
+@media(max-width:680px){.grid2,.splitGrid,.splitGridEven,.ticketSplit{grid-template-columns:1fr}}
