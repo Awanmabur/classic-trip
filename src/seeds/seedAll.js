@@ -375,8 +375,10 @@ function buildHotelInventory(seedListings = listings, seedRooms = rooms) {
         status: 'active',
       });
       const unitCount = Math.max(1, Math.min(3, Number(room.inventory || 1)));
+      const roomUnitIds = [];
       for (let unitIndex = 0; unitIndex < unitCount; unitIndex += 1) {
         const unitId = `room-unit-${String(roomUnits.length + 1).padStart(5, '0')}`;
+        roomUnitIds.push(unitId);
         roomUnits.push({
           id: unitId,
           companyId: listing.companyId,
@@ -390,23 +392,25 @@ function buildHotelInventory(seedListings = listings, seedRooms = rooms) {
           status: 'available',
         });
       }
-      for (let day = 0; day < 14; day += 1) {
-        const date = new Date(inventoryAnchor.getTime() + day * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        roomNightInventories.push({
-          id: `room-night-${room.id}-${date}`,
-          companyId: listing.companyId,
-          listingId: listing.id,
-          propertyId,
-          roomTypeId,
-          roomId: room.id,
-          date,
-          totalInventory: Number(room.inventory || 1),
-          availableInventory: Math.max(0, Number(room.inventory || 1) - (day % 3)),
-          price: Number(room.nightlyPrice || listing.priceFrom || 0) + (day % 4) * 10000,
-          currency: listing.currency || 'UGX',
-          status: 'open',
-        });
-      }
+      // One row per (roomUnit, date), matching the unique index and what hotelService
+      // actually queries - not an aggregate per-room-type count.
+      roomUnitIds.forEach((unitId) => {
+        for (let day = 0; day < 14; day += 1) {
+          const date = new Date(inventoryAnchor.getTime() + day * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          roomNightInventories.push({
+            id: `room-night-${unitId}-${date}`,
+            companyId: listing.companyId,
+            listingId: listing.id,
+            propertyId,
+            roomTypeId,
+            roomUnitId: unitId,
+            roomId: room.id,
+            date,
+            price: Number(room.nightlyPrice || listing.priceFrom || 0) + (day % 4) * 10000,
+            status: 'available',
+          });
+        }
+      });
     });
     stayRules.push({
       id: `stay-rule-${String(listingIndex + 1).padStart(3, '0')}`,

@@ -683,7 +683,10 @@ async function hydrateFromDatabase({ mongoose, logger } = {}) {
   let loadedCollections = 0;
   let loadedRecords = 0;
 
-  for (const [stateKey, modelName] of Object.entries(DATABASE_MODELS)) {
+  // Each collection is an independent read, so fetch them concurrently instead of one
+  // round trip at a time - sequential awaits here turned every restart into ~18s of
+  // pure network latency against the remote Atlas cluster with ~85 collections.
+  await Promise.all(Object.entries(DATABASE_MODELS).map(async ([stateKey, modelName]) => {
     try {
       const repository = repositories.repositoryFor(stateKey);
       const rows = await repository.list({});
@@ -695,7 +698,7 @@ async function hydrateFromDatabase({ mongoose, logger } = {}) {
     } catch (error) {
       logger?.warn?.('Database hydration skipped collection', { modelName, stateKey, error: error.message });
     }
-  }
+  }));
 
   if (!loadedRecords) {
     if (process.env.NODE_ENV === 'test' || ['true', '1', 'yes'].includes(String(process.env.SEED_READ_MODEL || '').toLowerCase())) {

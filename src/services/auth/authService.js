@@ -232,9 +232,20 @@ async function registerUser(payload) {
     referralCode: role === 'promoter' ? uniqueReferralCode(payload.fullName || payload.email, payload.id) : undefined,
     authProviders: { local: { enabled: Boolean(passwordHash) }, google: { enabled: false } },
   });
-  await provisionRoleArtifacts(user, { ...payload, role, signupSource: 'auth_register' });
-  if (user.email) await sendEmailVerification(user);
-  await persist('users', user);
+  try {
+    await provisionRoleArtifacts(user, { ...payload, role, signupSource: 'auth_register' });
+    if (user.email) await sendEmailVerification(user);
+    await persist('users', user);
+  } catch (error) {
+    // A duplicate submit (double-click, network retry) can race two inserts for the same
+    // email against the unique index. Surface a clean, user-facing message instead of a crash.
+    if (error && error.code === 11000) {
+      const duplicateError = new Error('An account with this email already exists. Try logging in instead.');
+      duplicateError.status = 409;
+      throw duplicateError;
+    }
+    throw error;
+  }
   return scrubUser(user);
 }
 

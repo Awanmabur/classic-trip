@@ -123,7 +123,9 @@ const filterOverrides = {
   offlineSales: (row) => ({ saleRef: row.saleRef || row.id }),
   fraudSignals: (row) => ({ id: row.id }),
   subscriptionOrders: (row) => ({ orderRef: row.orderRef }),
-  platformSettings: (row) => ({ id: row.id || row.key || 'platform' }),
+  // PlatformSetting is a true singleton with no app-level id field - match the one
+  // existing document (if any) so repeated upserts update it in place.
+  platformSettings: () => ({}),
   savedListings: (row) => ({ userId: row.userId, listingId: row.listingId }),
   seats: (row) => ({ scheduleId: row.scheduleId, seatNumber: row.seatNumber }),
   rooms: (row) => ({ id: row.id }),

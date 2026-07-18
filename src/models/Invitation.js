@@ -3,6 +3,8 @@ const { Schema, model } = require('./_helpers');
 const invitationSchema = new Schema({
   id: { type: String, index: true },
   token: { type: String, index: true },
+  tokenHash: { type: String, index: true },
+  tokenPreview: String,
   type: { type: String, enum: ['company', 'driver', 'hotel', 'fleet_owner', 'promoter', 'agent', 'service_provider', 'admin'], default: 'company', index: true },
   status: { type: String, enum: ['draft', 'requested', 'sent', 'accepted', 'revoked', 'expired', 'rejected'], default: 'sent', index: true },
   email: { type: String, lowercase: true, trim: true, index: true },
