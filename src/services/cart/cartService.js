@@ -1,6 +1,7 @@
 const store = require('../data/persistentStore');
 const repositories = require('../../repositories');
 const { ENABLED_BOOKING_TYPES } = require('../../config/constants');
+const { env } = require('../../config/env');
 const generateBookingRef = require('../../utils/generateBookingRef');
 const generateCode = require('../../utils/generateCode');
 const calculateCommission = require('../../utils/calculateCommission');
@@ -47,6 +48,7 @@ function publicCart(cart) {
     bookingRef: cart.bookingRef,
     childBookingRefs: cart.childBookingRefs || [],
     paymentRef: cart.paymentRef,
+    checkoutUrl: cart.checkoutUrl || '',
     expiresAt: cart.expiresAt,
   };
 }
@@ -325,6 +327,7 @@ function buildBooking(cart, payment, lines) {
   return {
     id: nextId('booking', store.state.bookings),
     bookingRef,
+    guestLookupCode: generateCode('LOOKUP', 8),
     serviceType: 'cart',
     cartRef: cart.cartRef,
     checkoutGroupId: cart.cartRef,
@@ -341,6 +344,7 @@ function buildBooking(cart, payment, lines) {
     paymentStatus: payment.status || 'successful',
     paymentProvider: payment.provider,
     paymentRef: payment.providerReference,
+    checkoutUrl: payment.checkoutUrl || '',
     bookingStatus: payment.status === 'successful' ? 'confirmed' : 'pending_payment',
     qrCodeValue: `CLASSIC-TRIP:CART:${bookingRef}:${Date.now()}`,
     createdAt: nowIso(),
@@ -374,18 +378,31 @@ async function checkout(cartRefValue, payload = {}, req = {}) {
     await upsert('carts', cart); await upsert('cartCheckoutAttempts', attempt);
     return { cart, attempt, booking: null, payment: null };
   }
-  const payment = await paymentService.initiatePayment({ provider: payload.provider || payload.paymentProvider || 'mock', bookingRef: cart.cartRef, amount: cart.pricing.total, currency: cart.pricing.currency, customer: cart.customer });
+  const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider);
+  const payment = await paymentService.initiatePayment({
+    provider,
+    bookingRef: cart.cartRef,
+    amount: cart.pricing.total,
+    currency: cart.pricing.currency,
+    customer: cart.customer,
+    callbackUrl: `${env.appUrl}/booking/payment/callback?cartRef=${encodeURIComponent(cart.cartRef)}`,
+    description: `Classic Trip cart checkout ${cart.cartRef}`,
+  });
   const booking = buildBooking(cart, payment, cart.validation.lines);
   try {
     cart.validation.lines.forEach((line) => { if (line.serviceType === 'bus') markSeatCommitted(line, booking.bookingRef); if (line.serviceType === 'hotel') markHotelCommitted(line, booking.bookingRef); });
     store.state.bookings.unshift(booking);
-    const paymentRow = { id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef: booking.bookingRef, amount: cart.pricing.total, currency: cart.pricing.currency, status: payment.status || 'successful', provider: payment.provider || 'mock', providerReference: payment.providerReference, customerUserId: cart.userId || null, idempotencyKey: `cart:${cart.cartRef}`, metadata: { cartRef: cart.cartRef, itemCount: cart.items.length, ticketCount: booking.ticketLegs.length }, createdAt: nowIso(), paidAt: payment.paidAt || nowIso() };
+    const paymentRow = { id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef: booking.bookingRef, amount: cart.pricing.total, currency: cart.pricing.currency, status: payment.status || 'pending', provider: payment.provider || provider, providerReference: payment.providerReference, customerUserId: cart.userId || null, idempotencyKey: `cart:${cart.cartRef}`, metadata: { cartRef: cart.cartRef, itemCount: cart.items.length, ticketCount: booking.ticketLegs.length }, checkoutUrl: payment.checkoutUrl || '', createdAt: nowIso(), paidAt: (payment.status || 'pending') === 'successful' ? (payment.paidAt || nowIso()) : null };
     store.state.payments.unshift(paymentRow);
-    recordLedgerAndCommission(booking, cart.validation.lines);
+    if (paymentRow.status === 'successful') recordLedgerAndCommission(booking, cart.validation.lines);
     cart.status = paymentRow.status === 'successful' ? 'checked_out' : 'payment_pending';
-    cart.paymentId = paymentRow.id; cart.paymentRef = paymentRow.providerReference; cart.bookingRef = booking.bookingRef; cart.childBookingRefs = [booking.bookingRef]; cart.checkedOutAt = nowIso(); cart.recoveryState = null;
+    cart.paymentId = paymentRow.id; cart.paymentRef = paymentRow.providerReference; cart.checkoutUrl = paymentRow.checkoutUrl || ''; cart.bookingRef = booking.bookingRef; cart.childBookingRefs = [booking.bookingRef]; cart.checkedOutAt = nowIso(); cart.recoveryState = null;
     attempt.status = 'completed'; attempt.bookingRef = booking.bookingRef; attempt.paymentId = paymentRow.id; attempt.providerReference = paymentRow.providerReference; attempt.resolvedAt = nowIso();
-    store.state.notifications.unshift({ id: nextId('notification', store.state.notifications), userId: cart.userId || 'guest', channels: ['email', 'sms'], title: 'Cart checkout confirmed', message: `${booking.bookingRef} confirmed with ${booking.ticketLegs.length} ticket/stay unit(s).`, status: 'queued', referenceType: 'cart_booking', referenceId: booking.id, createdAt: nowIso() });
+    const notificationTitle = paymentRow.status === 'successful' ? 'Cart checkout confirmed' : 'Cart checkout payment pending';
+    const notificationMessage = paymentRow.status === 'successful'
+      ? `${booking.bookingRef} confirmed with ${booking.ticketLegs.length} ticket/stay unit(s).`
+      : `${booking.bookingRef} is waiting for payment confirmation. Checkout: ${paymentRow.checkoutUrl || 'payment link pending'}`;
+    store.state.notifications.unshift({ id: nextId('notification', store.state.notifications), userId: cart.userId || 'guest', channels: ['email', 'sms'], title: notificationTitle, message: notificationMessage, status: 'queued', referenceType: 'cart_booking', referenceId: booking.id, meta: { bookingRef: booking.bookingRef, checkoutUrl: paymentRow.checkoutUrl || '' }, createdAt: nowIso() });
     store.state.auditLogs.unshift({ id: nextId('audit', store.state.auditLogs), actorId: cart.userId || 'guest', actorRole: 'customer', action: 'cart.checkout.completed', targetType: 'cart', targetId: cart.cartRef, status: 'success', createdAt: nowIso(), meta: { bookingRef: booking.bookingRef, paymentId: paymentRow.id } });
     await Promise.all([upsert('bookings', booking), upsert('payments', paymentRow), upsert('carts', cart), upsert('cartCheckoutAttempts', attempt)]);
     return { cart, attempt, booking, payment: paymentRow };

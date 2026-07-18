@@ -195,7 +195,7 @@ async function provisionRoleArtifacts(user, payload = {}) {
 async function verifyLogin(identity, password) {
   const user = store.findUserByIdentity(identity);
   if (!user || user.status === 'suspended' || user.status === 'blocked') return null;
-  if (password === env.demoPassword) return { ...user, passwordHash: undefined };
+  if (env.allowDemoLogin && password === env.demoPassword) return { ...user, passwordHash: undefined };
   if (user.passwordHash && await bcrypt.compare(password, user.passwordHash)) return { ...user, passwordHash: undefined };
   return null;
 }

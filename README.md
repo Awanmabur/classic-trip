@@ -34,7 +34,7 @@ Classic Trip is a Node.js + Express + MongoDB + Mongoose + EJS monolith for a mu
 - Mongoose model files for all major blueprint entities.
 - Cloudinary upload service with production folder targets for company logos, covers, documents, listing images, blogs and tickets.
 - Google OAuth wiring with Passport Google OAuth 2.0. It is disabled until Google environment variables are set.
-- Guest checkout with mock payment, booking reference, QR ticket value, downloadable PDF ticket and one-time scanner validation.
+- Guest checkout with Pesapal payment initiation, payment callbacks/webhooks, booking reference, private guest lookup code, QR ticket value, downloadable PDF ticket and one-time scanner validation.
 - Notification adapters for SMTP email plus HTTP SMS/WhatsApp providers, with safe queued fallback when provider credentials are not configured.
 - Wallet, ledger and commission split logic:
   - With valid promoter referral: promoter 3%, platform 7%, company 90%.
@@ -64,7 +64,7 @@ http://localhost:5000
 
 ## Demo login accounts
 
-Use the password below for every demo account:
+For local demo mode only, set `ALLOW_DEMO_LOGIN=true` and use the password below for every demo account:
 
 ```text
 Password123
@@ -109,13 +109,18 @@ Real production values are required for:
 - `WHATSAPP_API_URL`
 - `WHATSAPP_API_TOKEN`
 - `ENABLE_JOBS`
-- Real payment provider keys when replacing the mock provider.
+- `PAYMENT_PROVIDER=pesapal`
+- `PESAPAL_CONSUMER_KEY`
+- `PESAPAL_CONSUMER_SECRET`
+- `PESAPAL_CALLBACK_URL`
+- `PESAPAL_IPN_URL` or `PESAPAL_IPN_ID`
+- `PAYMENT_WEBHOOK_SECRET`
 
 Production ticket PDFs are generated with PDFKit at `/tickets/:bookingRef.pdf`. Cloudinary upload support is available in the PDF service once Cloudinary credentials are configured.
 
 ## Current implementation status
 
-The implementation is MongoDB-first with seeded platform records, transaction-style checkout persistence, seat and hotel room-night locking, signed/idempotent webhook processing, scoped dashboard routes, support/partner onboarding, refund and wallet reversal flows, scheduled cleanup jobs, configurable payment providers, and locally generated ticket PDFs with Cloudinary upload support when production credentials are present.
+The implementation is MongoDB-first with seeded platform records, transaction-style checkout persistence, seat and hotel room-night locking, Pesapal payment initiation, signed/idempotent webhook reconciliation, scoped dashboard notifications, support/partner onboarding, refund and wallet reversal flows, scheduled cleanup jobs, and locally generated ticket PDFs with Cloudinary upload support when production credentials are present.
 
 Recommended release checks:
 
@@ -125,6 +130,7 @@ npm run check:dashboards
 npm run check:dashboard-smoke-static
 npm run acceptance:matrix
 npm run test:acceptance
+npm run launch:check
 npm test
 ```
 

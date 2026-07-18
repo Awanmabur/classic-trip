@@ -550,9 +550,7 @@ function buildDashboardShell(requestedRole, options = {}) {
   if (menu.roleKey === 'employee' && options.serviceProfile) {
     menu = applyEmployeeServiceProfile(menu, options.serviceProfile);
   }
-  if (menu.roleKey === 'company' || menu.roleKey === 'employee') {
-    menu = injectNotificationsItem(menu);
-  }
+  menu = injectNotificationsItem(menu);
   menu = attachMenuHrefs(menu);
   const preferMenuIdentity = menu.roleKey === 'company' && menu.profileName;
   const userName = preferMenuIdentity ? menu.profileName : (user.fullName || user.name || menu.profileName);

@@ -4,7 +4,6 @@
   const previewData = preview || {};
   const safeAvailability = availability || {};
   const currency = previewData.currency || listing.currency || 'UGX';
-  const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
   const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 48);
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 16);
   const previewSchedules = safeAvailability.schedules || [];
@@ -136,7 +135,7 @@
           <% selectedSeatListForForm.forEach((seatNumber) => { %><span data-booking-seat="<%= seatNumber %>"></span><% }) %>
         </div>
         <script>
-          window.__busSelectedSeats = <%- JSON.stringify(selectedSeatListForForm) %>;
+          window.__busSelectedSeats = <%- toScriptJson(selectedSeatListForForm) %>;
         </script>
       <% } %>
 
@@ -225,7 +224,7 @@
               <div><span>Service</span><b><%= listing.title %></b></div>
               <div><span>Selected</span><b><%= selectedLabel %></b></div>
               <% if (selectedSchedule) { %>
-                <div><span>Schedule</span><b><%= selectedSchedule.departureTime || selectedSchedule.departAt || selectedSchedule.id %></b></div>
+                <div><span>Schedule</span><b><%= selectedSchedule.departureLabel || selectedSchedule.departAt || selectedSchedule.id %></b></div>
               <% } %>
               <% if (listing.serviceType === 'bus') { %>
                 <div><span>Outbound seats</span><b><%= formatBusSeats(selectedSeatListForForm) %></b></div>
@@ -243,21 +242,10 @@
 
           <div class="summaryCard directPaymentOptions">
             <h3>Payment options</h3>
-            <div class="checkoutNotice">Choose how the customer will pay. This is the final step on this page.</div>
-            <div class="payMethods">
-              <% paymentMethods.forEach((method, index) => { %>
-                <label class="payMethod"><input type="radio" name="payChannel" value="<%= method %>" <%= index === 0 ? 'checked' : '' %>> <%= method %></label>
-              <% }) %>
-            </div>
-            <div class="bookingForm" style="margin-top:10px">
-              <select class="full" name="paymentMethod">
-                <% paymentMethods.forEach(method => { %><option><%= method %></option><% }) %>
-              </select>
-              <input class="full" name="paymentReference" placeholder="Mobile money number / card reference / wallet ID">
-            </div>
+            <div class="checkoutNotice">You'll be redirected to Pesapal to complete a secure payment. Your ticket is issued only once payment succeeds.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
               <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> Change selection</a>
-              <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay & confirm</button>
+              <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay with Pesapal</button>
             </div>
           </div>
         </aside>

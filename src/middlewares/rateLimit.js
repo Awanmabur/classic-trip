@@ -32,4 +32,28 @@ const paymentLimiter = rateLimit({
   message: { error: 'Too many payment requests, please slow down.' },
 });
 
-module.exports = { authLimiter, forgotPasswordLimiter, paymentLimiter };
+// Ticket lookup/PDF/QR routes: bookingRef has limited entropy, so cap guesses per IP
+// while staying generous enough for a legit customer re-opening their ticket a few times.
+const ticketLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 40,
+  skip: () => isTest,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many ticket lookup requests, please try again later.' },
+});
+
+// Payment webhook: signature verification already guards authenticity, this just bounds
+// how many forged-signature attempts / outbound provider status checks one IP can trigger.
+const webhookLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 120,
+  skip: () => isTest,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many webhook requests.' },
+});
+
+module.exports = {
+  authLimiter, forgotPasswordLimiter, paymentLimiter, ticketLimiter, webhookLimiter,
+};

@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
 router.get('/featured', (req, res) => res.json({ data: store.state.listings.filter((item) => item.isFeatured).slice(0, 24) }));
 router.get('/release-roadmap', (req, res) => res.json(releaseRoadmapService.roadmap()));
 router.get('/:id/availability', (req, res) => {
-  const availability = store.getAvailability(req.params.id);
+  const availability = store.getAvailability(req.params.id, req.query.scheduleId || '');
   if (!availability) return res.status(404).json({ error: 'listing_not_found' });
   return res.json(availability);
 });

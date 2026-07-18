@@ -17,26 +17,49 @@ async function postJson(url, token, payload) {
   return { ok: response.ok, status: response.status, body };
 }
 
-async function sendWhatsapp(message = {}) {
-  if (!message.to) {
-    return { status: 'skipped', channel: 'whatsapp', provider: 'http', reason: 'Missing WhatsApp recipient' };
-  }
-  if (!env.whatsapp.apiUrl) {
-    return { status: 'queued', channel: 'whatsapp', provider: 'http', reason: 'WHATSAPP_API_URL is not configured', message };
-  }
+function metaUrl() {
+  if (env.whatsapp.apiUrl) return env.whatsapp.apiUrl;
+  if (!env.whatsapp.phoneNumberId) return '';
+  return `https://graph.facebook.com/${env.whatsapp.graphVersion}/${env.whatsapp.phoneNumberId}/messages`;
+}
 
-  const result = await postJson(env.whatsapp.apiUrl, env.whatsapp.apiToken, {
+function payloadFor(message = {}) {
+  if (env.whatsapp.provider === 'meta') {
+    return {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: String(message.to || '').replace(/^\+/, ''),
+      type: 'text',
+      text: {
+        preview_url: true,
+        body: [message.title, message.message].filter(Boolean).join('\n\n'),
+      },
+    };
+  }
+  return {
     to: message.to,
     from: env.whatsapp.from,
     title: message.title,
     message: message.message,
     meta: message.meta || {},
-  });
+  };
+}
+
+async function sendWhatsapp(message = {}) {
+  if (!message.to) {
+    return { status: 'skipped', channel: 'whatsapp', provider: env.whatsapp.provider || 'http', reason: 'Missing WhatsApp recipient' };
+  }
+  const url = metaUrl();
+  if (!url || !env.whatsapp.apiToken) {
+    return { status: 'queued', channel: 'whatsapp', provider: env.whatsapp.provider || 'http', reason: 'WhatsApp API credentials are not configured', message };
+  }
+
+  const result = await postJson(url, env.whatsapp.apiToken, payloadFor(message));
 
   return {
     status: result.ok ? 'sent' : 'failed',
     channel: 'whatsapp',
-    provider: 'http',
+    provider: env.whatsapp.provider || 'http',
     providerStatus: result.status,
     response: result.body,
   };

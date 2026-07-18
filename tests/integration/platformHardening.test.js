@@ -9,6 +9,7 @@ const walletService = require('../../src/services/wallet/walletService');
 const workflowService = require('../../src/services/support/workflowService');
 const blogService = require('../../src/services/content/blogService');
 const scheduler = require('../../src/jobs/scheduler');
+const notificationService = require('../../src/services/notification/notificationService');
 
 async function login(email) {
   const agent = request.agent(app);
@@ -233,7 +234,7 @@ test('signed payment webhook reconciles booking payment once and queues notifica
   expect(first.body.processed).toBe(true);
   expect(booking.paymentStatus).toBe('successful');
   expect(booking.bookingStatus).toBe('confirmed');
-  expect(store.state.notifications.length).toBe(notificationsBefore + 2);
+  expect(store.state.notifications.length).toBe(notificationsBefore + 4);
 
   const paymentsAfterFirst = store.state.payments.length;
   const second = await request(app)
@@ -256,8 +257,8 @@ test('booking confirmation and refund approval queue customer notifications', as
     phone: '+256700555020',
   });
 
-  expect(store.state.notifications.length).toBe(beforeBookingNotifications + 3);
-  expect(store.state.notifications.some((item) => item.referenceId === booking.id && item.channel === 'whatsapp')).toBe(true);
+  expect(store.state.notifications.length).toBe(beforeBookingNotifications + 4);
+  expect(store.state.notifications.filter((item) => item.referenceId === booking.id).map((item) => item.channel)).toEqual(expect.arrayContaining(['in_app', 'push', 'email', 'whatsapp']));
   expect(store.state.notifications.filter((item) => item.referenceId === booking.id).every((item) => ['queued', 'skipped', 'sent'].includes(item.deliveryStatus))).toBe(true);
 
   const refund = workflowService.requestRefund({
@@ -268,10 +269,60 @@ test('booking confirmation and refund approval queue customer notifications', as
   const beforeRefundNotifications = store.state.notifications.length;
   workflowService.approveRefund(refund.id, 'admin-notify');
 
-  expect(store.state.notifications.length).toBe(beforeRefundNotifications + 2);
+  expect(store.state.notifications.length).toBe(beforeRefundNotifications + 4);
   expect(store.state.notifications.some((item) => item.referenceId === refund.id && item.title.includes('Refund approved'))).toBe(true);
 });
 
+
+
+test('notification API lists, marks read, and stores browser push subscriptions', async () => {
+  const agent = await login('amina@classictrip.test');
+  const user = store.findUserByIdentity('amina@classictrip.test');
+  const rows = await notificationService.queueNotification({
+    userId: user.id,
+    channels: ['in_app', 'push'],
+    title: 'Customer API notification',
+    message: 'Your notification center is connected.',
+    recipient: { email: user.email, phone: user.phone, name: user.fullName },
+    referenceType: 'test_notification',
+    referenceId: 'notification-api-test',
+  });
+
+  const config = await agent.get('/api/notifications/config').expect(200);
+  expect(config.body.push).toHaveProperty('enabled');
+
+  const list = await agent.get('/api/notifications').expect(200);
+  expect(list.body.notifications.some((note) => note.id === rows[0].id)).toBe(true);
+
+  const read = await agent.post(`/api/notifications/${rows[0].id}/read`).send({}).expect(200);
+  expect(read.body.notification.readAt).toBeTruthy();
+
+  const subscription = {
+    endpoint: `https://push.example.test/${Date.now()}`,
+    expirationTime: null,
+    keys: { p256dh: 'test-p256dh-key', auth: 'test-auth-key' },
+  };
+  const saved = await agent.post('/api/notifications/subscribe').send({ subscription }).expect(201);
+  expect(saved.body.subscription.id).toContain('push-');
+  expect(store.state.pushSubscriptions.some((item) => item.endpoint === subscription.endpoint && item.userId === user.id)).toBe(true);
+});
+test('seo crawler endpoints expose public catalog URLs and block private areas', async () => {
+  const robots = await request(app).get('/robots.txt').expect(200);
+  expect(robots.text).toContain('User-agent: Googlebot');
+  expect(robots.text).toContain('User-agent: Bingbot');
+  expect(robots.text).toContain('User-agent: OAI-SearchBot');
+  expect(robots.text).toContain('Disallow: /admin');
+  expect(robots.text).toContain('Sitemap: http://localhost:5000/sitemap.xml');
+
+  const sitemap = await request(app).get('/sitemap.xml').expect(200);
+  expect(sitemap.text).toContain('<urlset');
+  expect(sitemap.text).toContain('/listings/');
+  expect(sitemap.text).toContain('/companies/');
+
+  const llms = await request(app).get('/llms.txt').expect(200);
+  expect(llms.text).toContain('# Classic Trip');
+  expect(llms.text).toContain('/sitemap.xml');
+});
 test('ticket PDF endpoint returns a real downloadable PDF', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus' && item.status === 'active');
   const booking = await bookingService.createGuestBooking({
@@ -282,7 +333,7 @@ test('ticket PDF endpoint returns a real downloadable PDF', async () => {
   });
 
   const response = await request(app)
-    .get(`/tickets/${booking.bookingRef}.pdf`)
+    .get(`/tickets/${booking.bookingRef}.pdf?accessCode=${encodeURIComponent(booking.guestLookupCode)}`)
     .buffer(true)
     .parse((res, callback) => {
       const chunks = [];
@@ -872,3 +923,4 @@ test('admin dashboard actions create operational records and exports', async () 
   expect(report.headers['content-type']).toContain('text/csv');
   expect(report.text.split('\n')[0]).toContain('Case');
 });
+

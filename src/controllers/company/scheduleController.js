@@ -6,8 +6,9 @@ function companyId(req) {
 
 async function create(req, res, next) {
   try {
-    await companyService.createSchedule(companyId(req), req.body);
-    res.redirect('/company/schedules');
+    const result = await companyService.createScheduleBatch(companyId(req), req.body);
+    const suffix = result.count > 1 ? `?created=${result.count}` : '';
+    res.redirect(`/company/schedules${suffix}`);
   } catch (error) {
     next(error);
   }

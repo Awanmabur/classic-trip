@@ -34,7 +34,7 @@ test('public search to guest booking to ticket scan route smoke path works', asy
   const bookingRef = bookingResponse.headers.location.split('/').pop();
   const booking = store.findBooking(bookingRef);
 
-  await request(app).get(`/tickets/${bookingRef}`).expect(200);
+  await request(app).get(`/tickets/${bookingRef}?accessCode=${encodeURIComponent(booking.guestLookupCode)}`).expect(200);
   await request(app).post('/api/scanner/validate').send({ qrCodeValue: booking.qrCodeValue }).expect(200);
   await request(app).post('/api/scanner/validate').send({ qrCodeValue: booking.qrCodeValue }).expect(409);
 });

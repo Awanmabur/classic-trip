@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Classic Trip">
+  <rect width="192" height="192" rx="38" fill="#071019"/>
+  <circle cx="136" cy="56" r="26" fill="#f5c542"/>
+  <path d="M39 113c19-38 43-57 72-57 18 0 34 6 48 19-17-6-33-5-49 3-22 10-40 30-53 59H39z" fill="#2fd17c"/>
+  <path d="M39 136h114c8 0 14 6 14 14s-6 14-14 14H39c-8 0-14-6-14-14s6-14 14-14z" fill="#4aa3ff"/>
+  <text x="96" y="122" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800" fill="#ffffff">CT</text>
+</svg>

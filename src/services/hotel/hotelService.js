@@ -1,10 +1,14 @@
+const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const store = require('../data/persistentStore');
+const { env } = require('../../config/env');
 const generateBookingRef = require('../../utils/generateBookingRef');
 const calculateCommission = require('../../utils/calculateCommission');
 const repositories = require('../../repositories');
 const timelineService = require('../support/timelineService');
 const releaseService = require('../commission/releaseService');
+const paymentService = require('../payment/paymentService');
+const notificationService = require('../notification/notificationService');
 
 function ensureCollections() {
   ['hotelProperties', 'roomTypes', 'roomUnits', 'roomNightInventories', 'stayRules', 'bookings', 'payments', 'notifications', 'auditLogs'].forEach((key) => {
@@ -347,13 +351,7 @@ async function createHotelBooking(payload = {}, req = {}) {
   const bookingRef = generateBookingRef('hotel');
   const roomUnits = groups.map((rows) => store.state.roomUnits.find((unit) => unit.id === rows[0].roomUnitId) || {});
   const roomTypes = groups.map((rows) => store.state.roomTypes.find((type) => type.id === rows[0].roomTypeId) || {});
-  selectedRows.forEach((night) => {
-    night.status = 'booked';
-    night.bookingRef = bookingRef;
-    night.guestName = payload.fullName || guests[0]?.fullName || 'Hotel Guest';
-    night.checkInStatus = 'not_checked';
-    night.updatedAt = new Date().toISOString();
-  });
+
   const bookingItems = groups.map((rows, index) => ({
     id: `hotel-room-${index + 1}`,
     serviceType: 'hotel',
@@ -381,6 +379,7 @@ async function createHotelBooking(payload = {}, req = {}) {
   const booking = {
     id: nextId('booking', store.state.bookings),
     bookingRef,
+    guestLookupCode: crypto.randomBytes(6).toString('hex').toUpperCase(),
     serviceType: 'hotel',
     guestSnapshot: { fullName: payload.fullName || guests[0]?.fullName || 'Hotel Guest', email: payload.email || guests[0]?.email || 'guest@example.com', phone: payload.phone || guests[0]?.phone || '+256700000000' },
     customerUserId: payload.customerUserId || req?.session?.user?.id || null,
@@ -391,24 +390,74 @@ async function createHotelBooking(payload = {}, req = {}) {
     ticketLegs,
     hotelStay: { checkIn, checkOut, nights, roomCount, adults: Math.max(1, Math.round(num(payload.adults, guests.length || 1))), children: Math.max(0, Math.round(num(payload.children, 0))), roomUnitIds: roomUnits.map((unit) => unit.id).filter(Boolean), roomTypeIds: roomTypes.map((type) => type.id).filter(Boolean), status: 'booked', specialRequests: clean(payload.specialRequests || payload.addons || '') },
     pricing: { subtotal, fees, addonTotal: 0, total, currency: listing.currency || 'UGX', split },
-    paymentStatus: payload.paymentStatus || 'successful',
-    bookingStatus: payload.bookingStatus || 'confirmed',
+    paymentStatus: 'pending',
+    bookingStatus: 'pending_payment',
     qrCodeValue: `CLASSIC-TRIP:${bookingRef}:${listing.id}:${Date.now()}`,
     createdAt: new Date().toISOString(),
   };
+  const isManualSettlement = payload.paymentStatus === 'successful' || payload.source === 'company_manual';
+  let provider;
+  let payment;
+  if (isManualSettlement) {
+    provider = payload.paymentProvider || payload.provider || 'manual';
+    payment = {
+      provider,
+      providerReference: payload.paymentRef || `MANUAL-${bookingRef}`,
+      status: 'successful',
+      paidAt: new Date().toISOString(),
+      checkoutUrl: '',
+    };
+  } else {
+    provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider);
+    payment = await paymentService.initiatePayment({
+      provider,
+      bookingRef,
+      amount: total,
+      currency: booking.pricing.currency,
+      customer: booking.guestSnapshot,
+      callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(bookingRef)}`,
+      description: `Classic Trip hotel booking ${bookingRef}`,
+    });
+  }
+  booking.paymentStatus = payment.status || 'pending';
+  booking.paymentProvider = payment.provider || provider;
+  booking.paymentRef = payment.providerReference || '';
+  booking.checkoutUrl = payment.checkoutUrl || '';
+  booking.bookingStatus = booking.paymentStatus === 'successful' ? (payload.bookingStatus || 'confirmed') : 'pending_payment';
+  selectedRows.forEach((night) => {
+    night.status = 'booked';
+    night.bookingRef = bookingRef;
+    night.guestName = payload.fullName || guests[0]?.fullName || 'Hotel Guest';
+    night.checkInStatus = 'not_checked';
+    night.updatedAt = new Date().toISOString();
+  });
   store.state.bookings.unshift(booking);
-  store.state.payments.unshift({ id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef, amount: total, currency: booking.pricing.currency, status: booking.paymentStatus, provider: payload.paymentProvider || 'Classic Trip Payments', createdAt: booking.createdAt });
+  const paymentRow = { id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef, amount: total, currency: booking.pricing.currency, status: booking.paymentStatus, provider: booking.paymentProvider, providerReference: booking.paymentRef, checkoutUrl: booking.checkoutUrl, createdAt: booking.createdAt, paidAt: booking.paymentStatus === 'successful' ? (payment.paidAt || new Date().toISOString()) : null };
+  store.state.payments.unshift(paymentRow);
   if (booking.paymentStatus === 'successful') store.settleBookingPayment(bookingRef);
-  store.state.notifications.unshift({ id: nextId('notification', store.state.notifications), userId: booking.customerUserId || 'guest', title: 'Hotel booking confirmed', message: `${bookingRef} is confirmed for ${checkIn} to ${checkOut}.`, status: 'queued', createdAt: booking.createdAt });
+  if (booking.paymentStatus === 'successful') {
+    await notificationService.bookingConfirmed(booking);
+  } else {
+    await notificationService.queueNotification({
+      userId: booking.customerUserId || null,
+      channels: ['email', 'sms'],
+      title: `Payment pending ${bookingRef}`,
+      message: `${bookingRef} is waiting for payment confirmation for ${checkIn} to ${checkOut}.`,
+      recipient: { email: booking.guestSnapshot.email, phone: booking.guestSnapshot.phone, name: booking.guestSnapshot.fullName },
+      referenceType: 'booking',
+      referenceId: booking.id,
+      meta: { bookingRef, checkoutUrl: booking.checkoutUrl },
+    });
+  }
   const actorId = req?.session?.user?.id || payload.createdByEmployeeId || payload.actorId || 'guest';
   store.state.auditLogs.unshift({ id: nextId('audit', store.state.auditLogs), actorId, action: 'hotel.booking.created', targetType: 'booking', targetId: bookingRef, createdAt: booking.createdAt });
   await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'hotel_booking', entityId: bookingRef, action: 'hotel.booking.created', title: `Hotel booking ${bookingRef} created`, message: `Stay created for ${checkIn} to ${checkOut}.`, status: booking.bookingStatus, actorType: payload.source === 'company_manual' ? 'company' : 'customer', actorId, metadata: { checkIn, checkOut, roomCount, roomTypeId, roomUnitIds: booking.hotelStay.roomUnitIds } });
   await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'room_night_inventory', entityId: booking.hotelStay.roomUnitIds.join(','), action: 'hotel.inventory.booked', title: `Room-night inventory booked for ${bookingRef}`, message: `${selectedRows.length} room-night(s) were converted to booked.`, status: 'booked', actorType: 'system', actorId, metadata: { nights, selectedRoomUnitIds } });
-  await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'payment', entityId: store.state.payments[0].id, action: booking.paymentStatus === 'successful' ? 'payment.succeeded' : 'payment.pending', title: booking.paymentStatus === 'successful' ? `Payment received for ${bookingRef}` : `Payment pending for ${bookingRef}`, message: booking.paymentStatus === 'successful' ? 'Hotel voucher and QR are valid for check-in.' : 'Hotel booking is waiting for payment confirmation.', status: booking.paymentStatus, actorType: 'system', actorId });
+  await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'payment', entityId: paymentRow.id, action: booking.paymentStatus === 'successful' ? 'payment.succeeded' : 'payment.pending', title: booking.paymentStatus === 'successful' ? `Payment received for ${bookingRef}` : `Payment pending for ${bookingRef}`, message: booking.paymentStatus === 'successful' ? 'Hotel voucher and QR are valid for check-in.' : 'Hotel booking is waiting for payment confirmation.', status: booking.paymentStatus, actorType: 'system', actorId });
   await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'hotel_voucher', entityId: ticketLegs[0]?.id || bookingRef, action: 'hotel.voucher.issued', title: `Hotel voucher issued for ${bookingRef}`, message: `${ticketLegs.length} room voucher(s) were created.`, status: 'issued', actorType: 'system', actorId });
   await Promise.all(selectedRows.map((night) => upsert('roomNightInventories', night)));
   await upsert('bookings', booking);
-  await upsert('payments', store.state.payments[0]);
+  await upsert('payments', paymentRow);
   return booking;
 }
 

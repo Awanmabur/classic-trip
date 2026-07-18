@@ -66,12 +66,16 @@ function buildVehicles(routes, seedListings = listings) {
 
 function buildSchedules(routes, seedListings = listings, vehicles = []) {
   const dates = [1, 2, 3, 4, 5, 7, 10];
+  // Anchor to "today" (not a fixed calendar date) so seeded departures never silently
+  // age into the past - they always start tomorrow and run about two weeks out.
+  const anchor = new Date();
+  anchor.setUTCHours(0, 0, 0, 0);
   const schedules = [];
   for (const route of routes) {
     const listing = seedListings.find((item) => item.id === route.listingId);
     const vehicle = vehicles.find((item) => item.listingId === route.listingId && item.companyId === route.companyId);
     dates.slice(0, 3 + (schedules.length % 3)).forEach((offset, i) => {
-      const departAt = new Date(Date.UTC(2026, 4, 24 + offset, 5 + i * 4, 30));
+      const departAt = new Date(anchor.getTime() + offset * 24 * 60 * 60 * 1000 + (5 + i * 4) * 60 * 60 * 1000 + 30 * 60 * 1000);
       const totalSeats = Number(vehicle?.totalSeats || 48);
       schedules.push({
         id: `schedule-${String(schedules.length + 1).padStart(4, '0')}`,
@@ -335,6 +339,9 @@ function buildHotelInventory(seedListings = listings, seedRooms = rooms) {
   const roomTypes = [];
   const roomUnits = [];
   const roomNightInventories = [];
+  // Anchor to "today" so seeded room-night availability never silently ages into the past.
+  const inventoryAnchor = new Date();
+  inventoryAnchor.setUTCHours(0, 0, 0, 0);
   const stayRules = [];
   hotelListings.forEach((listing, listingIndex) => {
     const propertyId = `hotel-property-${String(listingIndex + 1).padStart(3, '0')}`;
@@ -384,7 +391,7 @@ function buildHotelInventory(seedListings = listings, seedRooms = rooms) {
         });
       }
       for (let day = 0; day < 14; day += 1) {
-        const date = new Date(Date.UTC(2026, 5, 1 + day)).toISOString().slice(0, 10);
+        const date = new Date(inventoryAnchor.getTime() + day * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         roomNightInventories.push({
           id: `room-night-${room.id}-${date}`,
           companyId: listing.companyId,
@@ -853,7 +860,7 @@ const seedModelNames = [
   'Route', 'Vehicle', 'TripSchedule', 'Seat', 'Room', 'HotelProperty', 'RoomType', 'RoomUnit', 'RoomNightInventory', 'StayRule',
   'CompanyEmployee', 'CompanyBranch', 'CompanyPolicy', 'DriverAssignment', 'DriverIncident', 'TripStatusUpdate', 'RouteStop',
   'Cart', 'CartCheckoutAttempt', 'Booking', 'Passenger', 'Payment', 'CorrespondenceMessage', 'BookingTimelineEvent',
-  'NotificationDeliveryAttempt', 'RescheduleRequest', 'Wallet', 'WalletTransaction', 'PaymentIntent', 'ReceiptInvoice',
+  'NotificationDeliveryAttempt', 'PushSubscription', 'RescheduleRequest', 'Wallet', 'WalletTransaction', 'PaymentIntent', 'ReceiptInvoice',
   'TaxFeeRecord', 'FinanceStatement', 'FinanceRiskReview', 'SettlementBatch', 'PayoutRequest', 'PayoutBatch', 'ReconciliationReport',
   'PromoterLink', 'ReferralClick', 'AttributionSession', 'CampaignConversion', 'AgentProfile', 'OfflineSale', 'FraudSignal', 'Commission',
   'BlogPost', 'SupportTicket', 'RefundRequest', 'PromotionCampaign', 'AuditLog', 'Review', 'Notification', 'SavedListing', 'ShiftHandover',
@@ -898,6 +905,7 @@ function collectionMapFromSeedData(data) {
     CorrespondenceMessage: data.correspondenceMessages || [],
     BookingTimelineEvent: data.bookingTimelineEvents || [],
     NotificationDeliveryAttempt: data.notificationDeliveryAttempts || [],
+    PushSubscription: data.pushSubscriptions || [],
     RescheduleRequest: data.rescheduleRequests || [],
     Wallet: data.wallets,
     WalletTransaction: data.walletTransactions || [],
@@ -961,17 +969,30 @@ function collectionMapFromSeedData(data) {
 }
 
 async function prepareSeedData(data) {
-  const password = process.env.DEMO_PASSWORD || 'Password123';
-  if (!password) return data;
+  const isTest = process.env.NODE_ENV === 'test';
+  const password = isTest ? 'Password123' : (process.env.DEMO_PASSWORD || 'Password123');
+  const superAdminPassword = isTest ? password : (process.env.SUPER_ADMIN_PASSWORD || password);
   try {
     const bcrypt = require('bcryptjs');
-    const passwordHash = await bcrypt.hash(password, 10);
-    data.users = (data.users || []).map((user) => ({
-      ...user,
-      passwordHash: user.passwordHash || passwordHash,
-      authProviders: user.authProviders || { local: { enabled: true }, google: { enabled: false } },
-      emailVerifiedAt: user.emailVerifiedAt || new Date(Date.UTC(2026, 4, 1)).toISOString(),
-    }));
+    const passwordHash = password ? await bcrypt.hash(password, 10) : '';
+    const superAdminHash = superAdminPassword ? await bcrypt.hash(superAdminPassword, 10) : passwordHash;
+    data.users = (data.users || []).map((user) => {
+      const isSuperAdmin = user.id === 'user-admin-001' || user.role === 'super_admin';
+      const patched = {
+        ...user,
+        authProviders: user.authProviders || { local: { enabled: true }, google: { enabled: false } },
+        emailVerifiedAt: user.emailVerifiedAt || new Date(Date.UTC(2026, 4, 1)).toISOString(),
+      };
+      if (isSuperAdmin) {
+        patched.fullName = isTest ? patched.fullName : (process.env.SUPER_ADMIN_NAME || patched.fullName);
+        patched.email = (isTest ? patched.email : (process.env.SUPER_ADMIN_EMAIL || patched.email || '')).toLowerCase();
+        patched.phone = isTest ? patched.phone : (process.env.SUPER_ADMIN_PHONE || patched.phone);
+        patched.passwordHash = user.passwordHash || superAdminHash;
+      } else {
+        patched.passwordHash = user.passwordHash || passwordHash;
+      }
+      return patched;
+    });
   } catch (error) {
     // bcrypt is a runtime dependency. If someone checks syntax without npm install,
     // keep seed data usable with the global DEMO_PASSWORD login fallback.
@@ -992,7 +1013,16 @@ async function seedMongo(options = {}) {
     return { connected: false, inserted: 0, collections: 0 };
   }
   loadSeedModels();
-  const fresh = options.fresh ?? ['true', '1', 'yes'].includes(String(process.env.SEED_FRESH || 'true').toLowerCase());
+  const productionSeed = process.env.NODE_ENV === 'production';
+  const freshDefault = productionSeed ? 'false' : 'true';
+  const fresh = options.fresh ?? ['true', '1', 'yes'].includes(String(process.env.SEED_FRESH || freshDefault).toLowerCase());
+  if (productionSeed && fresh) {
+    const allowProductionSeed = ['true', '1', 'yes'].includes(String(process.env.ALLOW_PRODUCTION_SEED || '').toLowerCase());
+    const confirmedDelete = process.env.CONFIRM_SEED_DELETE === 'DELETE_PRODUCTION_DATA';
+    if (!allowProductionSeed || !confirmedDelete) {
+      throw new Error('Refusing fresh seed in production. Set ALLOW_PRODUCTION_SEED=true and CONFIRM_SEED_DELETE=DELETE_PRODUCTION_DATA to delete production data.');
+    }
+  }
   const data = await prepareSeedData(buildSeedData());
   const map = collectionMapFromSeedData(data);
   let inserted = 0;
@@ -1026,3 +1056,5 @@ if (require.main === module) {
     process.exit(1);
   });
 }
+
+

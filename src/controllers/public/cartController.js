@@ -1,4 +1,5 @@
 const cartService = require('../../services/cart/cartService');
+const ticketAccessService = require('../../services/booking/ticketAccessService');
 
 function renderCart(req, res, next) {
   try {
@@ -38,8 +39,10 @@ async function validate(req, res, next) {
 async function checkout(req, res, next) {
   try {
     const result = await cartService.checkout(req.params.cartRef, req.body, req);
+    if (result.booking) ticketAccessService.grantSessionAccess(req, result.booking.bookingRef);
     if (req.accepts('html') && !req.originalUrl.startsWith('/api/')) {
       if (result.cart.status === 'payment_failed') return res.redirect(`/cart/${result.cart.cartRef}/recovery`);
+      if (result.payment?.checkoutUrl && result.payment.status !== 'successful') return res.redirect(result.payment.checkoutUrl);
       return res.redirect(`/booking/success/${result.booking.bookingRef}`);
     }
     return res.status(result.booking ? 201 : 409).json({ cart: cartService.publicCart(result.cart), booking: result.booking, payment: result.payment, attempt: result.attempt });

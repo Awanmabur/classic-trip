@@ -19,7 +19,7 @@
   const previewSchedules = safeAvailability.schedules || [];
   const partnerName = previewData.partnerName || listing.partner || company?.name || 'Classic Trip partner';
   const supportPhone = previewData.supportPhone || company?.supportPhone || company?.phone || '+256 700 000 000';
-  const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureTime || listing.time || 'Flexible schedule';
+  const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureLabel || listing.time || 'Flexible schedule';
   const ticketAccess = previewData.ticketAccess || 'Email, SMS, WhatsApp';
   const policy = previewData.policy || (listing.bookable ? 'Instant checkout' : 'Provider teaser');
   const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
@@ -50,6 +50,28 @@
             </div>
           </div>
 
+          <% if (listing.serviceType === 'bus') { %>
+            <div class="selector scheduleSelector">
+              <div class="selectorTop">
+                <div>
+                  <b>Choose your travel date &amp; time</b>
+                  <div class="muted" style="font-size:13px;font-weight:800">Pick when you want to travel before choosing a seat. Seat availability updates for the selected trip.</div>
+                </div>
+              </div>
+              <% if (previewSchedules.length) { %>
+                <div class="bookingForm" style="margin-top:10px">
+                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" onchange="onOutboundScheduleChange()">
+                    <% previewSchedules.forEach((schedule) => { %>
+                      <option value="<%= schedule.id %>" <%= schedule.id === safeAvailability.scheduleId ? 'selected' : '' %>><%= schedule.departureLabel %></option>
+                    <% }) %>
+                  </select>
+                </div>
+              <% } else { %>
+                <div class="notice">No upcoming trips are scheduled for this route yet.</div>
+              <% } %>
+            </div>
+          <% } %>
+
           <div class="selector">
             <div class="selectorTop">
               <div>
@@ -66,17 +88,19 @@
             <div class="layoutBox" id="layoutBox">
               <% if (listing.serviceType === 'bus') { %>
                 <div class="vehicleFront">DRIVER - FRONT</div>
-                <% for (let i = 0; i < previewSeats.length; i += 4) { const row = previewSeats.slice(i, i + 4); %>
-                  <div class="seatRow">
-                    <% row.slice(0, 2).forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
-                      <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
-                    <% }) %>
-                    <span class="aisle"></span>
-                    <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
-                      <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
-                    <% }) %>
-                  </div>
-                <% } %>
+                <div class="seatRows" id="outboundSeatGrid">
+                  <% for (let i = 0; i < previewSeats.length; i += 4) { const row = previewSeats.slice(i, i + 4); %>
+                    <div class="seatRow">
+                      <% row.slice(0, 2).forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
+                        <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
+                      <% }) %>
+                      <span class="aisle"></span>
+                      <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
+                        <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
+                      <% }) %>
+                    </div>
+                  <% } %>
+                </div>
               <% } else if (listing.serviceType === 'hotel') { %>
                 <div class="vehicleFront">ROOM / HOUSE UNITS</div>
                 <div class="roomGrid">
@@ -126,11 +150,16 @@
               </div>
               <label class="switchLine"><input type="checkbox" id="returnTripToggle" onchange="toggleReturnTrip()"> Two-way / return ticket</label>
               <div class="bookingForm" id="returnTripFields" style="display:none">
-                <select class="full" id="returnScheduleSelect" aria-label="Return schedule">
-                  <% previewSchedules.forEach((schedule, index) => { %>
-                    <option value="<%= schedule.id %>" <%= index === 1 ? 'selected' : '' %>><%= schedule.departureTime || schedule.departAt || schedule.id %></option>
+                <% const outboundDepartAtMs = new Date((previewSchedules.find((schedule) => schedule.id === safeAvailability.scheduleId) || previewSchedules[0] || {}).departAt || 0).getTime();
+                   const eligibleReturnSchedules = previewSchedules.filter((schedule) => new Date(schedule.departAt || 0).getTime() > outboundDepartAtMs); %>
+                <select class="full" id="returnScheduleSelect" aria-label="Return schedule" onchange="onReturnScheduleChange()">
+                  <% eligibleReturnSchedules.forEach((schedule, index) => { %>
+                    <option value="<%= schedule.id %>" <%= index === 0 ? 'selected' : '' %>><%= schedule.departureLabel %></option>
                   <% }) %>
                 </select>
+                <% if (!eligibleReturnSchedules.length) { %>
+                  <div class="notice full">No later trips are scheduled yet for a return leg.</div>
+                <% } %>
                 <div class="full returnSeatGrid" id="returnSeatGrid">
                   <% previewSeats.forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
                     <button class="returnSeat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : 'available' %>" type="button" data-return-seat="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="toggleReturnSeat(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
@@ -167,20 +196,28 @@
 </main>
 <script>
   let activeHoldId = '';
-  let activeSelection = <%- JSON.stringify(selectedValue || '') %>;
-  let activeSelectionLabel = <%- JSON.stringify(selectedPreview || '') %>;
+  let activeSelection = <%- toScriptJson(selectedValue || '') %>;
+  let activeSelectionLabel = <%- toScriptJson(selectedPreview || '') %>;
   let activeSelections = activeSelection ? [activeSelection] : [];
   let activeSelectionLabels = activeSelectionLabel ? [activeSelectionLabel] : [];
   let activeReturnSelections = [];
-  let activeRoomId = <%- JSON.stringify(firstRoom || '') %>;
+  let activeRoomId = <%- toScriptJson(firstRoom || '') %>;
   let holdTimerId = null;
+  const previewSchedulesData = <%- toScriptJson(previewSchedules.map((schedule) => ({ id: schedule.id, basePrice: Number(schedule.basePrice || listing.priceFrom || 0), label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
+  const listingBasePrice = Number('<%= listing.priceFrom || 0 %>');
   const previewPricing = {
-    serviceType: <%- JSON.stringify(listing.serviceType) %>,
-    currency: <%- JSON.stringify(currency) %>,
-    basePrice: Number('<%= listing.priceFrom || 0 %>'),
-    scheduleId: <%- JSON.stringify((safeAvailability.schedules || [])[0]?.id || '') %>
+    serviceType: <%- toScriptJson(listing.serviceType) %>,
+    currency: <%- toScriptJson(currency) %>,
+    basePrice: listingBasePrice,
+    scheduleId: <%- toScriptJson(safeAvailability.scheduleId || (safeAvailability.schedules || [])[0]?.id || '') %>
   };
-  const previewAddonOptions = <%- JSON.stringify(addons) %>;
+  const returnPricing = { basePrice: listingBasePrice, scheduleId: '' };
+  function schedulePriceFor(scheduleId) {
+    const schedule = previewSchedulesData.find((item) => item.id === scheduleId);
+    return schedule ? schedule.basePrice : listingBasePrice;
+  }
+  previewPricing.basePrice = schedulePriceFor(previewPricing.scheduleId);
+  const previewAddonOptions = <%- toScriptJson(addons) %>;
   function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   }
@@ -221,7 +258,7 @@
   function sharePreviewListing(event) {
     event?.preventDefault();
     const url = window.location.href;
-    const title = <%- JSON.stringify(listing.title || 'Classic Trip listing') %>;
+    const title = <%- toScriptJson(listing.title || 'Classic Trip listing') %>;
     if (navigator.share) {
       navigator.share({ title, text: `Check this on Classic Trip: ${title}`, url }).catch(() => copyPreviewLink(url));
       return;
@@ -237,10 +274,10 @@
   function selectedButton() {
     return selectedButtons()[0] || null;
   }
-  function selectedBasePrice(button) {
-    if (!button) return previewPricing.basePrice;
-    if (button.dataset.price) return Number(button.dataset.price) || previewPricing.basePrice;
-    return previewPricing.basePrice + (Number(button.dataset.priceDelta) || 0);
+  function selectedBasePrice(button, base = previewPricing.basePrice) {
+    if (!button) return base;
+    if (button.dataset.price) return Number(button.dataset.price) || base;
+    return base + (Number(button.dataset.priceDelta) || 0);
   }
   function outboundBasePrice() {
     if (previewPricing.serviceType !== 'bus') return selectedBasePrice(selectedButton());
@@ -252,7 +289,7 @@
     if (previewPricing.serviceType !== 'bus' || !document.getElementById('returnTripToggle')?.checked) return 0;
     return activeReturnSelections.reduce((sum, seatNumber) => {
       const button = Array.from(document.querySelectorAll('[data-return-seat]')).find((item) => item.dataset.returnSeat === seatNumber);
-      return sum + selectedBasePrice(button);
+      return sum + selectedBasePrice(button, returnPricing.basePrice);
     }, 0);
   }
   function syncActiveSelectionFromButtons() {
@@ -290,6 +327,114 @@
   }
   function togglePreviewAddon() {
     refreshPreviewTotals();
+  }
+  function seatStatusClass(seat) {
+    if (['blocked', 'maintenance'].includes(seat.status)) return seat.status;
+    if (seat.status === 'taken') return 'taken';
+    if (seat.status === 'locked') return 'holding';
+    return 'available';
+  }
+  function seatButtonHtml(seat, displayNumber, kind) {
+    const label = seat.displaySeatLabel || `Seat No ${displayNumber}`;
+    const unavailable = ['taken', 'locked', 'blocked', 'maintenance'].includes(seat.status);
+    const statusClass = seatStatusClass(seat);
+    const disabledAttr = unavailable ? 'disabled' : '';
+    if (kind === 'return') {
+      return `<button class="returnSeat ${statusClass}" type="button" data-return-seat="${seat.seatNumber}" data-label="${label}" data-price-delta="${seat.priceDelta || 0}" onclick="toggleReturnSeat(this)" ${disabledAttr}><span>Seat No</span><b>${displayNumber}</b></button>`;
+    }
+    return `<button class="seat ${statusClass}" type="button" data-choice="${seat.seatNumber}" data-label="${label}" data-price-delta="${seat.priceDelta || 0}" data-seat-kind="outbound" onclick="selectPreviewOption(this)" ${disabledAttr}><span>Seat No</span><b>${displayNumber}</b></button>`;
+  }
+  function renderOutboundSeats(seats) {
+    const container = document.getElementById('outboundSeatGrid');
+    if (!container) return;
+    let html = '';
+    for (let i = 0; i < seats.length; i += 4) {
+      const row = seats.slice(i, i + 4);
+      const left = row.slice(0, 2).map((seat, index) => seatButtonHtml(seat, i + index + 1, 'outbound')).join('');
+      const right = row.slice(2, 4).map((seat, index) => seatButtonHtml(seat, i + index + 3, 'outbound')).join('');
+      html += `<div class="seatRow">${left}<span class="aisle"></span>${right}</div>`;
+    }
+    container.innerHTML = html;
+  }
+  function renderReturnSeats(seats) {
+    const container = document.getElementById('returnSeatGrid');
+    if (!container) return;
+    container.innerHTML = seats.map((seat, index) => seatButtonHtml(seat, index + 1, 'return')).join('');
+  }
+  async function fetchScheduleAvailability(scheduleId) {
+    const response = await fetch(`/api/listings/<%= listing.id %>/availability?scheduleId=${encodeURIComponent(scheduleId)}`);
+    if (!response.ok) throw new Error('Unable to load seats for that schedule.');
+    return response.json();
+  }
+  function clearActiveHold() {
+    activeHoldId = '';
+    clearInterval(holdTimerId);
+    const holdButton = document.getElementById('holdButton');
+    if (holdButton) {
+      holdButton.disabled = false;
+      holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
+    }
+    const timer = document.getElementById('timer');
+    if (timer) timer.textContent = '10:00';
+  }
+  function populateReturnScheduleOptions(afterScheduleId) {
+    const select = document.getElementById('returnScheduleSelect');
+    if (!select) return;
+    const outbound = previewSchedulesData.find((item) => item.id === afterScheduleId);
+    const outboundTime = outbound ? new Date(outbound.departAt).getTime() : 0;
+    const eligible = previewSchedulesData.filter((item) => new Date(item.departAt).getTime() > outboundTime);
+    const previousValue = select.value;
+    select.innerHTML = eligible.length
+      ? eligible.map((item) => `<option value="${item.id}">${item.label}</option>`).join('')
+      : '<option value="">No later trips available</option>';
+    select.value = eligible.some((item) => item.id === previousValue) ? previousValue : (eligible[0]?.id || '');
+    return eligible;
+  }
+  async function onOutboundScheduleChange() {
+    const scheduleId = document.getElementById('outboundScheduleSelect')?.value || '';
+    if (!scheduleId || scheduleId === previewPricing.scheduleId) return;
+    try {
+      const data = await fetchScheduleAvailability(scheduleId);
+      previewPricing.scheduleId = scheduleId;
+      previewPricing.basePrice = schedulePriceFor(scheduleId);
+      activeSelections = [];
+      activeSelectionLabels = [];
+      activeSelection = '';
+      activeSelectionLabel = '';
+      clearActiveHold();
+      renderOutboundSeats(data.seats || []);
+      const eligibleReturns = populateReturnScheduleOptions(scheduleId);
+      if (document.getElementById('returnTripToggle')?.checked) {
+        if (eligibleReturns.length) await onReturnScheduleChange();
+        else {
+          activeReturnSelections = [];
+          renderReturnSeats([]);
+          notify('No later trips are scheduled yet for a return leg.');
+        }
+      }
+      refreshPreviewTotals();
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+  async function onReturnScheduleChange() {
+    const scheduleId = document.getElementById('returnScheduleSelect')?.value || '';
+    if (!scheduleId) {
+      activeReturnSelections = [];
+      renderReturnSeats([]);
+      refreshPreviewTotals();
+      return;
+    }
+    try {
+      const data = await fetchScheduleAvailability(scheduleId);
+      returnPricing.scheduleId = scheduleId;
+      returnPricing.basePrice = schedulePriceFor(scheduleId);
+      activeReturnSelections = [];
+      renderReturnSeats(data.seats || []);
+      refreshPreviewTotals();
+    } catch (error) {
+      notify(error.message);
+    }
   }
   function selectPreviewOption(button) {
     if (!button || button.disabled) return;
@@ -347,8 +492,10 @@
     if (!enabled) {
       activeReturnSelections = [];
       document.querySelectorAll('[data-return-seat].selected').forEach((item) => item.classList.remove('selected'));
+      refreshPreviewTotals();
+      return;
     }
-    refreshPreviewTotals();
+    onReturnScheduleChange();
   }
   function toggleReturnSeat(button) {
     if (!button || button.disabled) return;
@@ -396,7 +543,7 @@
   }
   function goPaymentPage() {
     const params = new URLSearchParams();
-    const ref = <%- JSON.stringify(referralCode || '') %>;
+    const ref = <%- toScriptJson(referralCode || '') %>;
     if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
     const selected = previewPricing.serviceType === 'hotel' ? '' : activeSelection;
     const roomId = previewPricing.serviceType === 'hotel' ? activeRoomId : '';
@@ -434,6 +581,8 @@
     sharePreviewListing,
     togglePreviewAddon,
     selectPreviewOption,
+    onOutboundScheduleChange,
+    onReturnScheduleChange,
     toggleReturnTrip,
     toggleReturnSeat,
     holdSelection,

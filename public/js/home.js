@@ -10,8 +10,27 @@
     const icons = {Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'};
     let current = null, selected = [], held = [], holdId = '', timerId = null, seconds = 600, addonTotal = 0;
 
-    function money(n, c='UGX'){return `${c} ${Math.round(n).toLocaleString()}`}
     function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+    function money(n, c='UGX'){return `${escapeHtml(c)} ${Math.round(Number(n) || 0).toLocaleString()}`}
+    function safeIcon(value, fallback='fa-ticket'){return String(value || fallback).split(/\s+/).filter(part=>/^fa-[a-z0-9-]+$/i.test(part)).join(' ') || fallback}
+    function safeUrl(value, fallback='#'){
+      try {
+        const url = new URL(String(value || fallback), window.location.origin);
+        if(!['http:','https:'].includes(url.protocol)) return fallback;
+        return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : url.href;
+      } catch(error) { return fallback; }
+    }
+    function safeInternalUrl(value, fallback='#'){
+      try {
+        const url = new URL(String(value || fallback), window.location.origin);
+        if(!['http:','https:'].includes(url.protocol) || url.origin !== window.location.origin) return fallback;
+        return `${url.pathname}${url.search}${url.hash}`;
+      } catch(error) { return fallback; }
+    }
+    function safeAttrUrl(value, fallback='#'){return escapeHtml(safeUrl(value, fallback))}
+    function jsString(value){return String(value ?? '').replace(/[\\'\r\n<>]/g, ch => ({'\\':'\\\\', "'":"\\'", '\r':' ', '\n':' ', '<':'\\x3c', '>':'\\x3e'}[ch] || ' '))}
+    function inlineJs(value){return escapeHtml(jsString(value))}
+    function savedButtonsFor(id){const needle=String(id ?? '');return Array.from(document.querySelectorAll('[data-save-id]')).filter(btn=>btn.dataset.saveId===needle)}
     function toast(msg){const t=$('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
     function csrfToken(){return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}
     function jsonHeaders(){const h={'Content-Type':'application/json'}; const token=csrfToken(); if(token) h['x-csrf-token']=token; return h}
@@ -20,14 +39,20 @@
     function setSavedItems(arr){try{localStorage.setItem('ct_saved',JSON.stringify(arr))}catch(e){}}
     function getSavedIds(){return new Set(getSavedItems().map(x=>x.id))}
     function updateHeartButtons(id,saved){
-      document.querySelectorAll(`[data-save-id="${id}"]`).forEach(btn=>{
+      savedButtonsFor(id).forEach(btn=>{
         btn.classList.toggle('loved',saved);
         const i=btn.querySelector('i'); if(i) i.className=saved?'fa-solid fa-heart':'fa-regular fa-heart';
       });
     }
     function initSavedStates(){getSavedIds().forEach(id=>updateHeartButtons(id,true))}
-    function listingUrl(item){return item?.url || (item ? `/listings/${item.serviceType}/${item.slug}` : window.location.pathname)}
-    function bookingUrl(item){return item?.bookingUrl || (item?.bookable ? `/book/${item.serviceType}/${item.slug}` : listingUrl(item))}
+    function listingUrl(item){
+      const fallback = item ? `/listings/${encodeURIComponent(item.serviceType || '')}/${encodeURIComponent(item.slug || '')}` : window.location.pathname;
+      return safeInternalUrl(item?.url || fallback, fallback);
+    }
+    function bookingUrl(item){
+      const fallback = item?.bookable ? `/book/${encodeURIComponent(item.serviceType || '')}/${encodeURIComponent(item.slug || '')}` : listingUrl(item);
+      return safeInternalUrl(item?.bookingUrl || fallback, fallback);
+    }
     function copyFallback(text, message){
       const input = document.createElement('textarea');
       input.value = text;
@@ -61,13 +86,13 @@
       const ev = window.event; if(ev) ev.stopPropagation();
       const b = blogs[id]; if(!b) return toast('Blog page not found.');
       activeBlogId = id;
-      $('#blogModalTag').innerHTML = `<i class="fa-solid ${b.icon}"></i> ${b.tag}`;
+      $('#blogModalTag').innerHTML = `<i class="fa-solid ${safeIcon(b.icon)}"></i> ${escapeHtml(b.tag)}`;
       $('#blogModalTitle').textContent = b.title;
-      $('#blogModalSub').textContent = `${b.date} • ${b.read}`;
-      $('#blogModalImg').src = b.img;
+      $('#blogModalSub').textContent = `${b.date} - ${b.read}`;
+      $('#blogModalImg').src = safeUrl(b.img, '');
       $('#blogHeroTitle').textContent = b.title;
       $('#blogHeroIntro').textContent = b.intro;
-      $('#blogArticleBody').innerHTML = `<div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> ${b.date}</span><span><i class="fa-regular fa-clock"></i> ${b.read}</span><span><i class="fa-solid ${b.icon}"></i> ${b.tag}</span></div>` + b.body.map((p,i)=>`${i===1?'<h4>Before you book</h4>':''}<p>${p}</p>`).join('');
+      $('#blogArticleBody').innerHTML = `<div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> ${escapeHtml(b.date)}</span><span><i class="fa-regular fa-clock"></i> ${escapeHtml(b.read)}</span><span><i class="fa-solid ${safeIcon(b.icon)}"></i> ${escapeHtml(b.tag)}</span></div>` + b.body.map((p,i)=>`${i===1?'<h4>Before you book</h4>':''}<p>${escapeHtml(p)}</p>`).join('');
       $('#blogModal').classList.add('open');
       document.body.style.overflow='hidden';
     }
@@ -120,8 +145,16 @@
 
     function renderSaved(){
       const wrap = $('#savedCards'); if(!wrap) return;
-      const savedItems = ['bus','hotel','flight','train','more'].flatMap(group=>listings.filter(x=>x.group===group).slice(0, group === 'more' ? 2 : 1)).filter(Boolean);
-      wrap.innerHTML = savedItems.map(x=>`<article class="ticketCard"><div class="ticketTop"><div><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${x.type}</span><h3 class="ticketTitle" style="margin-top:8px">${x.title}</h3><div class="ticketMeta"><span><i class="fa-solid fa-building"></i> ${x.partner}</span><span><i class="fa-regular fa-clock"></i> ${x.time}</span><span><i class="fa-solid fa-star"></i> ${x.rating}</span></div></div><div class="ticketCode">Saved</div></div><div class="kv"><div><span>From</span><b>${x.from}</b></div><div><span>To</span><b>${x.to}</b></div><div><span>Price</span><b>${money(x.price,x.currency)}</b></div></div><div class="ticketActions"><button class="btn btnGhost" onclick="toast('Saved pick kept in your account.')"><i class="fa-regular fa-heart"></i> Saved</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${x.id}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${x.id}', event)"><i class="fa-regular fa-eye"></i> View</button>`}</div></article>`).join('');
+      const savedItems = getSavedItems();
+      if(!savedItems.length){
+        wrap.innerHTML = `<div class="ticketCard"><h3 class="ticketTitle">No saved trips yet</h3><p class="muted" style="margin:0;font-size:13px;font-weight:800">Save listings with the heart button and they will appear here.</p></div>`;
+        return;
+      }
+      wrap.innerHTML = savedItems.map(x=>{
+        const id = String(x.id ?? '');
+        const action = x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${inlineJs(id)}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${inlineJs(id)}', event)"><i class="fa-regular fa-eye"></i> View</button>`;
+        return `<article class="ticketCard"><div class="ticketTop"><div><span class="badge badgeInfo"><i class="fa-solid ${safeIcon(icons[x.type])}"></i> ${escapeHtml(x.type)}</span><h3 class="ticketTitle" style="margin-top:8px">${escapeHtml(x.title)}</h3><div class="ticketMeta"><span><i class="fa-solid fa-building"></i> ${escapeHtml(x.partner)}</span><span><i class="fa-regular fa-clock"></i> ${escapeHtml(x.time)}</span><span><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating)}</span></div></div><div class="ticketCode">Saved</div></div><div class="kv"><div><span>From</span><b>${escapeHtml(x.from)}</b></div><div><span>To</span><b>${escapeHtml(x.to)}</b></div><div><span>Price</span><b>${money(x.price,x.currency)}</b></div></div><div class="ticketActions"><button class="btn btnGhost" onclick="toast('Saved pick kept in your account.')"><i class="fa-regular fa-heart"></i> Saved</button>${action}</div></article>`;
+      }).join('');
     }
     function renderBookings(){
       const wrap = $('#bookingCards'); if(!wrap) return;
@@ -129,25 +162,30 @@
         wrap.innerHTML = `<div class="ticketCard"><h3 class="ticketTitle">No bookings yet</h3><p class="muted" style="margin:0;font-size:13px;font-weight:800">After payment confirmation, tickets will appear here. Tickets received from Gmail or WhatsApp can also be synced into this page later.</p></div>`;
         return;
       }
-      wrap.innerHTML = myBookings.map((b,i)=>`
+      wrap.innerHTML = myBookings.map((b,i)=>{
+        const ticketUrl = b.ticketUrl ? safeAttrUrl(b.ticketUrl, '') : '';
+        const ticketAction = ticketUrl ? `<a class="btn btnPrimary" href="${ticketUrl}"><i class="fa-solid fa-ticket"></i> Open ticket</a>` : `<a class="btn btnPrimary" href="/tickets?bookingRef=${encodeURIComponent(b.code || '')}"><i class="fa-solid fa-ticket"></i> Find ticket</a>`;
+        return `
         <article class="ticketCard">
           <div class="ticketTop">
             <div>
-              <span class="badge badgeInfo"><i class="fa-solid ${bookingIcon(b.type)}"></i> ${b.type}</span>
-              <h3 class="ticketTitle" style="margin-top:8px">${b.title}</h3>
-              <div class="ticketMeta"><span><i class="fa-solid fa-user"></i> ${b.customer}</span><span><i class="fa-solid fa-chair"></i> ${b.selected}</span><span><i class="fa-solid fa-share-nodes"></i> ${b.channel}</span></div>
+              <span class="badge badgeInfo"><i class="fa-solid ${safeIcon(bookingIcon(b.type))}"></i> ${escapeHtml(b.type)}</span>
+              <h3 class="ticketTitle" style="margin-top:8px">${escapeHtml(b.title)}</h3>
+              <div class="ticketMeta"><span><i class="fa-solid fa-user"></i> ${escapeHtml(b.customer)}</span><span><i class="fa-solid fa-chair"></i> ${escapeHtml(b.selected)}</span><span><i class="fa-solid fa-share-nodes"></i> ${escapeHtml(b.channel)}</span></div>
             </div>
-            <div class="ticketCode">${b.code}</div>
+            <div class="ticketCode">${escapeHtml(b.code)}</div>
           </div>
-          <div class="kv"><div><span>Status</span><b>${b.status}</b></div><div><span>Total</span><b>${b.total}</b></div><div><span>Source</span><b>${b.date}</b></div></div>
-          <div class="ticketActions"><button class="btn btnGhost" onclick="openReceipt(${i})"><i class="fa-solid fa-receipt"></i> Open receipt</button>${b.ticketUrl ? `<a class="btn btnPrimary" href="${b.ticketUrl}"><i class="fa-solid fa-ticket"></i> Open ticket</a>` : `<a class="btn btnPrimary" href="/tickets?bookingRef=${encodeURIComponent(b.code)}"><i class="fa-solid fa-ticket"></i> Find ticket</a>`}</div>
-        </article>`).join('');
+          <div class="kv"><div><span>Status</span><b>${escapeHtml(b.status)}</b></div><div><span>Total</span><b>${escapeHtml(b.total)}</b></div><div><span>Source</span><b>${escapeHtml(b.date)}</b></div></div>
+          <div class="ticketActions"><button class="btn btnGhost" onclick="openReceipt(${i})"><i class="fa-solid fa-receipt"></i> Open receipt</button>${ticketAction}</div>
+        </article>`;
+      }).join('');
     }
-
     function renderMarketplaceSurface(){
       const typeStats = marketplace.typeStats || [];
       typeStats.forEach(stat => {
-        const sectionId = stat.type === 'bus' ? 'bus' : stat.type;
+        const sectionMap = {bus:'bus',hotel:'hotel',flight:'flight',train:'train',more:'more'};
+        const sectionId = sectionMap[stat.type] || '';
+        if(!sectionId) return;
         const text = document.querySelector(`#${sectionId} .sectionHead p`);
         if(!text || !stat.count) return;
         const parts = [`${stat.count} live listings`, `${stat.remainingSeats || 0} seats / rooms open`];
@@ -176,19 +214,19 @@
         blogCards.innerHTML = guides.map(card => `
           <article class="promoCard blogCard">
             <div class="blogImage">
-              <img src="${escapeHtml(card.image || '')}" alt="${escapeHtml(card.title || 'Travel guide')}">
+              <img src="${safeAttrUrl(card.image || '', '')}" alt="${escapeHtml(card.title || 'Travel guide')}">
               <span class="badge badgeInfo blogTag"><i class="fa-solid fa-route"></i> ${escapeHtml(card.tag || 'Guide')}</span>
               <div class="blogIconActions">
-                <a class="miniIcon" title="View" href="${escapeHtml(card.url || '#')}"><i class="fa-regular fa-eye"></i></a>
-                <button class="miniIcon" title="Save" data-save-id="${escapeHtml(card.listingId || '')}" onclick="saveListing('${escapeHtml(card.listingId || '')}')"><i class="fa-regular fa-heart"></i></button>
-                <button class="miniIcon" title="Share" onclick="shareListing('${escapeHtml(card.listingId || '')}')"><i class="fa-solid fa-share-nodes"></i></button>
+                <a class="miniIcon" title="View" href="${safeAttrUrl(card.url || '#')}"><i class="fa-regular fa-eye"></i></a>
+                <button class="miniIcon" title="Save" data-save-id="${escapeHtml(card.listingId || '')}" onclick="saveListing('${inlineJs(card.listingId || '')}')"><i class="fa-regular fa-heart"></i></button>
+                <button class="miniIcon" title="Share" onclick="shareListing('${inlineJs(card.listingId || '')}')"><i class="fa-solid fa-share-nodes"></i></button>
               </div>
             </div>
             <div class="blogBody">
               <h3>${escapeHtml(card.title || 'Travel guide')}</h3>
               <div class="blogMeta"><span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(card.location || 'Route')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(card.partner || 'Partner')}</span><span><i class="fa-solid fa-coins"></i> ${card.price ? money(card.price.amount, card.price.currency) : 'Live price'}</span></div>
               <p>${escapeHtml(card.excerpt || 'Generated from live listing data.')}</p>
-              <div class="blogActions"><a class="btn btnGhost" href="${escapeHtml(card.url || '#')}"><i class="fa-regular fa-eye"></i> Open listing</a></div>
+              <div class="blogActions"><a class="btn btnGhost" href="${safeAttrUrl(card.url || '#')}"><i class="fa-regular fa-eye"></i> Open listing</a></div>
             </div>
           </article>
         `).join('');
@@ -197,16 +235,16 @@
     function openReceipt(i){
       const b = myBookings[i]; if(!b) return;
       $('#receiptTitle').textContent = b.title;
-      $('#receiptSub').textContent = `${b.code} • ${b.status}`;
+      $('#receiptSub').textContent = `${b.code} - ${b.status}`;
       $('#receiptPaper').innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px"><div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div><span class="ticketCode">${b.code}</span></div>
-        <div class="receiptRow"><span>Customer</span><b>${b.customer}</b></div>
-        <div class="receiptRow"><span>Service</span><b>${b.title}</b></div>
-        <div class="receiptRow"><span>Type</span><b>${b.type}</b></div>
-        <div class="receiptRow"><span>Selected</span><b>${b.selected}</b></div>
-        <div class="receiptRow"><span>Paid total</span><b>${b.total}</b></div>
-        <div class="receiptRow"><span>Delivery</span><b>${b.channel} + My bookings</b></div>
-        <div class="receiptRow"><span>Status</span><b>${b.status}</b></div>`;
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px"><div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div><span class="ticketCode">${escapeHtml(b.code)}</span></div>
+        <div class="receiptRow"><span>Customer</span><b>${escapeHtml(b.customer)}</b></div>
+        <div class="receiptRow"><span>Service</span><b>${escapeHtml(b.title)}</b></div>
+        <div class="receiptRow"><span>Type</span><b>${escapeHtml(b.type)}</b></div>
+        <div class="receiptRow"><span>Selected</span><b>${escapeHtml(b.selected)}</b></div>
+        <div class="receiptRow"><span>Paid total</span><b>${escapeHtml(b.total)}</b></div>
+        <div class="receiptRow"><span>Delivery</span><b>${escapeHtml(b.channel)} + My bookings</b></div>
+        <div class="receiptRow"><span>Status</span><b>${escapeHtml(b.status)}</b></div>`;
       $('#receiptModal').classList.add('open');
       document.body.style.overflow='hidden';
     }
@@ -221,17 +259,18 @@
 
     function cardHTML(x){
       const corner = listingCornerBadge(x);
-      return `<article class="listing" data-id="${escapeHtml(x.id)}" data-group="${escapeHtml(x.group)}" data-corridor="${escapeHtml(x.corridor||'regional')}" role="button" tabindex="0" aria-label="Open ${escapeHtml(x.title)}">
-        <div class="thumb"><img src="${escapeHtml(x.img)}" alt="${escapeHtml(x.title)}"><div class="cornerBadge ${corner.cls}"><i class="fa-solid ${corner.icon}"></i> ${escapeHtml(corner.text)}</div><div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating || 'New')}</span><span class="badge badgeInfo"><i class="fa-solid ${icons[x.type]||'fa-ticket'}"></i> ${escapeHtml(x.typeLabel || x.type)}</span></div><div class="thumbActions"><button class="miniIcon" type="button" title="Save" data-save-id="${escapeHtml(x.id)}" onclick="saveListing('${escapeHtml(x.id)}')"><i class="fa-regular fa-heart"></i></button><button class="miniIcon" type="button" title="Share" onclick="shareListing('${escapeHtml(x.id)}')"><i class="fa-solid fa-share-nodes"></i></button></div></div>
+      const id = String(x.id ?? '');
+      const jsId = inlineJs(id);
+      return `<article class="listing" data-id="${escapeHtml(id)}" data-group="${escapeHtml(x.group)}" data-corridor="${escapeHtml(x.corridor||'regional')}" role="button" tabindex="0" aria-label="Open ${escapeHtml(x.title)}">
+        <div class="thumb"><img src="${safeAttrUrl(x.img, '')}" alt="${escapeHtml(x.title)}"><div class="cornerBadge ${escapeHtml(corner.cls)}"><i class="fa-solid ${safeIcon(corner.icon)}"></i> ${escapeHtml(corner.text)}</div><div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating || 'New')}</span><span class="badge badgeInfo"><i class="fa-solid ${safeIcon(icons[x.type])}"></i> ${escapeHtml(x.typeLabel || x.type)}</span></div><div class="thumbActions"><button class="miniIcon" type="button" title="Save" data-save-id="${escapeHtml(id)}" onclick="saveListing('${jsId}')"><i class="fa-regular fa-heart"></i></button><button class="miniIcon" type="button" title="Share" onclick="shareListing('${jsId}')"><i class="fa-solid fa-share-nodes"></i></button></div></div>
         <div class="listingBody">
           <h3 class="listingTitle">${escapeHtml(x.title)}</h3>
           <div class="meta"><span><i class="fa-regular fa-clock"></i> ${escapeHtml(x.nextDepartLabel || x.time || 'Flexible')}</span><span><i class="fa-solid fa-layer-group"></i> ${escapeHtml(x.unitsLabel || 'Live availability')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(x.partner)}</span></div>
           <p class="desc">${escapeHtml(x.sub || '')}. ${escapeHtml(x.policy || '')}. ${escapeHtml(x.bookableReason || 'Catalog availability is synced from backend inventory.')}</p>
-          <div class="priceRow"><div><div class="price">${money(x.price,x.currency)}</div><div class="small">${escapeHtml(x.bookableReason || (x.bookable ? 'Starting price' : 'Read-only preview'))}</div></div><div class="actions"><button class="btn btnGhost" onclick="goListing('${escapeHtml(x.id)}', event)"><i class="fa-regular fa-eye"></i> View</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${escapeHtml(x.id)}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${escapeHtml(x.id)}', event)"><i class="fa-regular fa-clock"></i> Soon</button>`}</div></div>
+          <div class="priceRow"><div><div class="price">${money(x.price,x.currency)}</div><div class="small">${escapeHtml(x.bookableReason || (x.bookable ? 'Starting price' : 'Read-only preview'))}</div></div><div class="actions"><button class="btn btnGhost" onclick="goListing('${jsId}', event)"><i class="fa-regular fa-eye"></i> View</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${jsId}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${jsId}', event)"><i class="fa-regular fa-clock"></i> Soon</button>`}</div></div>
         </div>
       </article>`;
     }
-
     function goListing(id, ev){
       ev?.stopPropagation();
       const item = listings.find(x=>x.id===id);
@@ -320,7 +359,7 @@
       setActiveNavById(id);
     }
     function scrollToCardId(id){
-      scrollWithGap(document.querySelector(`[data-id="${id}"]`));
+      scrollWithGap($$('.listing').find(card=>card.dataset.id===String(id ?? '')));
     }
     function filterCards(group, btn){
       activeGroup = group;
@@ -379,12 +418,12 @@
     function openListing(id, bookNow=false){
       current = listings.find(x=>x.id===id); selected=[]; held=[]; holdId=''; addonTotal=0; seconds=600;
       if(!current) return toast('Listing not found.');
-      $('#modalType').innerHTML = `<i class="fa-solid ${icons[current.type]||'fa-ticket'}"></i> ${current.type}`;
-      $('#modalTitle').textContent=current.title; $('#modalSub').textContent=`${current.partner} • ${current.from} → ${current.to} • ${current.time}`;
-      $('#modalImg').src=current.img; $('#modalHeroTitle').textContent=current.title; $('#modalHeroSub').textContent=current.sub;
+      $('#modalType').innerHTML = `<i class="fa-solid ${safeIcon(icons[current.type])}"></i> ${escapeHtml(current.type)}`;
+      $('#modalTitle').textContent=current.title; $('#modalSub').textContent=`${current.partner} - ${current.from} -> ${current.to} - ${current.time}`;
+      $('#modalImg').src=safeUrl(current.img, ''); $('#modalHeroTitle').textContent=current.title; $('#modalHeroSub').textContent=current.sub;
       $('#layoutTitle').textContent = current.group==='hotel' ? 'Choose room / house unit' : current.group==='flight' ? 'Choose flight seat' : current.group==='train' ? 'Choose coach seat' : current.group==='more' ? 'Choose available slot' : 'Choose bus seat';
       $('#layoutHint').textContent = current.group==='hotel' ? 'Partner can upload floor plan and mark room status.' : 'Partner can choose 2+2, 2+1, VIP, sleeper or custom layout.';
-      $('#addons').innerHTML = addonOptions(current.group).map(a=>`<label class="addon"><span><input type="checkbox" value="${a.price}" onchange="calc()"> ${a.name}</span><b>${money(a.price,current.currency)}</b></label>`).join('');
+      $('#addons').innerHTML = addonOptions(current.group).map(a=>`<label class="addon"><span><input type="checkbox" value="${Number(a.price) || 0}" onchange="calc()"> ${escapeHtml(a.name)}</span><b>${money(a.price,current.currency)}</b></label>`).join('');
       renderLayout();
       updateSummary();
       $('#checkoutStep').classList.remove('active');
@@ -394,7 +433,6 @@
       startTimer();
       if(bookNow) toast('Select an available option, then proceed booking.');
     }
-
     function closeModal(){ $('#viewModal').classList.remove('open'); document.body.style.overflow=''; clearInterval(timerId); }
     $('#viewModal').addEventListener('click', e=>{ if(e.target.id==='viewModal') closeModal(); });
 
@@ -409,10 +447,8 @@
       const taken = (current.taken || []).includes(code);
       const isSel = selected.includes(code);
       const isHeld = held.includes(code);
-      const safeCode = String(code).replace(/'/g, '&#39;');
-      return `<button class="${cls} ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${safeCode}')"><span>Seat No</span><b>${label}</b></button>`;
+      return `<button class="${escapeHtml(cls)} ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${inlineJs(code)}')"><span>Seat No</span><b>${escapeHtml(label)}</b></button>`;
     }
-
     function renderLayout(){
       let h = '';
       if(current.layout==='bus-2-2'){
@@ -450,9 +486,8 @@
 
     function roomCell(code){
       const taken = (current.taken || []).includes(code), isSel=selected.includes(code), isHeld=held.includes(code);
-      return `<button class="room ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${code}')"><span>${code}</span><small>${taken?'Booked':'Available'}</small></button>`;
+      return `<button class="room ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${inlineJs(code)}')"><span>${escapeHtml(code)}</span><small>${taken?'Booked':'Available'}</small></button>`;
     }
-
     function togglePick(code){
       if(selected.includes(code)) selected = selected.filter(x=>x!==code);
       else {
@@ -561,7 +596,7 @@
         toast(`Ticket saved in My bookings: ${booking.code}`);
         $('#modalHeroTitle').textContent = 'Payment page completed';
         $('#modalHeroSub').textContent = `Customer: ${name} - Payment: ${method} - Ticket available in My bookings.`;
-        held = [...new Set([...held, ...choice])]; selected=[]; backToSelection(); renderLayout(); updateSummary(); closeModal(); window.location.href = data.ticketUrl;
+        held = [...new Set([...held, ...choice])]; selected=[]; backToSelection(); renderLayout(); updateSummary(); closeModal(); window.location.href = safeInternalUrl(data.ticketUrl, '/tickets');
       } catch (error) {
         toast(error.message || 'Booking failed. Please try again.');
       }

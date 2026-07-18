@@ -33,6 +33,7 @@ const cspDirectives = {
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],
+  manifestSrc: ["'self'"],
 };
 if (env.isProduction) cspDirectives.upgradeInsecureRequests = [];
 app.use(helmet({
@@ -54,7 +55,12 @@ app.use((req, res, next) => {
   res.locals.appName = env.appName;
   res.locals.currentPath = req.path;
   res.locals.query = req.query;
+  res.locals.seoConfig = env.seo;
+  res.locals.siteUrl = env.seo.siteUrl;
   res.locals.money = (amount, currency = 'UGX') => `${currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+  // Escapes `<` so JSON embedded inside <script> tags (via <%- %>) can't be broken out of
+  // with a `</script>` payload in user-controlled data.
+  res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/</g, '\\u003c');
   next();
 });
 
@@ -81,6 +87,7 @@ app.use('/api/listings', require('./routes/api/listings'));
 app.use('/api/bookings', require('./routes/api/bookings'));
 app.use('/api/payments', require('./routes/api/payments'));
 app.use('/api/dashboards', require('./routes/api/dashboards'));
+app.use('/api/notifications', require('./routes/api/notifications'));
 app.use('/api/scanner', require('./routes/api/scanner'));
 app.use('/api/webhooks', require('./routes/api/webhooks'));
 app.use('/api/uploads', require('./routes/api/uploads'));
@@ -89,3 +96,4 @@ app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;
+

@@ -1098,6 +1098,56 @@ async function createSchedule(companyId, payload = {}) {
   return { schedule, seats };
 }
 
+const MAX_BATCH_SCHEDULES = 180;
+const WEEKDAY_INDEX = { sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6 };
+
+function allowedWeekdaySet(days) {
+  const indexes = new Set();
+  parseList(days).forEach((day) => {
+    const index = WEEKDAY_INDEX[String(day || '').trim().toLowerCase()];
+    if (index !== undefined) indexes.add(index);
+  });
+  return indexes;
+}
+
+async function createScheduleBatch(companyId, payload = {}) {
+  const startDepartAt = new Date(payload.departAt || Date.now() + 24 * 60 * 60 * 1000);
+  if (Number.isNaN(startDepartAt.getTime())) {
+    const error = new Error('A valid departure time is required');
+    error.status = 422;
+    throw error;
+  }
+  const repeatUntil = payload.repeatUntil ? new Date(`${String(payload.repeatUntil).slice(0, 10)}T23:59:59`) : null;
+  const durationMs = payload.arriveAt ? new Date(payload.arriveAt).getTime() - startDepartAt.getTime() : null;
+  const allowedWeekdays = allowedWeekdaySet(payload.repeatDays);
+  const departDates = [];
+  if (!repeatUntil || Number.isNaN(repeatUntil.getTime()) || repeatUntil.getTime() <= startDepartAt.getTime()) {
+    departDates.push(startDepartAt);
+  } else {
+    let cursor = new Date(startDepartAt);
+    let guard = 0;
+    while (cursor.getTime() <= repeatUntil.getTime() && guard < MAX_BATCH_SCHEDULES) {
+      if (!allowedWeekdays.size || allowedWeekdays.has(cursor.getDay())) departDates.push(new Date(cursor));
+      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+      guard += 1;
+    }
+  }
+  if (!departDates.length) {
+    const error = new Error('No departure dates matched the selected repeat range and days');
+    error.status = 422;
+    throw error;
+  }
+  const schedules = [];
+  for (const departAt of departDates) {
+    const arriveAt = Number.isFinite(durationMs) ? new Date(departAt.getTime() + durationMs).toISOString() : undefined;
+    // Sequential on purpose: each schedule pulls from the same shared seat/vehicle inventory.
+    // eslint-disable-next-line no-await-in-loop
+    const result = await createSchedule(companyId, { ...payload, departAt: departAt.toISOString(), arriveAt });
+    schedules.push(result.schedule);
+  }
+  return { schedules, count: schedules.length };
+}
+
 async function updateSchedule(companyId, scheduleId, payload = {}) {
   const company = findCompanyOrThrow(companyId);
   const schedule = findCompanyScheduleOrThrow(company.id, scheduleId);
@@ -1899,6 +1949,7 @@ module.exports = {
   updateVehicleSeatTemplate,
   updateVehicleStatus,
   createSchedule,
+  createScheduleBatch,
   updateSchedule,
   publishSchedule,
   archiveSchedule,

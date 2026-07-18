@@ -2,6 +2,7 @@ const store = require('../data/persistentStore');
 const { mongoose } = require('../../config/db');
 const { env } = require('../../config/env');
 const inventoryHoldService = require('./inventoryHoldService');
+const ticketAccessService = require('./ticketAccessService');
 const ticketScanService = require('../qr/ticketScanService');
 const timelineService = require('../support/timelineService');
 
@@ -457,13 +458,13 @@ async function persistBookingRows(booking, payload, transactionStartIndex, sessi
 
 
 async function createGuestBooking(payload, req) {
-  const provider = payload.provider || payload.paymentProvider || env.paymentProvider;
+  const paymentService = require('../payment/paymentService');
+  const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider || env.paymentProvider);
   const transactionStartIndex = store.state.walletTransactions.length;
   const booking = store.createBooking({
     ...payload,
     deferPayment: provider !== 'mock',
   }, req);
-  const paymentService = require('../payment/paymentService');
   try {
     const intentBase = {
       id: `payment-intent-${booking.bookingRef}`,
@@ -493,6 +494,8 @@ async function createGuestBooking(payload, req) {
       currency: booking.pricing?.currency,
       customer: booking.guestSnapshot,
       idempotencyKey: intentBase.idempotencyKey,
+      callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(booking.bookingRef)}`,
+      description: `Classic Trip booking ${booking.bookingRef}`,
     });
     await persistPaymentIntent({
       ...intentBase,
@@ -670,14 +673,12 @@ async function markNoShow(value, employeeId = 'employee-system', companyId = '',
   return result;
 }
 
-function lookupBooking(bookingRef, contact = '') {
+function lookupBooking(bookingRef, contact = '', accessCode = '') {
   const booking = store.findBooking(bookingRef);
   if (!booking) return null;
-  if (!contact) return booking;
-  const key = String(contact).toLowerCase();
-  const email = String(booking.guestSnapshot?.email || '').toLowerCase();
-  const phone = String(booking.guestSnapshot?.phone || '').toLowerCase();
-  return email.includes(key) || phone.includes(key) ? booking : null;
+  if (ticketAccessService.accessCodeMatches(booking, accessCode)) return booking;
+  if (!contact) return null;
+  return ticketAccessService.contactMatches(booking, contact) ? booking : null;
 }
 
 function cancelBooking(bookingRef, reason = 'Customer requested cancellation') {

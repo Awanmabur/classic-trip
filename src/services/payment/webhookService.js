@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const store = require('../data/persistentStore');
 const notificationService = require('../notification/notificationService');
 const securityService = require('../security/securityService');
+const paymentService = require('./paymentService');
 const { env } = require('../../config/env');
 const { mongoose } = require('../../config/db');
 
@@ -97,16 +98,17 @@ function pickFirst(...values) {
 function normalizeProviderPayload(payload = {}) {
   const data = payload.data || payload.event || payload.transaction || {};
   const meta = payload.meta || payload.metadata || data.meta || data.metadata || data.customer || {};
-  const provider = pickFirst(payload.provider, data.provider, payload.source, 'mock');
+  const hasPesapalShape = Boolean(payload.OrderTrackingId || payload.order_tracking_id || payload.orderTrackingId || data.OrderTrackingId || data.order_tracking_id || payload.OrderMerchantReference || payload.order_merchant_reference || payload.merchant_reference);
+  const provider = pickFirst(payload.provider, data.provider, payload.source, hasPesapalShape ? 'pesapal' : 'mock');
   return {
     ...payload,
     provider,
-    bookingRef: pickFirst(payload.bookingRef, payload.orderRef, data.bookingRef, data.orderRef, meta.bookingRef, meta.booking_ref, meta.custom_fields?.bookingRef, meta.custom_fields?.booking_ref, payload.tx_ref, payload.trxref, data.tx_ref, data.trxref, payload.reference, data.reference),
-    providerReference: pickFirst(payload.providerReference, payload.transaction_id, payload.flw_ref, payload.reference, payload.tx_ref, data.providerReference, data.id, data.reference, data.flw_ref, data.tx_ref),
-    amount: Number(pickFirst(payload.amount, data.amount, data.charged_amount, data.requested_amount, meta.amount, 0)),
-    currency: String(pickFirst(payload.currency, data.currency, meta.currency, 'UGX')).toUpperCase(),
-    status: normalizedStatus(pickFirst(payload.status, data.status, payload.event_type, data.gateway_response)),
-    idempotencyKey: pickFirst(payload.idempotencyKey, payload.eventId, payload.event_id, data.id, data.reference, payload.providerReference, payload.reference),
+    bookingRef: pickFirst(payload.bookingRef, payload.orderRef, payload.OrderMerchantReference, payload.order_merchant_reference, payload.merchant_reference, data.bookingRef, data.orderRef, data.OrderMerchantReference, data.order_merchant_reference, data.merchant_reference, meta.bookingRef, meta.booking_ref, meta.custom_fields?.bookingRef, meta.custom_fields?.booking_ref, payload.tx_ref, payload.trxref, data.tx_ref, data.trxref, payload.reference, data.reference),
+    providerReference: pickFirst(payload.providerReference, payload.OrderTrackingId, payload.order_tracking_id, payload.orderTrackingId, payload.transaction_id, payload.flw_ref, payload.reference, payload.tx_ref, data.providerReference, data.OrderTrackingId, data.order_tracking_id, data.orderTrackingId, data.id, data.reference, data.flw_ref, data.tx_ref),
+    amount: Number(pickFirst(payload.amount, payload.payment_amount, data.amount, data.payment_amount, data.charged_amount, data.requested_amount, meta.amount, 0)),
+    currency: String(pickFirst(payload.currency, payload.currency_code, data.currency, data.currency_code, meta.currency, 'UGX')).toUpperCase(),
+    status: normalizedStatus(pickFirst(payload.status, payload.payment_status_description, payload.paymentStatusDescription, data.status, data.payment_status_description, data.paymentStatusDescription, payload.event_type, data.gateway_response)),
+    idempotencyKey: pickFirst(payload.idempotencyKey, payload.eventId, payload.event_id, payload.providerReference, payload.OrderTrackingId, payload.order_tracking_id, data.id, data.reference, data.OrderTrackingId, data.order_tracking_id, payload.reference),
     meta,
     originalPayload: payload,
   };
@@ -192,8 +194,26 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
   payload = normalizeProviderPayload(payload);
   await persistWebhookEvent(payload, headers, { status: 'received', signatureStatus: 'unchecked' });
   try {
-    assertValidSignature(payload, headers);
-    await persistWebhookEvent(payload, headers, { signatureStatus: 'verified' });
+    let providerVerification = null;
+    if (payload.provider === 'pesapal' && payload.providerReference) {
+      providerVerification = await paymentService.handleWebhook(payload);
+      if (providerVerification?.valid) {
+        const originalPayload = payload.originalPayload || payload;
+        payload = {
+          ...payload,
+          bookingRef: providerVerification.bookingRef || payload.bookingRef,
+          providerReference: providerVerification.providerReference || payload.providerReference,
+          amount: providerVerification.amount || payload.amount,
+          currency: providerVerification.currency || payload.currency,
+          status: providerVerification.status || payload.status,
+          providerVerified: true,
+          originalPayload,
+          providerVerificationPayload: providerVerification.payload,
+        };
+      }
+    }
+    if (!providerVerification?.valid) assertValidSignature(payload, headers);
+    await persistWebhookEvent(payload, headers, { signatureStatus: providerVerification?.valid ? 'verified_provider_status' : 'verified' });
   } catch (error) {
     await persistWebhookEvent(payload, headers, { status: 'blocked', signatureStatus: 'failed', failureReason: error.message });
     await securityService.recordSecurityEvent({
@@ -284,7 +304,7 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
   store.state.payments.push(payment);
 
   booking.paymentStatus = status;
-  if (status === 'successful' && ['draft', 'pending'].includes(booking.bookingStatus)) booking.bookingStatus = 'confirmed';
+  if (status === 'successful' && ['draft', 'pending', 'pending_payment'].includes(booking.bookingStatus)) booking.bookingStatus = 'confirmed';
   if (status === 'failed') {
     booking.bookingStatus = 'cancelled';
     booking.cancelReason = booking.cancelReason || 'Payment failed by provider webhook';

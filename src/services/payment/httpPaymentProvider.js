@@ -110,7 +110,7 @@ function createProvider(provider, config = {}) {
           email: payment.email,
           phone: payment.phone,
         },
-        callbackUrl: config.callbackUrl,
+        callbackUrl: payment.callbackUrl || config.callbackUrl,
         meta: payment.meta || {},
       };
       const result = await postJson(config.apiUrl, config.apiKey, payload);

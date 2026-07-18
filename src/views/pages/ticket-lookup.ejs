@@ -59,8 +59,8 @@
             <div><span>Amount</span><b><%= money((booking.pricing || {}).total || 0, (booking.pricing || {}).currency) %></b></div>
           </div>
           <div class="actions">
-            <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>"><i class="fa-solid fa-qrcode"></i> Open Full Ticket</a>
-            <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+            <a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid fa-qrcode"></i> Open Full Ticket</a>
+            <a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
           </div>
         </div>
       <% } else if (lookupAttempted) { %>

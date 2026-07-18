@@ -3,6 +3,7 @@ const companyService = require('../../services/company/companyService');
 const bookingService = require('../../services/booking/bookingService');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
+const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 
 function scopedServices(serviceProfile = {}) {
@@ -20,20 +21,20 @@ function actorId(req) {
 
 async function driverDashboard(req, res, next) {
   try {
-    const dashboardData = await mongoDashboardService.roleDashboard('driver', {
-      companyId: companyId(req),
-      employeeId: actorId(req),
-    });
+    const context = { companyId: companyId(req), employeeId: actorId(req) };
+    const dashboardData = await mongoDashboardService.roleDashboard('driver', context);
     const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId: companyId(req) });
+    const notificationRows = notificationService.dashboardRows('driver', context);
     res.render('dashboards/admin/index', {
       seo: { title: 'Driver dashboard | Classic Trip' },
-      dashboardData: { ...dashboardData, dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
+      dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
       dashboardMode: 'driver',
       dashboardShell: buildDashboardShell('driver', {
         user: req.session?.user,
         companyId: companyId(req),
         companies: store.state.companies,
-        notificationCount: store.state.notifications?.length || 0,
+        notifications: notificationRows,
+        notificationCount: notificationService.unreadCount('driver', context),
         activePage: req.params?.page || 'overview',
         company: companyDashboardData.company,
         serviceProfile: companyDashboardData.serviceProfile,

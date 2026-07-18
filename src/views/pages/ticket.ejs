@@ -19,7 +19,7 @@
     return `Seat No ${clean || raw}`;
   };
   const statusBadge = {
-    confirmed: 'badgeOk', pending: 'badgeWarn', cancelled: 'badgeHot',
+    confirmed: 'badgeOk', pending: 'badgeWarn', pending_payment: 'badgeWarn', cancelled: 'badgeHot',
     refunded: 'badgeInfo', partially_refunded: 'badgeInfo'
   }[booking.bookingStatus] || '';
 %>
@@ -38,7 +38,7 @@
       </div>
     </div>
     <div class="actions" style="margin-top:14px">
-      <a class="btn btnPrimary" href="/tickets/<%= booking.bookingRef %>.pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+      <a class="btn btnPrimary" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
       <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Find another ticket</a>
       <% if (currentUser) { %><a class="btn btnGhost" href="/account/bookings"><i class="fa-solid fa-list"></i> My bookings</a><% } %>
     </div>
@@ -72,7 +72,7 @@
         <div class="qrBox" style="min-height:180px"><span class="muted" style="font-size:12px"><%= booking.qrCodeValue || booking.bookingRef %></span></div>
       <% } %>
       <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6">One-time QR code. Valid for boarding. Do not share this screen capture with others.</p>
-      <a class="btn btnGhost" href="/tickets/<%= booking.bookingRef %>.pdf" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a>
+      <a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a>
     </section>
 
   </div>

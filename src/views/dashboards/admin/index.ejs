@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="/js/csrf.js" defer></script>
+  <script src="/js/notifications.js" defer></script>
 
   <style>
     :root{
@@ -2111,10 +2112,10 @@
             <div class="card">
               <div class="cardHead"><div class="cardTitle"><h3>Country route demand</h3><p>Top active cross-border and local markets.</p></div></div>
               <div class="metricList">
-                <div class="metricRow"><div><strong>Uganda ⇄ Kenya</strong><span>Kampala, Nairobi, Jinja, Kisumu</span></div><b>34%</b></div>
-                <div class="metricRow"><div><strong>Uganda ⇄ Rwanda</strong><span>Kampala, Kigali, Mbarara, Kabale</span></div><b>21%</b></div>
-                <div class="metricRow"><div><strong>Kenya ⇄ Tanzania</strong><span>Nairobi, Mombasa, Arusha, Dar</span></div><b>18%</b></div>
-                <div class="metricRow"><div><strong>South Sudan ⇄ Uganda</strong><span>Juba, Nimule, Gulu, Kampala</span></div><b>12%</b></div>
+                <div class="metricRow"><div><strong>Uganda â‡„ Kenya</strong><span>Kampala, Nairobi, Jinja, Kisumu</span></div><b>34%</b></div>
+                <div class="metricRow"><div><strong>Uganda â‡„ Rwanda</strong><span>Kampala, Kigali, Mbarara, Kabale</span></div><b>21%</b></div>
+                <div class="metricRow"><div><strong>Kenya â‡„ Tanzania</strong><span>Nairobi, Mombasa, Arusha, Dar</span></div><b>18%</b></div>
+                <div class="metricRow"><div><strong>South Sudan â‡„ Uganda</strong><span>Juba, Nimule, Gulu, Kampala</span></div><b>12%</b></div>
               </div>
             </div>
           </div>
@@ -2272,7 +2273,7 @@
             <div class="documentList">
               <% if(companyDocs.length){ companyDocs.slice(0,8).forEach(function(doc){ %>
                 <div class="documentItem">
-                  <div><strong><%= doc.label || doc.documentType || 'Company document' %></strong><span><%= doc.documentReference || doc.publicId || 'No reference' %> · <%= doc.status || 'pending_review' %></span></div>
+                  <div><strong><%= doc.label || doc.documentType || 'Company document' %></strong><span><%= doc.documentReference || doc.publicId || 'No reference' %> Â· <%= doc.status || 'pending_review' %></span></div>
                   <div class="documentActions"><% if(doc.secureUrl || doc.url){ %><a class="btn tiny" href="<%= doc.secureUrl || doc.url %>" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> View</a><% } %><span class="badge <%= /approved|verified/i.test(doc.status || '') ? 'ok' : /reject/i.test(doc.status || '') ? 'bad' : 'warn' %>"><%= doc.status || 'pending' %></span></div>
                 </div>
               <% }) } else { %>
@@ -2377,7 +2378,7 @@
                 <div class="seatPreviewMetaCard">
                   <div>
                     <strong><%= map.routeLabel || map.listingTitle || map.scheduleId || 'Seat map' %></strong>
-                    <span><%= map.vehicleName || 'Vehicle' %> · <%= map.departAt || map.travelDate || 'Departure pending' %></span>
+                    <span><%= map.vehicleName || 'Vehicle' %> Â· <%= map.departAt || map.travelDate || 'Departure pending' %></span>
                   </div>
                   <span class="badge info"><%= map.status || 'active' %></span>
                 </div>
@@ -2421,7 +2422,7 @@
             <% if(vehicleTemplates.length){ %>
               <div class="templateCards">
                 <% vehicleTemplates.forEach(function(vehicle){ const vDetail = { entity:'vehicle', id: vehicle.id, vehicle: vehicle }; const seats = (vehicle.seats || []).slice(0,48); %>
-                  <article class="templateCard"><div class="templateCardTop"><div><strong><%= vehicle.name || vehicle.plateOrCode || 'Vehicle template' %></strong><span><%= vehicle.layoutName || vehicle.layout || '2x2' %> · <%= vehicle.totalSeats || (vehicle.seats || []).length || 0 %> seats · <%= vehicle.status || 'active' %></span></div><button class="tinyBtn" data-modal="edit" data-type="vehicle seat template" data-label="<%= vehicle.name || vehicle.plateOrCode || 'Vehicle' %>" data-row-id="<%= vehicle.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(vDetail)) %>" title="Edit seat template"><i class="fa-solid fa-pen"></i></button></div><div class="seatPreviewMini"><% if(seats.length){ seats.forEach(function(seat, seatIndex){ %><span class="seatChip <%= String(seat.seatClass || seat.seatType || '').toLowerCase() %> <%= String(seat.status || '').toLowerCase() %>">Seat No <%= seatIndex + 1 %></span><% }) } else { %><span class="muted">No template seats yet.</span><% } %></div></article>
+                  <article class="templateCard"><div class="templateCardTop"><div><strong><%= vehicle.name || vehicle.plateOrCode || 'Vehicle template' %></strong><span><%= vehicle.layoutName || vehicle.layout || '2x2' %> Â· <%= vehicle.totalSeats || (vehicle.seats || []).length || 0 %> seats Â· <%= vehicle.status || 'active' %></span></div><button class="tinyBtn" data-modal="edit" data-type="vehicle seat template" data-label="<%= vehicle.name || vehicle.plateOrCode || 'Vehicle' %>" data-row-id="<%= vehicle.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(vDetail)) %>" title="Edit seat template"><i class="fa-solid fa-pen"></i></button></div><div class="seatPreviewMini"><% if(seats.length){ seats.forEach(function(seat, seatIndex){ %><span class="seatChip <%= String(seat.seatClass || seat.seatType || '').toLowerCase() %> <%= String(seat.status || '').toLowerCase() %>">Seat No <%= seatIndex + 1 %></span><% }) } else { %><span class="muted">No template seats yet.</span><% } %></div></article>
                 <% }) %>
               </div>
             <% } else { %><div class="notice">No vehicle templates yet. Add a bus/vehicle, then build its seat template.</div><% } %>
@@ -2434,7 +2435,7 @@
         <div class="hotelOpsLayout">
           <div class="card hotelOpsMain">
             <div class="cardHead">
-              <div class="cardTitle"><h3>Hotel rooms and inventory</h3><p>Manage the full hotel hierarchy: property → room type → room unit → room-night calendar.</p></div>
+              <div class="cardTitle"><h3>Hotel rooms and inventory</h3><p>Manage the full hotel hierarchy: property â†’ room type â†’ room unit â†’ room-night calendar.</p></div>
               <div class="rowActions is-visible"><button class="btn btnBlue" data-modal="create" data-type="hotel property"><i class="fa-solid fa-hotel"></i> Add property</button><button class="btn" data-modal="create" data-type="room type"><i class="fa-solid fa-bed"></i> Add room type</button><button class="btn" data-modal="create" data-type="room units"><i class="fa-solid fa-door-open"></i> Add room units</button><button class="btn" data-modal="create" data-type="room night inventory"><i class="fa-regular fa-calendar-plus"></i> Add night inventory</button></div>
             </div>
             <div class="manifestSummary hotelSummary">
@@ -2495,7 +2496,7 @@
             <div class="seatLegend"><span class="available"><i></i> Available</span><span class="booked"><i></i> Booked / occupied</span><span class="held"><i></i> Held / reserved</span><span class="blocked"><i></i> Maintenance / cleaning</span></div>
             <% const roomMaps = (dashboardData?.roomVisualMaps || []).slice(0,4); %>
             <% if(roomMaps.length){ roomMaps.forEach(function(map){ %>
-              <div class="splitTop" style="margin-top:14px"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Hotel rooms' %> · <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
+              <div class="splitTop" style="margin-top:14px"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Hotel rooms' %> Â· <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
               <div class="seatGrid roomGrid"><% (map.rooms || []).slice(0,100).forEach(function(room){ %>
                 <% const roomDetail = { entity:'room_unit', id: room.roomUnitId, roomUnit: room, roomType: { id: map.roomTypeId, name: map.roomTypeName }, property: { propertyName: map.propertyName }, listing: { id: map.listingId, title: map.listingTitle } }; %>
                 <button class="seat roomTile <%= String(room.status || '').toLowerCase() %> <%= room.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="room unit" data-label="<%= room.unitNumber || room.roomUnitId %>" data-row-id="<%= room.roomUnitId %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(roomDetail)) %>"><%= room.unitNumber || room.roomUnitId %></button>
@@ -2999,10 +3000,10 @@
   <script>
 
 window.addEventListener('DOMContentLoaded', function () {
-  const backendDashboardData = <%- JSON.stringify(viewDashboardData || {}) %>;
-  const shell = <%- JSON.stringify(dashboardShell || {}) %>;
-  const csrfToken = <%- JSON.stringify(csrfToken || '') %>;
-  const serverFlashMessages = <%- JSON.stringify(flashMessages || []) %>;
+  const backendDashboardData = <%- toScriptJson(viewDashboardData || {}) %>;
+  const shell = <%- toScriptJson(dashboardShell || {}) %>;
+  const csrfToken = <%- toScriptJson(csrfToken || '') %>;
+  const serverFlashMessages = <%- toScriptJson(flashMessages || []) %>;
   const runtimeServiceProfile = backendDashboardData.serviceProfile || {};
   const runtimeCompanyServiceType = String(runtimeServiceProfile.primaryServiceType || 'partner').replace('-', '_');
 
@@ -3761,7 +3762,7 @@ window.addEventListener('DOMContentLoaded', function () {
     .hotelOpsNudge .miniStat{background:var(--table);}
     @media(max-width:980px){.hotelCalendarTop{flex-direction:column}.hotelCalendarActions{justify-content:flex-start}.hotelCalendarControls{grid-template-columns:1fr 1fr}.hotelCalendarControls .filterActions{grid-column:1/-1;justify-content:flex-start}.hotelOpsNudge{grid-template-columns:1fr}.hotelCalendarGrid{min-width:760px;grid-template-columns:140px repeat(var(--hotel-days,7),minmax(92px,1fr));}}
 
-</style></head><body><div class="brand"><div><h1>Classic Trip Dashboard Record</h1><p>${escapeHtml(title)} · ${new Date().toLocaleString()}</p></div><button onclick="window.print()">Print / Save PDF</button></div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+</style></head><body><div class="brand"><div><h1>Classic Trip Dashboard Record</h1><p>${escapeHtml(title)} Â· ${new Date().toLocaleString()}</p></div><button onclick="window.print()">Print / Save PDF</button></div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
     win.document.close();
   }
 
@@ -4605,11 +4606,11 @@ window.addEventListener('DOMContentLoaded', function () {
       ]
     };
     if (isCompanyRole && key === 'schedule') return {
-      action: '/company/schedules', submit: 'Create departure',
+      action: '/company/schedules', submit: 'Create departure(s)',
       fields: [
         { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
         { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true },
-        { name:'departAt', label:'Departure time', type:'datetime-local', icon:'fa-calendar-days', required:true },
+        { name:'departAt', label:'First departure time', type:'datetime-local', icon:'fa-calendar-days', required:true },
         { name:'arriveAt', label:'Arrival estimate', type:'datetime-local', icon:'fa-calendar-check' },
         { name:'basePrice', label:'Base fare', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
         { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
@@ -4618,6 +4619,8 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fareClass', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip'] },
         { name:'status', label:'Initial status', type:'select', icon:'fa-circle-check', options:['draft','active','published'] },
         { name:'blockedSeats', label:'Blocked seats', type: seatOptions.length ? 'multiselect' : 'text', icon:'fa-ban', options:seatOptions, placeholder:'1, 2', help:'Select blocked/reserved seats when a seat map exists.' },
+        { name:'repeatUntil', label:'Repeat daily until', type:'date', icon:'fa-repeat', help:'Optional. Create the same departure every day (at the time above) from the first departure through this date - set a month or more ahead to create a full month of trips in one click.' },
+        { name:'repeatDays', label:'Only repeat on these days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Optional. Leave empty to repeat every day in the range above.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
@@ -5593,3 +5596,4 @@ window.addEventListener('DOMContentLoaded', function () {
 </script>
 </body>
 </html>
+

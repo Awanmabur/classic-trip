@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/css/pages/home.css">
   <meta name="csrf-token" content="<%= csrfToken %>">
   <script src="/js/csrf.js" defer></script>
+  <script src="/js/notifications.js" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -111,25 +112,25 @@
         </div>
         <div>
           <div class="sideTitle">Country routes</div>
-          <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Filter by corridor, for example Kenya ⇄ Uganda.</div>
+          <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Filter by corridor, for example Kenya â‡„ Uganda.</div>
           <div class="routeFilters" id="routeFilters">
             <button class="btn btnGhost active" onclick="filterRoute('all', this)"><i class="fa-solid fa-earth-africa"></i> All East Africa</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-ke', this)">Uganda ⇄ Kenya</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-tz', this)">Uganda ⇄ Tanzania</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-rw', this)">Uganda ⇄ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-bi', this)">Uganda ⇄ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-ss', this)">Uganda ⇄ South Sudan</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-tz', this)">Kenya ⇄ Tanzania</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-rw', this)">Kenya ⇄ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-ug', this)">Kenya ⇄ Uganda</button>
-            <button class="btn btnGhost" onclick="filterRoute('tz-rw', this)">Tanzania ⇄ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('tz-bi', this)">Tanzania ⇄ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('rw-bi', this)">Rwanda ⇄ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('rw-drc', this)">Rwanda ⇄ DR Congo</button>
-            <button class="btn btnGhost" onclick="filterRoute('ss-et', this)">South Sudan ⇄ Ethiopia</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-so', this)">Ethiopia ⇄ Somalia</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-dj', this)">Ethiopia ⇄ Djibouti</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-er', this)">Ethiopia ⇄ Eritrea</button>
+            <button class="btn btnGhost" onclick="filterRoute('ug-ke', this)">Uganda â‡„ Kenya</button>
+            <button class="btn btnGhost" onclick="filterRoute('ug-tz', this)">Uganda â‡„ Tanzania</button>
+            <button class="btn btnGhost" onclick="filterRoute('ug-rw', this)">Uganda â‡„ Rwanda</button>
+            <button class="btn btnGhost" onclick="filterRoute('ug-bi', this)">Uganda â‡„ Burundi</button>
+            <button class="btn btnGhost" onclick="filterRoute('ug-ss', this)">Uganda â‡„ South Sudan</button>
+            <button class="btn btnGhost" onclick="filterRoute('ke-tz', this)">Kenya â‡„ Tanzania</button>
+            <button class="btn btnGhost" onclick="filterRoute('ke-rw', this)">Kenya â‡„ Rwanda</button>
+            <button class="btn btnGhost" onclick="filterRoute('ke-ug', this)">Kenya â‡„ Uganda</button>
+            <button class="btn btnGhost" onclick="filterRoute('tz-rw', this)">Tanzania â‡„ Rwanda</button>
+            <button class="btn btnGhost" onclick="filterRoute('tz-bi', this)">Tanzania â‡„ Burundi</button>
+            <button class="btn btnGhost" onclick="filterRoute('rw-bi', this)">Rwanda â‡„ Burundi</button>
+            <button class="btn btnGhost" onclick="filterRoute('rw-drc', this)">Rwanda â‡„ DR Congo</button>
+            <button class="btn btnGhost" onclick="filterRoute('ss-et', this)">South Sudan â‡„ Ethiopia</button>
+            <button class="btn btnGhost" onclick="filterRoute('et-so', this)">Ethiopia â‡„ Somalia</button>
+            <button class="btn btnGhost" onclick="filterRoute('et-dj', this)">Ethiopia â‡„ Djibouti</button>
+            <button class="btn btnGhost" onclick="filterRoute('et-er', this)">Ethiopia â‡„ Eritrea</button>
             <button class="btn btnGhost" onclick="filterRoute('regional', this)">Regional / international</button>
             <button class="btn btnGhost" onclick="filterRoute('ug-local', this)">Uganda local</button>
             <button class="btn btnGhost" onclick="filterRoute('ke-local', this)">Kenya local</button>
@@ -207,7 +208,7 @@
               <a class="btn btnGhost" href="<%= l.url %>"><i class="fa-regular fa-eye"></i> View listing</a>
             </article>
 <% }); } else { %>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda ⇄ Kenya.</p><a class="btn btnGhost" href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> View buses</a></article>
+            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda â‡„ Kenya.</p><a class="btn btnGhost" href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> View buses</a></article>
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-hotel"></i></div><h3>Promote hotel rooms</h3><p>Advertise rooms, apartments, houses and special weekend offers.</p><a class="btn btnGhost" href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> View hotels</a></article>
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-plane"></i></div><h3>Flight campaign</h3><p>Promote flights with baggage deals, class upgrades and seasonal prices.</p><a class="btn btnGhost" href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> View flights</a></article>
             <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><a class="btn btnGhost" href="/company/dashboard#promotions"><i class="fa-solid fa-chart-line"></i> Open analytics</a></article>
@@ -261,7 +262,7 @@
               </div>
               <div class="blogBody">
                 <h3>Kampala to Nairobi: what travelers should know</h3>
-                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 06 May 2026</span><span><i class="fa-regular fa-clock"></i> 4 min read</span><span><i class="fa-solid fa-location-dot"></i> Uganda ⇄ Kenya</span></div>
+                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 06 May 2026</span><span><i class="fa-regular fa-clock"></i> 4 min read</span><span><i class="fa-solid fa-location-dot"></i> Uganda â‡„ Kenya</span></div>
                 <p>Departure points, border documents, luggage tips, seat selection and how the 10-minute hold works.</p>
                 <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
               </div>
@@ -371,8 +372,8 @@
       </div>
     </div>
     <div class="footerBottom">
-      <span>© 2026 Classic Trip. Marketplace for East Africa bookings.</span>
-      <span>3% promoter • 7% platform fee • Partner payout ready • Gmail & WhatsApp ticket access</span>
+      <span>Â© 2026 Classic Trip. Marketplace for East Africa bookings.</span>
+      <span>3% promoter â€¢ 7% platform fee â€¢ Partner payout ready â€¢ Gmail & WhatsApp ticket access</span>
     </div>
   </footer>
 
@@ -383,7 +384,7 @@
         <div>
           <div class="badge badgeInfo" id="modalType">Bus</div>
           <div class="sheetTitle" id="modalTitle">Listing title</div>
-          <div class="sheetSub" id="modalSub">Partner • route • date</div>
+          <div class="sheetSub" id="modalSub">Partner â€¢ route â€¢ date</div>
         </div>
         <div class="sheetTopActions">
           <button class="iconbtn" id="modalSaveBtn" title="Save" onclick="saveCurrentListing()"><i class="fa-regular fa-heart"></i></button>
@@ -512,7 +513,7 @@
         <div>
           <div class="badge badgeInfo" id="blogModalTag"><i class="fa-regular fa-newspaper"></i> Blog</div>
           <div class="sheetTitle" id="blogModalTitle">Blog title</div>
-          <div class="sheetSub" id="blogModalSub">Date • read time</div>
+          <div class="sheetSub" id="blogModalSub">Date â€¢ read time</div>
         </div>
         <div class="sheetTopActions">
           <button class="iconbtn" title="Love" onclick="loveActiveBlog()"><i class="fa-regular fa-heart"></i></button>
@@ -540,7 +541,8 @@
 
   <div class="toast" id="toast">Ready</div>
 
-  <script>window.CLASSIC_TRIP_DATA = <%- JSON.stringify(bootstrap || {}) %>;</script>
+  <script>window.CLASSIC_TRIP_DATA = <%- toScriptJson(bootstrap || {}) %>;</script>
   <script src="/js/home.js"></script>
 </body>
 </html>
+

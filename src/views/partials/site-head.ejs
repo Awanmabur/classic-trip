@@ -3,10 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= seo?.title || 'Classic Trip' %></title>
-  <meta name="description" content="<%= seo?.description || 'Classic Trip multi-tenant travel marketplace.' %>" />
+  <%
+    const pageSeo = (typeof seo !== 'undefined' && seo) ? seo : {};
+    const cfg = (typeof seoConfig !== 'undefined' && seoConfig) ? seoConfig : {};
+    const appLabel = (typeof appName !== 'undefined' && appName) ? appName : 'Classic Trip';
+    const requestPath = (typeof currentPath !== 'undefined' && currentPath) ? currentPath : '/';
+    const rootUrl = String(cfg.siteUrl || '').replace(/\/+$/, '');
+    const canonicalPath = pageSeo.canonicalPath || requestPath || '/';
+    const canonicalUrl = pageSeo.canonicalUrl || (rootUrl ? `${rootUrl}${canonicalPath === '/' ? '/' : canonicalPath}` : canonicalPath);
+    const title = pageSeo.title || cfg.defaultTitle || appLabel;
+    const description = pageSeo.description || cfg.defaultDescription || 'Classic Trip multi-tenant travel marketplace.';
+    const imageUrl = pageSeo.image || cfg.defaultImage || '';
+    const schema = pageSeo.schema || {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: appLabel,
+      url: rootUrl || canonicalUrl,
+      logo: imageUrl || undefined,
+    };
+    const schemaJson = toScriptJson(schema);
+  %>
+  <title><%= title %></title>
+  <meta name="description" content="<%= description %>" />
+  <link rel="canonical" href="<%= canonicalUrl %>" />
+  <meta name="robots" content="<%= pageSeo.robots || 'index,follow,max-image-preview:large' %>" />
+  <% if (cfg.googleSiteVerification) { %><meta name="google-site-verification" content="<%= cfg.googleSiteVerification %>" /><% } %>
+  <% if (cfg.bingSiteVerification) { %><meta name="msvalidate.01" content="<%= cfg.bingSiteVerification %>" /><% } %>
+  <meta property="og:site_name" content="<%= appLabel %>" />
+  <meta property="og:type" content="<%= pageSeo.type || 'website' %>" />
+  <meta property="og:title" content="<%= title %>" />
+  <meta property="og:description" content="<%= description %>" />
+  <meta property="og:url" content="<%= canonicalUrl %>" />
+  <% if (imageUrl) { %><meta property="og:image" content="<%= imageUrl %>" /><% } %>
+  <meta name="twitter:card" content="<%= imageUrl ? 'summary_large_image' : 'summary' %>" />
+  <meta name="twitter:title" content="<%= title %>" />
+  <meta name="twitter:description" content="<%= description %>" />
+  <% if (imageUrl) { %><meta name="twitter:image" content="<%= imageUrl %>" /><% } %>
   <meta name="theme-color" content="#070a12" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
+  <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -16,6 +51,7 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/pages/search.css">
   <link rel="stylesheet" href="/css/pages/booking.css">
+  <script type="application/ld+json"><%- schemaJson %></script>
   <script src="/js/csrf.js" defer></script>
 </head>
 <body>

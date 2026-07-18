@@ -1,6 +1,7 @@
 const store = require('../../services/data/persistentStore');
 const qrService = require('../../services/qr/qrService');
 const bookingService = require('../../services/booking/bookingService');
+const ticketAccessService = require('../../services/booking/ticketAccessService');
 const ticketPdfService = require('../../services/pdf/ticketPdfService');
 const futureServiceArchitecture = require('../../services/release/futureServiceArchitecture');
 
@@ -128,9 +129,56 @@ function bookingForm(req, res, next) {
   });
 }
 
+function attachTicketLinks(booking = {}) {
+  if (!booking?.bookingRef) return booking;
+  booking.publicTicketUrl = ticketAccessService.ticketUrl(booking);
+  booking.publicTicketPdfUrl = ticketAccessService.ticketUrl(booking, '.pdf');
+  return booking;
+}
+
+function ticketLookupRedirect(bookingRef = '') {
+  const query = bookingRef ? `?bookingRef=${encodeURIComponent(bookingRef)}` : '';
+  return `/tickets${query}`;
+}
+
+function bookingFromPaymentCallback(req = {}) {
+  const query = req.query || {};
+  const directRef = query.bookingRef || '';
+  if (directRef) {
+    const booking = store.findBooking(directRef);
+    if (booking) return booking;
+  }
+  const merchantRef = query.OrderMerchantReference || query.order_merchant_reference || query.merchantReference || query.merchant_reference || query.reference || '';
+  if (merchantRef) {
+    const directBooking = store.findBooking(merchantRef);
+    if (directBooking) return directBooking;
+    const cart = (store.state.carts || []).find((item) => item.cartRef === merchantRef || item.id === merchantRef);
+    if (cart?.bookingRef) {
+      const cartBooking = store.findBooking(cart.bookingRef);
+      if (cartBooking) return cartBooking;
+    }
+  }
+  const cartRef = query.cartRef || query.cart_ref || '';
+  if (cartRef) {
+    const cart = (store.state.carts || []).find((item) => item.cartRef === cartRef || item.id === cartRef);
+    if (cart?.bookingRef) {
+      const booking = store.findBooking(cart.bookingRef);
+      if (booking) return booking;
+    }
+  }
+  const trackingId = query.OrderTrackingId || query.order_tracking_id || query.orderTrackingId || query.providerReference || '';
+  if (trackingId) {
+    const payment = (store.state.payments || []).find((row) => row.providerReference === trackingId || row.id === trackingId);
+    if (payment?.bookingRef) return store.findBooking(payment.bookingRef);
+  }
+  return null;
+}
+
 async function ticketPage(req, res, next) {
   const booking = store.findBooking(req.params.bookingRef);
   if (!booking) return next();
+  if (!ticketAccessService.canAccessBooking(req, booking)) return res.redirect(ticketLookupRedirect(booking.bookingRef));
+  attachTicketLinks(booking);
   const listing = store.findListing(booking.listingId);
   const qrDataUrl = await qrService.toDataUrl(booking.qrCodeValue);
   const ticketLegs = await Promise.all((booking.ticketLegs || []).map(async (leg, index) => ({
@@ -145,6 +193,8 @@ async function ticketPdf(req, res, next) {
   try {
     const booking = store.findBooking(req.params.bookingRef);
     if (!booking) return next();
+    if (!ticketAccessService.canAccessBooking(req, booking)) return res.status(403).send('Ticket access requires the booking contact, access code, or an authorized account.');
+    attachTicketLinks(booking);
     const listing = store.findListing(booking.listingId);
     const buffer = await ticketPdfService.buildTicketPdfBuffer(booking, listing);
     res.setHeader('Content-Type', 'application/pdf');
@@ -159,7 +209,9 @@ async function ticketPdf(req, res, next) {
 async function ticketLookupPage(req, res) {
   const bookingRef = req.query.bookingRef || '';
   const contact = req.query.contact || '';
-  const booking = bookingRef ? bookingService.lookupBooking(bookingRef, contact) : null;
+  const accessCode = req.query.accessCode || req.query.code || '';
+  const booking = bookingRef ? bookingService.lookupBooking(bookingRef, contact, accessCode) : null;
+  if (booking) attachTicketLinks(booking);
   const listing = booking ? store.findListing(booking.listingId) : null;
   const qrDataUrl = booking ? await qrService.toDataUrl(booking.qrCodeValue) : '';
   res.render('pages/ticket-lookup', {
@@ -175,9 +227,30 @@ async function ticketLookupPage(req, res) {
 async function bookingSuccess(req, res, next) {
   const booking = store.findBooking(req.params.bookingRef);
   if (!booking) return next();
+  if (!ticketAccessService.canAccessBooking(req, booking)) return res.redirect(ticketLookupRedirect(booking.bookingRef));
+  attachTicketLinks(booking);
   const listing = store.findListing(booking.listingId);
   const qrDataUrl = await qrService.toDataUrl(booking.qrCodeValue);
   return res.render('pages/booking-success', { seo: { title: 'Booking confirmed | Classic Trip' }, booking, listing, qrDataUrl });
 }
 
-module.exports = { servicesPage, routesPage, companiesPage, companyProfile, promotersPage, listingDetails, bookingForm, ticketPage, ticketPdf, ticketLookupPage, bookingSuccess };
+async function paymentCallback(req, res) {
+  const booking = bookingFromPaymentCallback(req);
+  if (!booking) return res.redirect('/tickets');
+  if (booking.paymentStatus !== 'successful') {
+    try {
+      // Actively re-verify with the provider (e.g. Pesapal GetTransactionStatus) instead of
+      // trusting the redirect query params, in case the async webhook hasn't landed yet.
+      const webhookService = require('../../services/payment/webhookService');
+      await webhookService.processPaymentWebhook(req.query, req.headers);
+    } catch (error) {
+      // Not verified/confirmed yet - fall through and deny session access below.
+    }
+  }
+  const confirmed = store.findBooking(booking.bookingRef) || booking;
+  if (confirmed.paymentStatus !== 'successful') return res.redirect(ticketLookupRedirect(confirmed.bookingRef));
+  ticketAccessService.grantSessionAccess(req, confirmed.bookingRef);
+  return res.redirect(`/booking/success/${encodeURIComponent(confirmed.bookingRef)}`);
+}
+
+module.exports = { servicesPage, routesPage, companiesPage, companyProfile, promotersPage, listingDetails, bookingForm, ticketPage, ticketPdf, ticketLookupPage, bookingSuccess, paymentCallback };

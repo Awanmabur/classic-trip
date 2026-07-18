@@ -70,6 +70,8 @@ async function register(req, res, next) {
       city: req.body.city,
       roleTitle: req.body.roleTitle,
     });
+    // Regenerate the session to prevent session fixation attacks (mirrors login()).
+    await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
     req.session.user = user;
     if (req.flash) req.flash('success', `Welcome, ${welcomeName(user)}. Your account is ready.`);
     return res.redirect(authService.redirectForRole(user.role));

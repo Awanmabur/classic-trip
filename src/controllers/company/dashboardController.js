@@ -2,6 +2,7 @@ const store = require('../../services/data/persistentStore');
 const billingService = require('../../services/billing/billingService');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
+const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 
 function requestedPageFromRequest(req) {
@@ -69,7 +70,9 @@ async function index(req, res, next) {
       billing: billingService.companyBillingSummary(companyId),
     };
     const companies = await mongoDashboardService.listEntity('companies', {}, { limit: 100 });
-    const notifications = await mongoDashboardService.listEntity('notifications', { $or: [{ ownerType: 'company' }, { audience: 'partners' }] }, { limit: 250 });
+    const notificationContext = { companyId };
+    const notificationRows = notificationService.dashboardRows('company', notificationContext);
+    dashboardData.notifications = notificationRows;
     res.render('dashboards/admin/index', {
       seo: { title: `${dashboardData.serviceProfile?.dashboardLabel || 'Company'} dashboard | Classic Trip` },
       dashboardData,
@@ -80,7 +83,8 @@ async function index(req, res, next) {
         company: dashboardData.company,
         serviceProfile: dashboardData.serviceProfile,
         companies: companies.length ? companies : store.state.companies,
-        notificationCount: notifications.length || store.state.notifications?.filter((note) => note.ownerType === 'company' || note.audience === 'partners').length || 0,
+        notifications: notificationRows,
+        notificationCount: notificationService.unreadCount('company', notificationContext),
       }),
     });
   } catch (error) {

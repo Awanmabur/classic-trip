@@ -41,11 +41,19 @@ function reserveRoom(roomId, guest = {}, minutes = 10) {
   return reservation;
 }
 
+function isDuplicateKeyError(error) {
+  return Boolean(error) && (error.code === 11000 || /E11000/.test(String(error.message || '')));
+}
+
 async function reserveRoomPersistent(roomId, guest = {}, minutes = 10, context = {}) {
   const now = new Date();
   const room = store.state.rooms.find((item) => item.id === roomId);
   if (!room) throw new Error('Room not found');
   if (repositories.mongoReady()) {
+    // This count is only an advisory fast-path check: two concurrent requests can both
+    // pass it before either hold is persisted. The InventoryHold model's unique partial
+    // index on (roomId, holdType:'room', status:'active') is what actually makes the
+    // reservation below atomic and closes that race - the try/catch handles the loser.
     const activeDbHolds = await repositories.inventoryHolds.count({ holdType: 'room', roomId, status: 'active', expiresAt: { $gt: now } });
     if (activeDbHolds >= Number(room.inventory || 0)) {
       const error = new Error('No room inventory available');
@@ -54,7 +62,18 @@ async function reserveRoomPersistent(roomId, guest = {}, minutes = 10, context =
     }
   }
   const reservation = reserveRoom(roomId, guest, minutes);
-  await inventoryHoldService.recordRoomHold(reservation, context);
+  try {
+    await inventoryHoldService.recordRoomHold(reservation, context);
+  } catch (error) {
+    const index = reservations.indexOf(reservation);
+    if (index >= 0) reservations.splice(index, 1);
+    if (isDuplicateKeyError(error)) {
+      const conflictError = new Error('Room is temporarily held by another checkout');
+      conflictError.status = 409;
+      throw conflictError;
+    }
+    throw error;
+  }
   return reservation;
 }
 

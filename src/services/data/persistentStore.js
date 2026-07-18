@@ -42,6 +42,7 @@ function emptyProductionState() {
     correspondenceMessages: [],
     bookingTimelineEvents: [],
     notificationDeliveryAttempts: [],
+    pushSubscriptions: [],
     rescheduleRequests: [],
     wallets: [],
     walletTransactions: [],
@@ -199,6 +200,7 @@ const DATABASE_MODELS = {
   correspondenceMessages: 'CorrespondenceMessage',
   bookingTimelineEvents: 'BookingTimelineEvent',
   notificationDeliveryAttempts: 'NotificationDeliveryAttempt',
+  pushSubscriptions: 'PushSubscription',
   rescheduleRequests: 'RescheduleRequest',
   wallets: 'Wallet',
   walletTransactions: 'WalletTransaction',
@@ -3810,16 +3812,35 @@ function seatsForSchedule(scheduleId) {
   return state.seats.filter((seat) => seat.scheduleId === scheduleId);
 }
 
-function getAvailability(listingId) {
+function bookableScheduleLabel(schedule) {
+  const departAt = asDate(schedule.departAt);
+  if (!departAt) return schedule.id;
+  const time = departAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${dateValue(schedule.departAt)}, ${time}`;
+}
+
+function bookableSchedulesForListing(listingId) {
+  const now = Date.now();
+  return schedulesForListing(listingId)
+    .filter((schedule) => ['active', 'published'].includes(schedule.status))
+    .filter((schedule) => {
+      const departAt = asDate(schedule.departAt);
+      return !departAt || departAt.getTime() > now;
+    })
+    .sort((a, b) => new Date(a.departAt) - new Date(b.departAt))
+    .map((schedule) => ({ ...schedule, departureLabel: bookableScheduleLabel(schedule) }));
+}
+
+function getAvailability(listingId, scheduleId = '') {
   const listing = findListing(listingId);
   if (!listing) return null;
   let hotelSelection = null;
 
   if (listing.serviceType === 'bus') {
     releaseExpiredSeatLocks();
-    const schedules = schedulesForListing(listing.id);
-    const firstSchedule = schedules[0];
-    return { listing, schedules, seats: firstSchedule ? seatsForSchedule(firstSchedule.id) : [] };
+    const schedules = bookableSchedulesForListing(listing.id);
+    const activeSchedule = (scheduleId && schedules.find((schedule) => schedule.id === scheduleId)) || schedules[0];
+    return { listing, schedules, scheduleId: activeSchedule?.id || '', seats: activeSchedule ? seatsForSchedule(activeSchedule.id) : [] };
   }
   if (listing.serviceType === 'hotel') {
     return { listing, rooms: roomsForListing(listing.id) };
@@ -4048,6 +4069,17 @@ function createBooking(payload = {}, req = null) {
 
   if (listing.serviceType === 'bus') {
     const schedule = state.schedules.find((item) => item.id === scheduleId) || schedulesForListing(listing.id)[0];
+    const scheduleDepartAt = asDate(schedule?.departAt);
+    if (schedule && ['cancelled', 'archived'].includes(schedule.status)) {
+      const error = new Error('Selected trip is no longer scheduled');
+      error.status = 409;
+      throw error;
+    }
+    if (scheduleDepartAt && scheduleDepartAt.getTime() <= Date.now()) {
+      const error = new Error('Selected trip has already departed and can no longer be booked');
+      error.status = 409;
+      throw error;
+    }
     scheduleId = schedule?.id || null;
     const passengerCount = Math.max(1, passengerInput.length, seatListFrom(payload.selectedSeats || payload.selected || payload.seatNumber).length, seatListFrom(payload.returnSeats).length);
 
@@ -4102,6 +4134,22 @@ function createBooking(payload = {}, req = null) {
     busLegSelections.push(...outboundSelections);
     if (payload.returnScheduleId) {
       const returnSchedule = state.schedules.find((item) => item.id === payload.returnScheduleId && item.listingId === listing.id);
+      const returnDepartAt = asDate(returnSchedule?.departAt);
+      if (!returnSchedule || ['cancelled', 'archived'].includes(returnSchedule.status)) {
+        const error = new Error('Selected return trip is no longer scheduled');
+        error.status = 409;
+        throw error;
+      }
+      if (returnDepartAt && returnDepartAt.getTime() <= Date.now()) {
+        const error = new Error('Selected return trip has already departed and can no longer be booked');
+        error.status = 409;
+        throw error;
+      }
+      if (scheduleDepartAt && returnDepartAt && returnDepartAt.getTime() <= scheduleDepartAt.getTime()) {
+        const error = new Error('Return trip must depart after the outbound trip');
+        error.status = 409;
+        throw error;
+      }
       tripType = 'round_trip';
       busLegSelections.push(...reserveSeats(returnSchedule, payload.returnSeats, 'return'));
     }
@@ -4236,6 +4284,7 @@ function createBooking(payload = {}, req = null) {
   const booking = {
     id: `booking-${state.bookings.length + 1}`,
     bookingRef,
+    guestLookupCode: payload.guestLookupCode || crypto.randomBytes(6).toString('hex').toUpperCase(),
     serviceType: listing.serviceType,
     guestSnapshot: {
       fullName: payload.fullName || payload.customerName || 'Guest Customer',

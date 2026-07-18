@@ -8,5 +8,4 @@ const { validateRequest } = require('../../middlewares/validate');
 const router = express.Router();
 router.get('/providers', (req, res) => res.json({ providers: paymentService.providerSummary() }));
 router.post('/initiate', requireApiAuth, paymentLimiter, paymentRules, validateRequest, paymentController.initiate);
-router.post('/mock/checkout', requireApiAuth, paymentLimiter, paymentRules, validateRequest, paymentController.initiate);
 module.exports = router;

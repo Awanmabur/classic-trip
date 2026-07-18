@@ -1,6 +1,7 @@
 const store = require('../../services/data/persistentStore');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
+const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 
 function activePageFromRequest(req) {
@@ -17,13 +18,15 @@ async function renderAdminShell(req, res, role, title) {
     mongoDashboardService.listEntity('companies', {}, { limit: 250 }),
     mongoDashboardService.listEntity('notifications', {}, { limit: 250 }),
   ]);
+  const notificationRows = notificationService.dashboardRows(role, {});
   res.render('dashboards/admin/index', {
     seo: { title },
-    dashboardData: { ...dashboardData, dashboardFeatures: { services: SERVICE_DASHBOARDS, roles: ROLE_DASHBOARD_FEATURES } },
+    dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: SERVICE_DASHBOARDS, roles: ROLE_DASHBOARD_FEATURES } },
     dashboardShell: buildDashboardShell(role, {
       user: req.session?.user,
       companies: companies.length ? companies : store.state.companies,
-      notificationCount: notifications.length || store.state.notifications?.length || 0,
+      notifications: notificationRows,
+      notificationCount: notificationService.unreadCount(role, {}),
         activePage: activePageFromRequest(req),
     }),
   });

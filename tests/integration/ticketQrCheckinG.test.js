@@ -75,7 +75,7 @@ describe('Master section G - Ticket, QR, and check-in', () => {
     expect(firstLeg.qrToken).not.toEqual(secondLeg.qrToken);
     expect(firstLeg.ticketNumber).not.toEqual(secondLeg.ticketNumber);
 
-    const customerTicket = await request(app).get(`/tickets/${booking.bookingRef}`).expect(200);
+    const customerTicket = await request(app).get(`/tickets/${booking.bookingRef}?accessCode=${encodeURIComponent(booking.guestLookupCode)}`).expect(200);
     expect(customerTicket.text).toContain('Ticket legs and QR check-in state');
     expect(customerTicket.text).toContain(firstLeg.ticketNumber);
     expect(customerTicket.text).toContain(secondLeg.ticketNumber);

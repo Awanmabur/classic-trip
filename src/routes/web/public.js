@@ -8,19 +8,24 @@ const supportController = require('../../controllers/public/supportController');
 const partnerController = require('../../controllers/public/partnerController');
 const invitationController = require('../../controllers/public/invitationController');
 const billingController = require('../../controllers/public/billingController');
+const seoController = require('../../controllers/public/seoController');
 const cartController = require('../../controllers/public/cartController');
 const futureServiceController = require('../../controllers/public/futureServiceController');
 const bookingService = require('../../services/booking/bookingService');
-const store = require('../../services/data/persistentStore');
-const { jobStatus } = require('../../jobs/scheduler');
+const ticketAccessService = require('../../services/booking/ticketAccessService');
 const { bookingRules } = require('../../validators/bookingValidator');
 const { supportRules } = require('../../validators/supportValidator');
 const { companyRules } = require('../../validators/companyValidator');
 const { onboardingRules, checkoutRules } = require('../../validators/billingValidator');
 const { validateRequest } = require('../../middlewares/validate');
-const { paymentLimiter } = require('../../middlewares/rateLimit');
+const { paymentLimiter, ticketLimiter } = require('../../middlewares/rateLimit');
 
 const router = express.Router();
+
+router.get('/robots.txt', seoController.robots);
+router.get('/sitemap.xml', seoController.sitemap);
+router.get('/llms.txt', seoController.llms);
+router.get('/:key.txt', seoController.indexNowKey);
 
 router.get('/', homeController.renderHome);
 router.get('/search', searchController.searchPage);
@@ -55,16 +60,19 @@ router.post('/cart/:cartRef/recover', paymentLimiter, cartController.recover);
 router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, async (req, res, next) => {
   try {
     const booking = await bookingService.createGuestBooking(req.body, req);
+    ticketAccessService.grantSessionAccess(req, booking.bookingRef);
+    if (booking.checkoutUrl && booking.paymentStatus !== 'successful') return res.redirect(booking.checkoutUrl);
     res.redirect(`/booking/success/${booking.bookingRef}`);
   } catch (error) {
     next(error);
   }
 });
 router.post('/bookings/hotel', paymentLimiter, hotelBookingController.create);
+router.get('/booking/payment/callback', listingController.paymentCallback);
 router.get('/booking/success/:bookingRef', listingController.bookingSuccess);
-router.get('/tickets', listingController.ticketLookupPage);
-router.get('/tickets/:bookingRef.pdf', listingController.ticketPdf);
-router.get('/tickets/:bookingRef', listingController.ticketPage);
+router.get('/tickets', ticketLimiter, listingController.ticketLookupPage);
+router.get('/tickets/:bookingRef.pdf', ticketLimiter, listingController.ticketPdf);
+router.get('/tickets/:bookingRef', ticketLimiter, listingController.ticketPage);
 router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
 router.get('/support', (req, res) => res.render('pages/support', {
@@ -86,17 +94,7 @@ router.get('/health', (req, res) => res.json({
   ok: true,
   app: 'Classic Trip',
   time: new Date().toISOString(),
-  store: {
-    listings: store.state.listings.length,
-    bookings: store.state.bookings.length,
-    wallets: store.state.wallets.length,
-    walletTransactions: store.state.walletTransactions.length,
-    refunds: store.state.refundRequests.length,
-    campaigns: store.state.promotionCampaigns.length,
-    subscriptionOrders: Array.isArray(store.state.subscriptionOrders) ? store.state.subscriptionOrders.length : 0,
-    subscriptions: Array.isArray(store.state.subscriptions) ? store.state.subscriptions.length : 0,
-  },
-  jobs: jobStatus(),
 }));
 
 module.exports = router;
+
