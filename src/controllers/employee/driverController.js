@@ -5,6 +5,7 @@ const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function scopedServices(serviceProfile = {}) {
   const type = serviceProfile.primaryServiceType || 'bus';
@@ -12,7 +13,7 @@ function scopedServices(serviceProfile = {}) {
 }
 
 function companyId(req) {
-  return req.session?.user?.companyId || req.body.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 function actorId(req) {

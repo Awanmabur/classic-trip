@@ -4,6 +4,7 @@ const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function requestedPageFromRequest(req) {
   const raw = req.params?.page || '';
@@ -62,7 +63,7 @@ function companyServiceDashboards(serviceProfile = {}) {
 
 async function index(req, res, next) {
   try {
-    const companyId = req.session?.user?.companyId || 'company-01';
+    const companyId = resolveCompanyId(req);
     const baseDashboardData = await mongoDashboardService.roleDashboard('company', { companyId });
     const dashboardData = {
       ...baseDashboardData,

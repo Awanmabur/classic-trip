@@ -1,4 +1,5 @@
 const reportService = require('../services/report/reportService');
+const { resolveCompanyId } = require('../utils/companyScope');
 
 function sendReport(res, report) {
   res.setHeader('Content-Type', report.contentType);
@@ -17,14 +18,14 @@ function adminCustom(req, res) {
 function company(req, res) {
   sendReport(res, reportService.generateCsvReport('company', req.params.type, {
     userId: req.session?.user?.id,
-    companyId: req.session?.user?.companyId || 'company-01',
+    companyId: resolveCompanyId(req),
   }));
 }
 
 function companyCustom(req, res) {
   sendReport(res, reportService.generateCsvReport('company', req.body.type || 'bookings', {
     userId: req.session?.user?.id,
-    companyId: req.session?.user?.companyId || 'company-01',
+    companyId: resolveCompanyId(req),
   }));
 }
 
@@ -46,7 +47,7 @@ function employee(req, res) {
   sendReport(res, reportService.generateCsvReport('employee', req.params.type, {
     userId: req.session?.user?.id,
     employeeId: req.session?.user?.id || 'user-employee-001',
-    companyId: req.session?.user?.companyId || 'company-01',
+    companyId: resolveCompanyId(req),
   }));
 }
 
@@ -54,7 +55,7 @@ function employeeCustom(req, res) {
   sendReport(res, reportService.generateCsvReport('employee', req.body.type || 'checkins', {
     userId: req.session?.user?.id,
     employeeId: req.session?.user?.id || 'user-employee-001',
-    companyId: req.session?.user?.companyId || 'company-01',
+    companyId: resolveCompanyId(req),
   }));
 }
 

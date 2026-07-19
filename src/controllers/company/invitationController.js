@@ -1,7 +1,8 @@
 const invitationService = require('../../services/onboarding/invitationService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyId(req) {
-  return req.session?.user?.companyId || req.body.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 function actorId(req) {

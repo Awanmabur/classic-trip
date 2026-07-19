@@ -1,5 +1,6 @@
 const billingService = require('../../services/billing/billingService');
 const { env } = require('../../config/env');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function renderPlans(req, res) {
   return res.render('pages/pricing', {
@@ -28,7 +29,14 @@ function renderOnboarding(req, res) {
 
 async function createOnboarding(req, res, next) {
   try {
-    const { order } = await billingService.createOnboardingOrder(req.body, req);
+    const { order, user } = await billingService.createOnboardingOrder(req.body, req);
+    // The onboarding flow creates/updates the company_admin account but previously never
+    // logged the browser into it - the session stayed whatever it was before (often
+    // anonymous), so req.session.user.companyId was unset on every later request. That's
+    // exactly what fed the `|| 'company-01'` fallbacks across the company controllers,
+    // silently showing the new partner someone else's (the seeded demo company's) data.
+    await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
+    req.session.user = { ...user, passwordHash: undefined };
     return res.redirect(`/billing/checkout/${order.orderRef}`);
   } catch (error) {
     return next(error);
@@ -72,7 +80,7 @@ function renderSuccess(req, res, next) {
 
 async function createUpgrade(req, res, next) {
   try {
-    const companyId = req.session?.user?.companyId || req.body.companyId || 'company-01';
+    const companyId = resolveCompanyId(req, { allowOverride: true });
     const { order } = await billingService.createUpgradeOrder(companyId, req.body.planId, req.session?.user || {});
     return res.redirect(`/billing/checkout/${order.orderRef}`);
   } catch (error) {
@@ -81,7 +89,7 @@ async function createUpgrade(req, res, next) {
 }
 
 function renderCompanyBilling(req, res) {
-  const companyId = req.session?.user?.companyId || 'company-01';
+  const companyId = resolveCompanyId(req);
   const store = require('../../services/data/persistentStore');
   return res.render('pages/company-billing', {
     seo: { title: 'Company billing | Classic Trip' },

@@ -1,7 +1,8 @@
 const bookingService = require('../../services/booking/bookingService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyIdFor(req) {
-  return req.session?.user?.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 async function checkIn(req, res, next) {

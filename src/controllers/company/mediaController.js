@@ -1,9 +1,10 @@
 const companyService = require('../../services/company/companyService');
 const { withUploadedMedia } = require('./mediaHelpers');
 const uploadService = require('../../services/media/uploadService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyId(req) {
-  return req.session?.user?.companyId || req.body.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 async function upload(req, res, next) {

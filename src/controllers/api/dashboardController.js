@@ -18,9 +18,14 @@ function roleFromUser(user = {}, requested = '') {
   return 'customer';
 }
 
-function contextFromUser(user = {}) {
+function contextFromUser(user = {}, role = '') {
+  if (['company', 'employee'].includes(role) && !user.companyId) {
+    const error = new Error('Your account is not linked to a company yet. Please contact support or complete partner onboarding.');
+    error.status = 403;
+    throw error;
+  }
   return {
-    companyId: user.companyId || 'company-01',
+    companyId: user.companyId || '',
     promoterId: user.id || 'user-promoter-001',
     customerId: user.id || 'user-customer-001',
   };
@@ -30,7 +35,7 @@ async function data(req, res, next) {
   try {
     const user = req.session?.user || {};
     const role = roleFromUser(user, req.params.role || req.query.role);
-    const data = await mongoDashboardService.roleDashboard(role, contextFromUser(user));
+    const data = await mongoDashboardService.roleDashboard(role, contextFromUser(user, role));
     res.json({ ok: true, role, data });
   } catch (error) {
     next(error);
@@ -42,7 +47,13 @@ async function action(req, res, next) {
     const user = req.session?.user || {};
     const role = roleFromUser(user, req.body.role);
     const actionName = req.params.action;
-    const companyId = user.companyId || req.body.companyId || 'company-01';
+    const companyIdOverride = ['super_admin', 'admin'].includes(user.role) ? req.body.companyId : '';
+    let companyId = companyIdOverride || user.companyId || '';
+    if (['company', 'employee'].includes(role) && !companyId) {
+      const error = new Error('Your account is not linked to a company yet. Please contact support or complete partner onboarding.');
+      error.status = 403;
+      throw error;
+    }
     const actorId = user.id || 'dashboard-api';
     const body = req.body || {};
     const allowed = new Set([

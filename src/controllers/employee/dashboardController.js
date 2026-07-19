@@ -3,6 +3,7 @@ const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function scopedServices(serviceProfile = {}) {
   const type = serviceProfile.primaryServiceType;
@@ -11,7 +12,7 @@ function scopedServices(serviceProfile = {}) {
 
 async function index(req, res, next) {
   try {
-    const companyId = req.session?.user?.companyId || 'company-01';
+    const companyId = resolveCompanyId(req);
     const dashboardData = await mongoDashboardService.roleDashboard('employee', { companyId });
     const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId });
     const notificationContext = { companyId, employeeId: req.session?.user?.id || '' };

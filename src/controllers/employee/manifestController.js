@@ -1,7 +1,8 @@
 const manifestService = require('../../services/operations/manifestService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyId(req) {
-  return req.session?.user?.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 function generatedBy(req) {

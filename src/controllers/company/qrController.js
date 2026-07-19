@@ -1,10 +1,9 @@
 const store = require('../../services/data/persistentStore');
 const qrService = require('../../services/qr/qrService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyIdFor(req) {
-  const user = req.session?.user || {};
-  if (user.role === 'super_admin') return req.query.companyId || req.body.companyId || user.companyId || 'company-01';
-  return user.companyId || 'company-01';
+  return resolveCompanyId(req, { allowOverride: true });
 }
 
 async function bookingQr(req, res, next) {

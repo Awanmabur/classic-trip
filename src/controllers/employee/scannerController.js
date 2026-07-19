@@ -1,9 +1,8 @@
 const bookingService = require('../../services/booking/bookingService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyIdFor(req) {
-  const user = req.session?.user || {};
-  if (['super_admin', 'admin'].includes(user.role)) return req.body.companyId || user.companyId || 'company-01';
-  return user.companyId || 'company-01';
+  return resolveCompanyId(req, { allowOverride: true });
 }
 
 function actorContext(req) {

@@ -1,11 +1,12 @@
 const verificationService = require('../../services/onboarding/verificationService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
 function actorId(req) {
   return req.session?.user?.id || 'company-system';
 }
 
 function companyId(req) {
-  return req.session?.user?.companyId || req.body.companyId || 'company-01';
+  return resolveCompanyId(req);
 }
 
 async function submitCompany(req, res, next) {

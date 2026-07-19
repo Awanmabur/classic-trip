@@ -98,7 +98,7 @@ async function createListing(req, res, next) {
     const listing = {
       id: nextId('listing', store.state.listings),
       slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now().toString().slice(-4)}`,
-      companyId: company.id || cleanText(req.body.companyId || 'company-01'),
+      companyId: company.id || cleanText(req.body.companyId || (store.state.companies[0] || {}).id || ''),
       title,
       serviceType,
       type: serviceType,
@@ -129,7 +129,7 @@ async function createPromotion(req, res, next) {
     const listing = store.findListing(req.body.listingId) || store.state.listings[0] || {};
     const campaign = {
       id: nextId('campaign', store.state.promotionCampaigns),
-      companyId: cleanText(req.body.companyId || listing.companyId || 'company-01'),
+      companyId: cleanText(req.body.companyId || listing.companyId || (store.state.companies[0] || {}).id || ''),
       promoterId: cleanText(req.body.promoterId || ''),
       listingId: cleanText(listing.id || req.body.listingId || ''),
       name: cleanText(req.body.name || req.body.title || 'Admin campaign'),

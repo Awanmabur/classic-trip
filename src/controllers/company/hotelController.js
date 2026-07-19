@@ -1,6 +1,7 @@
 const hotelService = require('../../services/hotel/hotelService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 
-function companyId(req) { return req.session?.user?.companyId || req.body.companyId || 'company-01'; }
+function companyId(req) { return resolveCompanyId(req); }
 function actorId(req) { return req.session?.user?.id || 'company-admin'; }
 
 async function createProperty(req, res, next) { try { await hotelService.createProperty(companyId(req), req.body, actorId(req)); res.redirect('/company/rooms'); } catch (error) { next(error); } }
