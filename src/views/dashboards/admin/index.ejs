@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <title>Classic Trip | Super Admin Dashboard</title>
   <meta name="description" content="Classic Trip Super Admin Dashboard for platform bookings, partners, inventory, payments, analytics, reports, ads, support, and settings." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -53,18 +54,18 @@
     }
 
     html[data-theme="light"]{
-      --bg0:#eef2ff;
-      --bg1:#e6edf7;
-      --cardA:rgba(255,255,255,.92);
-      --cardB:rgba(255,255,255,.78);
-      --card:#eef2ff;
+      --bg0:#ffffff;
+      --bg1:#ffffff;
+      --cardA:#ffffff;
+      --cardB:#ffffff;
+      --card:#ffffff;
       --soft:rgba(15,23,42,.045);
       --line:rgba(15,23,42,.105);
       --line2:rgba(15,23,42,.065);
       --text:#0f172a;
       --muted:rgba(15,23,42,.62);
       --muted2:rgba(15,23,42,.43);
-      --panel:rgba(255,255,255,.90);
+      --panel:#ffffff;
       --input:rgba(15,23,42,.045);
       --table:rgba(15,23,42,.03);
       --active:rgba(255,183,3,.24);
@@ -152,13 +153,8 @@
     .mark{
       width:40px;
       height:40px;
-      border-radius:15px;
-      display:grid;
-      place-items:center;
-      color:#081026;
-      background:linear-gradient(135deg,rgba(79,140,255,.96),rgba(255,183,3,.96));
-      font-weight:1000;
-      box-shadow:0 12px 28px rgba(79,140,255,.14);
+      object-fit:contain;
+      display:block;
       flex:0 0 auto;
     }
 
@@ -1769,6 +1765,11 @@
       .main{gap:6px !important;}
     }
 
+    /* No glassmorphism in light mode - flat white surfaces, no tinted background decoration. */
+    html[data-theme="light"] body{background:#ffffff !important}
+    html[data-theme="light"] body::before{display:none}
+    html[data-theme="light"] *{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+
 </style>
 </head>
 
@@ -1876,7 +1877,7 @@
   <div class="app">
     <aside class="sidebar legacyDashboardChrome" id="sidebar" aria-label="Super admin navigation">
       <div class="sideTop">
-        <div class="mark">CT</div>
+        <img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip">
         <div class="brandText">
           <strong>Classic Trip</strong>
           <span>Workspace</span>

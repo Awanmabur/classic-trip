@@ -1,6 +1,6 @@
 <nav class="nav" id="siteNav">
   <div class="navIn">
-    <a class="brand" href="/"><span class="mark">CT</span><span>Classic Trip</span></a>
+    <a class="brand" href="/"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
     <div class="navLinks" id="siteNavLinks">
       <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Home</a>
       <a href="/search" class="<%= currentPath.startsWith('/search') ? 'active' : '' %>">Search</a>
@@ -26,7 +26,7 @@
 <div class="drawer" id="siteDrawer" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="drawerPanel">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-      <a class="brand" href="/" onclick="document.getElementById('siteDrawer').classList.remove('open')"><span class="mark">CT</span><span>Classic Trip</span></a>
+      <a class="brand" href="/" onclick="document.getElementById('siteDrawer').classList.remove('open')"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <button class="iconbtn" onclick="document.getElementById('siteDrawer').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <% if (currentUser) { %>

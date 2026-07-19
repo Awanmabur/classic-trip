@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <title>Classic Trip | Multi-Tenant Booking Platform</title>
   <meta name="description" content="Classic Trip multi-tenant booking platform for buses, hotels, flights, trains, ferries, car rentals, events and tours with seat/room selection and 10 minute holds." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -20,7 +21,7 @@
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
     <div class="navIn">
-      <a class="brand" href="#home"><span class="mark">CT</span><span>Classic Trip</span></a>
+      <a class="brand" href="#home"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
         <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
       </nav>
@@ -37,7 +38,7 @@
   <div class="drawer" id="drawer">
     <div class="drawerPanel">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div>
+        <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
         <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <% if (currentUser) { %>
@@ -353,7 +354,7 @@
   <footer class="siteFooter">
     <div class="footerGrid">
       <div class="footerBrand">
-        <div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div>
+        <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
         <p>Classic Trip is a multi-tenant travel marketplace for buses, hotels, flights, trains, ferries, tours, car rentals and partner services across East Africa.</p>
         <span><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
         <span><i class="fa-solid fa-clock"></i> 10 minute seat / room holds</span>
