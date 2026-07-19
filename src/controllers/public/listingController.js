@@ -10,12 +10,13 @@ function normalize(value) {
 }
 
 function servicesPage(req, res) {
+  const allStats = store.serviceStats();
   const grouped = store.state.categories.map((category) => ({
     ...category,
-    stats: store.serviceStats().find((item) => item.key === category.key),
+    stats: allStats.find((item) => item.key === category.key),
     listings: store.searchListings({ serviceType: category.key }).slice(0, 12),
   }));
-  res.render('pages/services', { seo: { title: 'All services | Classic Trip' }, grouped, stats: store.serviceStats() });
+  res.render('pages/services', { seo: { title: 'All services | Classic Trip' }, grouped, stats: allStats });
 }
 
 function routesPage(req, res) {

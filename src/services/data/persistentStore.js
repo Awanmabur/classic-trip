@@ -715,6 +715,8 @@ async function hydrateFromDatabase({ mongoose, logger } = {}) {
   });
   normalizeHydratedState();
   enableAutoPersistence();
+  invalidateListingCatalogCache();
+  invalidateDashboardDataCache();
   logger?.info?.('Database hydration completed', { loadedCollections, loadedRecords });
   return { source: 'database', loadedCollections, loadedRecords };
 }
@@ -934,10 +936,35 @@ function listingCatalogItem(listing = {}) {
   };
 }
 
+let listingCatalogCache = null;
+let listingCatalogCacheAt = 0;
+// listingCatalogItem() joins each listing against schedules/seats/rooms to compute live
+// availability - schedulesForListing/seatsForSchedule are full linear scans, so rebuilding
+// the whole catalog is O(listings x schedules x seats). Nothing here needs millisecond
+// freshness (actual seat holds/booking are enforced at checkout, not at browse time), so a
+// short cache turns N redundant full rebuilds per request (13 on the services page alone,
+// since it calls searchListings once per category) into effectively one.
+const LISTING_CATALOG_CACHE_MS = 3000;
+
+function invalidateListingCatalogCache() {
+  listingCatalogCache = null;
+}
+
 function buildListingCatalog({ includeTeasers = true } = {}) {
-  return state.listings
-    .filter((listing) => listing.status === 'active' && (includeTeasers || listing.bookable))
+  if (!includeTeasers) {
+    return state.listings
+      .filter((listing) => listing.status === 'active' && listing.bookable)
+      .map(listingCatalogItem);
+  }
+  const now = Date.now();
+  if (listingCatalogCache && (now - listingCatalogCacheAt) < LISTING_CATALOG_CACHE_MS) {
+    return listingCatalogCache;
+  }
+  listingCatalogCache = state.listings
+    .filter((listing) => listing.status === 'active')
     .map(listingCatalogItem);
+  listingCatalogCacheAt = now;
+  return listingCatalogCache;
 }
 
 function moneyMetric(items = []) {
@@ -1262,7 +1289,29 @@ function bookingTotal(booking) {
   return moneyValue(booking.pricing?.total, booking.pricing?.currency || 'UGX');
 }
 
+const dashboardDataCache = new Map();
+const DASHBOARD_DATA_CACHE_MS = 5000;
+
+function invalidateDashboardDataCache() {
+  dashboardDataCache.clear();
+}
+
 function dashboardData(role = 'admin', context = {}) {
+  // computeDashboardData assembles its payload almost entirely out of repeated full
+  // linear scans over state.bookings/schedules/seats/etc per row (e.g. seatsForSchedule
+  // rescans all seats for every schedule row), which is expensive to redo on every
+  // request. A dashboard overview doesn't need millisecond freshness, so cache per
+  // role+context for a few seconds instead of recomputing from scratch each time.
+  const cacheKey = `${role}:${context.companyId || ''}:${context.promoterId || ''}:${context.customerId || ''}`;
+  const cached = dashboardDataCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.at) < DASHBOARD_DATA_CACHE_MS) return cached.value;
+  const value = computeDashboardData(role, context);
+  dashboardDataCache.set(cacheKey, { value, at: now });
+  return value;
+}
+
+function computeDashboardData(role = 'admin', context = {}) {
   const companyId = context.companyId || 'company-01';
   const promoterId = context.promoterId || 'user-promoter-001';
   const customerId = context.customerId || 'user-customer-001';

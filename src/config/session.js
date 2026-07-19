@@ -27,7 +27,14 @@ module.exports = function sessionConfig() {
   // crash the server after connectDb() has already chosen the safe fallback.
   // Production still requires MONGO_URI and keeps durable sessions.
   if (env.mongoUri && env.isProduction && env.nodeEnv !== 'test') {
-    config.store = MongoStore.create({ mongoUrl: env.mongoUri, collectionName: 'express_sessions' });
+    config.store = MongoStore.create({
+      mongoUrl: env.mongoUri,
+      collectionName: 'express_sessions',
+      // Default touchAfter is 0, which makes connect-mongo write to Mongo on every
+      // single request just to refresh the session's expiry, even when nothing in
+      // the session changed. 24h means a session is only re-touched once a day.
+      touchAfter: 24 * 3600,
+    });
   }
   return session(config);
 };

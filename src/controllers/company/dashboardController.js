@@ -69,7 +69,7 @@ async function index(req, res, next) {
       dashboardFeatures: { services: companyServiceDashboards(baseDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
       billing: billingService.companyBillingSummary(companyId),
     };
-    const companies = await mongoDashboardService.listEntity('companies', {}, { limit: 100 });
+    const companies = store.state.companies;
     const notificationContext = { companyId };
     const notificationRows = notificationService.dashboardRows('company', notificationContext);
     dashboardData.notifications = notificationRows;
