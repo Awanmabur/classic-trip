@@ -8,7 +8,10 @@ function jsonError(res, status, message, code) {
 
 function requireApiAuth(req, res, next) {
   if (req.session?.user) return next();
-  if (process.env.NODE_ENV === 'test' && String(req.originalUrl || req.path || '').startsWith('/api/scanner')) {
+  // Two independent flags must both be set for this bypass to activate — NODE_ENV=test alone
+  // (a realistic deployment misconfiguration) is not enough to grant an unauthenticated caller
+  // a company_employee session.
+  if (process.env.NODE_ENV === 'test' && process.env.ALLOW_SCANNER_TEST_BYPASS === 'true' && String(req.originalUrl || req.path || '').startsWith('/api/scanner')) {
     req.session = req.session || {};
     req.session.user = { id: 'test-employee', role: 'company_employee', companyId: 'company-01' };
     return next();

@@ -7,6 +7,7 @@ const workflowService = require('../support/workflowService');
 const settlementService = require('../finance/settlementService');
 const hotelService = require('../hotel/hotelService');
 const { mongoose } = require('../../config/db');
+const { assertContactAvailable } = require('../../utils/uniqueContact');
 
 function mongoReady() {
   return mongoose.connection.readyState === 1;
@@ -479,6 +480,7 @@ async function updateEmployeeProfile(companyId, payload = {}, actorId = 'employe
       isVerified: true,
     });
   }
+  assertContactAvailable(store, user.id, { email: payload.email, phone: payload.phone });
   if (payload.fullName) user.fullName = cleanText(payload.fullName);
   if (payload.email) user.email = cleanText(payload.email).toLowerCase();
   if (payload.phone) user.phone = cleanText(payload.phone);

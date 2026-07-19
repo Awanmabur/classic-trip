@@ -6,7 +6,11 @@ function actorId(req) {
 }
 
 function redirectBack(req, res) {
-  res.redirect(req.body.next || '/admin/kyc');
+  const next = String(req.body.next || '');
+  // Only allow a local, relative path — a value like "//evil.com" or "https://evil.com" would
+  // otherwise send a privileged, already-authenticated admin off the platform after their action.
+  const isLocalPath = next.startsWith('/') && !next.startsWith('//') && !next.includes('://');
+  res.redirect(isLocalPath ? next : '/admin/kyc');
 }
 
 async function approveItem(req, res, next) {

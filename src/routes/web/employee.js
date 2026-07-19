@@ -9,6 +9,7 @@ const reportController = require('../../controllers/reportController');
 const { requireAuth } = require('../../middlewares/auth');
 const { requireRole } = require('../../middlewares/roles');
 const { enforceCompanyScope } = require('../../middlewares/companyAccess');
+const { ticketLimiter } = require('../../middlewares/rateLimit');
 const router = express.Router();
 
 router.use('/employee', requireAuth, requireRole('company_employee', 'company_admin', 'super_admin'), enforceCompanyScope);
@@ -40,8 +41,8 @@ router.get('/driver/schedules/:scheduleId/manifest', manifestController.manifest
 router.get('/driver/schedules/:scheduleId/manifest.csv', manifestController.manifestCsv);
 router.get('/driver/schedules/:scheduleId/manifest.xls', manifestController.manifestExcel);
 router.get('/driver/schedules/:scheduleId/manifest.pdf', manifestController.manifestPdf);
-router.get('/driver/tickets/:bookingRef', manifestController.ticketDetail);
-router.get('/driver/seats/:scheduleId/:seatNumber/ticket', manifestController.seatTicketDetail);
+router.get('/driver/tickets/:bookingRef', ticketLimiter, manifestController.ticketDetail);
+router.get('/driver/seats/:scheduleId/:seatNumber/ticket', ticketLimiter, manifestController.seatTicketDetail);
 router.post('/driver/trips/:scheduleId/status', driverController.updateTripStatus);
 router.post('/driver/incidents', driverController.createIncident);
 router.post('/driver/bookings/:bookingRef/check-in-assist', driverController.bookingAssist);

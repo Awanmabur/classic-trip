@@ -231,11 +231,16 @@ async function submitCompanyChecklist(companyId, payload = {}, actorId = 'compan
   return review;
 }
 
-async function submitDriverChecklist(driverId, payload = {}, actorId = 'company-system') {
+async function submitDriverChecklist(driverId, payload = {}, actorId = 'company-system', scopeCompanyId = '') {
   const target = findTarget('driver', driverId);
   if (!target.entity) {
     const error = new Error('Driver not found');
     error.status = 404;
+    throw error;
+  }
+  if (scopeCompanyId && String(target.companyId) !== String(scopeCompanyId)) {
+    const error = new Error('This driver does not belong to your company');
+    error.status = 403;
     throw error;
   }
   const driver = target.entity;
@@ -290,6 +295,16 @@ async function activateTarget(targetType, targetId, actorId = 'admin-system') {
     const companyListings = store.state.listings.filter((listing) => listing.companyId === company.id);
     companyListings.forEach((listing) => { listing.isVerified = true; if (listing.status === 'active') listing.bookable = true; });
     await persistMany('Listing', companyListings);
+    // Approving the company only ever updated the Company document - the company_admin
+    // owner's own user.status/verificationStatus stayed "pending" forever, since nothing
+    // here mirrored what the driver branch below already does for its employee's user.
+    const owner = store.state.users.find((row) => row.id === company.ownerId);
+    if (owner) {
+      owner.status = 'active';
+      owner.isVerified = true;
+      owner.verificationStatus = 'verified';
+      await persist('User', owner);
+    }
   } else if (review.targetType === 'driver') {
     const employee = store.state.companyEmployees.find((row) => row.id === review.targetId);
     employee.status = 'active';

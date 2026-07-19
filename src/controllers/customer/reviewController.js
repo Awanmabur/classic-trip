@@ -1,12 +1,14 @@
 const workflowService = require('../../services/support/workflowService');
 const store = require('../../services/data/persistentStore');
 const { pushFlash } = require('../../middlewares/flash');
+const { ownsBooking } = require('../../utils/bookingOwnership');
 
 function create(req, res, next) {
   try {
-    const userId = req.session?.user?.id;
+    const user = req.session?.user || {};
+    const userId = user.id;
     const booking = store.findBooking(req.body.bookingRef);
-    if (booking && booking.customerUserId && String(booking.customerUserId) !== String(userId)) {
+    if (!booking || !ownsBooking(booking, user)) {
       pushFlash(req, 'error', 'You do not have permission to review this booking.');
       return res.redirect('/account');
     }

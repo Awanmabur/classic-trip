@@ -70,9 +70,11 @@ describe('Master section N - Required acceptance tests', () => {
       ['employee@classictrip.test', '/employee/dashboard', 'dashboard'],
       ['amina@classictrip.test', '/account', 'dashboard'],
       ['samuel@classictrip.test', '/promoter/dashboard', 'dashboard'],
-      ['employee@classictrip.test', '/support/dashboard', 'dashboard'],
+      // /support and /operations are super_admin/support_admin/operations_admin only —
+      // company_employee must NOT be able to reach these (they'd see full platform-wide data).
+      ['admin@classictrip.test', '/support/dashboard', 'dashboard'],
       ['admin@classictrip.test', '/finance/dashboard', 'dashboard'],
-      ['employee@classictrip.test', '/operations/dashboard', 'dashboard'],
+      ['admin@classictrip.test', '/operations/dashboard', 'dashboard'],
     ];
 
     for (const [email, route, expectedText] of dashboardChecks) {
@@ -91,6 +93,11 @@ describe('Master section N - Required acceptance tests', () => {
       const res = await request(app).get(route).expect(200);
       expect(res.text).toContain(expectedText);
     }
+
+    // Regression guard: a company_employee must never reach the platform-wide admin dashboards.
+    const employeeAgent = await login('employee@classictrip.test');
+    await employeeAgent.get('/support/dashboard').expect(403);
+    await employeeAgent.get('/operations/dashboard').expect(403);
   });
 
   test('N exposes acceptance evidence through npm scripts and a machine-readable matrix', () => {

@@ -1,3 +1,5 @@
+process.env.ALLOW_SCANNER_TEST_BYPASS = 'true';
+
 const request = require('supertest');
 const app = require('../../src/app');
 const store = require('../../src/services/data/persistentStore');

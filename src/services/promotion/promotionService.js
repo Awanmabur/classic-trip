@@ -11,9 +11,14 @@ function activeCampaigns(companyId) {
   });
 }
 
-function markSponsored(listingId, campaign = {}) {
+function markSponsored(listingId, companyId, campaign = {}) {
   const listing = store.findListing(listingId);
   if (!listing) return null;
+  if (String(listing.companyId) !== String(companyId)) {
+    const error = new Error('You can only promote listings that belong to your own company');
+    error.status = 403;
+    throw error;
+  }
   listing.isSponsored = true;
   const row = {
     id: `campaign-${store.state.promotionCampaigns.length + 1}`,

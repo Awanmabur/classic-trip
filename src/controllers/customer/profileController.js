@@ -1,5 +1,6 @@
 const store = require('../../services/data/persistentStore');
 const { mongoose } = require('../../config/db');
+const { assertContactAvailable } = require('../../utils/uniqueContact');
 
 function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -19,6 +20,7 @@ async function update(req, res, next) {
       user = store.upsertUser({ ...sessionUser, role: sessionUser.role || 'customer' });
     }
     user = user || sessionUser;
+    assertContactAvailable(store, user.id, { email: req.body.email, phone: req.body.phone });
     if (req.body.fullName) user.fullName = cleanText(req.body.fullName);
     if (req.body.email) user.email = cleanText(req.body.email).toLowerCase();
     if (req.body.phone) user.phone = cleanText(req.body.phone);

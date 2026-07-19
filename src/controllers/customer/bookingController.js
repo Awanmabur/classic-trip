@@ -1,6 +1,7 @@
 const bookingService = require('../../services/booking/bookingService');
 const store = require('../../services/data/persistentStore');
 const { pushFlash } = require('../../middlewares/flash');
+const { ownsBooking } = require('../../utils/bookingOwnership');
 
 async function cancel(req, res, next) {
   try {
@@ -10,11 +11,7 @@ async function cancel(req, res, next) {
       return res.redirect('/account/bookings');
     }
     const user = req.session?.user || {};
-    const userId = user.id;
-    const ownsBooking = (booking.customerUserId && String(booking.customerUserId) === String(userId))
-      || (user.email && String(booking.guestSnapshot?.email || '').toLowerCase() === String(user.email).toLowerCase())
-      || (user.phone && String(booking.guestSnapshot?.phone || '') === String(user.phone));
-    if (!ownsBooking) {
+    if (!ownsBooking(booking, user)) {
       pushFlash(req, 'error', 'You do not have permission to cancel this booking.');
       return res.redirect('/account/bookings');
     }

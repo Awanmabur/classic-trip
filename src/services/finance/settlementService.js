@@ -450,18 +450,22 @@ async function reviewPayoutRequest(transactionId, payload = {}, actorId = 'finan
     error.status = 404;
     throw error;
   }
+  if (['completed', 'rejected'].includes(transaction.status)) {
+    const error = new Error(`This payout was already ${transaction.status} and cannot be reviewed again.`);
+    error.status = 409;
+    throw error;
+  }
   const action = normalize(payload.action || payload.status || 'approved');
   const request = await createPayoutRequestFromTransaction(transaction, payload, actorId);
   const riskReview = await createFinanceRiskReview('payout_request', request.id, { ownerType: request.ownerType, ownerId: request.ownerId, amount: request.amount, currency: request.currency }, actorId);
   request.riskReviewId = riskReview.id;
   request.riskStatus = riskReview.status;
   if (action === 'rejected') {
-    transaction.status = 'rejected';
-    transaction.rejectedBy = actorId;
-    transaction.rejectedAt = new Date().toISOString();
-    transaction.reviewReason = cleanText(payload.reason || payload.note || 'Rejected by finance');
+    const reason = cleanText(payload.reason || payload.note || 'Rejected by finance');
+    walletService.rejectWithdrawal(transaction.id, actorId, { reason });
+    transaction.reviewReason = reason;
     request.status = 'rejected';
-    request.rejectionReason = transaction.reviewReason;
+    request.rejectionReason = reason;
   } else if (action === 'held' || action === 'hold') {
     transaction.status = 'held';
     transaction.reviewedBy = actorId;
@@ -471,7 +475,6 @@ async function reviewPayoutRequest(transactionId, payload = {}, actorId = 'finan
     request.holdReason = transaction.holdReason;
   } else {
     walletService.approveWithdrawal(transaction.id, actorId);
-    transaction.status = 'completed';
     transaction.providerReference = cleanText(payload.providerReference || payload.exportReference || `PAYOUT-${Date.now()}`);
     request.status = 'approved';
     request.providerReference = transaction.providerReference;

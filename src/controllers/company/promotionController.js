@@ -1,7 +1,9 @@
 const promotionService = require('../../services/promotion/promotionService');
+const { resolveCompanyId } = require('../../utils/companyScope');
 function create(req, res, next) {
   try {
-    promotionService.markSponsored(req.body.listingId, req.body);
+    const companyId = resolveCompanyId(req, { allowOverride: true });
+    promotionService.markSponsored(req.body.listingId, companyId, req.body);
     res.redirect('/company/promotions');
   } catch (error) {
     next(error);

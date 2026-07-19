@@ -30,8 +30,13 @@ function enforceCompanyScope(req, res, next) {
   return next();
 }
 
+const { normalizeCompanyType } = require('../utils/companyServiceType');
+
+// Keyword-aware: a company record whose type was saved as free text ("Bus company",
+// "Hotel / apartments") normalizes to the same canonical key ('bus', 'hotel') that listing
+// forms submit, instead of becoming a literal "bus_company" that never matches anything.
 function normalizeService(value) {
-  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return normalizeCompanyType(value);
 }
 
 function serviceMatches(actual, allowed = []) {

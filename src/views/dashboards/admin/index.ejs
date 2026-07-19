@@ -2001,26 +2001,51 @@
           </div>
 
           <div class="statsGrid">
-            <article class="statCard">
-              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 12%</span></div>
-              <div class="statNumber">UGX 248.6M</div>
-              <div class="statLabel">Gross booking value</div>
-            </article>
-            <article class="statCard">
-              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-building"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 8%</span></div>
-              <div class="statNumber">642</div>
-              <div class="statLabel">Active partners</div>
-            </article>
-            <article class="statCard">
-              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-bullhorn"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 19%</span></div>
-              <div class="statNumber">UGX 7.4M</div>
-              <div class="statLabel">Promoter commissions</div>
-            </article>
-            <article class="statCard">
-              <div class="statTop"><div class="statIcon"><i class="fa-solid fa-percent"></i></div><span class="trend"><i class="fa-solid fa-arrow-trend-up"></i> 7%</span></div>
-              <div class="statNumber">UGX 17.4M</div>
-              <div class="statLabel">Platform fee revenue</div>
-            </article>
+            <%
+              let heroStatCards = [];
+              const overviewStatsList = Array.isArray(dashboardData?.overviewStats) ? dashboardData.overviewStats : [];
+              const pickOverviewStat = (label, fallbackIcon) => overviewStatsList.find((item) => item.label === label) || { icon: fallbackIcon, value: '0' };
+              if (isCompanyDashboard) {
+                const companyStats = dashboardData?.stats || {};
+                heroStatCards = [
+                  { icon: 'fa-money-bill-wave', number: companyStats.grossRevenue || 'UGX 0', label: 'Gross revenue' },
+                  { icon: 'fa-route', number: companyStats.activeListings || '0', label: 'Active listings' },
+                  { icon: 'fa-headset', number: companyStats.openSupportCases || '0', label: 'Open support cases' },
+                  { icon: 'fa-wallet', number: companyStats.earnings || 'UGX 0', label: 'Your earnings' },
+                ];
+              } else if (isEmployeeDashboard || isDriverDashboard) {
+                const employeeStats = dashboardData?.stats || {};
+                heroStatCards = [
+                  { icon: 'fa-user-check', number: employeeStats.checkedIn || '0', label: 'Checked in' },
+                  { icon: 'fa-ticket', number: employeeStats.manualBookings || '0', label: 'Manual bookings' },
+                  { icon: 'fa-list-check', number: employeeStats.openTasks || '0', label: 'Open tasks' },
+                  { icon: 'fa-cash-register', number: employeeStats.deskSales || 'UGX 0', label: 'Desk sales' },
+                ];
+              } else if (isCustomerDashboard) {
+                heroStatCards = [
+                  { icon: pickOverviewStat('Upcoming trips', 'fa-calendar-days').icon, number: pickOverviewStat('Upcoming trips', 'fa-calendar-days').value, label: 'Upcoming trips' },
+                  { icon: pickOverviewStat('Past bookings', 'fa-clock-rotate-left').icon, number: pickOverviewStat('Past bookings', 'fa-clock-rotate-left').value, label: 'Past bookings' },
+                  { icon: pickOverviewStat('Wallet balance', 'fa-wallet').icon, number: pickOverviewStat('Wallet balance', 'fa-wallet').value, label: 'Wallet balance' },
+                  { icon: pickOverviewStat('Total spend', 'fa-coins').icon, number: pickOverviewStat('Total spend', 'fa-coins').value, label: 'Total spend' },
+                ];
+              } else if (isPromoterDashboard) {
+                heroStatCards = overviewStatsList.map((item) => ({ icon: item.icon || 'fa-chart-line', number: item.value, label: item.label }));
+              } else {
+                heroStatCards = [
+                  { icon: pickOverviewStat('Gross revenue', 'fa-money-bill-wave').icon, number: pickOverviewStat('Gross revenue', 'fa-money-bill-wave').value, label: 'Gross revenue' },
+                  { icon: pickOverviewStat('Partner companies', 'fa-building').icon, number: pickOverviewStat('Partner companies', 'fa-building').value, label: 'Partner companies' },
+                  { icon: pickOverviewStat('Promoter commission', 'fa-hand-holding-dollar').icon, number: pickOverviewStat('Promoter commission', 'fa-hand-holding-dollar').value, label: 'Promoter commission' },
+                  { icon: pickOverviewStat('Platform commission', 'fa-percent').icon, number: pickOverviewStat('Platform commission', 'fa-percent').value, label: 'Platform commission' },
+                ];
+              }
+            %>
+            <% heroStatCards.forEach((card) => { %>
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid <%= card.icon %>"></i></div></div>
+                <div class="statNumber"><%= card.number %></div>
+                <div class="statLabel"><%= card.label %></div>
+              </article>
+            <% }); %>
           </div>
         </div>
 

@@ -190,7 +190,7 @@
               </div>
               <div class="field partnerOnly" style="display:none"><label>Company / brand name</label><div class="control"><i class="fa-solid fa-building"></i><input id="companyInput" name="company" placeholder="Bus, hotel, airline, train company"></div></div>
               <div class="row2 partnerOnly" style="display:none">
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select id="businessTypeInput" name="businessType"><option>Bus company</option><option>Hotel / apartments</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option></select></div></div>
+                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select id="businessTypeInput" name="businessType"><option value="bus">Bus company</option><option value="hotel">Hotel / apartments</option><option value="flight">Airline</option><option value="train">Train operator</option><option value="tour">Tour company</option><option value="car_rental">Car rental</option></select></div></div>
                 <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select id="countryInput" name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
               </div>
               <div class="row2">
@@ -235,7 +235,7 @@
             <form class="form active" id="partnerForm" action="/partner-requests" method="post">
               <div class="row2">
                 <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Company / brand name" required></div></div>
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select name="companyType" required><option>Bus company</option><option>Hotel / apartment</option><option>Airline</option><option>Train operator</option><option>Tour company</option><option>Car rental</option><option>Ferry / boat</option></select></div></div>
+                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select name="companyType" required><option value="bus">Bus company</option><option value="hotel">Hotel / apartment</option><option value="flight">Airline</option><option value="train">Train operator</option><option value="tour">Tour company</option><option value="car_rental">Car rental</option><option value="ferry">Ferry / boat</option></select></div></div>
               </div>
               <div class="row2">
                 <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>

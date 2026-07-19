@@ -371,8 +371,16 @@ function rowsForExport(passengers = []) {
   ]);
 }
 
+// Prevents CSV/Excel formula injection: a cell starting with =, +, -, @, tab or CR can be
+// interpreted as a formula (or DDE payload) by spreadsheet software when the export is opened.
+// Passenger names/notes originate from unauthenticated public booking input, so this must hold
+// for every value that reaches an exported cell.
+function neutralizeFormula(text) {
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
 function escapeCsv(value) {
-  const text = String(value ?? '');
+  const text = neutralizeFormula(String(value ?? ''));
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
@@ -381,7 +389,7 @@ function toCsv(headers, rows) {
 }
 
 function escapeXml(value) {
-  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(neutralizeFormula(String(value ?? ''))).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function toExcelXml(headers, rows, worksheetName = 'Manifest') {

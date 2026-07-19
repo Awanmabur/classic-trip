@@ -144,12 +144,89 @@ function requestWithdrawal(ownerType, ownerId, amount, meta = {}) {
   return { wallet, transaction: store.state.walletTransactions[transactionStartIndex] || null };
 }
 
+function reviewTopUpRequest(transactionId, action, adminId = 'admin-system', meta = {}) {
+  const transaction = store.state.walletTransactions.find((txn) => txn.id === transactionId);
+  if (!transaction) return null;
+  if (transaction.transactionType !== 'wallet_top_up_request') {
+    const error = new Error('This transaction is not a wallet top-up request');
+    error.status = 422;
+    throw error;
+  }
+  if (transaction.status !== 'pending') {
+    const error = new Error(`Cannot review a top-up request that is already '${transaction.status}'`);
+    error.status = 409;
+    throw error;
+  }
+  if (String(action || '').toLowerCase() === 'rejected') {
+    reverseEarning(transaction.ownerType, transaction.ownerId, transaction.amount, {
+      currency: transaction.currency,
+      transactionType: 'wallet_top_up_rejected',
+      referenceType: transaction.referenceType,
+      referenceId: transaction.referenceId,
+    });
+    transaction.status = 'rejected';
+    transaction.rejectedBy = adminId;
+    transaction.rejectedAt = new Date().toISOString();
+    transaction.rejectionReason = meta.reason || '';
+  } else {
+    movePendingToAvailable(transaction.ownerType, transaction.ownerId, transaction.amount, {
+      currency: transaction.currency,
+      transactionType: 'wallet_top_up_approved',
+      referenceType: transaction.referenceType,
+      referenceId: transaction.referenceId,
+    });
+    transaction.status = 'completed';
+    transaction.approvedBy = adminId;
+    transaction.approvedAt = new Date().toISOString();
+  }
+  return transaction;
+}
+
+const FINAL_WITHDRAWAL_STATUSES = new Set(['completed', 'rejected']);
+
+function assertIsWithdrawal(transaction) {
+  if (transaction.transactionType !== 'withdrawal_request') {
+    const error = new Error('This transaction is not a withdrawal/payout request');
+    error.status = 422;
+    throw error;
+  }
+}
+
 function approveWithdrawal(transactionId, adminId = 'admin-system') {
   const transaction = store.state.walletTransactions.find((txn) => txn.id === transactionId);
   if (!transaction) return null;
+  assertIsWithdrawal(transaction);
+  if (FINAL_WITHDRAWAL_STATUSES.has(transaction.status)) {
+    const error = new Error(`Cannot approve a withdrawal that is already '${transaction.status}'`);
+    error.status = 409;
+    throw error;
+  }
   transaction.status = 'completed';
   transaction.approvedBy = adminId;
   transaction.approvedAt = new Date().toISOString();
+  return transaction;
+}
+
+function rejectWithdrawal(transactionId, adminId = 'admin-system', meta = {}) {
+  const transaction = store.state.walletTransactions.find((txn) => txn.id === transactionId);
+  if (!transaction) return null;
+  assertIsWithdrawal(transaction);
+  if (FINAL_WITHDRAWAL_STATUSES.has(transaction.status)) {
+    const error = new Error(`Cannot reject a withdrawal that is already '${transaction.status}'`);
+    error.status = 409;
+    throw error;
+  }
+  creditAvailable(transaction.ownerType, transaction.ownerId, transaction.amount, {
+    currency: transaction.currency,
+    transactionType: 'withdrawal_reversal',
+    referenceType: transaction.referenceType,
+    referenceId: transaction.referenceId,
+    status: 'completed',
+  });
+  transaction.status = 'rejected';
+  transaction.rejectedBy = adminId;
+  transaction.rejectedAt = new Date().toISOString();
+  transaction.rejectionReason = meta.reason || transaction.rejectionReason || '';
   return transaction;
 }
 
@@ -163,4 +240,6 @@ module.exports = {
   movePendingToAvailable,
   requestWithdrawal,
   approveWithdrawal,
+  rejectWithdrawal,
+  reviewTopUpRequest,
 };

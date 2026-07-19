@@ -26,9 +26,9 @@ const { validateRequest } = require('../../middlewares/validate');
 const router = express.Router();
 
 router.use('/admin', requireAuth, requireRole('super_admin'));
-router.use('/support', requireAuth, requireRole('super_admin', 'support_admin', 'company_employee'));
+router.use('/support', requireAuth, requireRole('super_admin', 'support_admin'));
 router.use('/finance', requireAuth, requireRole('super_admin', 'finance_admin'));
-router.use('/operations', requireAuth, requireRole('super_admin', 'operations_admin', 'company_employee'));
+router.use('/operations', requireAuth, requireRole('super_admin', 'operations_admin'));
 
 router.get('/admin', dashboardController.index);
 router.get('/support/dashboard', dashboardController.support);
@@ -102,6 +102,7 @@ router.post('/admin/settlements', financeController.createSettlement);
 router.post('/admin/payouts/sync', financeController.syncPayouts);
 router.post('/admin/payouts/batch', financeController.createPayoutBatch);
 router.post('/admin/payouts/:id/review', financeController.reviewPayout);
+router.post('/admin/wallet-top-ups/:id/review', financeController.reviewTopUp);
 router.post('/admin/reconciliation', financeController.reconcile);
 router.post('/admin/finance/statements', financeController.generateStatements);
 router.post('/admin/price-rules', actionController.updatePriceRule);

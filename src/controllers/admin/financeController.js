@@ -1,4 +1,5 @@
 const settlementService = require('../../services/finance/settlementService');
+const walletService = require('../../services/wallet/walletService');
 
 function actorId(req) {
   return req.session?.user?.id || 'admin-system';
@@ -6,6 +7,15 @@ function actorId(req) {
 
 function redirect(res, path = '/admin/payments') {
   res.redirect(path);
+}
+
+async function reviewTopUp(req, res, next) {
+  try {
+    walletService.reviewTopUpRequest(req.params.id, req.body.action, actorId(req), { reason: req.body.reason });
+    redirect(res, '/admin/payments');
+  } catch (error) {
+    next(error);
+  }
 }
 
 async function releaseEligible(req, res, next) {
@@ -78,6 +88,7 @@ module.exports = {
   createSettlement,
   syncPayouts,
   reviewPayout,
+  reviewTopUp,
   createPayoutBatch,
   generateStatements,
   reconcile,

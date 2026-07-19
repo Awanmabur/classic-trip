@@ -1,7 +1,7 @@
 const { Schema, mediaSchema, model } = require('./_helpers');
 
 const listingSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   companyId: { type: String, required: true, index: true },
   companySlug: String,
   companyName: String,

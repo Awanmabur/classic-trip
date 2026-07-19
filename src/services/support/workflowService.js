@@ -18,12 +18,14 @@ function requestRefund({ bookingRef, requesterId = 'guest', amount, reason = 'Cu
   const existing = store.state.refundRequests.find((item) => item.bookingRef === booking.bookingRef && item.status === 'pending');
   if (existing) return existing;
   const cleanReason = cleanText(reason) || 'Customer requested refund';
+  const parsedAmount = Number(Array.isArray(amount) ? NaN : amount);
+  const safeAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : Number(booking.pricing?.total || 0);
   const refund = {
     id: `refund-${store.state.refundRequests.length + 1}`,
     bookingId: booking.id,
     bookingRef: booking.bookingRef,
     requesterId,
-    amount: Number(amount || booking.pricing?.total || 0),
+    amount: safeAmount,
     currency: booking.pricing?.currency || 'UGX',
     reason: cleanReason,
     status: 'pending',

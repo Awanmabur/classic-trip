@@ -848,8 +848,18 @@ test('customer dashboard actions persist saved trips wallet security and promote
   await agent.post('/account/saved').type('form').send({ listingId: listing.id, notes: 'Save for later' }).expect(302);
   expect(store.state.savedListings.some((row) => row.userId === user.id && row.listingId === listing.id)).toBe(true);
 
+  // Top-ups must never credit spendable balance directly from a client-supplied amount — that
+  // would let anyone mint their own wallet funds. It should only create a pending request that
+  // finance/admin must approve before the balance moves.
   const beforeWallet = walletService.getOrCreateWallet('customer', user.id).availableBalance;
+  const beforePending = walletService.getWallet('customer', user.id).pendingBalance;
   await agent.post('/account/wallet/top-up').type('form').send({ amount: 12345, currency: 'UGX', method: 'mobile_money', paymentReference: 'TEST-TOPUP-1' }).expect(302);
+  expect(walletService.getWallet('customer', user.id).availableBalance).toBe(beforeWallet);
+  expect(walletService.getWallet('customer', user.id).pendingBalance).toBe(beforePending + 12345);
+
+  const topUpRequest = store.state.walletTransactions.find((txn) => txn.transactionType === 'wallet_top_up_request' && txn.ownerId === user.id);
+  expect(topUpRequest.status).toBe('pending');
+  walletService.reviewTopUpRequest(topUpRequest.id, 'approved', 'admin-test');
   expect(walletService.getWallet('customer', user.id).availableBalance).toBe(beforeWallet + 12345);
 
   await agent.post('/account/security').type('form').send({ twoFactorEnabled: 'on', loginAlertsEnabled: 'on', recoveryEmail: 'recovery@example.com' }).expect(302);

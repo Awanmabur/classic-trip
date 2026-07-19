@@ -414,7 +414,7 @@ async function acceptInvitation(token, payload = {}) {
         documentReference: payload.documentReference,
         identityReference: payload.identityReference,
         safetyCleared: false,
-      }, user.id);
+      }, user.id, employee.companyId);
     }
     await persist('VerificationReview', driverReview);
   }

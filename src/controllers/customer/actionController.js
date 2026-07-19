@@ -84,13 +84,16 @@ async function topUpWallet(req, res, next) {
       error.status = 422;
       throw error;
     }
+    // Top-ups are never credited to spendable balance directly from a client-supplied amount —
+    // that would let anyone mint their own wallet funds. This only records a pending request;
+    // finance/admin must verify the actual payment and approve it before the balance moves.
     const before = store.state.walletTransactions.length;
-    const wallet = walletService.creditAvailable('customer', user.id, amount, {
+    const wallet = walletService.creditPending('customer', user.id, amount, {
       currency: cleanText(req.body.currency || 'UGX'),
-      transactionType: 'wallet_top_up',
+      transactionType: 'wallet_top_up_request',
       referenceType: 'customer_wallet_top_up',
       referenceId: cleanText(req.body.paymentReference || `topup-${Date.now()}`),
-      status: 'completed',
+      status: 'pending',
     });
     const transaction = store.state.walletTransactions[before];
     if (transaction) {

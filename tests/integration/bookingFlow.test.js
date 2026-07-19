@@ -215,7 +215,7 @@ test('sponsored campaign is active and counts new bookings', () => {
       .filter((campaign) => campaign.listingId === listing.id && campaign.status === 'active')
       .forEach((campaign) => { campaign.status = 'paused'; });
   }
-  const result = promotionService.markSponsored(listing.id, { name: '18E sponsored route', budget: 50000 });
+  const result = promotionService.markSponsored(listing.id, listing.companyId, { name: '18E sponsored route', budget: 50000 });
   const beforeBookings = result.campaign.bookings;
 
   expect(result.listing.isSponsored).toBe(true);

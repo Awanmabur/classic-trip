@@ -20,7 +20,7 @@ async function submitCompany(req, res, next) {
 
 async function submitDriver(req, res, next) {
   try {
-    await verificationService.submitDriverChecklist(req.params.id, req.body, actorId(req));
+    await verificationService.submitDriverChecklist(req.params.id, req.body, actorId(req), companyId(req));
     res.redirect('/company/staff#drivers');
   } catch (error) {
     next(error);

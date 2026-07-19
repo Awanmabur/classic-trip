@@ -1,5 +1,6 @@
 const store = require('../../services/data/persistentStore');
 const { mongoose } = require('../../config/db');
+const { assertContactAvailable } = require('../../utils/uniqueContact');
 
 function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -15,6 +16,7 @@ async function update(req, res, next) {
   try {
     const sessionUser = req.session?.user || {};
     const user = store.state.users.find((item) => item.id === sessionUser.id) || sessionUser;
+    assertContactAvailable(store, user.id, { email: req.body.email, phone: req.body.phone });
     if (req.body.fullName) user.fullName = cleanText(req.body.fullName);
     if (req.body.email) user.email = cleanText(req.body.email).toLowerCase();
     if (req.body.phone) user.phone = cleanText(req.body.phone);
@@ -45,7 +47,9 @@ async function updateVerification(req, res, next) {
     const sessionUser = req.session?.user || {};
     const user = store.state.users.find((item) => item.id === sessionUser.id) || sessionUser;
     user.role = 'promoter';
-    user.verificationStatus = cleanText(req.body.verificationStatus || 'pending').toLowerCase();
+    // Submitting documents always puts the account back into admin review — a promoter can
+    // never set their own status to 'verified' (or any other trusted value) by posting this form.
+    user.verificationStatus = 'pending';
     user.verificationDocumentType = cleanText(req.body.documentType || req.body.verificationDocumentType || 'national_id');
     user.verificationReference = cleanText(req.body.documentReference || req.body.verificationReference || '');
     user.payoutAccount = {

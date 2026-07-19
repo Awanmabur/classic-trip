@@ -2,8 +2,14 @@ const store = require('../data/persistentStore');
 const futureServiceArchitecture = require('../release/futureServiceArchitecture');
 const securityService = require('../security/securityService');
 
+// See manifestService.js's neutralizeFormula — same CSV formula-injection risk applies here,
+// since these rows can include user-controlled fields (customer/passenger names, notes).
+function neutralizeFormula(text) {
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
 function escapeCsv(value) {
-  const text = String(value ?? '');
+  const text = neutralizeFormula(String(value ?? ''));
   if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
@@ -18,11 +24,13 @@ function dashboardRows(scope, type, context = {}) {
   if (type === 'securityEvents') return securityService.reportRows('securityEvents');
   if (type === 'deviceSessions') return securityService.reportRows('deviceSessions');
   if (type === 'idempotencyKeyRecords') return securityService.reportRows('idempotencyKeyRecords');
+  // No fallback ids here: store.dashboardData() now throws on a missing id rather than
+  // silently substituting a seeded/demo account's data.
   if (scope === 'admin') return store.dashboardData('admin')[type] || [];
-  if (scope === 'company') return store.dashboardData('company', { companyId: context.companyId || 'company-01' })[type] || [];
-  if (scope === 'employee') return store.dashboardData('employee', { companyId: context.companyId || 'company-01', employeeId: context.employeeId || 'user-employee-001' })[type] || [];
-  if (scope === 'promoter') return store.dashboardData('promoter', { promoterId: context.promoterId || 'user-promoter-001' })[type] || [];
-  if (scope === 'customer') return store.dashboardData('customer', { customerId: context.customerId || 'user-customer-001' })[type] || [];
+  if (scope === 'company') return store.dashboardData('company', { companyId: context.companyId })[type] || [];
+  if (scope === 'employee') return store.dashboardData('employee', { companyId: context.companyId, employeeId: context.employeeId })[type] || [];
+  if (scope === 'promoter') return store.dashboardData('promoter', { promoterId: context.promoterId })[type] || [];
+  if (scope === 'customer') return store.dashboardData('customer', { customerId: context.customerId })[type] || [];
   return [];
 }
 

@@ -1580,9 +1580,30 @@ async function assignDriver(companyId, employeeId, payload = {}, actorId = 'comp
   return assignment;
 }
 
-async function updateTripStatus(companyId, scheduleId, payload = {}, actorId = 'driver') {
+// Dispatch roles (employee/admin) manage every trip in the company; a driver may only act on
+// trips they're actually assigned to. Companies that haven't started using assignment records
+// yet (zero rows) fall back to allowing it, matching the existing dashboard read-side behavior.
+function assertDriverAssignedToSchedule(companyId, schedule, driverUserId, actorRole) {
+  if (actorRole !== 'driver') return;
+  const companyAssignments = (store.state.driverAssignments || []).filter((row) => row.companyId === companyId);
+  if (!companyAssignments.length) return;
+  const isAssigned = companyAssignments.some((row) => (
+    row.driverUserId === driverUserId
+    && row.status !== 'cancelled'
+    && row.status !== 'archived'
+    && (row.scheduleId === schedule.id || (row.vehicleId && row.vehicleId === schedule.vehicleId))
+  ));
+  if (!isAssigned) {
+    const error = new Error('You are not assigned to this trip');
+    error.status = 403;
+    throw error;
+  }
+}
+
+async function updateTripStatus(companyId, scheduleId, payload = {}, actorId = 'driver', actorRole = '') {
   ensureStateCollections();
   const schedule = findCompanyScheduleOrThrow(companyId, scheduleId);
+  assertDriverAssignedToSchedule(companyId, schedule, actorId, actorRole);
   const status = cleanText(payload.status || 'updated');
   if (!status) {
     const error = new Error('Trip status is required');
@@ -1616,9 +1637,10 @@ async function updateTripStatus(companyId, scheduleId, payload = {}, actorId = '
   return { schedule, update };
 }
 
-async function createDriverIncident(companyId, payload = {}, actorId = 'driver') {
+async function createDriverIncident(companyId, payload = {}, actorId = 'driver', actorRole = '') {
   ensureStateCollections();
   const schedule = payload.scheduleId ? findCompanyScheduleOrThrow(companyId, payload.scheduleId) : null;
+  if (schedule) assertDriverAssignedToSchedule(companyId, schedule, actorId, actorRole);
   const title = cleanText(payload.title || payload.description || 'Driver incident');
   if (!title) {
     const error = new Error('Incident title or description is required');
@@ -1809,7 +1831,7 @@ async function attachMedia({ companyId, target, targetId, asset, metadata = {} }
       const review = verificationService.getReview('driver', driver.id);
       review.documents = Array.isArray(review.documents) ? review.documents : [];
       review.documents.unshift(driverMedia);
-      await verificationService.submitDriverChecklist(driver.id, { documentType: driverMedia.documentType, documentReference: driverMedia.documentReference, licenseNumber: driver.licenseNumber }, metadata.uploadedBy || 'company-system');
+      await verificationService.submitDriverChecklist(driver.id, { documentType: driverMedia.documentType, documentReference: driverMedia.documentReference, licenseNumber: driver.licenseNumber }, metadata.uploadedBy || 'company-system', company.id);
     } catch (error) { /* non-blocking verification sync */ }
     return { target: 'driver', driver, media: driverMedia };
   }

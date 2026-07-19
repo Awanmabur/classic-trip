@@ -24,6 +24,7 @@ const { upgradeRules } = require('../../validators/billingValidator');
 const { validateRequest } = require('../../middlewares/validate');
 const upload = require('../../middlewares/upload');
 const { enforceCompanyScope, requireCompanyService, requireCompanyOwnService } = require('../../middlewares/companyAccess');
+const { ticketLimiter } = require('../../middlewares/rateLimit');
 const router = express.Router();
 
 router.use('/company', requireAuth, requireRole('company_admin', 'super_admin'), enforceCompanyScope);
@@ -81,8 +82,8 @@ router.get('/company/schedules/:scheduleId/manifest', requireCompanyService('bus
 router.get('/company/schedules/:scheduleId/manifest.csv', requireCompanyService('bus', 'train', 'flight', 'cargo'), manifestController.manifestCsv);
 router.get('/company/schedules/:scheduleId/manifest.xls', requireCompanyService('bus', 'train', 'flight', 'cargo'), manifestController.manifestExcel);
 router.get('/company/schedules/:scheduleId/manifest.pdf', requireCompanyService('bus', 'train', 'flight', 'cargo'), manifestController.manifestPdf);
-router.get('/company/tickets/:bookingRef', manifestController.ticketDetail);
-router.get('/company/seats/:scheduleId/:seatNumber/ticket', requireCompanyService('bus', 'train', 'flight', 'event'), manifestController.seatTicketDetail);
+router.get('/company/tickets/:bookingRef', ticketLimiter, manifestController.ticketDetail);
+router.get('/company/seats/:scheduleId/:seatNumber/ticket', ticketLimiter, requireCompanyService('bus', 'train', 'flight', 'event'), manifestController.seatTicketDetail);
 router.get('/company/manifests', manifestController.customerManifestPage);
 router.get('/company/manifests.csv', manifestController.customerManifestCsv);
 router.get('/company/manifests.xls', manifestController.customerManifestExcel);

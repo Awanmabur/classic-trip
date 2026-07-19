@@ -48,7 +48,7 @@ async function driverDashboard(req, res, next) {
 
 async function updateTripStatus(req, res, next) {
   try {
-    await companyService.updateTripStatus(companyId(req), req.params.scheduleId, req.body, actorId(req));
+    await companyService.updateTripStatus(companyId(req), req.params.scheduleId, req.body, actorId(req), req.session?.user?.role);
     res.redirect('/driver/dashboard#driver-ops');
   } catch (error) {
     next(error);
@@ -57,7 +57,7 @@ async function updateTripStatus(req, res, next) {
 
 async function createIncident(req, res, next) {
   try {
-    await companyService.createDriverIncident(companyId(req), req.body, actorId(req));
+    await companyService.createDriverIncident(companyId(req), req.body, actorId(req), req.session?.user?.role);
     res.redirect('/driver/dashboard#driver-incidents');
   } catch (error) {
     next(error);

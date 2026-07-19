@@ -1311,23 +1311,41 @@ function dashboardData(role = 'admin', context = {}) {
   return value;
 }
 
+function requireContextId(value, label) {
+  if (!value) {
+    const error = new Error(`${label} is required to build this dashboard`);
+    error.status = 403;
+    throw error;
+  }
+  return value;
+}
+
 function computeDashboardData(role = 'admin', context = {}) {
-  const companyId = context.companyId || 'company-01';
-  const promoterId = context.promoterId || 'user-promoter-001';
-  const customerId = context.customerId || 'user-customer-001';
+  // No fallback to a seeded/demo id here on purpose: a caller with a missing id must fail loudly,
+  // not silently render someone else's dashboard. Every current route resolves a real id first.
   const bookings = state.bookings.slice();
-  const companyBookings = bookings.filter((booking) => booking.companyId === companyId);
-  const customerBookings = bookings.filter((booking) => booking.customerUserId === customerId || booking.guestSnapshot?.email === 'customer@classictrip.test');
-  const promoterLinks = state.promoterLinks.filter((link) => link.promoterId === promoterId && isActivePromoterLink(link));
-  const promoterBookings = bookings.filter((booking) => booking.promoterAttribution?.promoterId === promoterId);
-  const companyListings = state.listings.filter((listing) => listing.companyId === companyId);
 
   if (role === 'admin') return adminDashboardData(bookings);
-  if (role === 'company') return enrichCompanyDashboard(companyDashboardData(companyId, companyListings, companyBookings), companyId, companyBookings);
-  if (role === 'employee') return employeeDashboardData(companyId, companyBookings, context);
-  if (role === 'driver') return employeeDashboardData(companyId, companyBookings, { ...context, driverMode: true });
-  if (role === 'customer') return customerDashboardData(customerBookings, customerId);
-  if (role === 'promoter') return promoterDashboardData(promoterLinks, promoterBookings, promoterId);
+  if (['company', 'employee', 'driver'].includes(role)) {
+    const companyId = requireContextId(context.companyId, 'companyId');
+    const companyBookings = bookings.filter((booking) => booking.companyId === companyId);
+    if (role === 'company') {
+      const companyListings = state.listings.filter((listing) => listing.companyId === companyId);
+      return enrichCompanyDashboard(companyDashboardData(companyId, companyListings, companyBookings), companyId, companyBookings);
+    }
+    return employeeDashboardData(companyId, companyBookings, role === 'driver' ? { ...context, driverMode: true } : context);
+  }
+  if (role === 'customer') {
+    const customerId = requireContextId(context.customerId, 'customerId');
+    const customerBookings = bookings.filter((booking) => booking.customerUserId === customerId || booking.guestSnapshot?.email === 'customer@classictrip.test');
+    return customerDashboardData(customerBookings, customerId);
+  }
+  if (role === 'promoter') {
+    const promoterId = requireContextId(context.promoterId, 'promoterId');
+    const promoterLinks = state.promoterLinks.filter((link) => link.promoterId === promoterId && isActivePromoterLink(link));
+    const promoterBookings = bookings.filter((booking) => booking.promoterAttribution?.promoterId === promoterId);
+    return promoterDashboardData(promoterLinks, promoterBookings, promoterId);
+  }
   return {};
 }
 
@@ -1940,11 +1958,13 @@ function adminDashboardData(bookings) {
   };
 }
 
+const { normalizeCompanyType } = require('../../utils/companyServiceType');
+
 function buildCompanyServiceProfile(company = {}, listings = [], assets = {}) {
   // Business rule: one company account belongs to one primary service category.
   // Super Admin can see all service dashboards, but a company admin must never
   // receive a combined Bus + Hotel (or any multi-service) dashboard.
-  const companyType = normalize(company.companyType || company.type || company.serviceType);
+  const companyType = normalizeCompanyType(company.companyType || company.type || company.serviceType);
   const listingTypes = Array.from(new Set((listings || []).map((listing) => normalize(listing.serviceType || listing.type)).filter(Boolean)));
   const fallbackType = listingTypes[0]
     || ((assets.hotelProperties || []).length || (assets.roomTypes || []).length || (assets.roomUnits || []).length || (assets.rooms || []).length ? 'hotel' : '')
@@ -5000,7 +5020,7 @@ function lookupTicket(value, companyId = '', context = {}) {
   const { booking, ticket } = searchTicket(value, companyId);
   if (!booking) {
     const unrestricted = searchTicket(value, '');
-    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope' };
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: null, ticket: null, bookingRef: unrestricted.booking.bookingRef, message: 'This ticket belongs to another company scope' };
     return { ok: false, result: 'not_found', message: 'Ticket not found' };
   }
   const reason = checkInBlockReason(booking, ticket);
@@ -5021,7 +5041,7 @@ function validateTicket(qrCodeValue, employeeId = 'employee-system', companyId =
   const { booking, ticket } = searchTicket(qrCodeValue, companyId);
   if (!booking) {
     const unrestricted = searchTicket(qrCodeValue, '');
-    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope', canCheckIn: false, disabledReason: 'Wrong company scope' };
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: null, ticket: null, bookingRef: unrestricted.booking.bookingRef, message: 'This ticket belongs to another company scope', canCheckIn: false, disabledReason: 'Wrong company scope' };
     return { ok: false, result: 'not_found', message: 'Ticket not found' };
   }
   const reason = checkInBlockReason(booking, ticket);
@@ -5076,7 +5096,7 @@ function markNoShow(value, employeeId = 'employee-system', companyId = '', note 
   const { booking, ticket } = searchTicket(value, companyId);
   if (!booking) {
     const unrestricted = searchTicket(value, '');
-    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: unrestricted.booking, ticket: unrestricted.ticket || null, message: 'This ticket belongs to another company scope' };
+    if (companyId && unrestricted.booking) return { ok: false, result: 'not_authorized_for_ticket', booking: null, ticket: null, bookingRef: unrestricted.booking.bookingRef, message: 'This ticket belongs to another company scope' };
     return { ok: false, result: 'not_found', message: 'Ticket not found' };
   }
   if (['cancelled', 'refunded', 'voided', 'completed'].includes(booking.bookingStatus) || (ticket && ['checked_in', 'used', 'cancelled', 'refunded', 'voided'].includes(normalize(ticket.checkInStatus || ticket.status)))) {

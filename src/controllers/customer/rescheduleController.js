@@ -1,13 +1,15 @@
 const timelineService = require('../../services/support/timelineService');
 const store = require('../../services/data/persistentStore');
 const { pushFlash } = require('../../middlewares/flash');
+const { ownsBooking } = require('../../utils/bookingOwnership');
 
 async function requestReschedule(req, res, next) {
   try {
     const bookingRef = req.body.bookingRef || req.params.bookingRef;
-    const userId = req.session?.user?.id;
+    const user = req.session?.user || {};
+    const userId = user.id;
     const booking = store.findBooking(bookingRef);
-    if (booking && booking.customerUserId && String(booking.customerUserId) !== String(userId)) {
+    if (!booking || !ownsBooking(booking, user)) {
       pushFlash(req, 'error', 'You do not have permission to reschedule this booking.');
       return res.redirect('/account/support');
     }

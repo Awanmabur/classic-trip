@@ -73,6 +73,27 @@ function createReceipt({ sale, booking, payment }) {
   };
 }
 
+// Offline sales mark payment "successful" without ever going through Pesapal, and the amount
+// collected is entirely self-reported by the agent — so unlike online bookings (where inflating
+// the total just means the customer has to pay more), there is nothing else forcing this number
+// to be real. Commission is calculated straight off it, so a wildly inflated figure is a direct
+// path to fabricated commission. This doesn't block legitimate group/multi-night sales — it just
+// keeps the number within a generous multiple of the listing's own advertised price.
+const MAX_REASONABLE_PRICE_MULTIPLIER = 3;
+const MAX_REASONABLE_UNITS = 20;
+
+function assertReasonableAmount(listing, amountCollected, payload) {
+  const basePrice = Number(listing.priceFrom) || 0;
+  if (!basePrice || !amountCollected) return;
+  const passengerCount = Math.max(1, Math.min(MAX_REASONABLE_UNITS, Number(payload.passengerCount) || (Array.isArray(payload.passengers) ? payload.passengers.length : 0) || 1));
+  const ceiling = basePrice * MAX_REASONABLE_PRICE_MULTIPLIER * passengerCount;
+  if (amountCollected > ceiling) {
+    const error = new Error('This amount is far above the listing\'s advertised price and needs admin review before it can be recorded as an offline sale.');
+    error.status = 422;
+    throw error;
+  }
+}
+
 function createOfflineSale(payload = {}, context = {}) {
   const agent = ensureAgent(context.agentId || payload.agentId);
   const listing = store.findListing(payload.listingId || payload.slug);
@@ -86,6 +107,7 @@ function createOfflineSale(payload = {}, context = {}) {
     || store.state.promoterLinks.find((row) => row.promoterId === agent.id && row.status !== 'archived');
   const paymentMethod = cleanText(payload.paymentMethod || 'cash');
   const amountCollected = Math.max(0, Number(payload.amountCollected || payload.total || 0));
+  assertReasonableAmount(listing, amountCollected, payload);
   const booking = store.createBooking({
     listingId: listing.id,
     scheduleId: cleanText(payload.scheduleId),
