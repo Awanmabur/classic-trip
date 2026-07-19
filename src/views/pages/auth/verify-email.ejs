@@ -8,7 +8,7 @@
       <p class="muted" style="margin:0;font-size:14px;font-weight:780;line-height:1.65"><%= error %></p>
       <p class="muted" style="margin:0;font-size:13px;font-weight:780;line-height:1.6">Verification links expire after 24 hours. If you're logged in, you can request a new link from your account dashboard.</p>
       <div style="display:grid;gap:9px">
-        <a class="btn btnPrimary" href="/account" style="height:46px"><i class="fa-solid fa-arrow-right"></i> Go to my account</a>
+        <a class="btn btnPrimary" href="<%= dashboardUrl %>" style="height:46px"><i class="fa-solid fa-arrow-right"></i> Go to my account</a>
         <form action="/account/resend-verification" method="post" style="margin:0">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <button class="btn btnGhost" type="submit" style="width:100%;height:46px"><i class="fa-solid fa-envelope"></i> Resend verification email</button>

@@ -17,7 +17,7 @@
       <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
       <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
       <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
-      <% if (currentUser) { %><a href="/account"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
+      <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
     </div>
 
     <div class="footerCol">

@@ -28,7 +28,7 @@
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconbtn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
-        <% if (currentUser) { %><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
+        <% if (currentUser) { %><a class="btn btnGhost" href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
         <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button></form><% } else { %><button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button><% } %>
       </div>
     </div>
@@ -42,7 +42,7 @@
         <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <% if (currentUser) { %>
-        <a class="drawerProfile" href="/account">
+        <a class="drawerProfile" href="<%= dashboardUrl %>">
           <span class="drawerProfileAvatar"><i class="fa-solid fa-user"></i></span>
           <span class="drawerProfileText"><b><%= currentUser.fullName || currentUser.name || 'Account' %></b><span class="muted">View dashboard</span></span>
           <i class="fa-solid fa-chevron-right"></i>
@@ -370,7 +370,7 @@
         <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
         <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
         <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
-        <% if (currentUser) { %><a href="/account"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
+        <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
       </div>
 
       <div class="footerCol">

@@ -13,7 +13,7 @@
       <button class="iconbtn" id="siteThemeBtn" title="Toggle theme" onclick="(function(){var t=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('ct-theme',t)}catch(e){}var i=document.getElementById('siteThemeIcon');if(i){i.className=t==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}})()"><i class="fa-solid fa-moon" id="siteThemeIcon"></i></button>
       <a class="btn btnGhost" href="/tickets" style="<%= currentPath.startsWith('/tickets') ? 'background:rgba(255,183,3,.13);border-color:rgba(255,183,3,.30);color:var(--accent)' : '' %>"><i class="fa-solid fa-ticket"></i><span class="navBtnText">Tickets</span></a>
       <% if (currentUser) { %>
-        <a class="btn btnGhost login" href="/account"><i class="fa-regular fa-user"></i><span class="navBtnText"><%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></span></a>
+        <a class="btn btnGhost login" href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i><span class="navBtnText"><%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></span></a>
       <% } else { %>
         <a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i><span class="navBtnText">Login</span></a>
       <% } %>
@@ -30,7 +30,7 @@
       <button class="iconbtn" onclick="document.getElementById('siteDrawer').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <% if (currentUser) { %>
-      <a class="drawerProfile" href="/account">
+      <a class="drawerProfile" href="<%= dashboardUrl %>">
         <span class="drawerProfileAvatar"><i class="fa-solid fa-user"></i></span>
         <span class="drawerProfileText"><b><%= currentUser.fullName || currentUser.name || 'Account' %></b><span class="muted">View dashboard</span></span>
         <i class="fa-solid fa-chevron-right"></i>

@@ -364,22 +364,7 @@ async function resetPassword(token, password) {
   return { ...user, passwordHash: undefined };
 }
 
-function redirectForRole(role) {
-  const map = {
-    super_admin: '/admin',
-    admin: '/admin',
-    finance_admin: '/finance/dashboard',
-    support_admin: '/support/dashboard',
-    operations_admin: '/operations/dashboard',
-    content_admin: '/admin',
-    company_admin: '/company/dashboard',
-    company_employee: '/employee/dashboard',
-    driver: '/driver/dashboard',
-    promoter: '/promoter/dashboard',
-    customer: '/account',
-  };
-  return map[role] || '/account';
-}
+const { redirectForRole } = require('../../utils/dashboardRedirect');
 
 module.exports = {
   verifyLogin,

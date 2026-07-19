@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const compression = require('compression');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const sessionConfig = require('./config/session');
@@ -40,7 +41,8 @@ app.use(helmet({
   contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false,
 }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(compression());
+app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: env.isProduction ? '1d' : 0 }));
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(cookieParser());
@@ -64,14 +66,21 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(async (req, res, next) => {
-  try {
-    const shouldRefresh = req.method === 'GET' && (/^\/(admin|company|employee|promoter|customer|tickets|api)/.test(req.path) || req.path === '/');
-    if (shouldRefresh) await store.refreshFromDatabase({ mongoose, logger, minIntervalMs: 5000 });
-    next();
-  } catch (error) {
-    next(error);
+app.use((req, res, next) => {
+  // Fire-and-forget: this exists to pick up out-of-band database writes (seed scripts,
+  // admin tooling, another instance) without a restart. It used to be awaited here, which
+  // meant every qualifying request blocked on a full ~85-collection re-hydration (2-10s)
+  // whenever more than minIntervalMs had elapsed since the last one - i.e. on most real
+  // requests, since traffic is rarely denser than one request per 5s. The current request
+  // now always serves from whatever is already in memory; the refresh still happens, just
+  // without holding the response hostage, and later requests benefit from it.
+  const shouldRefresh = req.method === 'GET' && (/^\/(admin|company|employee|promoter|customer|tickets|api)/.test(req.path) || req.path === '/');
+  if (shouldRefresh) {
+    store.refreshFromDatabase({ mongoose, logger, minIntervalMs: 60000 }).catch((error) => {
+      logger.warn('Background store refresh failed', { error: error.message });
+    });
   }
+  next();
 });
 
 app.use('/', require('./routes/web/public'));
