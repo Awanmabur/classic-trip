@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const tripStatusUpdateSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   companyId: { type: String, required: true, index: true },
   scheduleId: { type: String, required: true, index: true },
   vehicleId: { type: String, index: true },

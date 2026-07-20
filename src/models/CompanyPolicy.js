@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const companyPolicySchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   companyId: { type: String, required: true, index: true },
   title: { type: String, required: true, trim: true },
   policyType: { type: String, default: 'operations', index: true },

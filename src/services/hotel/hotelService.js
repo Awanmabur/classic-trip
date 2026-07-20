@@ -434,7 +434,7 @@ async function createHotelBooking(payload = {}, req = {}) {
   store.state.bookings.unshift(booking);
   const paymentRow = { id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef, amount: total, currency: booking.pricing.currency, status: booking.paymentStatus, provider: booking.paymentProvider, providerReference: booking.paymentRef, checkoutUrl: booking.checkoutUrl, createdAt: booking.createdAt, paidAt: booking.paymentStatus === 'successful' ? (payment.paidAt || new Date().toISOString()) : null };
   store.state.payments.unshift(paymentRow);
-  if (booking.paymentStatus === 'successful') store.settleBookingPayment(bookingRef);
+  if (booking.paymentStatus === 'successful') await store.settleBookingPayment(bookingRef);
   if (booking.paymentStatus === 'successful') {
     await notificationService.bookingConfirmed(booking);
   } else {
@@ -528,7 +528,7 @@ async function markStay(companyId, bookingRef, status, actorId = 'company-admin'
   await timelineService.recordEvent({ bookingRef, companyId: booking.companyId, customerUserId: booking.customerUserId, entityType: 'hotel_stay', entityId: bookingRef, action: `hotel.stay.${normalized}`, title: normalized === 'checked-in' ? `Guest checked in for ${bookingRef}` : normalized === 'checked-out' ? `Guest checked out for ${bookingRef}` : `Hotel stay updated for ${bookingRef}`, message: normalized === 'checked-in' ? 'Guest arrival was confirmed and room state changed to occupied.' : normalized === 'checked-out' ? 'Guest departure was confirmed and stay was completed.' : `Stay status changed to ${normalized}.`, status: normalized, actorType: 'company', actorId, metadata: { roomUnitIds: booking.hotelStay.roomUnitIds || [], checkIn: booking.hotelStay.checkIn, checkOut: booking.hotelStay.checkOut } });
   let releasedCommissions = [];
   if (normalized === 'checked-out') {
-    releasedCommissions = releaseService.releaseCompletedBooking(bookingRef) || [];
+    releasedCommissions = (await releaseService.releaseCompletedBooking(bookingRef)) || [];
     booking.earningsReleasedAt = booking.earningsReleasedAt || (releasedCommissions.length ? new Date().toISOString() : booking.earningsReleasedAt);
     booking.settlementStatus = releasedCommissions.length ? 'available' : booking.settlementStatus;
     store.state.auditLogs.unshift({ id: nextId('audit', store.state.auditLogs), actorId, action: 'hotel.stay.earnings_released', targetType: 'booking', targetId: bookingRef, createdAt: new Date().toISOString(), meta: { releasedCommissions: releasedCommissions.length } });

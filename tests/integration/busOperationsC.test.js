@@ -147,7 +147,7 @@ describe('Master section C - Bus booking and route operations', () => {
       status: 'published',
     });
 
-    const groupBooking = store.createBooking({
+    const groupBooking = await store.createBooking({
       listingId: listing.id,
       scheduleId: draftSchedule.id,
       selectedSeats: '1,2',
@@ -164,7 +164,7 @@ describe('Master section C - Bus booking and route operations', () => {
     expect(groupBooking.ticketLegs).toHaveLength(2);
     expect(groupBooking.pricing.subtotal).toBeGreaterThan(70000);
 
-    const roundTripBooking = store.createBooking({
+    const roundTripBooking = await store.createBooking({
       listingId: listing.id,
       scheduleId: draftSchedule.id,
       selectedSeats: '3,4',

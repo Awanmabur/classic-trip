@@ -1,5 +1,6 @@
 const store = require('../../services/data/persistentStore');
 const bookingService = require('../../services/booking/bookingService');
+const companyService = require('../../services/company/companyService');
 const notificationService = require('../../services/notification/notificationService');
 const walletService = require('../../services/wallet/walletService');
 const workflowService = require('../../services/support/workflowService');
@@ -92,30 +93,10 @@ async function createBooking(req, res, next) {
 async function createListing(req, res, next) {
   try {
     ensureCollections();
-    const company = store.findCompany(req.body.companyId) || store.state.companies[0] || {};
-    const title = cleanText(req.body.title || 'Admin listing');
-    const serviceType = normalize(req.body.serviceType || 'bus') || 'bus';
-    const listing = {
-      id: nextId('listing', store.state.listings),
-      slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now().toString().slice(-4)}`,
-      companyId: company.id || cleanText(req.body.companyId || (store.state.companies[0] || {}).id || ''),
-      title,
-      serviceType,
-      type: serviceType,
-      from: cleanText(req.body.from || ''),
-      to: cleanText(req.body.to || ''),
-      city: cleanText(req.body.city || ''),
-      country: cleanText(req.body.country || company.country || 'Uganda'),
-      currency: cleanText(req.body.currency || 'UGX'),
-      priceFrom: amountValue(req.body.priceFrom || req.body.price, 0),
-      remainingInventory: amountValue(req.body.inventory, 0),
-      bookable: req.body.bookable !== 'off',
-      status: normalize(req.body.status || 'active') || 'active',
-      description: cleanText(req.body.description || ''),
-      createdAt: new Date().toISOString(),
-    };
-    store.state.listings.unshift(listing);
-    await persist('Listing', listing);
+    const companyId = cleanText(req.body.companyId) || (store.state.companies[0] || {}).id || '';
+    // Routed through the real company service (not a parallel implementation here) so admin-created
+    // listings get atomic IDs and the company's own operating currency, exactly like company-created ones.
+    const listing = await companyService.createListing(companyId, req.body);
     await audit(req, 'admin.listing.created', listing.id, { companyId: listing.companyId });
     redirect(res, '/admin/listings');
   } catch (error) {

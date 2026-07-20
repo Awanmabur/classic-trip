@@ -31,7 +31,7 @@ test('company verification gates listing publishing and bookings', async () => {
   });
 
   await expect(companyService.publishListing(company.id, listing.id)).rejects.toMatchObject({ status: 403 });
-  expect(() => store.createBooking({ listingId: listing.id, fullName: 'Blocked Guest', email: 'blocked@example.com', phone: '+256700101010' })).toThrow('This listing is not currently open for booking');
+  await expect(store.createBooking({ listingId: listing.id, fullName: 'Blocked Guest', email: 'blocked@example.com', phone: '+256700101010' })).rejects.toThrow('This listing is not currently open for booking');
 
   await companyService.setVerificationStatus(company.slug, 'verified', 'admin-e2e');
   const published = await companyService.publishListing(company.id, listing.id);
@@ -41,7 +41,7 @@ test('company verification gates listing publishing and bookings', async () => {
     nightlyPrice: 140000,
     inventory: 1,
   });
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: published.id,
     roomId: room.id,
     fullName: 'Verified Guest',
@@ -260,7 +260,7 @@ test('hotel room inventory updates and booking consumption are connected', async
   });
   const updated = await companyService.updateRoomInventory(company.id, room.id, { inventory: 1 });
 
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     roomId: room.id,
     fullName: 'Room Guest',
@@ -270,7 +270,7 @@ test('hotel room inventory updates and booking consumption are connected', async
 
   expect(updated.inventory).toBe(0);
   expect(booking.passengers[0].seatOrRoom).toBe('River Suite');
-  expect(() => store.createBooking({ listingId: listing.id, roomId: room.id, fullName: 'Late Guest', email: 'late@example.com', phone: '+256700404040' })).toThrow('Selected room is no longer available');
+  await expect(store.createBooking({ listingId: listing.id, roomId: room.id, fullName: 'Late Guest', email: 'late@example.com', phone: '+256700404040' })).rejects.toThrow('Selected room is no longer available');
 });
 
 test('employee invite creates user, company access, and dashboard staff row', async () => {

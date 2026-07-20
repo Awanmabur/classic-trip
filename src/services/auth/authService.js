@@ -94,7 +94,7 @@ async function provisionPromoter(user, payload = {}) {
     account: cleanText(payload.payoutAccount || user.phone || ''),
   };
   user.updatedAt = new Date().toISOString();
-  const wallet = walletService.getOrCreateWallet('promoter', user.id, cleanText(payload.currency || 'UGX'));
+  const wallet = await walletService.getOrCreateWallet('promoter', user.id, cleanText(payload.currency || 'UGX'));
   await persist('users', user);
   await persist('wallets', wallet);
   await recordAudit('auth.promoter_registered', user.id, 'user', user.id, 'pending_verification');
@@ -120,6 +120,7 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
       email: cleanText(payload.email || user.email),
       phone: cleanText(payload.phone || user.phone),
       description: cleanText(payload.description || `Auth signup application for ${requestedCompanyName(payload, user)}`),
+      operatingCurrency: payload.operatingCurrency,
     });
   }
   company.onboardingSource = cleanText(payload.signupSource || 'auth_register');
@@ -136,7 +137,7 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
 
 async function provisionCompanyAdmin(user, payload = {}) {
   const company = await findOrCreateSignupCompany(user, payload, user.id);
-  const wallet = walletService.getOrCreateWallet('company', company.id, cleanText(payload.currency || 'UGX'));
+  const wallet = await walletService.getOrCreateWallet('company', company.id, company.operatingCurrency || 'UGX');
   company.ownerId = company.ownerId || user.id;
   company.walletId = wallet.id;
   company.updatedAt = new Date().toISOString();

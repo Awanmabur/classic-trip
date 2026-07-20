@@ -79,4 +79,40 @@ async function duplicate(req, res, next) {
   }
 }
 
-module.exports = { create, update, archive, publish, updateSeat, transition, duplicate, complete };
+async function createRule(req, res, next) {
+  try {
+    await companyService.createScheduleRule(companyId(req), req.body, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function pauseRule(req, res, next) {
+  try {
+    await companyService.pauseScheduleRule(companyId(req), req.params.id, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resumeRule(req, res, next) {
+  try {
+    await companyService.resumeScheduleRule(companyId(req), req.params.id, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cancelRule(req, res, next) {
+  try {
+    await companyService.cancelScheduleRule(companyId(req), req.params.id, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { create, update, archive, publish, updateSeat, transition, duplicate, complete, createRule, pauseRule, resumeRule, cancelRule };

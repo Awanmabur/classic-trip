@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const receiptInvoiceSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   documentRef: { type: String, index: true },
   documentType: { type: String, enum: ['receipt', 'invoice', 'credit_note'], index: true },
   bookingId: { type: String, index: true },

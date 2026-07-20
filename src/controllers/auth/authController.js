@@ -68,6 +68,7 @@ async function register(req, res, next) {
       companyType: req.body.companyType || req.body.businessType,
       country: req.body.country,
       city: req.body.city,
+      operatingCurrency: req.body.operatingCurrency,
       roleTitle: req.body.roleTitle,
     });
     // Regenerate the session to prevent session fixation attacks (mirrors login()).

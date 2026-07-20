@@ -9,7 +9,7 @@ async function login(email) {
   return agent;
 }
 
-function ensureScheduleBooking() {
+async function ensureScheduleBooking() {
   let booking = store.state.bookings.find((row) => row.scheduleId === 'schedule-0001' && row.companyId === 'company-01');
   if (booking) return booking;
   return store.createBooking({
@@ -24,7 +24,7 @@ function ensureScheduleBooking() {
 }
 
 test('driver can open print-ready manifest, ticket detail, CSV, and PDF for assigned company schedule', async () => {
-  const booking = ensureScheduleBooking();
+  const booking = await ensureScheduleBooking();
   const employee = await login('employee@classictrip.test');
 
   const manifestPage = await employee.get('/driver/schedules/schedule-0001/manifest').expect(200);
@@ -49,8 +49,8 @@ test('driver can open print-ready manifest, ticket detail, CSV, and PDF for assi
   expect(Number(pdf.headers['content-length'])).toBeGreaterThan(1000);
 });
 
-test('driver manifest service blocks cross-company schedules and empty booked seats', () => {
-  ensureScheduleBooking();
+test('driver manifest service blocks cross-company schedules and empty booked seats', async () => {
+  await ensureScheduleBooking();
   expect(() => manifestService.buildManifest('company-02', 'schedule-0001')).toThrow('Schedule not found for this company');
   expect(() => manifestService.bookingForSeat('company-01', 'schedule-0001', '3')).toThrow('No booked ticket found for this seat');
 });

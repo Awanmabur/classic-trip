@@ -11,7 +11,7 @@ function redirect(res, path = '/admin/payments') {
 
 async function reviewTopUp(req, res, next) {
   try {
-    walletService.reviewTopUpRequest(req.params.id, req.body.action, actorId(req), { reason: req.body.reason });
+    await walletService.reviewTopUpRequest(req.params.id, req.body.action, actorId(req), { reason: req.body.reason });
     redirect(res, '/admin/payments');
   } catch (error) {
     next(error);

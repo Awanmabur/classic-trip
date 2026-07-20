@@ -64,7 +64,7 @@ test('auth registration provisions role-specific dashboard records', async () =>
   expect(promoter.role).toBe('promoter');
   expect(promoter.referralCode).toBeTruthy();
   expect(promoter.verificationStatus).toBe('pending');
-  expect(walletService.getWallet('promoter', promoter.id)).toBeTruthy();
+  expect(walletService.getWallet('promoter', promoter.id, 'UGX')).toBeTruthy();
 
   const companyRes = await request(app)
     .post('/register')
@@ -90,7 +90,7 @@ test('auth registration provisions role-specific dashboard records', async () =>
   expect(company.ownerId).toBe(companyAdmin.id);
   expect(company.verificationStatus).toBe('pending');
   expect(company.settings.canPublish).toBe(false);
-  expect(walletService.getWallet('company', company.id)).toBeTruthy();
+  expect(walletService.getWallet('company', company.id, 'UGX')).toBeTruthy();
 
   const employeeRes = await request(app)
     .post('/register')
@@ -202,7 +202,7 @@ test('Cloudinary media lifecycle is secured and attaches or deletes company, lis
 
 test('signed payment webhook reconciles booking payment once and queues notifications', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Webhook Guest',
     email: 'webhook@example.com',
@@ -267,7 +267,7 @@ test('booking confirmation and refund approval queue customer notifications', as
     reason: 'Schedule changed',
   });
   const beforeRefundNotifications = store.state.notifications.length;
-  workflowService.approveRefund(refund.id, 'admin-notify');
+  await workflowService.approveRefund(refund.id, 'admin-notify');
 
   expect(store.state.notifications.length).toBe(beforeRefundNotifications + 4);
   expect(store.state.notifications.some((item) => item.referenceId === refund.id && item.title.includes('Refund approved'))).toBe(true);
@@ -851,16 +851,16 @@ test('customer dashboard actions persist saved trips wallet security and promote
   // Top-ups must never credit spendable balance directly from a client-supplied amount — that
   // would let anyone mint their own wallet funds. It should only create a pending request that
   // finance/admin must approve before the balance moves.
-  const beforeWallet = walletService.getOrCreateWallet('customer', user.id).availableBalance;
-  const beforePending = walletService.getWallet('customer', user.id).pendingBalance;
+  const beforeWallet = (await walletService.getOrCreateWallet('customer', user.id, 'UGX')).availableBalance;
+  const beforePending = walletService.getWallet('customer', user.id, 'UGX').pendingBalance;
   await agent.post('/account/wallet/top-up').type('form').send({ amount: 12345, currency: 'UGX', method: 'mobile_money', paymentReference: 'TEST-TOPUP-1' }).expect(302);
-  expect(walletService.getWallet('customer', user.id).availableBalance).toBe(beforeWallet);
-  expect(walletService.getWallet('customer', user.id).pendingBalance).toBe(beforePending + 12345);
+  expect(walletService.getWallet('customer', user.id, 'UGX').availableBalance).toBe(beforeWallet);
+  expect(walletService.getWallet('customer', user.id, 'UGX').pendingBalance).toBe(beforePending + 12345);
 
   const topUpRequest = store.state.walletTransactions.find((txn) => txn.transactionType === 'wallet_top_up_request' && txn.ownerId === user.id);
   expect(topUpRequest.status).toBe('pending');
-  walletService.reviewTopUpRequest(topUpRequest.id, 'approved', 'admin-test');
-  expect(walletService.getWallet('customer', user.id).availableBalance).toBe(beforeWallet + 12345);
+  await walletService.reviewTopUpRequest(topUpRequest.id, 'approved', 'admin-test');
+  expect(walletService.getWallet('customer', user.id, 'UGX').availableBalance).toBe(beforeWallet + 12345);
 
   await agent.post('/account/security').type('form').send({ twoFactorEnabled: 'on', loginAlertsEnabled: 'on', recoveryEmail: 'recovery@example.com' }).expect(302);
   expect(user.twoFactorEnabled).toBe(true);
@@ -869,7 +869,7 @@ test('customer dashboard actions persist saved trips wallet security and promote
   await agent.post('/account/promoter').type('form').send({ referralCode: 'DASH-18E', payoutMethod: 'Mobile Money', payoutAccount: '+256700555801' }).expect(302);
   expect(user.role).toBe('promoter');
   expect(user.referralCode).toBe('DASH-18E');
-  expect(walletService.getWallet('promoter', user.id)).toBeTruthy();
+  expect(walletService.getWallet('promoter', user.id, 'UGX')).toBeTruthy();
   await agent.get('/promoter/dashboard').expect(200);
 });
 
@@ -908,8 +908,8 @@ test('admin dashboard actions create operational records and exports', async () 
   expect(dashboard.text).toContain('data-type="bus listing"');
   expect(dashboard.text).toContain('data-type="event listing"');
   const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
-  const wallet = walletService.creditAvailable('promoter', 'user-promoter-001', 25000, { currency: 'UGX', referenceType: 'test_seed', referenceId: 'admin-payout-e2e' });
-  const withdrawal = walletService.requestWithdrawal('promoter', 'user-promoter-001', 1000, { currency: wallet.currency, referenceType: 'withdrawal', referenceId: 'admin-payout-e2e' }).transaction;
+  const wallet = await walletService.creditAvailable('promoter', 'user-promoter-001', 'UGX', 25000, { referenceType: 'test_seed', referenceId: 'admin-payout-e2e' });
+  const withdrawal = (await walletService.requestWithdrawal('promoter', 'user-promoter-001', wallet.currency, 1000, { referenceType: 'withdrawal', referenceId: 'admin-payout-e2e' })).transaction;
 
   await agent.post('/admin/listings').type('form').send({ companyId: 'company-01', title: 'Admin event category listing', serviceType: 'event', from: 'Kampala', to: 'Expo Hall', priceFrom: 120000 }).expect(302);
   expect(store.state.listings.some((row) => row.title === 'Admin event category listing' && row.serviceType === 'event')).toBe(true);

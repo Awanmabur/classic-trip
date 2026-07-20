@@ -1,11 +1,12 @@
 const { Schema, model } = require('./_helpers');
 
 const reconciliationReportSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   settlementBatchId: String,
   payoutBatchId: String,
   periodStart: Date,
   periodEnd: Date,
+  currency: { type: String, default: 'UGX' },
   status: { type: String, default: 'balanced', index: true },
   createdBy: String,
   createdAt: Date,

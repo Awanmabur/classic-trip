@@ -15,6 +15,7 @@ const onboardingRules = [
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('phone').trim().notEmpty().withMessage('Phone number is required'),
   body('country').optional().trim(),
+  body('operatingCurrency').optional().trim().isIn(['UGX', 'KES', 'RWF', 'TZS', 'USD']).withMessage('Unsupported operating currency'),
   body('city').optional().trim(),
   body('description').optional().trim(),
 ];

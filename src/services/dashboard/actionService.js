@@ -153,7 +153,9 @@ async function updateCompanySettings(companyId, payload = {}, actorId = 'company
   };
   company.settings = {
     ...(company.settings || {}),
-    defaultCurrency: cleanText(payload.defaultCurrency || payload.currency || company.settings?.defaultCurrency || 'UGX'),
+    // defaultCurrency is never accepted from the request here - operatingCurrency is the
+    // single source of truth and is immutable after company creation (see companyService).
+    defaultCurrency: company.operatingCurrency || company.settings?.defaultCurrency || 'UGX',
     payoutAccount: cleanText(payload.payoutAccount || company.settings?.payoutAccount || company.payoutAccount || ''),
     supportMessage: cleanText(payload.supportMessage || company.settings?.supportMessage || ''),
   };
@@ -167,7 +169,7 @@ async function updateCompanySettings(companyId, payload = {}, actorId = 'company
 async function requestCompanyPayout(companyId, payload = {}, actorId = 'company-admin') {
   ensureCollections();
   const company = findCompanyOrThrow(companyId);
-  const wallet = walletService.getOrCreateWallet('company', company.id, payload.currency || company.settings?.defaultCurrency || 'UGX');
+  const wallet = await walletService.getOrCreateWallet('company', company.id, company.operatingCurrency || 'UGX');
   const amount = amountValue(payload.amount, wallet.availableBalance);
   const result = await settlementService.requestOwnerPayout('company', company.id, amount, {
     ...payload,

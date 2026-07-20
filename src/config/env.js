@@ -155,6 +155,7 @@ const env = {
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
     expirePromotions: process.env.JOB_EXPIRE_PROMOTIONS || '*/30 * * * *',
     payoutReports: process.env.JOB_PAYOUT_REPORTS || '0 6 * * *',
+    materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '0 3 * * *',
   },
   demoPassword: isTestEnv ? 'Password123' : (process.env.DEMO_PASSWORD || 'Password123'),
   // Require explicit opt-in everywhere (not just literal NODE_ENV=production) so a staging

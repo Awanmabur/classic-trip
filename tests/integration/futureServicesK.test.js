@@ -35,7 +35,7 @@ describe('Master section K - future services architecture', () => {
     expect(bookingPage.text).toContain('Coming soon / read-only');
     expect(bookingPage.text).toContain('Flights');
 
-    expect(() => store.createBooking({ listingId: futureListing.id, fullName: 'Section K Customer', email: 'section-k@classictrip.test', phone: '+256700999000' })).toThrow(/not currently open for booking|not fully bookable|coming soon/i);
+    await expect(store.createBooking({ listingId: futureListing.id, fullName: 'Section K Customer', email: 'section-k@classictrip.test', phone: '+256700999000' })).rejects.toThrow(/not currently open for booking|not fully bookable|coming soon/i);
 
     const publicJson = await request(app).get('/future-services.json').expect(200);
     expect(publicJson.body.modules.length).toBeGreaterThanOrEqual(9);

@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const driverAssignmentSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   companyId: { type: String, required: true, index: true },
   employeeId: { type: String, required: true, index: true },
   driverUserId: { type: String, index: true },

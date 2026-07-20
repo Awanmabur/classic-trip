@@ -2,6 +2,7 @@ const store = require('../data/persistentStore');
 const toSlug = require('../../utils/slugify');
 const { ENABLED_BOOKING_TYPES, COMPANY_STATUS, LISTING_STATUS } = require('../../config/constants');
 const { mongoose } = require('../../config/db');
+const { nextId } = require('../data/idService');
 
 const SERVICE_LABELS = {
   bus: 'Bus',
@@ -111,16 +112,6 @@ function payloadMedia(payload = {}, label = 'Classic Trip media') {
     alt: cleanText(payload.imageAlt || label),
     label: cleanText(payload.imageLabel || label),
   }];
-}
-
-function nextId(prefix, rows) {
-  let index = rows.length + 1;
-  let id = `${prefix}-${index}`;
-  while (rows.some((row) => row.id === id)) {
-    index += 1;
-    id = `${prefix}-${index}`;
-  }
-  return id;
 }
 
 function uniqueSlug(base, rows, existingId = '') {
@@ -388,7 +379,7 @@ async function createCompany(payload = {}) {
     throw error;
   }
   const company = {
-    id: nextId('company', store.state.companies),
+    id: await nextId('company'),
     ownerId: payload.ownerId || null,
     name,
     slug: uniqueSlug(payload.slug || name, store.state.companies),
@@ -405,6 +396,9 @@ async function createCompany(payload = {}) {
     },
     ratingAverage: 0,
     reviewCount: 0,
+    // Set once, at creation - every listing and schedule this company ever creates inherits
+    // this currency, so it can never end up with money in more than one unit.
+    operatingCurrency: cleanText(payload.operatingCurrency || payload.currency || 'UGX'),
     settings: { instantConfirmation: false, canPublish: false },
     createdAt: new Date().toISOString(),
   };
@@ -471,7 +465,7 @@ async function createListing(companyId, payload = {}) {
   const bookable = status === LISTING_STATUS.ACTIVE && ENABLED_BOOKING_TYPES.includes(serviceType);
   const media = payloadMedia(payload, title);
   const listing = {
-    id: nextId('listing', store.state.listings),
+    id: await nextId('listing'),
     companyId: company.id,
     companySlug: company.slug,
     companyName: company.name,
@@ -489,7 +483,9 @@ async function createListing(companyId, payload = {}) {
     corridor: cleanText(payload.corridor || listingRouteLabel(payload).toLowerCase().replace(/\s+to\s+/i, '-')),
     price: moneyValue(payload.priceFrom || payload.price),
     priceFrom: moneyValue(payload.priceFrom || payload.price),
-    currency: cleanText(payload.currency || 'UGX'),
+    // Currency is never accepted from the request - it's always the company's own operating
+    // currency, so a listing can never end up priced in a currency its own company doesn't use.
+    currency: cleanText(company.operatingCurrency || 'UGX'),
     media,
     img: media[0]?.url || '',
     amenities: parseList(payload.amenities),
@@ -536,7 +532,9 @@ async function updateListing(companyId, listingId, payload = {}) {
   const company = findCompanyOrThrow(companyId);
   const listing = findCompanyListingOrThrow(company.id, listingId);
   if (payload.status === LISTING_STATUS.ACTIVE || payload.publish === true || payload.publish === 'true') ensureCompanyCanPublish(company);
-  const fields = ['title', 'sub', 'description', 'city', 'country', 'address', 'from', 'to', 'corridor', 'currency', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions'];
+  // Currency is never editable after creation - it always tracks the company's operating
+  // currency, set once when the listing was created.
+  const fields = ['title', 'sub', 'description', 'city', 'country', 'address', 'from', 'to', 'corridor', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions'];
   fields.forEach((field) => {
     if (typeof payload[field] !== 'undefined') listing[field === 'description' ? 'sub' : field] = cleanText(payload[field]);
   });
@@ -591,7 +589,7 @@ async function createRoute(companyId, payload = {}) {
     throw error;
   }
   const route = {
-    id: nextId('route', store.state.routes),
+    id: await nextId('route'),
     listingId: listing.id,
     companyId: company.id,
     routeName: cleanText(payload.routeName || payload.name || `${origin} to ${destination}`),
@@ -613,8 +611,8 @@ async function createRoute(companyId, payload = {}) {
     status: cleanText(payload.status || 'active'),
     createdAt: new Date().toISOString(),
   };
-  const stops = parseStops(payload.stops).map((stop, index) => ({
-    id: `route-stop-${store.state.routeStops.length + index + 1}`,
+  const stops = (await Promise.all(parseStops(payload.stops).map(async (stop, index) => ({
+    id: await nextId('route-stop'),
     routeId: route.id,
     listingId: listing.id,
     companyId: company.id,
@@ -627,7 +625,7 @@ async function createRoute(companyId, payload = {}) {
     publicInstructions: cleanText(stop.publicInstructions || stop.instructions || ''),
     status: cleanText(stop.status || 'active'),
     createdAt: new Date().toISOString(),
-  })).filter((stop) => stop.name);
+  })))).filter((stop) => stop.name);
   route.stops = stops.map((stop) => ({
     id: stop.id,
     name: stop.name,
@@ -678,8 +676,8 @@ async function updateRoute(companyId, routeId, payload = {}) {
   if (payload.stops) {
     const existingStops = store.state.routeStops.filter((stop) => stop.routeId === route.id && stop.companyId === company.id);
     existingStops.forEach((stop) => { stop.status = 'archived'; stop.updatedAt = route.updatedAt; });
-    const replacements = parseStops(payload.stops).map((stop, index) => ({
-      id: `route-stop-${store.state.routeStops.length + index + 1}`,
+    const replacements = (await Promise.all(parseStops(payload.stops).map(async (stop, index) => ({
+      id: await nextId('route-stop'),
       routeId: route.id,
       listingId: listing.id,
       companyId: company.id,
@@ -692,7 +690,7 @@ async function updateRoute(companyId, routeId, payload = {}) {
       publicInstructions: cleanText(stop.publicInstructions || stop.instructions || ''),
       status: cleanText(stop.status || 'active'),
       createdAt: route.updatedAt,
-    })).filter((stop) => stop.name);
+    })))).filter((stop) => stop.name);
     store.state.routeStops.push(...replacements);
     await upsertMany('RouteStop', [...existingStops, ...replacements]);
   }
@@ -714,7 +712,7 @@ async function createRouteStop(companyId, routeId, payload = {}, actorId = 'comp
     throw error;
   }
   const stop = {
-    id: nextId('route-stop', store.state.routeStops),
+    id: await nextId('route-stop'),
     routeId: route.id,
     listingId: listing.id,
     companyId: company.id,
@@ -828,7 +826,7 @@ async function createVehicle(companyId, payload = {}) {
   const cols = layoutName === '2x1' || layoutName === 'sleeper' ? 3 : layoutName === '2x3' ? 5 : layoutName === 'flight-3x3' ? 6 : 4;
   const totalSeats = Math.max(1, Math.round(moneyValue(payload.totalSeats, layoutSeatCount(layoutName, rows, 32))));
   const vehicle = {
-    id: nextId('vehicle', store.state.vehicles),
+    id: await nextId('vehicle'),
     companyId: company.id,
     listingId: listing?.id || '',
     serviceType,
@@ -1052,7 +1050,7 @@ async function createSchedule(companyId, payload = {}) {
   const totalSeats = Math.max(1, Math.round(moneyValue(payload.totalSeats, vehicle?.totalSeats || seatList.length || 32)));
   const blockedSeats = new Set(parseList(payload.blockedSeats));
   const schedule = {
-    id: nextId('schedule', store.state.schedules),
+    id: await nextId('schedule'),
     routeId: route.id,
     listingId: listing.id,
     companyId: company.id,
@@ -1064,7 +1062,9 @@ async function createSchedule(companyId, payload = {}) {
     arriveAt: payload.arriveAt ? new Date(payload.arriveAt).toISOString() : null,
     boardingStartAt: parseDate(payload.boardingStartAt),
     basePrice: moneyValue(payload.basePrice || payload.priceFrom, listing.priceFrom),
-    currency: cleanText(payload.currency || listing.currency || 'UGX'),
+    // Same rule as the listing: never accept a client-supplied currency, always inherit the
+    // listing's (which itself always matches the company's operating currency).
+    currency: cleanText(listing.currency || company.operatingCurrency || 'UGX'),
     fareClass: cleanText(payload.fareClass || 'standard'),
     gate: cleanText(payload.gate || ''),
     platform: cleanText(payload.platform || ''),
@@ -1072,6 +1072,7 @@ async function createSchedule(companyId, payload = {}) {
     totalSeats,
     availableSeats: 0,
     status: cleanText(payload.status || 'active'),
+    scheduleRuleId: cleanText(payload.scheduleRuleId || ''),
     createdAt: new Date().toISOString(),
   };
   const seats = seatList.slice(0, totalSeats).map((seatNumber, index) => ({
@@ -1148,6 +1149,115 @@ async function createScheduleBatch(companyId, payload = {}) {
   return { schedules, count: schedules.length };
 }
 
+function findCompanyScheduleRuleOrThrow(companyId, ruleId) {
+  const rule = store.state.scheduleRules.find((item) => item.id === ruleId && item.companyId === companyId);
+  if (!rule) {
+    const error = new Error('Recurring schedule rule not found for this company');
+    error.status = 404;
+    throw error;
+  }
+  return rule;
+}
+
+// Replaces createScheduleBatch's one-time burst-create with a standing rule that the daily
+// materializeSchedules job extends a bounded rolling window at a time - see the rule's
+// materializedThrough watermark. Every generated schedule still goes through the same
+// createSchedule() the wizard and single-departure form use, so there is one creation path.
+async function createScheduleRule(companyId, payload = {}, actorId = 'company-admin') {
+  const company = findCompanyOrThrow(companyId);
+  const route = findCompanyRouteOrThrow(company.id, payload.routeId);
+  const listing = findCompanyListingOrThrow(company.id, route.listingId);
+  if (!ROUTED_SERVICE_TYPES.includes(listing.serviceType)) {
+    const error = new Error('Recurring departures can only be created for transport-style listings');
+    error.status = 422;
+    throw error;
+  }
+  const vehicle = findCompanyVehicleOrThrow(company.id, payload.vehicleId);
+  if (vehicle.listingId && vehicle.listingId !== listing.id) {
+    const error = new Error('Selected vehicle is linked to a different listing');
+    error.status = 422;
+    throw error;
+  }
+  const departureTime = cleanText(payload.departureTime);
+  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(departureTime)) {
+    const error = new Error('Departure time must be in HH:MM 24-hour format');
+    error.status = 422;
+    throw error;
+  }
+  const startDate = payload.startDate ? new Date(`${String(payload.startDate).slice(0, 10)}T00:00:00`) : new Date();
+  if (Number.isNaN(startDate.getTime())) {
+    const error = new Error('A valid start date is required');
+    error.status = 422;
+    throw error;
+  }
+  const endDate = payload.endDate ? new Date(`${String(payload.endDate).slice(0, 10)}T23:59:59`) : null;
+  if (endDate && Number.isNaN(endDate.getTime())) {
+    const error = new Error('End date is invalid');
+    error.status = 422;
+    throw error;
+  }
+  const rule = {
+    id: await nextId('schedule-rule'),
+    companyId: company.id,
+    listingId: listing.id,
+    routeId: route.id,
+    vehicleId: vehicle.id,
+    departureTime,
+    daysOfWeek: Array.from(allowedWeekdaySet(payload.daysOfWeek)),
+    startDate: startDate.toISOString(),
+    endDate: endDate ? endDate.toISOString() : null,
+    durationMinutes: Math.round(moneyValue(payload.durationMinutes, 0)) || null,
+    basePrice: moneyValue(payload.basePrice || payload.priceFrom, listing.priceFrom),
+    fareClass: cleanText(payload.fareClass || 'standard'),
+    notes: cleanText(payload.notes || ''),
+    blockedSeats: parseList(payload.blockedSeats),
+    driverIds: parseList(payload.driverIds),
+    vipPriceDelta: moneyValue(payload.vipPriceDelta, 0),
+    status: 'active',
+    materializedThrough: null,
+    createdBy: actorId,
+    createdAt: new Date().toISOString(),
+  };
+  store.state.scheduleRules.push(rule);
+  await upsertModel('ScheduleRule', rule);
+  return rule;
+}
+
+async function setScheduleRuleStatus(companyId, ruleId, status, actorId = 'company-admin') {
+  const rule = findCompanyScheduleRuleOrThrow(companyId, ruleId);
+  rule.status = status;
+  rule.updatedBy = actorId;
+  rule.updatedAt = new Date().toISOString();
+  await upsertModel('ScheduleRule', rule);
+  return rule;
+}
+
+function pauseScheduleRule(companyId, ruleId, actorId = 'company-admin') {
+  return setScheduleRuleStatus(companyId, ruleId, 'paused', actorId);
+}
+
+function resumeScheduleRule(companyId, ruleId, actorId = 'company-admin') {
+  return setScheduleRuleStatus(companyId, ruleId, 'active', actorId);
+}
+
+// Cancelling only stops future materialization (the daily job skips non-active rules). Schedules
+// already materialized - including any with live bookings - are untouched; they remain valid,
+// independent TripSchedule documents exactly as if they'd been created one at a time.
+function cancelScheduleRule(companyId, ruleId, actorId = 'company-admin') {
+  return setScheduleRuleStatus(companyId, ruleId, 'cancelled', actorId);
+}
+
+// Called by the materializer job after it extends a rule's window; kept in companyService so all
+// ScheduleRule persistence goes through one place, consistent with every other company entity.
+async function recordScheduleRuleMaterialization(ruleId, materializedThrough) {
+  const rule = store.state.scheduleRules.find((item) => item.id === ruleId);
+  if (!rule) return null;
+  rule.materializedThrough = materializedThrough;
+  rule.updatedAt = new Date().toISOString();
+  await upsertModel('ScheduleRule', rule);
+  return rule;
+}
+
 async function updateSchedule(companyId, scheduleId, payload = {}) {
   const company = findCompanyOrThrow(companyId);
   const schedule = findCompanyScheduleOrThrow(company.id, scheduleId);
@@ -1167,7 +1277,8 @@ async function updateSchedule(companyId, scheduleId, payload = {}) {
   if (payload.arriveAt) schedule.arriveAt = new Date(payload.arriveAt).toISOString();
   if (payload.boardingStartAt) schedule.boardingStartAt = new Date(payload.boardingStartAt).toISOString();
   if (typeof payload.basePrice !== 'undefined') schedule.basePrice = moneyValue(payload.basePrice, schedule.basePrice);
-  if (payload.currency) schedule.currency = cleanText(payload.currency);
+  // Currency is never editable after creation - it always tracks the company's operating
+  // currency, set once when the schedule (and its listing) was created.
   if (payload.fareClass) schedule.fareClass = cleanText(payload.fareClass);
   if (payload.gate) schedule.gate = cleanText(payload.gate);
   if (payload.platform) schedule.platform = cleanText(payload.platform);
@@ -1260,7 +1371,7 @@ async function completeSchedule(companyId, scheduleId, payload = {}, actorId = '
     booking.bookingStatus = 'completed';
     booking.completedAt = booking.completedAt || now;
     booking.completedBy = actorId;
-    const released = releaseService.releaseCompletedBooking(booking.bookingRef) || [];
+    const released = (await releaseService.releaseCompletedBooking(booking.bookingRef)) || [];
     releasedCommissions.push(...released);
     await timelineService.recordEvent({
       bookingRef: booking.bookingRef,
@@ -1281,7 +1392,7 @@ async function completeSchedule(companyId, scheduleId, payload = {}, actorId = '
   }
 
   const update = {
-    id: nextId('trip-status', store.state.tripStatusUpdates || []),
+    id: await nextId('trip-status'),
     companyId,
     scheduleId: schedule.id,
     status: 'completed',
@@ -1314,7 +1425,6 @@ async function duplicateSchedule(companyId, scheduleId, payload = {}, actorId = 
     arriveAt: payload.arriveAt || '',
     boardingStartAt: payload.boardingStartAt || '',
     basePrice: payload.basePrice || original.basePrice,
-    currency: payload.currency || original.currency,
     fareClass: payload.fareClass || original.fareClass,
     gate: payload.gate || original.gate,
     platform: payload.platform || original.platform,
@@ -1371,7 +1481,7 @@ async function createRoom(companyId, payload = {}) {
     throw error;
   }
   const room = {
-    id: nextId('room', store.state.rooms),
+    id: await nextId('room'),
     listingId: listing.id,
     companyId: company.id,
     roomType: cleanText(payload.roomType || payload.name || 'Standard Room'),
@@ -1429,7 +1539,7 @@ async function createBranch(companyId, payload = {}, actorId = 'company-admin') 
     throw error;
   }
   const branch = {
-    id: nextId('branch', store.state.companyBranches),
+    id: await nextId('branch'),
     companyId: company.id,
     name,
     branchType: cleanText(payload.branchType || 'terminal'),
@@ -1463,7 +1573,7 @@ async function createPolicy(companyId, payload = {}, actorId = 'company-admin') 
     throw error;
   }
   const policy = {
-    id: nextId('policy', store.state.companyPolicies),
+    id: await nextId('policy'),
     companyId: company.id,
     title,
     policyType: cleanText(payload.policyType || 'operations'),
@@ -1538,7 +1648,7 @@ async function assignDriver(companyId, employeeId, payload = {}, actorId = 'comp
     throw error;
   }
   const assignment = {
-    id: nextId('driver-assignment', store.state.driverAssignments),
+    id: await nextId('driver-assignment'),
     companyId,
     employeeId: employee.id,
     driverUserId: employee.userId,
@@ -1611,7 +1721,7 @@ async function updateTripStatus(companyId, scheduleId, payload = {}, actorId = '
     throw error;
   }
   const update = {
-    id: nextId('trip-status', store.state.tripStatusUpdates),
+    id: await nextId('trip-status'),
     companyId,
     scheduleId: schedule.id,
     vehicleId: schedule.vehicleId || '',
@@ -1648,7 +1758,7 @@ async function createDriverIncident(companyId, payload = {}, actorId = 'driver',
     throw error;
   }
   const incident = {
-    id: nextId('driver-incident', store.state.driverIncidents),
+    id: await nextId('driver-incident'),
     companyId,
     scheduleId: schedule?.id || cleanText(payload.scheduleId || ''),
     bookingRef: cleanText(payload.bookingRef || ''),
@@ -1690,7 +1800,7 @@ async function inviteEmployee(companyId, payload = {}) {
   let employee = store.state.companyEmployees.find((item) => item.companyId === company.id && item.userId === user.id);
   if (!employee) {
     employee = {
-      id: nextId('company-employee', store.state.companyEmployees),
+      id: await nextId('company-employee'),
       companyId: company.id,
       userId: user.id,
       roleTitle: cleanText(payload.roleTitle || 'Ticket Checker'),
@@ -1972,6 +2082,11 @@ module.exports = {
   updateVehicleStatus,
   createSchedule,
   createScheduleBatch,
+  createScheduleRule,
+  pauseScheduleRule,
+  resumeScheduleRule,
+  cancelScheduleRule,
+  recordScheduleRuleMaterialization,
   updateSchedule,
   publishSchedule,
   archiveSchedule,

@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const companyBranchSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   companyId: { type: String, required: true, index: true },
   name: { type: String, required: true, trim: true },
   branchType: { type: String, default: 'terminal', index: true },

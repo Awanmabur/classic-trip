@@ -12,7 +12,7 @@ async function login(email) {
   return agent;
 }
 
-function ensureCustomerBooking() {
+async function ensureCustomerBooking() {
   const existing = store.state.bookings.find((booking) => booking.customerUserId === 'user-customer-001' && booking.companyId === 'company-01');
   if (existing) return existing;
   return store.createBooking({
@@ -27,7 +27,7 @@ function ensureCustomerBooking() {
 }
 
 test('customer support, refund, and reschedule actions write one booking timeline visible to all operational dashboards', async () => {
-  const booking = ensureCustomerBooking();
+  const booking = await ensureCustomerBooking();
   const customer = await login('amina@classictrip.test');
 
   await customer

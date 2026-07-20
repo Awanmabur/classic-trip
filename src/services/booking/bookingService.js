@@ -1,14 +1,10 @@
 const store = require('../data/persistentStore');
-const { mongoose } = require('../../config/db');
 const { env } = require('../../config/env');
 const inventoryHoldService = require('./inventoryHoldService');
 const ticketAccessService = require('./ticketAccessService');
 const ticketScanService = require('../qr/ticketScanService');
 const timelineService = require('../support/timelineService');
-
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
-}
+const { mongoReady, runMongoUnitOfWork, sessionOptions } = require('../shared/mongoUnitOfWork');
 
 async function persistPaymentIntent(intent = {}) {
   if (!mongoReady()) return;
@@ -18,47 +14,6 @@ async function persistPaymentIntent(intent = {}) {
     { $set: intent },
     { upsert: true, runValidators: true }
   );
-}
-
-function isStandaloneTransactionError(error = {}) {
-  const message = String(error.message || error.errmsg || '').toLowerCase();
-  return message.includes('transaction numbers are only allowed on a replica set member or mongos')
-    || message.includes('transaction numbers are only allowed')
-    || message.includes('replica set member or mongos')
-    || error.code === 20
-    || error.codeName === 'IllegalOperation';
-}
-
-async function runMongoUnitOfWork(work) {
-  if (!mongoReady()) return work(null);
-  if (!env.mongoTransactions) {
-    // Local MongoDB usually runs as a standalone server. Atomic findOneAndUpdate
-    // operations still protect seats/rooms, but multi-document transactions require
-    // Atlas, mongos, or a replica set.
-    return work(null);
-  }
-  const session = await mongoose.startSession();
-  try {
-    let result;
-    await session.withTransaction(async () => {
-      result = await work(session);
-    }, {
-      readConcern: { level: 'snapshot' },
-      writeConcern: { w: 'majority' },
-    });
-    return result;
-  } catch (error) {
-    if (isStandaloneTransactionError(error)) {
-      return work(null);
-    }
-    throw error;
-  } finally {
-    await session.endSession();
-  }
-}
-
-function sessionOptions(session, extra = {}) {
-  return session ? { ...extra, session } : extra;
 }
 
 async function recordBookingTimeline(booking = {}, action, title, message = '', meta = {}) {
@@ -461,7 +416,7 @@ async function createGuestBooking(payload, req) {
   const paymentService = require('../payment/paymentService');
   const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider || env.paymentProvider);
   const transactionStartIndex = store.state.walletTransactions.length;
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     ...payload,
     deferPayment: provider !== 'mock',
   }, req);
@@ -511,7 +466,7 @@ async function createGuestBooking(payload, req) {
     booking.paymentStatus = payment.status || booking.paymentStatus;
     if (booking.paymentStatus === 'successful') {
       booking.bookingStatus = 'confirmed';
-      store.settleBookingPayment(booking.bookingRef);
+      await store.settleBookingPayment(booking.bookingRef);
       await recordBookingTimeline(booking, 'payment.succeeded', `Payment received for ${booking.bookingRef}`, 'Payment was confirmed and tickets are valid for operation.', { entityType: 'payment', entityId: payment.providerReference || booking.paymentRef || '', status: 'successful', metadata: { provider: payment.provider } });
       await recordBookingTimeline(booking, 'ticket.issued', `Ticket issued for ${booking.bookingRef}`, `${(booking.ticketLegs || []).length || 1} ticket leg(s) are available for QR validation.`, { entityType: 'ticket', entityId: booking.ticketLegs?.[0]?.id || booking.bookingRef, status: 'issued' });
     } else {
@@ -644,7 +599,7 @@ async function validateTicket(value, employeeId = 'employee-system', companyId =
   if (result.booking) result.listing = store.findListing(result.booking.listingId);
   await ticketScanService.recordScan('validate', value, result, { ...context, userId: employeeId, companyId });
   if (result.ok && result.booking?.bookingStatus === 'checked_in') {
-    const released = releaseService.releaseCompletedBooking(result.booking.bookingRef) || [];
+    const released = (await releaseService.releaseCompletedBooking(result.booking.bookingRef)) || [];
     result.releasedCommissions = released;
     await recordBookingTimeline(result.booking, 'ticket.checked_in', `Ticket checked in for ${result.booking.bookingRef}`, result.message || 'Passenger check-in was accepted.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: 'checked_in', metadata: { location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
     await persistCheckIn(result.booking);

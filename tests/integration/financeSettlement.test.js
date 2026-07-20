@@ -8,10 +8,10 @@ async function login(email) {
   return agent;
 }
 
-function ensureCompletedReferralBooking() {
+async function ensureCompletedReferralBooking() {
   let booking = store.state.bookings.find((row) => row.companyId === 'company-01' && row.promoterAttribution?.promoterId === 'user-promoter-001');
   if (!booking) {
-    booking = store.createBooking({
+    booking = await store.createBooking({
       listingId: 'bus-001',
       scheduleId: 'schedule-0001',
       seatNumber: '8',
@@ -31,7 +31,7 @@ function ensureCompletedReferralBooking() {
 }
 
 test('finance settlement workflow releases commissions, creates statements, batches payouts, and reconciles ledger', async () => {
-  const booking = ensureCompletedReferralBooking();
+  const booking = await ensureCompletedReferralBooking();
   const admin = await login('admin@classictrip.test');
 
   await admin.post('/admin/finance/release-eligible').type('form').send({}).expect(302);

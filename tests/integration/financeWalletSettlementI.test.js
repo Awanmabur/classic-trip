@@ -9,11 +9,11 @@ async function login(email) {
   return agent;
 }
 
-function ensurePaidCompletedBooking() {
+async function ensurePaidCompletedBooking() {
   const listing = store.state.listings.find((item) => item.id === 'bus-001') || store.state.listings.find((item) => item.serviceType === 'bus' && item.bookable);
   const schedule = store.schedulesForListing(listing.id)[0];
   const availableSeat = store.seatsForSchedule(schedule.id).find((seat) => seat.status === 'available');
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     scheduleId: schedule.id,
     seatNumber: availableSeat?.seatNumber || '1',
@@ -32,13 +32,13 @@ function ensurePaidCompletedBooking() {
   store.state.commissions = store.state.commissions.filter((row) => row.bookingId !== booking.id);
   store.state.walletTransactions = store.state.walletTransactions.filter((row) => row.referenceId !== booking.id);
   booking.settlementStatus = null;
-  store.settleBookingPayment(booking.bookingRef);
+  await store.settleBookingPayment(booking.bookingRef);
   return booking;
 }
 
 describe('Master section I - Finance, wallet, commission, and settlement', () => {
   test('I is end-to-end: payment intents, receipts/invoices, ledger splits, release, payout risk, statements, and finance exports', async () => {
-    const booking = ensurePaidCompletedBooking();
+    const booking = await ensurePaidCompletedBooking();
     const admin = await login('admin@classictrip.test');
 
     await settlementService.recordPaymentIntent({

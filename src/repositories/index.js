@@ -93,6 +93,8 @@ const entityModelMap = {
   shiftHandovers: 'ShiftHandover',
   blogPosts: 'BlogPost',
   blogs: 'BlogPost',
+  counters: 'Counter',
+  scheduleRules: 'ScheduleRule',
 };
 
 const filterOverrides = {
@@ -169,6 +171,9 @@ const filterOverrides = {
   corporateTravelAccounts: (row) => ({ id: row.id }),
   loyaltyAccounts: (row) => ({ id: row.id }),
   settings: (row) => ({ key: row.key || row.id }),
+  // Counter's primary key is _id (the entity prefix, e.g. "listing"), not the usual id field.
+  counters: (row) => ({ _id: row._id }),
+  scheduleRules: (row) => ({ id: row.id }),
 };
 
 const repositories = Object.fromEntries(Object.entries(entityModelMap).map(([entity, modelName]) => [

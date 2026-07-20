@@ -48,7 +48,7 @@ describe('Master section J - Promoter and agent system', () => {
     expect(store.state.referralClicks.find((row) => row.code === link.code)).toBeTruthy();
     expect(store.state.attributionSessions.find((row) => row.referralCode === link.code && row.status === 'active')).toBeTruthy();
 
-    const booking = store.createBooking({
+    const booking = await store.createBooking({
       listingId: 'bus-001',
       scheduleId: 'schedule-0001',
       seatNumber: nextAvailableSeat(),
@@ -81,7 +81,7 @@ describe('Master section J - Promoter and agent system', () => {
     expect(sale).toBeTruthy();
     expect(store.findBooking(sale.bookingRef).bookingChannel).toBe('agent_offline');
 
-    const riskyBooking = store.createBooking({
+    const riskyBooking = await store.createBooking({
       listingId: 'bus-001',
       scheduleId: 'schedule-0001',
       seatNumber: nextAvailableSeat(),

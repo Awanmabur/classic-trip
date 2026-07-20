@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const financeStatementSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   statementRef: { type: String, index: true },
   ownerType: { type: String, index: true },
   ownerId: { type: String, index: true },

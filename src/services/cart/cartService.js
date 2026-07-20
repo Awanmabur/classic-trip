@@ -350,18 +350,18 @@ function buildBooking(cart, payment, lines) {
     createdAt: nowIso(),
   };
 }
-function recordLedgerAndCommission(booking, lines) {
+async function recordLedgerAndCommission(booking, lines) {
   const currency = booking.pricing.currency || 'UGX';
-  walletService.creditAvailable('platform', 'platform', booking.pricing.split.platformFee || 0, { currency, transactionType: 'cart_platform_fee', referenceType: 'cart_booking', referenceId: booking.id });
+  await walletService.creditAvailable('platform', 'platform', currency, booking.pricing.split.platformFee || 0, { transactionType: 'cart_platform_fee', referenceType: 'cart_booking', referenceId: booking.id });
   const byCompany = new Map();
   lines.forEach((line) => byCompany.set(line.companyId, (byCompany.get(line.companyId) || 0) + Number(line.price || 0)));
   const totalLineAmount = Array.from(byCompany.values()).reduce((sum, value) => sum + value, 0) || 1;
-  byCompany.forEach((gross, companyId) => {
+  for (const [companyId, gross] of byCompany) {
     const companyShare = Math.round((booking.pricing.split.companyAmount || 0) * (gross / totalLineAmount));
-    walletService.creditPending('company', companyId, companyShare, { currency, transactionType: 'cart_company_earning_pending', referenceType: 'cart_booking', referenceId: booking.id });
-  });
+    await walletService.creditPending('company', companyId, currency, companyShare, { transactionType: 'cart_company_earning_pending', referenceType: 'cart_booking', referenceId: booking.id });
+  }
   if (booking.promoterAttribution?.promoterId) {
-    walletService.creditPending('promoter', booking.promoterAttribution.promoterId, booking.pricing.split.promoterAmount || 0, { currency, transactionType: 'cart_promoter_commission_pending', referenceType: 'cart_booking', referenceId: booking.id });
+    await walletService.creditPending('promoter', booking.promoterAttribution.promoterId, currency, booking.pricing.split.promoterAmount || 0, { transactionType: 'cart_promoter_commission_pending', referenceType: 'cart_booking', referenceId: booking.id });
   }
   commissionService.createCommission(booking, Boolean(booking.promoterAttribution), booking.pricing.split);
 }
@@ -394,7 +394,7 @@ async function checkout(cartRefValue, payload = {}, req = {}) {
     store.state.bookings.unshift(booking);
     const paymentRow = { id: nextId('payment', store.state.payments), bookingId: booking.id, bookingRef: booking.bookingRef, amount: cart.pricing.total, currency: cart.pricing.currency, status: payment.status || 'pending', provider: payment.provider || provider, providerReference: payment.providerReference, customerUserId: cart.userId || null, idempotencyKey: `cart:${cart.cartRef}`, metadata: { cartRef: cart.cartRef, itemCount: cart.items.length, ticketCount: booking.ticketLegs.length }, checkoutUrl: payment.checkoutUrl || '', createdAt: nowIso(), paidAt: (payment.status || 'pending') === 'successful' ? (payment.paidAt || nowIso()) : null };
     store.state.payments.unshift(paymentRow);
-    if (paymentRow.status === 'successful') recordLedgerAndCommission(booking, cart.validation.lines);
+    if (paymentRow.status === 'successful') await recordLedgerAndCommission(booking, cart.validation.lines);
     cart.status = paymentRow.status === 'successful' ? 'checked_out' : 'payment_pending';
     cart.paymentId = paymentRow.id; cart.paymentRef = paymentRow.providerReference; cart.checkoutUrl = paymentRow.checkoutUrl || ''; cart.bookingRef = booking.bookingRef; cart.childBookingRefs = [booking.bookingRef]; cart.checkedOutAt = nowIso(); cart.recoveryState = null;
     attempt.status = 'completed'; attempt.bookingRef = booking.bookingRef; attempt.paymentId = paymentRow.id; attempt.providerReference = paymentRow.providerReference; attempt.resolvedAt = nowIso();

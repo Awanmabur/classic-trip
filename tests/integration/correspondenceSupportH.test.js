@@ -9,7 +9,7 @@ async function login(email) {
   return agent;
 }
 
-function ensureBooking() {
+async function ensureBooking() {
   const existing = store.state.bookings.find((booking) => booking.customerUserId === 'user-customer-001' && booking.companyId === 'company-01');
   if (existing) return existing;
   return store.createBooking({
@@ -24,7 +24,7 @@ function ensureBooking() {
 }
 
 test('section H correspondence center links support, internal notes, delivery attempts, and visible timelines', async () => {
-  const booking = ensureBooking();
+  const booking = await ensureBooking();
   const customer = await login('amina@classictrip.test');
   await customer
     .post('/account/support')

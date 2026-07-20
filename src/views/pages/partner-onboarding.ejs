@@ -46,9 +46,17 @@
               <option value="event">Event ticketing</option>
             </select>
             <input name="country" placeholder="Country" value="Uganda">
+            <select name="operatingCurrency">
+              <option value="UGX">Operating currency: UGX</option>
+              <option value="KES">Operating currency: KES</option>
+              <option value="RWF">Operating currency: RWF</option>
+              <option value="TZS">Operating currency: TZS</option>
+              <option value="USD">Operating currency: USD</option>
+            </select>
             <input name="city" placeholder="City / branch">
             <textarea class="full" name="description" placeholder="What services will you sell on Classic Trip?" style="border-radius:22px;min-height:90px"></textarea>
           </div>
+          <p class="muted" style="margin:6px 0 0;font-size:12px">Your operating currency applies to every listing and departure you create, and can't be changed after your account is set up - choose the currency you actually price in.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
             <a class="btn btnGhost" href="/pricing"><i class="fa-solid fa-table-list"></i> Compare plans</a>
             <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Continue to payment</button>

@@ -115,17 +115,16 @@ function refundRatio(booking, refund) {
   return Math.max(0, Math.min(1, Number(refund.amount || 0) / total));
 }
 
-function applyRefundReversals(booking, refund, adminId) {
+async function applyRefundReversals(booking, refund, adminId) {
   const ratio = refundRatio(booking, refund);
   const fullRefund = ratio >= 0.999;
   const split = booking.pricing?.split || {};
   const currency = refund.currency || booking.pricing?.currency || 'UGX';
   const reversals = [];
 
-  const reverse = (ownerType, ownerId, amount, transactionType) => {
+  const reverse = async (ownerType, ownerId, amount, transactionType) => {
     if (!ownerId || amount <= 0) return null;
-    const result = walletService.reverseEarning(ownerType, ownerId, amount, {
-      currency,
+    const result = await walletService.reverseEarning(ownerType, ownerId, currency, amount, {
       transactionType,
       referenceType: 'refund',
       referenceId: refund.id,
@@ -146,10 +145,10 @@ function applyRefundReversals(booking, refund, adminId) {
     return result;
   };
 
-  reverse('platform', 'platform', roundMoney(Number(split.platformFee || 0) * ratio), 'refund_platform_debit');
-  reverse('company', booking.companyId, roundMoney(Number(split.companyAmount || 0) * ratio), 'refund_company_debit');
+  await reverse('platform', 'platform', roundMoney(Number(split.platformFee || 0) * ratio), 'refund_platform_debit');
+  await reverse('company', booking.companyId, roundMoney(Number(split.companyAmount || 0) * ratio), 'refund_company_debit');
   if (booking.promoterAttribution?.promoterId) {
-    reverse('promoter', booking.promoterAttribution.promoterId, roundMoney(Number(split.promoterAmount || 0) * ratio), 'refund_promoter_debit');
+    await reverse('promoter', booking.promoterAttribution.promoterId, roundMoney(Number(split.promoterAmount || 0) * ratio), 'refund_promoter_debit');
   }
 
   const commissions = store.state.commissions.filter((item) => item.bookingId === booking.id);
@@ -173,7 +172,7 @@ function applyRefundReversals(booking, refund, adminId) {
   return reversals;
 }
 
-function approveRefund(refundId, adminId = 'admin-system') {
+async function approveRefund(refundId, adminId = 'admin-system') {
   const refund = store.state.refundRequests.find((item) => item.id === refundId || item.bookingRef === refundId);
   if (!refund) {
     const error = new Error('Refund request not found');
@@ -186,15 +185,14 @@ function approveRefund(refundId, adminId = 'admin-system') {
   refund.approvedBy = adminId;
   refund.approvedAt = new Date().toISOString();
   if (booking) {
-    applyRefundReversals(booking, refund, adminId);
+    await applyRefundReversals(booking, refund, adminId);
     const fullRefund = refund.fullRefund !== false;
     releaseRefundInventory(booking, refund);
     booking.bookingStatus = fullRefund ? 'refunded' : 'partially_refunded';
     booking.paymentStatus = fullRefund ? 'refunded' : 'partially_refunded';
     booking.refundedAt = new Date().toISOString();
     booking.refundId = refund.id;
-    walletService.creditAvailable('customer', booking.customerUserId || refund.requesterId || booking.guestSnapshot?.email || 'guest', refund.amount, {
-      currency: refund.currency || booking.pricing?.currency || 'UGX',
+    await walletService.creditAvailable('customer', booking.customerUserId || refund.requesterId || booking.guestSnapshot?.email || 'guest', refund.currency || booking.pricing?.currency || 'UGX', refund.amount, {
       transactionType: 'refund_credit',
       referenceType: 'refund',
       referenceId: refund.id,

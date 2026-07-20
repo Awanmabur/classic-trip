@@ -365,7 +365,7 @@ async function acceptInvitation(token, payload = {}) {
     company.settings = { ...(company.settings || {}), onboardingStep: 'verification', canPublish: false };
     company.updatedAt = acceptedAt;
     await persist('Company', company);
-    walletService.getOrCreateWallet('company', company.id, 'UGX');
+    await walletService.getOrCreateWallet('company', company.id, company.operatingCurrency || 'UGX');
     const companyReview = verificationService.getReview('company', company.id);
     companyReview.invitationId = invitation.id;
     companyReview.documents = Array.isArray(companyReview.documents) ? companyReview.documents : [];
@@ -423,7 +423,7 @@ async function acceptInvitation(token, payload = {}) {
     user.verificationDocumentType = submittedDocument?.documentType || user.verificationDocumentType;
     user.verificationReference = submittedDocument?.documentReference || user.verificationReference;
     user.promoterProfile = { ...(user.promoterProfile || {}), agreementSummary: cleanText(payload.agreementSummary || invitation.termsSummary), onboardingStatus: completion.completed ? 'profile_submitted' : 'profile_incomplete' };
-    walletService.getOrCreateWallet('promoter', user.id, 'UGX');
+    await walletService.getOrCreateWallet('promoter', user.id, 'UGX');
   }
   invitation.status = 'accepted';
   invitation.acceptedBy = user.id;

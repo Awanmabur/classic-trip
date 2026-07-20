@@ -3,21 +3,22 @@ const ledgerService = require('../wallet/ledgerService');
 const commissionService = require('./commissionService');
 const store = require('../data/persistentStore');
 
-function releaseCompletedBooking(bookingRef) {
+async function releaseCompletedBooking(bookingRef) {
   const booking = store.findBooking(bookingRef);
   if (!booking || !['checked_in', 'completed'].includes(booking.bookingStatus)) return null;
   if (!store.state.commissions.some((item) => item.bookingId === booking.id)) {
     commissionService.createCommission(booking, Boolean(booking.promoterAttribution), booking.pricing?.split);
   }
+  const currency = booking.pricing?.currency || 'UGX';
   const commissions = store.state.commissions.filter((item) => item.bookingId === booking.id && item.status === 'pending');
-  commissions.forEach((commission) => {
-    walletService.movePendingToAvailable('company', commission.companyId, commission.companyAmount, {
+  for (const commission of commissions) {
+    await walletService.movePendingToAvailable('company', commission.companyId, currency, commission.companyAmount, {
       transactionType: 'company_earning_released',
       referenceType: 'booking',
       referenceId: booking.id,
     });
     if (commission.promoterId && commission.promoterAmount > 0) {
-      walletService.movePendingToAvailable('promoter', commission.promoterId, commission.promoterAmount, {
+      await walletService.movePendingToAvailable('promoter', commission.promoterId, currency, commission.promoterAmount, {
         transactionType: 'promoter_commission_released',
         referenceType: 'booking',
         referenceId: booking.id,
@@ -29,7 +30,7 @@ function releaseCompletedBooking(bookingRef) {
     );
     commission.status = 'released';
     commission.releasedAt = new Date().toISOString();
-  });
+  }
   if (commissions.length) booking.earningsReleasedAt = new Date().toISOString();
   return commissions;
 }

@@ -33,7 +33,7 @@ function ensureAgent(agentId) {
   return agent;
 }
 
-function findOrCreateCustomer(payload = {}) {
+async function findOrCreateCustomer(payload = {}) {
   const email = cleanText(payload.email || payload.customerEmail).toLowerCase();
   const phone = cleanText(payload.phone || payload.customerPhone);
   const fullName = cleanText(payload.fullName || payload.customerName || payload.passengerName || 'Offline Customer');
@@ -57,7 +57,7 @@ function findOrCreateCustomer(payload = {}) {
     createdAt: new Date().toISOString(),
   };
   store.state.users.push(customer);
-  walletService.getOrCreateWallet('customer', customer.id, cleanText(payload.currency || 'UGX'));
+  await walletService.getOrCreateWallet('customer', customer.id, cleanText(payload.currency || 'UGX'));
   return customer;
 }
 
@@ -94,7 +94,7 @@ function assertReasonableAmount(listing, amountCollected, payload) {
   }
 }
 
-function createOfflineSale(payload = {}, context = {}) {
+async function createOfflineSale(payload = {}, context = {}) {
   const agent = ensureAgent(context.agentId || payload.agentId);
   const listing = store.findListing(payload.listingId || payload.slug);
   if (!listing) {
@@ -102,13 +102,13 @@ function createOfflineSale(payload = {}, context = {}) {
     error.status = 404;
     throw error;
   }
-  const customer = findOrCreateCustomer(payload);
+  const customer = await findOrCreateCustomer(payload);
   const link = store.state.promoterLinks.find((row) => row.promoterId === agent.id && row.listingId === listing.id && row.status !== 'archived')
     || store.state.promoterLinks.find((row) => row.promoterId === agent.id && row.status !== 'archived');
   const paymentMethod = cleanText(payload.paymentMethod || 'cash');
   const amountCollected = Math.max(0, Number(payload.amountCollected || payload.total || 0));
   assertReasonableAmount(listing, amountCollected, payload);
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     scheduleId: cleanText(payload.scheduleId),
     seatNumber: cleanText(payload.seatNumber || payload.selected),

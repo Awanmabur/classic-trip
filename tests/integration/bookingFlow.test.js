@@ -7,17 +7,17 @@ const workflowService = require('../../src/services/support/workflowService');
 const seatLockService = require('../../src/services/booking/seatLockService');
 const roomReservationService = require('../../src/services/booking/roomReservationService');
 
-test('creates a guest booking for a bookable listing', () => {
+test('creates a guest booking for a bookable listing', async () => {
   const listing = store.state.listings.find((item) => item.bookable);
-  const booking = store.createBooking({ listingId: listing.id, fullName: 'Test Guest', email: 'test@example.com', phone: '+256700123456' });
+  const booking = await store.createBooking({ listingId: listing.id, fullName: 'Test Guest', email: 'test@example.com', phone: '+256700123456' });
   expect(booking.bookingRef).toMatch(/^CT-/);
   expect(booking.paymentStatus).toBe('successful');
   expect(booking.qrCodeValue).toContain('CLASSIC-TRIP');
 });
 
-test('keeps selected add-ons in guest booking pricing', () => {
+test('keeps selected add-ons in guest booking pricing', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Addon Guest',
     email: 'addons@example.com',
@@ -95,7 +95,7 @@ test('seat and room holds are recorded and consumed during checkout', async () =
 
 test('scanner validates a paid ticket once', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
-  const booking = store.createBooking({ listingId: listing.id, fullName: 'Scan Guest', email: 'scan@example.com', phone: '+256700111222' });
+  const booking = await store.createBooking({ listingId: listing.id, fullName: 'Scan Guest', email: 'scan@example.com', phone: '+256700111222' });
   const scanCountBefore = store.state.ticketScans.length;
 
   const firstScan = await bookingService.validateTicket(booking.qrCodeValue, 'employee-test');
@@ -114,7 +114,7 @@ test('scanner validates a paid ticket once', async () => {
 
 test('scanner rejects unpaid tickets', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'hotel');
-  const booking = store.createBooking({ listingId: listing.id, fullName: 'Unpaid Guest', email: 'unpaid@example.com', phone: '+256700333444' });
+  const booking = await store.createBooking({ listingId: listing.id, fullName: 'Unpaid Guest', email: 'unpaid@example.com', phone: '+256700333444' });
   booking.paymentStatus = 'pending';
 
   const scan = await bookingService.validateTicket(booking.qrCodeValue, 'employee-test');
@@ -130,7 +130,7 @@ test('booking creates pending earnings and scanner releases company and promoter
     code: `18E-${Date.now()}`,
   });
 
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Finance Guest',
     email: 'finance@example.com',
@@ -139,8 +139,8 @@ test('booking creates pending earnings and scanner releases company and promoter
   });
 
   const commission = store.state.commissions.find((item) => item.bookingId === booking.id);
-  const companyWalletBefore = walletService.getWallet('company', listing.companyId);
-  const promoterWalletBefore = walletService.getWallet('promoter', link.promoterId);
+  const companyWalletBefore = walletService.getWallet('company', listing.companyId, booking.pricing.currency);
+  const promoterWalletBefore = walletService.getWallet('promoter', link.promoterId, booking.pricing.currency);
   const companyPendingBefore = companyWalletBefore.pendingBalance;
   const companyAvailableBefore = companyWalletBefore.availableBalance;
   const promoterPendingBefore = promoterWalletBefore.pendingBalance;
@@ -156,8 +156,8 @@ test('booking creates pending earnings and scanner releases company and promoter
   expect(scan.ok).toBe(true);
   expect(scan.releasedCommissions).toHaveLength(1);
 
-  const companyWalletAfter = walletService.getWallet('company', listing.companyId);
-  const promoterWalletAfter = walletService.getWallet('promoter', link.promoterId);
+  const companyWalletAfter = walletService.getWallet('company', listing.companyId, booking.pricing.currency);
+  const promoterWalletAfter = walletService.getWallet('promoter', link.promoterId, booking.pricing.currency);
   expect(commission.status).toBe('released');
   expect(booking.earningsReleasedAt).toBeTruthy();
   expect(companyWalletAfter.pendingBalance).toBe(companyPendingBefore - commission.companyAmount);
@@ -166,8 +166,7 @@ test('booking creates pending earnings and scanner releases company and promoter
   expect(promoterWalletAfter.availableBalance).toBe(promoterAvailableBefore + commission.promoterAmount);
   expect(store.state.walletTransactions.some((txn) => txn.referenceId === booking.id && txn.status === 'completed')).toBe(true);
 
-  const withdrawal = walletService.requestWithdrawal('promoter', link.promoterId, commission.promoterAmount, {
-    currency: booking.pricing.currency,
+  const withdrawal = await walletService.requestWithdrawal('promoter', link.promoterId, booking.pricing.currency, commission.promoterAmount, {
     referenceType: 'withdrawal',
     referenceId: `withdrawal-${booking.id}`,
   });
@@ -178,7 +177,7 @@ test('booking creates pending earnings and scanner releases company and promoter
   expect(approved.status).toBe('completed');
 });
 
-test('archived promoter links stop future attribution', () => {
+test('archived promoter links stop future attribution', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
   const link = promoterService.createLink({
     promoterId: 'user-promoter-archive',
@@ -193,7 +192,7 @@ test('archived promoter links stop future attribution', () => {
   });
 
   const click = store.recordReferralClick(link.code, listing.id);
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Archived Link Guest',
     email: 'archived-link@example.com',
@@ -207,7 +206,7 @@ test('archived promoter links stop future attribution', () => {
   expect(booking.promoterAttribution).toBeNull();
 });
 
-test('sponsored campaign is active and counts new bookings', () => {
+test('sponsored campaign is active and counts new bookings', async () => {
   let listing = store.state.listings.find((item) => item.bookable && !store.state.promotionCampaigns.some((campaign) => campaign.listingId === item.id && campaign.status === 'active'));
   if (!listing) {
     listing = store.state.listings.find((item) => item.bookable);
@@ -221,7 +220,7 @@ test('sponsored campaign is active and counts new bookings', () => {
   expect(result.listing.isSponsored).toBe(true);
   expect(promotionService.activeCampaigns(listing.companyId).some((campaign) => campaign.id === result.campaign.id)).toBe(true);
 
-  store.createBooking({
+  await store.createBooking({
     listingId: listing.id,
     fullName: 'Sponsored Guest',
     email: 'sponsored@example.com',
@@ -231,9 +230,9 @@ test('sponsored campaign is active and counts new bookings', () => {
   expect(result.campaign.bookings).toBe(beforeBookings + 1);
 });
 
-test('refund approval credits the customer wallet once and marks booking refunded', () => {
+test('refund approval credits the customer wallet once and marks booking refunded', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'hotel');
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Refund Guest',
     email: 'refund@example.com',
@@ -244,24 +243,24 @@ test('refund approval credits the customer wallet once and marks booking refunde
     requesterId: 'user-customer-refund',
     reason: '<b>Plans changed</b>',
   });
-  const walletBefore = walletService.getOrCreateWallet('customer', 'user-customer-refund').availableBalance;
+  const walletBefore = (await walletService.getOrCreateWallet('customer', 'user-customer-refund', booking.pricing.currency)).availableBalance;
 
-  const approved = workflowService.approveRefund(refund.id, 'admin-refund');
-  const walletAfterFirstApproval = walletService.getWallet('customer', 'user-customer-refund').availableBalance;
-  workflowService.approveRefund(refund.id, 'admin-refund');
+  const approved = await workflowService.approveRefund(refund.id, 'admin-refund');
+  const walletAfterFirstApproval = walletService.getWallet('customer', 'user-customer-refund', booking.pricing.currency).availableBalance;
+  await workflowService.approveRefund(refund.id, 'admin-refund');
 
   expect(approved.status).toBe('approved');
   expect(refund.reason).toBe('Plans changed');
   expect(booking.bookingStatus).toBe('refunded');
   expect(booking.paymentStatus).toBe('refunded');
   expect(walletAfterFirstApproval).toBe(walletBefore + refund.amount);
-  expect(walletService.getWallet('customer', 'user-customer-refund').availableBalance).toBe(walletAfterFirstApproval);
+  expect(walletService.getWallet('customer', 'user-customer-refund', booking.pricing.currency).availableBalance).toBe(walletAfterFirstApproval);
 });
 
 test('checked-in booking can be reviewed and dashboard rows reflect the review', async () => {
   const listing = store.state.listings.find((item) => item.bookable && item.serviceType === 'bus');
   const reviewCountBefore = Number(listing.reviewCount || 0);
-  const booking = store.createBooking({
+  const booking = await store.createBooking({
     listingId: listing.id,
     fullName: 'Review Guest',
     email: 'review@example.com',

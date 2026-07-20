@@ -55,7 +55,7 @@ describe('Master section G - Ticket, QR, and check-in', () => {
       status: 'published',
     });
 
-    const booking = store.createBooking({
+    const booking = await store.createBooking({
       listingId: listing.id,
       scheduleId: schedule.id,
       selectedSeats: '1,2',

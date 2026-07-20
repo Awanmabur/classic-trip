@@ -3,9 +3,9 @@ const store = require('../../services/data/persistentStore');
 
 function promoterId(req) { return req.session?.user?.id || 'user-promoter-001'; }
 
-function ensureAgentProfile(req, res, next) {
+async function ensureAgentProfile(req, res, next) {
   try {
-    networkService.ensureAgentProfile(promoterId(req), req.body, promoterId(req));
+    await networkService.ensureAgentProfile(promoterId(req), req.body, promoterId(req));
     res.redirect('/promoter/profile');
   } catch (error) { next(error); }
 }

@@ -68,13 +68,13 @@ describe('Clean dashboard chrome and visible booking features', () => {
     expect((checkout.text.match(/data-passenger-row/g) || []).length).toBeGreaterThanOrEqual(1);
   });
 
-  test('buyer information is saved and linked to multi-seat bookings', () => {
+  test('buyer information is saved and linked to multi-seat bookings', async () => {
     const listing = store.state.listings.find((item) => item.serviceType === 'bus' && item.bookable);
     const schedule = store.schedulesForListing(listing.id)[0];
     const seats = store.seatsForSchedule(schedule.id).filter((seat) => seat.status === 'available').slice(0, 2);
     expect(seats).toHaveLength(2);
 
-    const booking = store.createBooking({
+    const booking = await store.createBooking({
       listingId: listing.id,
       scheduleId: schedule.id,
       selectedSeats: seats.map((seat) => seat.seatNumber).join(','),

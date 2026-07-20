@@ -27,6 +27,10 @@ const jobs = {
     schedule: () => env.jobs.payoutReports,
     module: () => require('./payoutReports'),
   },
+  materializeSchedules: {
+    schedule: () => env.jobs.materializeSchedules,
+    module: () => require('./materializeSchedules'),
+  },
 };
 
 const scheduledTasks = new Map();

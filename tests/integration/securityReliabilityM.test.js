@@ -36,7 +36,7 @@ describe('Master section M - security and reliability', () => {
 
   test('M protects payment webhooks with signatures and idempotency records', async () => {
     const listing = store.state.listings.find((item) => item.bookable && item.status === 'active');
-    const booking = store.createBooking({ listingId: listing.id, fullName: 'Security Webhook Guest', email: 'security-webhook@example.com', phone: '+256700999001' });
+    const booking = await store.createBooking({ listingId: listing.id, fullName: 'Security Webhook Guest', email: 'security-webhook@example.com', phone: '+256700999001' });
     booking.paymentStatus = 'pending';
     booking.bookingStatus = 'pending';
     const payload = {

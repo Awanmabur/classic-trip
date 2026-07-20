@@ -1,8 +1,8 @@
 const offlineSalesService = require('../../services/promoter/offlineSalesService');
 
-function create(req, res, next) {
+async function create(req, res, next) {
   try {
-    offlineSalesService.createOfflineSale(req.body, { agentId: req.session?.user?.id || 'user-promoter-001' });
+    await offlineSalesService.createOfflineSale(req.body, { agentId: req.session?.user?.id || 'user-promoter-001' });
     res.redirect('/promoter/dashboard#offline-sales');
   } catch (error) {
     next(error);

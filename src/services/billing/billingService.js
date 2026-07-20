@@ -178,6 +178,7 @@ async function createOnboardingOrder(payload = {}, req = null) {
     email: contact.email,
     phone: contact.phone,
     description: payload.description || `Partner onboarding for ${cleanText(payload.name)}`,
+    operatingCurrency: payload.operatingCurrency,
   });
   const user = store.upsertUser({
     fullName: contact.name || `${company.name} admin`,

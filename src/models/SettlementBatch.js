@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const settlementBatchSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   batchNumber: { type: String, index: true },
   periodStart: Date,
   periodEnd: Date,

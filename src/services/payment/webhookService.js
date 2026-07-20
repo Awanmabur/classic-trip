@@ -312,7 +312,7 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
     await releaseCancelledInventory(booking);
   }
   if (status === 'refunded') booking.bookingStatus = 'refunded';
-  if (status === 'successful') store.settleBookingPayment(booking.bookingRef);
+  if (status === 'successful') await store.settleBookingPayment(booking.bookingRef);
 
   await persistPaymentAndBooking(payment, booking);
   await persistWebhookEvent(payload, headers, { status: 'processed', signatureStatus: 'verified', processedAt: new Date() });

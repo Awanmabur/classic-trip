@@ -2086,10 +2086,12 @@
             <div class="cardPad">
               <div class="quickGrid">
                 <% if(isCompanyDashboard && companySupportsBus){ %>
+                <button class="quickCard" data-modal="create" data-type="bus service"><div class="quickIcon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><strong>Create bus service</strong><span>One screen: listing, vehicle, route, and first departure together. Recommended for new services.</span></button>
                 <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Add bus service profile before routes, vehicles, and schedules.</span></button>
                 <button class="quickCard" data-modal="create" data-type="route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Add route, stops, and operating details.</span></button>
                 <button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
                 <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create departure</strong><span>Publish departure, fare, vehicle, and seat inventory.</span></button>
+                <button class="quickCard" data-modal="create" data-type="schedule rule"><div class="quickIcon"><i class="fa-solid fa-repeat"></i></div><strong>Create recurring departure</strong><span>Set a standing schedule; it keeps generating new departures automatically.</span></button>
                 <a class="quickCard" href="/company/manifests"><div class="quickIcon"><i class="fa-solid fa-file-lines"></i></div><strong>Open manifest</strong><span>Review, print, and export passengers and boarding check-ins.</span></a>
                 <% } else if(isCompanyDashboard && companySupportsHotel){ %>
                 <button class="quickCard" data-modal="create" data-type="hotel property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Add hotel profile, location, amenities, and policies.</span></button>
@@ -2123,7 +2125,7 @@
           <div class="grid4">
             <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-eye"></i></div><span class="trend">+24%</span></div><div class="statNumber">98.4K</div><div class="statLabel">Marketplace visits</div></article>
             <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-cart-shopping"></i></div><span class="trend">+9%</span></div><div class="statNumber">4.8%</div><div class="statLabel">Booking conversion</div></article>
-            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-money-bill-wave"></i></div><span class="trend">+13%</span></div><div class="statNumber">UGX 62K</div><div class="statLabel">Average order value</div></article>
+            <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-money-bill-wave"></i></div></div><div class="statNumber"><%= dashboardData?.stats?.averageOrderValue || 'UGX 0' %></div><div class="statLabel">Average order value</div></article>
             <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-headset"></i></div><span class="trend">-6%</span></div><div class="statNumber">2h 18m</div><div class="statLabel">Avg support response</div></article>
           </div>
 
@@ -4325,7 +4327,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'from', label: companyServiceType === 'hotel' ? 'Location / area' : 'From', icon:'fa-location-dot', value: fieldValue('listing.from','service.from','from') },
         { name:'to', label: companyServiceType === 'hotel' ? 'Nearby landmark' : 'To / destination', icon:'fa-location-dot', value: fieldValue('listing.to','service.to','to') },
         { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', value: fieldValue('listing.priceFrom','inventory.basePrice','priceFrom') },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'], value: fieldValue('listing.currency','owner.currency','currency') || 'UGX' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','published','paused','archived'], value: fieldValue('listing.status','status') || 'draft' },
         { name:'description', label:'Description', type:'textarea', full:true, value: fieldValue('listing.description','listing.sub','description') }
       ]
@@ -4382,7 +4383,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'departAt', label:'Departure time', type:'datetime-local', icon:'fa-calendar-days', value: fieldValue('schedule.departAt','schedule.departure','departAt') },
         { name:'arriveAt', label:'Arrival estimate', type:'datetime-local', icon:'fa-calendar-check', value: fieldValue('schedule.arriveAt','schedule.arrival','arriveAt') },
         { name:'basePrice', label:'Base fare', type:'number', icon:'fa-coins', value: fieldValue('schedule.basePrice','schedule.price','basePrice') },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'], value: fieldValue('schedule.currency','currency') || 'UGX' },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock', value: fieldValue('schedule.boardingStartAt','boardingStartAt') },
         { name:'fareClass', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip'], value: fieldValue('schedule.fareClass','fareClass') || 'standard' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: fieldValue('schedule.status','status') || 'draft' },
@@ -4592,7 +4592,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus','flight','train','tour','car_rental','cargo'] },
         { name:'dropoffInstructions', label:'Dropoff instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus','flight','train','tour','cargo'] },
         { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','published','paused'] },
         { name:'description', label:'Description', type:'textarea', full:true, placeholder:'Service details' }
       ]
@@ -4639,7 +4638,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'departAt', label:'First departure time', type:'datetime-local', icon:'fa-calendar-days', required:true },
         { name:'arriveAt', label:'Arrival estimate', type:'datetime-local', icon:'fa-calendar-check' },
         { name:'basePrice', label:'Base fare', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:optionFromRows(data.drivers, 'Select driver') },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock' },
         { name:'fareClass', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip'] },
@@ -4648,6 +4646,50 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'repeatUntil', label:'Repeat daily until', type:'date', icon:'fa-repeat', help:'Optional. Create the same departure every day (at the time above) from the first departure through this date - set a month or more ahead to create a full month of trips in one click.' },
         { name:'repeatDays', label:'Only repeat on these days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Optional. Leave empty to repeat every day in the range above.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
+      ]
+    };
+    if (isCompanyRole && key === 'schedule rule') return {
+      action: '/company/schedule-rules', submit: 'Create recurring departure',
+      fields: [
+        { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
+        { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true },
+        { name:'departureTime', label:'Departure time (HH:MM, 24h)', icon:'fa-clock', required:true, placeholder:'08:00' },
+        { name:'startDate', label:'Starts on', type:'date', icon:'fa-calendar-days', required:true },
+        { name:'endDate', label:'Ends on (optional)', type:'date', icon:'fa-calendar-xmark', help:'Leave empty for an indefinite recurring departure.' },
+        { name:'daysOfWeek', label:'Repeats on', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Leave empty to repeat every day.' },
+        { name:'basePrice', label:'Base fare', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
+        { name:'fareClass', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip'] },
+        { name:'blockedSeats', label:'Blocked seats', type: seatOptions.length ? 'multiselect' : 'text', icon:'fa-ban', options:seatOptions, placeholder:'1, 2', help:'Applied to every departure this rule creates.' },
+        { name:'notes', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
+      ]
+    };
+    if (isCompanyRole && key === 'bus service') return {
+      action: '/company/bus-services', submit: 'Create bus service',
+      fields: [
+        { name:'idempotencyKey', type:'hidden', value: `wizard-${Date.now()}-${Math.random().toString(36).slice(2)}` },
+        { name:'listing[title]', label:'Listing title', icon:'fa-pen', required:true, placeholder:'Kampala to Mbarara Coach' },
+        { name:'listing[from]', label:'From', icon:'fa-location-dot', required:true, placeholder:'Kampala' },
+        { name:'listing[to]', label:'To / destination', icon:'fa-location-dot', required:true, placeholder:'Mbarara' },
+        { name:'listing[priceFrom]', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'45000' },
+        { name:'listing[status]', label:'Publish immediately?', type:'select', icon:'fa-circle-check', options:['draft','active'], help:'Draft keeps this off the marketplace until you review it. Active publishes right away (requires a verified company).' },
+        { name:'vehicle[name]', label:'Vehicle name', icon:'fa-bus-simple', required:true, placeholder:'Bus 01' },
+        { name:'vehicle[plateOrCode]', label:'Plate / code', icon:'fa-hashtag', placeholder:'UAX 000A' },
+        { name:'vehicle[layoutName]', label:'Seat layout', type:'select', icon:'fa-chair', options:['2x2','2x1','2x3','sleeper','custom'] },
+        { name:'vehicle[rows]', label:'Rows', type:'number', icon:'fa-grip', placeholder:'12' },
+        { name:'vehicle[totalSeats]', label:'Capacity / seats', type:'number', icon:'fa-users', placeholder:'48' },
+        { name:'vehicle[amenities]', label:'Onboard amenities', type:'multiselect', icon:'fa-wifi', options:busAmenityOptions, help:'Select all onboard amenities.' },
+        { name:'route[routeName]', label:'Route name', icon:'fa-route', placeholder:'Kampala to Mbarara' },
+        { name:'route[boardingPoints]', label:'Boarding points', type: branches.length ? 'multiselect' : 'text', icon:'fa-map-pin', options:branches, placeholder:'Namayiba, Bwaise' },
+        { name:'route[dropoffPoints]', label:'Drop-off points', type: branches.length ? 'multiselect' : 'text', icon:'fa-map-pin', options:branches, placeholder:'Mbarara Park' },
+        { name:'route[distanceKm]', label:'Distance KM', type:'number', icon:'fa-road', placeholder:'270' },
+        { name:'route[estimatedDuration]', label:'Estimated duration', icon:'fa-clock', placeholder:'5h' },
+        { name:'route[operatingDays]', label:'Operating days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Pick all days this route normally runs.' },
+        { name:'schedule[departAt]', label:'First departure time', type:'datetime-local', icon:'fa-calendar-days', required:true },
+        { name:'schedule[arriveAt]', label:'Arrival estimate', type:'datetime-local', icon:'fa-calendar-check' },
+        { name:'schedule[basePrice]', label:'Base fare', type:'number', icon:'fa-coins', required:true, placeholder:'45000' },
+        { name:'schedule[fareClass]', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip'] },
+        { name:'schedule[status]', label:'Departure status', type:'select', icon:'fa-circle-check', options:['draft','active','published'] },
+        { name:'schedule[notes]', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
     if (isCompanyRole && key === 'room type') return {
@@ -4738,7 +4780,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'supportEmail', label:'Support email', type:'email', icon:'fa-envelope', value: data.company?.supportEmail || '' },
         { name:'supportPhone', label:'Support phone', icon:'fa-phone', value: data.company?.supportPhone || '' },
         { name:'payoutAccount', label:'Payout account', icon:'fa-building-columns', value: data.company?.payoutAccount || '' },
-        { name:'defaultCurrency', label:'Default currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'], value: data.company?.defaultCurrency || 'UGX' },
         { name:'description', label:'Public description', type:'textarea', full:true, value: data.company?.description || '' }
       ]
     };
@@ -4803,7 +4844,6 @@ window.addEventListener('DOMContentLoaded', function () {
       action: '/company/payouts', submit: 'Request payout',
       fields: [
         { name:'amount', label:'Amount', type:'number', icon:'fa-coins', required:true, placeholder:'500000' },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'payoutAccount', label:'Payout account', icon:'fa-building-columns', placeholder:'Bank/MoMo account reference' },
         { name:'note', label:'Finance note', type:'textarea', full:true, placeholder:'Optional payout request note' }
       ]
@@ -4851,7 +4891,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus','flight','train','tour','car_rental','cargo'] },
         { name:'dropoffInstructions', label:'Dropoff instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus','flight','train','tour','cargo'] },
         { name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' },
-        { name:'currency', label:'Currency', type:'select', icon:'fa-money-bill', options:['UGX','KES','RWF','TZS','USD'] },
         { name:'description', label:'Description', type:'textarea', full:true, placeholder:'Listing details' }
       ]
     };
@@ -5029,6 +5068,7 @@ window.addEventListener('DOMContentLoaded', function () {
             <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Classic Express" required></div></div>
             <div class="field"><label>Company type</label><div class="control"><i class="fa-solid fa-briefcase"></i><select name="companyType"><option value="transport">Transport</option><option value="hotel">Hotel</option><option value="airline">Airline</option><option value="train">Train</option><option value="tour">Tour</option><option value="car_rental">Car rental</option></select></div></div>
             <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Rwanda</option><option>Tanzania</option><option>South Sudan</option></select></div></div>
+            <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><select name="operatingCurrency"><option value="UGX">UGX</option><option value="KES">KES</option><option value="RWF">RWF</option><option value="TZS">TZS</option><option value="USD">USD</option></select></div></div>
             <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" placeholder="Kampala"></div></div>
             <div class="field"><label>Support email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" placeholder="ops@example.com"></div></div>
             <div class="field"><label>Support phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" placeholder="+256700000000"></div></div>

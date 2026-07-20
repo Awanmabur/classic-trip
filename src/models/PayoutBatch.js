@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const payoutBatchSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   batchNumber: { type: String, index: true },
   settlementBatchId: String,
   currency: { type: String, default: 'UGX' },

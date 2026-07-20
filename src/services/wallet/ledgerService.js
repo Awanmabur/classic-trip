@@ -1,8 +1,9 @@
 const store = require('../data/persistentStore');
+const { nextId } = require('../data/idService');
 
-function recordTransaction(transaction) {
+async function recordTransaction(transaction) {
   const entry = {
-    id: `txn-${store.state.walletTransactions.length + 1}`,
+    id: await nextId('txn'),
     currency: 'UGX',
     status: 'pending',
     createdAt: new Date().toISOString(),

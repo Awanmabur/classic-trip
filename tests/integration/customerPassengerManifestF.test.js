@@ -73,7 +73,7 @@ describe('Master section F - Customer, passenger, and printable manifest pages',
       status: 'published',
     });
 
-    const booking = store.createBooking({
+    const booking = await store.createBooking({
       listingId: listing.id,
       scheduleId: schedule.id,
       selectedSeats: '1,2',

@@ -1,7 +1,7 @@
 const { Schema, model } = require('./_helpers');
 
 const payoutRequestSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   ownerType: { type: String, index: true },
   ownerId: { type: String, index: true },
   walletId: String,

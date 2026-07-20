@@ -88,8 +88,7 @@ async function topUpWallet(req, res, next) {
     // that would let anyone mint their own wallet funds. This only records a pending request;
     // finance/admin must verify the actual payment and approve it before the balance moves.
     const before = store.state.walletTransactions.length;
-    const wallet = walletService.creditPending('customer', user.id, amount, {
-      currency: cleanText(req.body.currency || 'UGX'),
+    const wallet = await walletService.creditPending('customer', user.id, cleanText(req.body.currency || 'UGX'), amount, {
       transactionType: 'wallet_top_up_request',
       referenceType: 'customer_wallet_top_up',
       referenceId: cleanText(req.body.paymentReference || `topup-${Date.now()}`),
@@ -134,7 +133,7 @@ async function becomePromoter(req, res, next) {
       bio: cleanText(req.body.bio || ''),
     };
     user.updatedAt = new Date().toISOString();
-    const wallet = walletService.getOrCreateWallet('promoter', user.id, cleanText(req.body.currency || 'UGX'));
+    const wallet = await walletService.getOrCreateWallet('promoter', user.id, cleanText(req.body.currency || 'UGX'));
     if (req.session?.user) Object.assign(req.session.user, user);
     await persist('User', user);
     await persist('Wallet', wallet);

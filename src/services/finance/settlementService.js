@@ -5,6 +5,7 @@ const commissionService = require('../commission/commissionService');
 const releaseService = require('../commission/releaseService');
 const notificationService = require('../notification/notificationService');
 const { mongoose } = require('../../config/db');
+const { nextId: atomicNextId } = require('../data/idService');
 
 function mongoReady() {
   return mongoose.connection.readyState === 1;
@@ -45,7 +46,13 @@ function ensureCollections() {
   if (!Array.isArray(store.state.financeRiskReviews)) store.state.financeRiskReviews = [];
 }
 
-function nextId(prefix, rows = []) {
+// Audit-log IDs are intentionally left on the legacy in-memory-length scheme: audit rows are
+// append-only supplementary records (not primary entity data), audit() is called synchronously
+// from dozens of places throughout this file, and a rare colliding audit id merely overwrites
+// one log entry rather than corrupting booking/seat/schedule data. Not worth the async blast
+// radius of converting every audit() call site — unlike the entity IDs below, which now use
+// idService's atomic counter.
+function legacyNextId(prefix, rows = []) {
   let index = rows.length + 1;
   let id = `${prefix}-${index}`;
   while (rows.some((row) => row.id === id)) {
@@ -58,7 +65,7 @@ function nextId(prefix, rows = []) {
 function audit(actorId, action, target, meta = {}) {
   ensureCollections();
   const row = {
-    id: nextId('audit', store.state.auditLogs),
+    id: legacyNextId('audit', store.state.auditLogs),
     actorId: actorId || 'finance-system',
     action,
     target,
@@ -84,7 +91,7 @@ async function recordPaymentIntent(payload = {}, actorId = 'payment-system') {
   let intent = store.state.paymentIntents.find((item) => item.idempotencyKey === idempotencyKey);
   if (!intent) {
     intent = {
-      id: nextId('payment-intent', store.state.paymentIntents),
+      id: await atomicNextId('payment-intent'),
       intentRef: ref('PI', store.state.paymentIntents),
       bookingId: cleanText(payload.bookingId || ''),
       bookingRef: cleanText(payload.bookingRef || ''),
@@ -142,17 +149,17 @@ async function recordBookingFinancialDocuments(booking = {}, payment = null, act
     issuedAt: new Date().toISOString(),
     metadata: { paymentRef: paymentRow.providerReference || booking.paymentRef || '', ticketCount: (booking.ticketLegs || []).length || 1 },
   };
-  const receipt = existingReceipt || { id: nextId('receipt-invoice', store.state.receiptInvoices), documentRef: ref('RCT', store.state.receiptInvoices), documentType: 'receipt', ...common };
+  const receipt = existingReceipt || { id: await atomicNextId('receipt-invoice'), documentRef: ref('RCT', store.state.receiptInvoices), documentType: 'receipt', ...common };
   Object.assign(receipt, common);
   if (!existingReceipt) store.state.receiptInvoices.unshift(receipt);
-  const invoice = existingInvoice || { id: nextId('receipt-invoice', store.state.receiptInvoices), documentRef: ref('INV', store.state.receiptInvoices), documentType: 'invoice', ...common };
+  const invoice = existingInvoice || { id: await atomicNextId('receipt-invoice'), documentRef: ref('INV', store.state.receiptInvoices), documentType: 'invoice', ...common };
   Object.assign(invoice, common);
   if (!existingInvoice) store.state.receiptInvoices.unshift(invoice);
 
   let taxRecord = store.state.taxFeeRecords.find((item) => item.bookingRef === booking.bookingRef);
   if (!taxRecord) {
     taxRecord = {
-      id: nextId('tax-fee', store.state.taxFeeRecords),
+      id: await atomicNextId('tax-fee'),
       bookingId: booking.id,
       bookingRef: booking.bookingRef,
       paymentId: paymentRow.id || '',
@@ -191,7 +198,7 @@ async function createFinanceRiskReview(targetType, targetId, payload = {}, actor
   const flags = riskFlagsForPayout(payload.ownerType, payload.ownerId, payload.amount);
   const riskScore = flags.length * 35;
   const review = {
-    id: nextId('finance-risk', store.state.financeRiskReviews),
+    id: await atomicNextId('finance-risk'),
     targetType,
     targetId,
     ownerType: payload.ownerType || '',
@@ -215,12 +222,12 @@ async function generateFinanceStatements(payload = {}, actorId = 'finance-system
   ensureCollections();
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
-  const rows = financeRows(periodStart, periodEnd);
+  const rows = await financeRows(periodStart, periodEnd);
   const statements = [];
   for (const row of rows) {
-    const wallet = walletFor(row.ownerType, row.ownerId);
+    const wallet = await walletFor(row.ownerType, row.ownerId, row.currency);
     const statement = {
-      id: nextId('finance-statement', store.state.financeStatements),
+      id: await atomicNextId('finance-statement'),
       statementRef: ref('STMT', store.state.financeStatements),
       ownerType: row.ownerType,
       ownerId: row.ownerId,
@@ -267,7 +274,7 @@ async function releaseEligibleEarnings(actorId = 'finance-system') {
   for (const booking of store.state.bookings.filter(bookingEligibleForRelease)) {
     const before = store.state.commissions.filter((item) => item.bookingId === booking.id && item.status === 'pending').length;
     await ensurePendingCommissionForBooking(booking);
-    const result = releaseService.releaseCompletedBooking(booking.bookingRef) || [];
+    const result = (await releaseService.releaseCompletedBooking(booking.bookingRef)) || [];
     for (const commission of result) {
       commission.releaseSource = 'finance_settlement';
       commission.releasedBy = actorId;
@@ -287,11 +294,15 @@ function bookingInPeriod(booking, periodStart, periodEnd) {
   return value >= start && value <= end;
 }
 
-function walletFor(ownerType, ownerId) {
-  return walletService.getOrCreateWallet(ownerType, ownerId, 'UGX');
+async function walletFor(ownerType, ownerId, currency) {
+  return walletService.getOrCreateWallet(ownerType, ownerId, currency);
 }
 
-function financeRows(periodStart, periodEnd) {
+// Rows are keyed by (owner, currency), not just owner: an owner who somehow has bookings in two
+// different currencies (legacy data from before currency was locked to the company) gets two
+// separate rows, each a real same-currency sum, instead of one row whose totals blindly mix
+// amounts from both currencies under whichever currency label happened to be written last.
+async function financeRows(periodStart, periodEnd) {
   const rowsByOwner = new Map();
   const add = (key, patch) => {
     const current = rowsByOwner.get(key) || { gross: 0, companyEarning: 0, promoterCommission: 0, platformFee: 0, refundDebits: 0, payable: 0, bookingRefs: [], transactionIds: [] };
@@ -302,9 +313,10 @@ function financeRows(periodStart, periodEnd) {
 
   for (const booking of store.state.bookings.filter((item) => bookingInPeriod(item, periodStart, periodEnd))) {
     const split = booking.pricing?.split || {};
+    const currency = booking.pricing?.currency || 'UGX';
     const companyId = booking.companyId || 'company-unknown';
-    const companyKey = `company:${companyId}`;
-    const company = add(companyKey, { ownerType: 'company', ownerId: companyId, currency: booking.pricing?.currency || 'UGX' });
+    const companyKey = `company:${companyId}:${currency}`;
+    const company = add(companyKey, { ownerType: 'company', ownerId: companyId, currency });
     company.gross += Number(booking.pricing?.total || 0);
     company.companyEarning += Number(split.companyAmount || 0);
     company.platformFee += Number(split.platformFee || 0);
@@ -312,8 +324,8 @@ function financeRows(periodStart, periodEnd) {
     company.bookingRefs.push(booking.bookingRef);
 
     if (booking.promoterAttribution?.promoterId && Number(split.promoterAmount || 0) > 0) {
-      const promoterKey = `promoter:${booking.promoterAttribution.promoterId}`;
-      const promoter = add(promoterKey, { ownerType: 'promoter', ownerId: booking.promoterAttribution.promoterId, currency: booking.pricing?.currency || 'UGX' });
+      const promoterKey = `promoter:${booking.promoterAttribution.promoterId}:${currency}`;
+      const promoter = add(promoterKey, { ownerType: 'promoter', ownerId: booking.promoterAttribution.promoterId, currency });
       promoter.gross += Number(booking.pricing?.total || 0);
       promoter.promoterCommission += Number(split.promoterAmount || 0);
       promoter.payable += Number(split.promoterAmount || 0);
@@ -322,17 +334,19 @@ function financeRows(periodStart, periodEnd) {
   }
 
   for (const txn of store.state.walletTransactions.filter((item) => item.transactionType === 'refund_debit')) {
-    const key = `${txn.ownerType}:${txn.ownerId}`;
-    const row = add(key, { ownerType: txn.ownerType, ownerId: txn.ownerId, currency: txn.currency || 'UGX' });
+    const currency = txn.currency || 'UGX';
+    const key = `${txn.ownerType}:${txn.ownerId}:${currency}`;
+    const row = add(key, { ownerType: txn.ownerType, ownerId: txn.ownerId, currency });
     row.refundDebits += Number(txn.amount || 0);
     row.payable -= Number(txn.amount || 0);
     row.transactionIds.push(txn.id);
   }
 
-  return Array.from(rowsByOwner.values()).map((row) => {
-    const wallet = walletFor(row.ownerType, row.ownerId);
+  const rows = [];
+  for (const row of rowsByOwner.values()) {
+    const wallet = await walletFor(row.ownerType, row.ownerId, row.currency);
     const owner = row.ownerType === 'company' ? store.findCompany(row.ownerId) : store.state.users.find((user) => user.id === row.ownerId);
-    return {
+    rows.push({
       ...row,
       ownerName: owner?.name || owner?.fullName || row.ownerId,
       walletId: wallet.id,
@@ -340,38 +354,54 @@ function financeRows(periodStart, periodEnd) {
       pendingBalance: Number(wallet.pendingBalance || 0),
       payoutAccount: owner?.payoutAccount || owner?.settings?.payoutAccount || owner?.phone || '',
       payable: Math.max(0, Math.min(Number(wallet.availableBalance || 0), row.payable || Number(wallet.availableBalance || 0))),
-    };
-  }).filter((row) => row.gross > 0 || row.availableBalance > 0 || row.refundDebits > 0);
+    });
+  }
+  return rows.filter((row) => row.gross > 0 || row.availableBalance > 0 || row.refundDebits > 0);
 }
 
+// One batch per currency, not one blended batch: summing rows across currencies into a single
+// batch with one currency label was the exact "settlement mixing" bug - now each batch's totals
+// are guaranteed to be a real same-currency sum.
 async function createSettlementBatch(payload = {}, actorId = 'finance-system') {
   ensureCollections();
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
-  const rows = financeRows(periodStart, periodEnd);
-  const batch = {
-    id: nextId('settlement', store.state.settlementBatches),
-    batchNumber: `SET-${String(store.state.settlementBatches.length + 1).padStart(5, '0')}`,
-    periodStart,
-    periodEnd,
-    currency: cleanText(payload.currency || 'UGX'),
-    status: 'draft',
-    createdBy: actorId,
-    createdAt: new Date().toISOString(),
-    totalGross: rows.reduce((total, row) => total + Number(row.gross || 0), 0),
-    totalCompanyEarning: rows.reduce((total, row) => total + Number(row.companyEarning || 0), 0),
-    totalPromoterCommission: rows.reduce((total, row) => total + Number(row.promoterCommission || 0), 0),
-    totalPlatformFee: rows.reduce((total, row) => total + Number(row.platformFee || 0), 0),
-    totalRefundDebits: rows.reduce((total, row) => total + Number(row.refundDebits || 0), 0),
-    totalPayable: rows.reduce((total, row) => total + Number(row.payable || 0), 0),
-    rows,
-    notes: cleanText(payload.notes || payload.note || ''),
-  };
-  store.state.settlementBatches.unshift(batch);
-  await upsertModel('SettlementBatch', batch);
-  await generateFinanceStatements({ periodStart, periodEnd, settlementBatchId: batch.id, notes: batch.notes }, actorId);
-  audit(actorId, 'finance.settlement.created', batch.id, { rows: rows.length, totalPayable: batch.totalPayable });
-  return batch;
+  const rows = await financeRows(periodStart, periodEnd);
+  const rowsByCurrency = new Map();
+  rows.forEach((row) => {
+    const currency = row.currency || 'UGX';
+    if (!rowsByCurrency.has(currency)) rowsByCurrency.set(currency, []);
+    rowsByCurrency.get(currency).push(row);
+  });
+  if (!rowsByCurrency.size) rowsByCurrency.set(cleanText(payload.currency || 'UGX'), []);
+
+  const batches = [];
+  for (const [currency, currencyRows] of rowsByCurrency) {
+    const batch = {
+      id: await atomicNextId('settlement'),
+      batchNumber: `SET-${String(store.state.settlementBatches.length + 1).padStart(5, '0')}`,
+      periodStart,
+      periodEnd,
+      currency,
+      status: 'draft',
+      createdBy: actorId,
+      createdAt: new Date().toISOString(),
+      totalGross: currencyRows.reduce((total, row) => total + Number(row.gross || 0), 0),
+      totalCompanyEarning: currencyRows.reduce((total, row) => total + Number(row.companyEarning || 0), 0),
+      totalPromoterCommission: currencyRows.reduce((total, row) => total + Number(row.promoterCommission || 0), 0),
+      totalPlatformFee: currencyRows.reduce((total, row) => total + Number(row.platformFee || 0), 0),
+      totalRefundDebits: currencyRows.reduce((total, row) => total + Number(row.refundDebits || 0), 0),
+      totalPayable: currencyRows.reduce((total, row) => total + Number(row.payable || 0), 0),
+      rows: currencyRows,
+      notes: cleanText(payload.notes || payload.note || ''),
+    };
+    store.state.settlementBatches.unshift(batch);
+    await upsertModel('SettlementBatch', batch);
+    audit(actorId, 'finance.settlement.created', batch.id, { rows: currencyRows.length, totalPayable: batch.totalPayable, currency });
+    batches.push(batch);
+  }
+  await generateFinanceStatements({ periodStart, periodEnd, settlementBatchId: batches[0]?.id || '', notes: cleanText(payload.notes || payload.note || '') }, actorId);
+  return batches;
 }
 
 async function createPayoutRequestFromTransaction(transaction, payload = {}, actorId = 'finance-system') {
@@ -380,7 +410,7 @@ async function createPayoutRequestFromTransaction(transaction, payload = {}, act
   let request = store.state.payoutRequests.find((item) => item.transactionId === transaction.id);
   if (!request) {
     request = {
-      id: nextId('payout-request', store.state.payoutRequests),
+      id: await atomicNextId('payout-request'),
       ownerType: transaction.ownerType,
       ownerId: transaction.ownerId,
       walletId: transaction.walletId,
@@ -419,9 +449,13 @@ async function syncPayoutRequests(actorId = 'finance-system') {
 
 async function requestOwnerPayout(ownerType, ownerId, amount, payload = {}, actorId = 'dashboard-user') {
   ensureCollections();
-  const wallet = walletFor(ownerType, ownerId);
-  const result = walletService.requestWithdrawal(ownerType, ownerId, amountValue(amount, wallet.availableBalance), {
-    currency: wallet.currency,
+  // An owner normally has exactly one wallet (their company's operating currency), so the
+  // requested currency defaults to whichever wallet they already have; payload.currency lets a
+  // promoter who has earned in more than one currency specify which balance to withdraw from.
+  const existingWallet = store.state.wallets.find((w) => w.ownerType === ownerType && w.ownerId === ownerId);
+  const currency = cleanText(payload.currency) || existingWallet?.currency || 'UGX';
+  const wallet = await walletFor(ownerType, ownerId, currency);
+  const result = await walletService.requestWithdrawal(ownerType, ownerId, currency, amountValue(amount, wallet.availableBalance), {
     referenceType: `${ownerType}_payout`,
     referenceId: ownerId,
     requestedBy: actorId,
@@ -462,7 +496,7 @@ async function reviewPayoutRequest(transactionId, payload = {}, actorId = 'finan
   request.riskStatus = riskReview.status;
   if (action === 'rejected') {
     const reason = cleanText(payload.reason || payload.note || 'Rejected by finance');
-    walletService.rejectWithdrawal(transaction.id, actorId, { reason });
+    await walletService.rejectWithdrawal(transaction.id, actorId, { reason });
     transaction.reviewReason = reason;
     request.status = 'rejected';
     request.rejectionReason = reason;
@@ -499,11 +533,20 @@ async function createPayoutBatch(payload = {}, actorId = 'finance-system') {
     error.status = 422;
     throw error;
   }
+  // A payout batch must be one currency: requests in any other currency than the batch's own
+  // are excluded rather than folded into a total that would mix units together.
+  const batchCurrency = cleanText(payload.currency) || requests[0].currency || 'UGX';
+  requests = requests.filter((request) => (request.currency || 'UGX') === batchCurrency);
+  if (!requests.length) {
+    const error = new Error(`No ${batchCurrency} payout requests available for batch`);
+    error.status = 422;
+    throw error;
+  }
   const batch = {
-    id: nextId('payout-batch', store.state.payoutBatches),
+    id: await atomicNextId('payout-batch'),
     batchNumber: `PO-${String(store.state.payoutBatches.length + 1).padStart(5, '0')}`,
     settlementBatchId: cleanText(payload.settlementBatchId || ''),
-    currency: cleanText(payload.currency || requests[0].currency || 'UGX'),
+    currency: batchCurrency,
     ownerType: cleanText(payload.ownerType || 'mixed'),
     status: 'exported',
     createdBy: actorId,
@@ -528,25 +571,29 @@ async function createPayoutBatch(payload = {}, actorId = 'finance-system') {
   return batch;
 }
 
+// Scoped to one currency at a time: reconciling gross payments against payouts only balances
+// correctly when every figure summed into it is denominated in the same unit.
 async function createReconciliationReport(payload = {}, actorId = 'finance-system') {
   ensureCollections();
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
-  const bookings = store.state.bookings.filter((booking) => bookingInPeriod(booking, periodStart, periodEnd));
+  const reportCurrency = cleanText(payload.currency) || 'UGX';
+  const bookings = store.state.bookings.filter((booking) => bookingInPeriod(booking, periodStart, periodEnd) && (booking.pricing?.currency || 'UGX') === reportCurrency);
   const grossPayments = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
-  const refundDebits = store.state.walletTransactions.filter((txn) => txn.transactionType === 'refund_debit').reduce((total, txn) => total + Number(txn.amount || 0), 0);
+  const refundDebits = store.state.walletTransactions.filter((txn) => txn.transactionType === 'refund_debit' && (txn.currency || 'UGX') === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
   const promoterCommissions = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0);
   const platformFees = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.platformFee || 0), 0);
-  const requestedPayouts = store.state.payoutRequests.filter((request) => !['rejected', 'held'].includes(normalize(request.status))).reduce((total, request) => total + Number(request.amount || 0), 0);
-  const completedPayouts = store.state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType)) && ['completed', 'paid'].includes(normalize(txn.status))).reduce((total, txn) => total + Number(txn.amount || 0), 0);
+  const requestedPayouts = store.state.payoutRequests.filter((request) => !['rejected', 'held'].includes(normalize(request.status)) && (request.currency || 'UGX') === reportCurrency).reduce((total, request) => total + Number(request.amount || 0), 0);
+  const completedPayouts = store.state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType)) && ['completed', 'paid'].includes(normalize(txn.status)) && (txn.currency || 'UGX') === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const variance = grossPayments - refundDebits - companyEarnings - promoterCommissions - platformFees;
   const report = {
-    id: nextId('reconciliation', store.state.reconciliationReports),
+    id: await atomicNextId('reconciliation'),
     settlementBatchId: cleanText(payload.settlementBatchId || ''),
     payoutBatchId: cleanText(payload.payoutBatchId || ''),
     periodStart,
     periodEnd,
+    currency: reportCurrency,
     status: Math.abs(variance) <= 1 ? 'balanced' : 'variance_review',
     createdBy: actorId,
     createdAt: new Date().toISOString(),

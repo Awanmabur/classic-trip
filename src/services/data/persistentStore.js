@@ -82,6 +82,7 @@ function emptyProductionState() {
     inventoryHolds: [],
     ticketScans: [],
     futureServiceModules: [],
+    scheduleRules: [],
     flightOffers: [],
     trainInventories: [],
     tourPackageInventories: [],
@@ -240,6 +241,7 @@ const DATABASE_MODELS = {
   inventoryHolds: 'InventoryHold',
   ticketScans: 'TicketScan',
   futureServiceModules: 'FutureServiceModule',
+  scheduleRules: 'ScheduleRule',
   flightOffers: 'FlightOffer',
   trainInventories: 'TrainInventory',
   tourPackageInventories: 'TourPackageInventory',
@@ -1262,8 +1264,29 @@ function listingPreview(listing, availability = null, company = null) {
   };
 }
 
-function moneyValue(amount, currency = 'UGX') {
+function formatMoney(amount, currency = 'UGX') {
   return `${currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+}
+
+// Sums figures that may legitimately span more than one currency (e.g. platform-wide
+// totals across companies, or a promoter's referrals across companies) into a per-currency
+// breakdown instead of blending amounts under one mislabeled currency.
+function sumByCurrency(items, amountFn, currencyFn) {
+  const totals = new Map();
+  items.forEach((item) => {
+    const currency = currencyFn(item) || 'UGX';
+    const amount = Number(amountFn(item)) || 0;
+    totals.set(currency, (totals.get(currency) || 0) + amount);
+  });
+  return totals;
+}
+
+function formatMoneyBreakdown(totals) {
+  if (!totals.size) return formatMoney(0);
+  return Array.from(totals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([currency, amount]) => formatMoney(amount, currency))
+    .join(' · ');
 }
 
 function dateValue(value) {
@@ -1286,7 +1309,7 @@ function bookingCustomer(booking) {
 }
 
 function bookingTotal(booking) {
-  return moneyValue(booking.pricing?.total, booking.pricing?.currency || 'UGX');
+  return formatMoney(booking.pricing?.total, booking.pricing?.currency || 'UGX');
 }
 
 const dashboardDataCache = new Map();
@@ -1362,12 +1385,14 @@ function adminDashboardData(bookings) {
   const cancelledRefundedBookings = bookings.filter((booking) => /cancel|refund/.test(normalize(booking.bookingStatus)) || /refund/.test(normalize(booking.paymentStatus)));
   const guestBookings = bookings.filter((booking) => !booking.customerUserId);
   const referredBookings = bookings.filter((booking) => booking.promoterAttribution?.promoterId || booking.promoterAttribution?.code);
-  const grossRevenue = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
-  const platformCommission = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.platformFee || 0), 0);
-  const partnerEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
-  const promoterCommission = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0);
-  const pendingSettlements = state.walletTransactions.filter((txn) => /pending|hold|review/.test(normalize(txn.status))).reduce((total, txn) => total + Number(txn.amount || 0), 0);
-  const walletWithdrawals = state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType))).reduce((total, txn) => total + Number(txn.amount || 0), 0);
+  const pendingSettlementTxns = state.walletTransactions.filter((txn) => /pending|hold|review/.test(normalize(txn.status)));
+  const withdrawalTxns = state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType)));
+  const grossRevenueBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.total, (booking) => booking.pricing?.currency));
+  const platformCommissionBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.split?.platformFee, (booking) => booking.pricing?.currency));
+  const partnerEarningsBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.split?.companyAmount, (booking) => booking.pricing?.currency));
+  const promoterCommissionBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.split?.promoterAmount, (booking) => booking.pricing?.currency));
+  const pendingSettlementsBreakdown = formatMoneyBreakdown(sumByCurrency(pendingSettlementTxns, (txn) => txn.amount, (txn) => txn.currency));
+  const walletWithdrawalsBreakdown = formatMoneyBreakdown(sumByCurrency(withdrawalTxns, (txn) => txn.amount, (txn) => txn.currency));
   const openSupport = state.supportTickets.filter((ticket) => !['closed', 'resolved'].includes(normalize(ticket.status)));
 
   const overviewStats = [
@@ -1380,12 +1405,12 @@ function adminDashboardData(bookings) {
     { label: 'Total bookings', value: bookings.length.toLocaleString(), icon: 'fa-ticket', hint: `${confirmedBookings.length} confirmed, ${pendingPaymentBookings.length} pending payment` },
     { label: 'Cancelled / refunded', value: cancelledRefundedBookings.length.toLocaleString(), icon: 'fa-rotate-left', hint: 'Bookings requiring refund/cancellation review' },
     { label: 'Guest / referred bookings', value: `${guestBookings.length}/${referredBookings.length}`, icon: 'fa-link', hint: 'Guest checkout / promoter referral' },
-    { label: 'Gross revenue', value: moneyValue(grossRevenue), icon: 'fa-money-bill-wave', hint: 'All booking value' },
-    { label: 'Platform commission', value: moneyValue(platformCommission), icon: 'fa-percent', hint: 'Platform fee total' },
-    { label: 'Partner earnings', value: moneyValue(partnerEarnings), icon: 'fa-building-columns', hint: 'Owner/company share' },
-    { label: 'Promoter commission', value: moneyValue(promoterCommission), icon: 'fa-hand-holding-dollar', hint: 'Referral commission' },
-    { label: 'Pending settlements', value: moneyValue(pendingSettlements), icon: 'fa-clock', hint: 'Wallet/payout items on hold' },
-    { label: 'Wallet withdrawals', value: moneyValue(walletWithdrawals), icon: 'fa-wallet', hint: 'Payout/withdrawal requests' },
+    { label: 'Gross revenue', value: grossRevenueBreakdown, icon: 'fa-money-bill-wave', hint: 'All booking value' },
+    { label: 'Platform commission', value: platformCommissionBreakdown, icon: 'fa-percent', hint: 'Platform fee total' },
+    { label: 'Partner earnings', value: partnerEarningsBreakdown, icon: 'fa-building-columns', hint: 'Owner/company share' },
+    { label: 'Promoter commission', value: promoterCommissionBreakdown, icon: 'fa-hand-holding-dollar', hint: 'Referral commission' },
+    { label: 'Pending settlements', value: pendingSettlementsBreakdown, icon: 'fa-clock', hint: 'Wallet/payout items on hold' },
+    { label: 'Wallet withdrawals', value: walletWithdrawalsBreakdown, icon: 'fa-wallet', hint: 'Payout/withdrawal requests' },
     { label: 'Support cases', value: openSupport.length.toLocaleString(), icon: 'fa-headset', hint: 'Open support/dispute queue' },
   ];
 
@@ -1426,7 +1451,7 @@ function adminDashboardData(bookings) {
       listing.serviceType === 'hotel' ? `${detail.inventory.roomInventory} rooms` : `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats} seats`,
       listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from || '-'} to ${listing.to || '-'}`,
       listing.isSponsored ? 'Sponsored' : listing.bookable ? 'Available' : (listing.releaseStatus || 'Teaser'),
-      moneyValue(listing.priceFrom, listing.currency),
+      formatMoney(listing.priceFrom, listing.currency),
       dashboardMeta('listing', listing.id, listing.title, listing.status, detail, ['view', 'bookings', 'occupancy', 'open']),
     ];
   });
@@ -1437,10 +1462,10 @@ function adminDashboardData(bookings) {
     return [
       payment.id || `TX-${78000 + index}`,
       booking.bookingRef,
-      moneyValue(detail.payment.amount, detail.payment.currency),
-      moneyValue(booking.pricing?.split?.companyAmount || 0, booking.pricing?.currency),
-      moneyValue(booking.pricing?.split?.platformFee || 0, booking.pricing?.currency),
-      moneyValue(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
+      formatMoney(detail.payment.amount, detail.payment.currency),
+      formatMoney(booking.pricing?.split?.companyAmount || 0, booking.pricing?.currency),
+      formatMoney(booking.pricing?.split?.platformFee || 0, booking.pricing?.currency),
+      formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
       detail.payment.status || booking.paymentStatus,
       dashboardMeta('payment', payment.id || booking.bookingRef, payment.id || booking.bookingRef, detail.payment.status || booking.paymentStatus, detail, ['view', 'booking', 'settlement', 'export']),
     ];
@@ -1520,7 +1545,7 @@ function adminDashboardData(bookings) {
     campaign.name || campaign.title,
     findCompany(campaign.companyId)?.name || campaign.companyId || 'Partner',
     campaign.placement || campaign.type || 'Campaign',
-    moneyValue(campaign.budget || 0),
+    formatMoney(campaign.budget || 0),
     String(campaign.clicks || 0),
     String(campaign.bookings || campaign.conversions || 0),
     campaign.status || 'draft',
@@ -1586,7 +1611,7 @@ function adminDashboardData(bookings) {
       `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats}`,
       `${schedules.length} schedules`,
       route.status || listing.status || 'active',
-      moneyValue(listing.priceFrom || 0, listing.currency),
+      formatMoney(listing.priceFrom || 0, listing.currency),
       dashboardMeta('route', route.id, `${route.origin} to ${route.destination}`, route.status, { route, listing: detail }, ['view', 'bookings', 'occupancy', 'open']),
     ];
   });
@@ -1600,7 +1625,7 @@ function adminDashboardData(bookings) {
       `${room.inventory} rooms`,
       listing.city || listing.country || '-',
       room.status,
-      moneyValue(room.nightlyPrice || listing.priceFrom || 0, listing.currency),
+      formatMoney(room.nightlyPrice || listing.priceFrom || 0, listing.currency),
       dashboardMeta('room', room.id, room.roomType, room.status, { room, listing: listingDetail(listing) }, ['view', 'bookings', 'occupancy']),
     ];
   });
@@ -1613,14 +1638,14 @@ function adminDashboardData(bookings) {
     const documentLabel = documents.length ? `${documents.length} documents${pendingDocuments ? `, ${pendingDocuments} pending` : ''}` : 'Business profile';
     return [company.name, documentLabel, company.country || '-', company.payoutAccount || company.walletId || 'Payout pending', company.verificationStatus === 'verified' && !pendingDocuments ? 'Low' : 'Medium', company.verificationStatus || 'pending', dashboardMeta('kyc', company.id, company.name, company.verificationStatus, companyDetail(company), ['view', 'approve', 'reject', 'changes'])];
   });
-  const refundRows = state.refundRequests.map((refund) => [refund.id, refund.bookingRef, bookingCustomer(findBooking(refund.bookingRef) || {}) || refund.requesterId || 'Customer', refund.reason, moneyValue(refund.amount), refund.status, dashboardMeta('refund', refund.id, refund.id, refund.status, employeeRefundDetail(refund), ['view', 'approve', 'reject', 'booking', 'payment'])]);
+  const refundRows = state.refundRequests.map((refund) => [refund.id, refund.bookingRef, bookingCustomer(findBooking(refund.bookingRef) || {}) || refund.requesterId || 'Customer', refund.reason, formatMoney(refund.amount), refund.status, dashboardMeta('refund', refund.id, refund.id, refund.status, employeeRefundDetail(refund), ['view', 'approve', 'reject', 'booking', 'payment'])]);
   const notificationRows = (state.notifications || []).map((note) => [note.title || note.subject, Array.isArray(note.channels) ? note.channels.join(', ') : note.channel || 'Email', note.audience || note.ownerType || 'Users', String(note.sentCount || note.deliveredCount || 0), note.deliveryStatus || note.status || 'Pending', note.status || 'queued', dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'send'])]);
   const fallbackNotifications = supportRows.map((row) => [`Support update: ${row[2]}`, 'Email/SMS', row[1], '1', 'Pending', row[4], dashboardMeta('notification', row[0], row[2], row[4], { support: row[row.length - 1].detail }, ['view', 'send'])]);
   const cartRows = (state.carts || []).map((cart) => [
     cart.cartRef,
     String(cart.items?.length || 0),
     cart.customer?.fullName || 'Guest customer',
-    moneyValue(cart.pricing?.total || 0, cart.pricing?.currency || 'UGX'),
+    formatMoney(cart.pricing?.total || 0, cart.pricing?.currency || 'UGX'),
     cart.bookingRef || '-',
     cart.status || 'draft',
     dashboardMeta('cart', cart.cartRef, cart.cartRef, cart.status || 'draft', { cart, booking: cart.bookingRef ? bookingDetail(findBooking(cart.bookingRef)) : null }, ['view', 'recover', 'booking', 'export']),
@@ -1708,7 +1733,7 @@ function adminDashboardData(bookings) {
     intent.intentRef || intent.id,
     intent.bookingRef || intent.cartRef || intent.bookingId || '-',
     intent.provider || '-',
-    moneyValue(intent.amount || 0, intent.currency || 'UGX'),
+    formatMoney(intent.amount || 0, intent.currency || 'UGX'),
     intent.status || 'created',
     intent.providerReference || '-',
     intent.createdAt ? dateValue(intent.createdAt) : '-',
@@ -1719,7 +1744,7 @@ function adminDashboardData(bookings) {
     document.documentType || 'receipt',
     document.bookingRef || '-',
     document.customerName || document.customerEmail || '-',
-    moneyValue(document.total || 0, document.currency || 'UGX'),
+    formatMoney(document.total || 0, document.currency || 'UGX'),
     document.status || 'pending',
     document.issuedAt ? dateValue(document.issuedAt) : '-',
     dashboardMeta('receipt_invoice', document.id, document.documentRef || document.id, document.status || 'pending', { document, booking: document.bookingRef ? bookingDetail(findBooking(document.bookingRef)) : null }, ['view', 'booking', 'export']),
@@ -1727,11 +1752,11 @@ function adminDashboardData(bookings) {
   const taxFeeRows = (state.taxFeeRecords || []).map((record) => [
     record.id,
     record.bookingRef || '-',
-    moneyValue(record.subtotal || 0, record.currency || 'UGX'),
-    moneyValue(record.serviceFee || 0, record.currency || 'UGX'),
-    moneyValue(record.taxAmount || 0, record.currency || 'UGX'),
-    moneyValue(record.providerFee || 0, record.currency || 'UGX'),
-    moneyValue(record.totalFees || 0, record.currency || 'UGX'),
+    formatMoney(record.subtotal || 0, record.currency || 'UGX'),
+    formatMoney(record.serviceFee || 0, record.currency || 'UGX'),
+    formatMoney(record.taxAmount || 0, record.currency || 'UGX'),
+    formatMoney(record.providerFee || 0, record.currency || 'UGX'),
+    formatMoney(record.totalFees || 0, record.currency || 'UGX'),
     record.status || 'recorded',
     dashboardMeta('tax_fee', record.id, record.bookingRef || record.id, record.status || 'recorded', { record, booking: record.bookingRef ? bookingDetail(findBooking(record.bookingRef)) : null }, ['view', 'booking', 'export']),
   ]);
@@ -1740,8 +1765,8 @@ function adminDashboardData(bookings) {
     financeOwnerLabel(statement.ownerType, statement.ownerId),
     statement.periodStart ? dateValue(statement.periodStart) : '-',
     statement.periodEnd ? dateValue(statement.periodEnd) : '-',
-    moneyValue(statement.gross || 0, statement.currency || 'UGX'),
-    moneyValue(statement.closingBalance || 0, statement.currency || 'UGX'),
+    formatMoney(statement.gross || 0, statement.currency || 'UGX'),
+    formatMoney(statement.closingBalance || 0, statement.currency || 'UGX'),
     statement.status || 'issued',
     dashboardMeta('finance_statement', statement.id, statement.statementRef || statement.id, statement.status || 'issued', { statement }, ['view', 'owner', 'export']),
   ]);
@@ -1749,7 +1774,7 @@ function adminDashboardData(bookings) {
     review.id,
     [review.targetType, review.targetId].filter(Boolean).join(':') || '-',
     financeOwnerLabel(review.ownerType, review.ownerId),
-    moneyValue(review.amount || 0, review.currency || 'UGX'),
+    formatMoney(review.amount || 0, review.currency || 'UGX'),
     String(review.riskScore || 0),
     review.status || 'clear',
     Array.isArray(review.flags) && review.flags.length ? review.flags.join(', ') : 'No flags',
@@ -1759,8 +1784,8 @@ function adminDashboardData(bookings) {
     batch.batchNumber || batch.id,
     batch.periodStart ? dateValue(batch.periodStart) : '-',
     batch.periodEnd ? dateValue(batch.periodEnd) : '-',
-    moneyValue(batch.totalGross || 0, batch.currency || 'UGX'),
-    moneyValue(batch.totalPayable || 0, batch.currency || 'UGX'),
+    formatMoney(batch.totalGross || 0, batch.currency || 'UGX'),
+    formatMoney(batch.totalPayable || 0, batch.currency || 'UGX'),
     batch.status || 'draft',
     dashboardMeta('settlement_batch', batch.id, batch.batchNumber || batch.id, batch.status || 'draft', { batch }, ['view', 'statements', 'payouts', 'export']),
   ]);
@@ -1768,7 +1793,7 @@ function adminDashboardData(bookings) {
     request.id,
     request.transactionId || '-',
     financeOwnerLabel(request.ownerType, request.ownerId),
-    moneyValue(request.amount || 0, request.currency || 'UGX'),
+    formatMoney(request.amount || 0, request.currency || 'UGX'),
     request.payoutMethod || '-',
     request.payoutBatchId || '-',
     request.riskStatus || request.status || 'requested',
@@ -1779,7 +1804,7 @@ function adminDashboardData(bookings) {
     batch.batchNumber || batch.id,
     batch.providerReference || '-',
     String((batch.requestIds || []).length),
-    moneyValue(batch.totalAmount || 0, batch.currency || 'UGX'),
+    formatMoney(batch.totalAmount || 0, batch.currency || 'UGX'),
     batch.status || 'exported',
     batch.createdAt ? dateValue(batch.createdAt) : '-',
     dashboardMeta('payout_batch', batch.id, batch.batchNumber || batch.id, batch.status || 'exported', { batch }, ['view', 'requests', 'export']),
@@ -1789,8 +1814,8 @@ function adminDashboardData(bookings) {
     report.settlementBatchId || '-',
     report.periodStart ? dateValue(report.periodStart) : '-',
     report.periodEnd ? dateValue(report.periodEnd) : '-',
-    moneyValue(report.grossPayments || 0, 'UGX'),
-    moneyValue(report.variance || 0, 'UGX'),
+    formatMoney(report.grossPayments || 0, 'UGX'),
+    formatMoney(report.variance || 0, 'UGX'),
     report.status || 'variance_review',
     dashboardMeta('reconciliation', report.id, report.settlementBatchId || report.id, report.status || 'variance_review', { report }, ['view', 'settlement', 'export']),
   ]);
@@ -1799,7 +1824,7 @@ function adminDashboardData(bookings) {
     financeOwnerLabel(transaction.ownerType, transaction.ownerId),
     transaction.transactionType || transaction.referenceType || 'wallet',
     transaction.direction || '-',
-    moneyValue(transaction.amount || 0, transaction.currency || 'UGX'),
+    formatMoney(transaction.amount || 0, transaction.currency || 'UGX'),
     transaction.status || 'completed',
     dashboardMeta('ledger_transaction', transaction.id, transaction.id, transaction.status || 'completed', { transaction }, ['view', 'owner', 'export']),
   ]);
@@ -1827,8 +1852,8 @@ function adminDashboardData(bookings) {
     conversion.campaignId || conversion.linkId || '-',
     financeOwnerLabel('promoter', conversion.promoterId),
     conversion.bookingRef || '-',
-    moneyValue(conversion.amount || 0, conversion.currency || 'UGX'),
-    moneyValue(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
+    formatMoney(conversion.amount || 0, conversion.currency || 'UGX'),
+    formatMoney(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
     conversion.status || 'converted',
     dashboardMeta('campaign_conversion', conversion.id, conversion.bookingRef || conversion.id, conversion.status || 'converted', { conversion, booking: conversion.bookingRef ? bookingDetail(findBooking(conversion.bookingRef)) : null }, ['view', 'booking', 'export']),
   ]);
@@ -1867,7 +1892,7 @@ function adminDashboardData(bookings) {
     sale.customerName || sale.passengerName || '-',
     findListing(sale.listingId)?.title || sale.listingId || '-',
     sale.paymentMethod || '-',
-    moneyValue(sale.amountCollected || 0, sale.currency || 'UGX'),
+    formatMoney(sale.amountCollected || 0, sale.currency || 'UGX'),
     sale.status || 'completed',
     dashboardMeta('agent_sale', sale.id, sale.saleRef || sale.id, sale.status || 'completed', { sale, booking: sale.bookingRef ? bookingDetail(findBooking(sale.bookingRef)) : null }, ['view', 'booking', 'receipt', 'export']),
   ]);
@@ -2037,6 +2062,8 @@ function bookingSettlementLabel(booking = {}) {
 }
 
 function buildCompanyFinanceDrilldown(companyId, bookings = []) {
+  const financeCompany = findCompany(companyId) || {};
+  const currency = financeCompany.operatingCurrency || financeCompany.settings?.defaultCurrency || 'UGX';
   const bookingRefs = new Set(bookings.map((booking) => booking.bookingRef).filter(Boolean));
   const companyWallet = (state.wallets || []).find((wallet) => wallet.ownerType === 'company' && wallet.ownerId === companyId) || {};
   const companyTransactions = (state.walletTransactions || []).filter((txn) => txn.ownerType === 'company' && txn.ownerId === companyId);
@@ -2066,12 +2093,12 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
       txnId,
       booking.bookingRef,
       service,
-      moneyValue(gross, booking.pricing?.currency || payment.currency || 'UGX'),
-      moneyValue(companyEarning, booking.pricing?.currency || payment.currency || 'UGX'),
-      moneyValue(platformFee, booking.pricing?.currency || payment.currency || 'UGX'),
-      moneyValue(promoterCommission, booking.pricing?.currency || payment.currency || 'UGX'),
-      moneyValue(refundDebit, booking.pricing?.currency || payment.currency || 'UGX'),
-      moneyValue(netPayable, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(gross, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(companyEarning, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(platformFee, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(promoterCommission, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(refundDebit, booking.pricing?.currency || payment.currency || 'UGX'),
+      formatMoney(netPayable, booking.pricing?.currency || payment.currency || 'UGX'),
       status,
       dashboardMeta('company_finance_booking', txnId, booking.bookingRef || txnId, status, detail, ['view', 'booking', 'refunds', 'export']),
     ];
@@ -2081,7 +2108,7 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
     txn.referenceId || txn.bookingRef || txn.bookingId || txn.transactionType || '-',
     txn.transactionType || txn.referenceType || 'wallet',
     txn.direction || '-',
-    moneyValue(txn.amount || 0, txn.currency || 'UGX'),
+    formatMoney(txn.amount || 0, txn.currency || 'UGX'),
     txn.settlementBatchId || txn.batchId || '-',
     txn.payoutRequestId || txn.payoutId || '-',
     txn.status || 'pending',
@@ -2093,8 +2120,8 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
       batch.batchNumber || batch.id,
       batch.periodStart ? dateValue(batch.periodStart) : '-',
       batch.periodEnd ? dateValue(batch.periodEnd) : '-',
-      moneyValue(batch.totalGross || 0, batch.currency || 'UGX'),
-      moneyValue(batch.totalPayable || batch.companyEarning || 0, batch.currency || 'UGX'),
+      formatMoney(batch.totalGross || 0, batch.currency || 'UGX'),
+      formatMoney(batch.totalPayable || batch.companyEarning || 0, batch.currency || 'UGX'),
       String((batch.bookingRefs || batch.transactionIds || batch.requestIds || []).length || companyTransactions.filter((txn) => [txn.settlementBatchId, txn.batchId].includes(batch.id) || [txn.settlementBatchId, txn.batchId].includes(batch.batchNumber)).length),
       batch.status || 'draft',
       dashboardMeta('company_settlement_batch', batch.id, batch.batchNumber || batch.id, batch.status || 'draft', { batch, transactions: companyTransactions.filter((txn) => [txn.settlementBatchId, txn.batchId].includes(batch.id) || [txn.settlementBatchId, txn.batchId].includes(batch.batchNumber)) }, ['view', 'statement', 'payouts', 'export']),
@@ -2102,7 +2129,7 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
   const payoutRows = payoutRequests.map((request) => [
     request.id,
     request.transactionId || '-',
-    moneyValue(request.amount || 0, request.currency || 'UGX'),
+    formatMoney(request.amount || 0, request.currency || 'UGX'),
     request.payoutMethod || request.method || '-',
     request.payoutAccount || request.account || '-',
     request.payoutBatchId || request.batchId || '-',
@@ -2116,9 +2143,9 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
       statement.statementRef || statement.id,
       statement.periodStart ? dateValue(statement.periodStart) : '-',
       statement.periodEnd ? dateValue(statement.periodEnd) : '-',
-      moneyValue(statement.gross || 0, statement.currency || 'UGX'),
-      moneyValue(statement.companyEarning || statement.closingBalance || 0, statement.currency || 'UGX'),
-      moneyValue(statement.refundDebits || 0, statement.currency || 'UGX'),
+      formatMoney(statement.gross || 0, statement.currency || 'UGX'),
+      formatMoney(statement.companyEarning || statement.closingBalance || 0, statement.currency || 'UGX'),
+      formatMoney(statement.refundDebits || 0, statement.currency || 'UGX'),
       statement.status || 'issued',
       dashboardMeta('company_finance_statement', statement.id, statement.statementRef || statement.id, statement.status || 'issued', { statement, company: companyDetail(findCompany(companyId)) }, ['view', 'export']),
     ]);
@@ -2131,22 +2158,22 @@ function buildCompanyFinanceDrilldown(companyId, bookings = []) {
   const released = companyTransactions.filter((txn) => /released|completed|settled|paid/.test(normalize(txn.status))).reduce((total, txn) => total + amountNumber(txn.amount), 0);
   return {
     summary: {
-      gross: moneyValue(gross || bookings.reduce((total, booking) => total + amountNumber(booking.pricing?.total), 0), 'UGX'),
-      companyEarning: moneyValue(companyEarning, 'UGX'),
-      platformFee: moneyValue(platformFee, 'UGX'),
-      promoterCommission: moneyValue(promoterCommission, 'UGX'),
-      refundDebits: moneyValue(refundDebits, 'UGX'),
-      netPayable: moneyValue(Math.max(0, companyEarning - refundDebits), 'UGX'),
-      pending: moneyValue(pending, 'UGX'),
-      released: moneyValue(released, 'UGX'),
-      availableBalance: moneyValue(companyWallet.availableBalance || 0, companyWallet.currency || 'UGX'),
-      pendingBalance: moneyValue(companyWallet.pendingBalance || 0, companyWallet.currency || 'UGX'),
+      gross: formatMoney(gross || bookings.reduce((total, booking) => total + amountNumber(booking.pricing?.total), 0), currency),
+      companyEarning: formatMoney(companyEarning, currency),
+      platformFee: formatMoney(platformFee, currency),
+      promoterCommission: formatMoney(promoterCommission, currency),
+      refundDebits: formatMoney(refundDebits, currency),
+      netPayable: formatMoney(Math.max(0, companyEarning - refundDebits), currency),
+      pending: formatMoney(pending, currency),
+      released: formatMoney(released, currency),
+      availableBalance: formatMoney(companyWallet.availableBalance || 0, companyWallet.currency || currency),
+      pendingBalance: formatMoney(companyWallet.pendingBalance || 0, companyWallet.currency || currency),
       bookings: String(bookings.length),
       refunds: String((state.refundRequests || []).filter((refund) => bookingRefs.has(refund.bookingRef)).length),
     },
     revenueRows,
     settlementRows: settlementRows.length ? settlementRows : [[
-      'Current pending batch', 'Current', dateValue(new Date()), moneyValue(bookings.reduce((total, booking) => total + amountNumber(booking.pricing?.total), 0), 'UGX'), moneyValue(Math.max(0, companyEarning - refundDebits), 'UGX'), String(bookings.length), pending > 0 ? 'pending release' : 'ready', dashboardMeta('company_settlement_batch', 'current-pending', 'Current pending batch', pending > 0 ? 'pending release' : 'ready', { settlement: { bookings: bookings.map((booking) => booking.bookingRef), pending, released, refundDebits }, company: companyDetail(findCompany(companyId)) }, ['view', 'export'])
+      'Current pending batch', 'Current', dateValue(new Date()), formatMoney(bookings.reduce((total, booking) => total + amountNumber(booking.pricing?.total), 0), currency), formatMoney(Math.max(0, companyEarning - refundDebits), currency), String(bookings.length), pending > 0 ? 'pending release' : 'ready', dashboardMeta('company_settlement_batch', 'current-pending', 'Current pending batch', pending > 0 ? 'pending release' : 'ready', { settlement: { bookings: bookings.map((booking) => booking.bookingRef), pending, released, refundDebits }, company: companyDetail(findCompany(companyId)) }, ['view', 'export'])
     ]],
     ledgerRows,
     payoutRows,
@@ -2194,6 +2221,7 @@ function companyDashboardData(companyId, listings, bookings) {
   const visibleRoomNightInventories = hasOwnedHotelInventory ? roomNightInventories : [];
   const hotelBookings = hasOwnedHotelInventory ? bookings.filter((booking) => booking.serviceType === 'hotel') : [];
   const supportTickets = state.supportTickets.filter((ticket) => ticket.companyId === companyId || (ticket.ownerType === 'company' && (!ticket.ownerId || ticket.ownerId === companyId)));
+  const companyCurrency = company.operatingCurrency || company.settings?.defaultCurrency || 'UGX';
   const grossRevenue = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
   const companyFinance = buildCompanyFinanceDrilldown(companyId, bookings);
@@ -2393,7 +2421,7 @@ function companyDashboardData(companyId, listings, bookings) {
       roomType.name || 'Room type',
       propertyById(roomType.propertyId).propertyName || listing.title || '-',
       String(roomType.capacity || 1),
-      moneyValue(roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
+      formatMoney(roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
       `${units.length} units`,
       roomType.status || 'active',
       dashboardMeta('room_type', roomType.id, roomType.name || 'Room type', roomType.status || 'active', { roomType, property: propertyById(roomType.propertyId), listing: listingDetail(listing), units }, ['view', 'edit', 'units', 'pricing']),
@@ -2452,7 +2480,7 @@ function companyDashboardData(companyId, listings, bookings) {
         night.status || 'available',
         night.bookingRef || '-',
         night.guestName || bookingCustomer(booking || {}) || '-',
-        moneyValue(night.price || roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
+        formatMoney(night.price || roomType.basePrice || listing.priceFrom || 0, listing.currency || company.settings?.defaultCurrency || 'UGX'),
         dashboardMeta('room_night', night.id, `${unit.unitNumber || night.roomUnitId || 'Room'} ${night.date || ''}`.trim(), night.status || 'available', { roomNight: night, roomUnit: unit, roomType, booking: bookingDetail(booking), listing: listingDetail(listing) }, ['view', 'status', 'booking', 'manifest']),
       ];
     });
@@ -2629,7 +2657,7 @@ function companyDashboardData(companyId, listings, bookings) {
       supportPhone: company.supportContacts?.phone || '',
       supportWhatsapp: company.supportContacts?.whatsapp || '',
       payoutAccount: company.payoutAccount || company.settings?.payoutAccount || '',
-      defaultCurrency: company.settings?.defaultCurrency || 'UGX',
+      defaultCurrency: companyCurrency,
       supportMessage: company.settings?.supportMessage || '',
       ratingAverage: Number(company.ratingAverage || 0),
       reviewCount: Number(company.reviewCount || reviews.length),
@@ -2642,8 +2670,9 @@ function companyDashboardData(companyId, listings, bookings) {
       reviewNotes: company.reviewNotes || '',
     },
     stats: {
-      earnings: moneyValue(companyEarnings),
-      grossRevenue: moneyValue(grossRevenue),
+      earnings: formatMoney(companyEarnings, companyCurrency),
+      grossRevenue: formatMoney(grossRevenue, companyCurrency),
+      averageOrderValue: formatMoney(bookings.length ? grossRevenue / bookings.length : 0, companyCurrency),
       confirmedBookings: bookings.length.toLocaleString(),
       activeListings: activeListings.length.toLocaleString(),
       seatsOnHold: heldSeats.toLocaleString(),
@@ -2684,7 +2713,7 @@ function companyDashboardData(companyId, listings, bookings) {
       listing.type,
       listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from} to ${listing.to}`,
       listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`,
-      moneyValue(listing.priceFrom),
+      formatMoney(listing.priceFrom),
       listing.status,
       { entity: 'listing', id: listing.id, label: listing.title, status: listing.status, detail: { listing, company: companyDetail(company) } },
     ]),
@@ -2758,7 +2787,7 @@ function companyDashboardData(companyId, listings, bookings) {
     payoutRequests: companyFinance.payoutRows,
     financeStatements: companyFinance.statementRows,
     payouts: companyFinance.revenueRows,
-    promotions: state.promotionCampaigns.filter((campaign) => campaign.companyId === companyId).map((campaign) => [campaign.name, findListing(campaign.listingId)?.title || 'Listing', campaign.placement, moneyValue(campaign.budget), String(campaign.clicks), String(campaign.bookings), campaign.status, { entity: 'promotion', id: campaign.id, label: campaign.name, status: campaign.status }]),
+    promotions: state.promotionCampaigns.filter((campaign) => campaign.companyId === companyId).map((campaign) => [campaign.name, findListing(campaign.listingId)?.title || 'Listing', campaign.placement, formatMoney(campaign.budget), String(campaign.clicks), String(campaign.bookings), campaign.status, { entity: 'promotion', id: campaign.id, label: campaign.name, status: campaign.status }]),
     reviews: reviews.map((review) => {
       const booking = state.bookings.find((item) => item.id === review.bookingId);
       return [
@@ -2979,7 +3008,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
         payment.bookingRef,
         bookingCustomer(booking),
         payment.provider || 'Desk',
-        moneyValue(payment.amount, payment.currency),
+        formatMoney(payment.amount, payment.currency),
         payment.status,
       ], dashboardMeta('payment', payment.id, payment.id, payment.status, paymentRecordDetail(payment), ['view', 'record_payment', 'export']));
     }),
@@ -3025,7 +3054,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
         schedule.id,
         seat.seatNumber || seat.label || seat.id,
         bookingTitle({ listingId: schedule.listingId }),
-        moneyValue(schedule.basePrice || findListing(schedule.listingId)?.priceFrom || 0, schedule.currency || findListing(schedule.listingId)?.currency || 'UGX'),
+        formatMoney(schedule.basePrice || findListing(schedule.listingId)?.priceFrom || 0, schedule.currency || findListing(schedule.listingId)?.currency || 'UGX'),
         booking ? bookingCustomer(booking) : 'Available',
         seat.lockedUntil ? dateValue(seat.lockedUntil) : '-',
         booking ? 'booked' : (seat.status || 'available'),
@@ -3037,7 +3066,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
       room.listingId || 'Room listing',
       room.roomType || room.id,
       bookingTitle({ listingId: room.listingId }),
-      moneyValue(room.nightlyPrice || room.price || 0, room.currency || 'UGX'),
+      formatMoney(room.nightlyPrice || room.price || 0, room.currency || 'UGX'),
       `${room.inventory || room.available || 0} available`,
       '-',
       room.status || 'available',
@@ -3063,7 +3092,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
       refund.bookingRef,
       bookingCustomer(findBooking(refund.bookingRef) || {}),
       refund.reason,
-      moneyValue(refund.amount, refund.currency || findBooking(refund.bookingRef)?.pricing?.currency || 'UGX'),
+      formatMoney(refund.amount, refund.currency || findBooking(refund.bookingRef)?.pricing?.currency || 'UGX'),
       refund.status,
     ], dashboardMeta('refund', refund.id, refund.id, refund.status, employeeRefundDetail(refund), ['view', 'refund_request', 'export'])));
 
@@ -3145,7 +3174,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
     schedule.id,
     'Seats',
     bookingTitle({ listingId: schedule.listingId }),
-    moneyValue(schedule.basePrice || findListing(schedule.listingId)?.priceFrom || 0, schedule.currency || findListing(schedule.listingId)?.currency || 'UGX'),
+    formatMoney(schedule.basePrice || findListing(schedule.listingId)?.priceFrom || 0, schedule.currency || findListing(schedule.listingId)?.currency || 'UGX'),
     `${schedule.availableSeats || 0} available`,
     '-',
     schedule.status || 'active',
@@ -3179,7 +3208,7 @@ function employeeDashboardData(companyId, bookings, context = {}) {
       checkedIn: checkedInCount.toLocaleString(),
       manualBookings: manualBookings.toLocaleString(),
       openTasks: supportTickets.filter((ticket) => !['closed', 'resolved', 'completed'].includes(normalize(ticket.status))).length.toLocaleString(),
-      deskSales: moneyValue(deskSales),
+      deskSales: formatMoney(deskSales),
       shiftEnds: employeeProfile.shiftEnds || '6:00 PM',
       paymentsRecorded: paymentsRecorded.toLocaleString(),
       notesAdded: notesAdded.toLocaleString(),
@@ -3325,8 +3354,8 @@ function customerOpsDetail(booking = {}) {
     customer: detail.customer || {},
     latestBooking: detail.booking || {},
     company: detail.company || {},
-    metrics: { bookingsCount: customerBookings.length, confirmedBookings: customerBookings.filter((item) => ['confirmed','checked_in','completed'].includes(item.bookingStatus)).length, totalSpend: moneyValue(customerBookings.reduce((total, item) => total + Number(item.pricing?.total || 0), 0)), notesCount: state.supportTickets.filter((ticket) => normalize(ticket.ownerId) === customerKey || normalize(ticket.audience) === customerKey).length },
-    bookings: customerBookings.slice(0, 8).map((item) => ({ bookingRef: item.bookingRef, service: bookingTitle(item), status: item.bookingStatus, paymentStatus: item.paymentStatus, amount: moneyValue(item.pricing?.total || 0, item.pricing?.currency) })),
+    metrics: { bookingsCount: customerBookings.length, confirmedBookings: customerBookings.filter((item) => ['confirmed','checked_in','completed'].includes(item.bookingStatus)).length, totalSpend: formatMoney(customerBookings.reduce((total, item) => total + Number(item.pricing?.total || 0), 0)), notesCount: state.supportTickets.filter((ticket) => normalize(ticket.ownerId) === customerKey || normalize(ticket.audience) === customerKey).length },
+    bookings: customerBookings.slice(0, 8).map((item) => ({ bookingRef: item.bookingRef, service: bookingTitle(item), status: item.bookingStatus, paymentStatus: item.paymentStatus, amount: formatMoney(item.pricing?.total || 0, item.pricing?.currency) })),
   };
 }
 
@@ -3366,7 +3395,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
     listing.type || listing.serviceType,
     listing.partner || findCompany(listing.companyId)?.name || 'Classic Trip partner',
     `${listing.from || listing.city || listing.location || '-'}${listing.to ? ` to ${listing.to}` : ''}`,
-    moneyValue(listing.priceFrom || listing.price || 0, listing.currency || 'UGX'),
+    formatMoney(listing.priceFrom || listing.price || 0, listing.currency || 'UGX'),
     listing.bookable ? 'Available' : listing.status || 'Saved',
     dashboardMeta('saved_listing', listing.id, listing.title, listing.status || 'saved', listingDetail(listing), ['view', 'book', 'remove', 'export']),
   ]);
@@ -3378,7 +3407,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
       booking.bookingRef,
       payment.provider || booking.paymentProvider || 'Classic Trip Payments',
       dateValue(payment.paidAt || payment.createdAt || booking.createdAt),
-      moneyValue(payment.amount || booking.pricing?.total || 0, payment.currency || booking.pricing?.currency || 'UGX'),
+      formatMoney(payment.amount || booking.pricing?.total || 0, payment.currency || booking.pricing?.currency || 'UGX'),
       payment.status || booking.paymentStatus,
       dashboardMeta('receipt', receiptId, receiptId, payment.status || booking.paymentStatus, paymentDetail(booking, payment), ['view', 'download', 'booking', 'export']),
     ];
@@ -3387,7 +3416,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
     refund.id,
     refund.bookingRef,
     refund.reason,
-    moneyValue(refund.amount || 0, refund.currency || 'UGX'),
+    formatMoney(refund.amount || 0, refund.currency || 'UGX'),
     refund.status,
     refund.reviewedAt ? dateValue(refund.reviewedAt) : dateValue(refund.createdAt || new Date()),
     dashboardMeta('refund', refund.id, refund.id, refund.status, refundDetail(refund), ['view', 'booking', 'support', 'export']),
@@ -3421,7 +3450,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
       txn.transactionType || txn.type,
       txn.method || txn.reference || txn.source || 'Wallet',
       dateValue(txn.createdAt || new Date()),
-      moneyValue(txn.amount || 0, txn.currency || wallet.currency || 'UGX'),
+      formatMoney(txn.amount || 0, txn.currency || wallet.currency || 'UGX'),
       txn.status || 'completed',
       dashboardMeta('wallet_transaction', txn.id, txn.id, txn.status, { transaction: txn, wallet }, ['view', 'export']),
     ]);
@@ -3430,7 +3459,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
     'Wallet balance',
     item.currency || 'UGX',
     'Current',
-    moneyValue(item.availableBalance || 0, item.currency || 'UGX'),
+    formatMoney(item.availableBalance || 0, item.currency || 'UGX'),
     item.status || 'Active',
     dashboardMeta('wallet', item.id, item.id, item.status || 'active', { wallet: item, owner: customerDetail(customerUser) }, ['view', 'export']),
   ]);
@@ -3458,11 +3487,11 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
       { label: 'Active booking', value: activeBookings[0]?.bookingRef || 'None', icon: 'fa-ticket', hint: activeBookings.length ? 'Ready' : 'No active ticket' },
       { label: 'Upcoming trips', value: String(activeBookings.length), icon: 'fa-calendar-days', hint: 'Customer scoped' },
       { label: 'Past bookings', value: String(pastBookings.length), icon: 'fa-clock-rotate-left', hint: 'Completed travel' },
-      { label: 'Wallet balance', value: moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX'), icon: 'fa-wallet', hint: wallet.currency || 'UGX' },
-      { label: 'Refunds tracked', value: moneyValue(refundsTotal || 0, wallet.currency || 'UGX'), icon: 'fa-rotate-left', hint: `${refundRows.length} requests` },
+      { label: 'Wallet balance', value: formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX'), icon: 'fa-wallet', hint: wallet.currency || 'UGX' },
+      { label: 'Refunds tracked', value: formatMoney(refundsTotal || 0, wallet.currency || 'UGX'), icon: 'fa-rotate-left', hint: `${refundRows.length} requests` },
       { label: 'Support cases', value: String(supportRows.length), icon: 'fa-headset', hint: supportRows.filter((row) => !/resolved|closed/i.test(row[4])).length + ' open' },
       { label: 'Reviews', value: String(reviewRows.filter((row) => row[5] === 'Submitted').length), icon: 'fa-star', hint: 'Submitted' },
-      { label: 'Total spend', value: moneyValue(totalSpend, wallet.currency || 'UGX'), icon: 'fa-coins', hint: 'All bookings' },
+      { label: 'Total spend', value: formatMoney(totalSpend, wallet.currency || 'UGX'), icon: 'fa-coins', hint: 'All bookings' },
     ],
     liveActivity: currentTicket.bookingRef ? [
       ['Service', bookingTitle(currentTicket)],
@@ -3487,7 +3516,7 @@ function customerDashboardData(bookings, customerId = 'user-customer-001') {
     refunds: refundRows,
     support: supportRows,
     reviews: reviewRows,
-    wallet: walletRows.length ? walletRows : (fallbackWalletRows.length ? fallbackWalletRows : [['wallet-customer-live', 'Wallet balance', 'UGX', 'Current', moneyValue(0, 'UGX'), 'Active', dashboardMeta('wallet', 'wallet-customer-live', 'Customer wallet', 'Active', { wallet: { availableBalance: 0, currency: 'UGX' }, owner: customerDetail(customerUser) }, ['view'])]]),
+    wallet: walletRows.length ? walletRows : (fallbackWalletRows.length ? fallbackWalletRows : [['wallet-customer-live', 'Wallet balance', 'UGX', 'Current', formatMoney(0, 'UGX'), 'Active', dashboardMeta('wallet', 'wallet-customer-live', 'Customer wallet', 'Active', { wallet: { availableBalance: 0, currency: 'UGX' }, owner: customerDetail(customerUser) }, ['view'])]]),
     notifications: notificationRows.length ? notificationRows : generatedNotifications,
     security: [
       ['Current session', 'Dashboard browser', dateValue(new Date()), 'Current', dashboardMeta('security_session', 'current-session', 'Current session', 'Current', { session: { device: 'Dashboard browser', location: 'Current location', current: true }, customer: customerDetail(customerUser) }, ['view'])],
@@ -3506,8 +3535,8 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
   const allConversions = links.reduce((total, link) => total + Number(link.conversions || 0), 0);
   const paidBookings = bookings.filter((booking) => ['successful', 'paid', 'completed'].includes(normalize(booking.paymentStatus)));
   const cancelledRefundedBookings = bookings.filter((booking) => /cancel|refund/.test(normalize(booking.bookingStatus)) || /refund/.test(normalize(booking.paymentStatus)));
-  const grossRevenue = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
-  const commissionEarned = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0);
+  const grossRevenueBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.total, (booking) => booking.pricing?.currency));
+  const commissionEarnedBreakdown = formatMoneyBreakdown(sumByCurrency(bookings, (booking) => booking.pricing?.split?.promoterAmount, (booking) => booking.pricing?.currency));
   const withdrawalTransactions = state.walletTransactions.filter((txn) => txn.ownerType === 'promoter' && (!txn.ownerId || txn.ownerId === promoterId));
   const paidWithdrawals = withdrawalTransactions.filter((txn) => ['paid', 'completed', 'released'].includes(normalize(txn.status))).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const pendingWithdrawals = withdrawalTransactions.filter((txn) => !['paid', 'completed', 'released'].includes(normalize(txn.status))).reduce((total, txn) => total + Number(txn.amount || 0), 0);
@@ -3539,8 +3568,8 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
       company: { companyId: company.id || listing.companyId || '', name: company.name || listing.partner || '', slug: company.slug || '', phone: company.phone || company.supportContacts?.phone || '' },
       finance: {
         referredBookings: referralBookings.length,
-        grossReferredRevenue: moneyValue(referralBookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0)),
-        commissionEarned: moneyValue(referralBookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0)),
+        grossReferredRevenue: formatMoneyBreakdown(sumByCurrency(referralBookings, (booking) => booking.pricing?.total, (booking) => booking.pricing?.currency || company.operatingCurrency)),
+        commissionEarned: formatMoneyBreakdown(sumByCurrency(referralBookings, (booking) => booking.pricing?.split?.promoterAmount, (booking) => booking.pricing?.currency || company.operatingCurrency)),
       },
       promoter: promoter.promoter,
       timestamps: { createdAt: link.createdAt, updatedAt: link.updatedAt },
@@ -3575,8 +3604,8 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
         bookingRef: booking.bookingRef,
         referralCode: booking.promoterAttribution?.code || mainLink.code || '',
         referralPercent: booking.pricing?.split?.promoterPercent || '3%',
-        grossAmount: moneyValue(booking.pricing?.total || 0, booking.pricing?.currency),
-        commissionAmount: moneyValue(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
+        grossAmount: formatMoney(booking.pricing?.total || 0, booking.pricing?.currency),
+        commissionAmount: formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
         commissionStatus: commission.status || (['successful', 'paid'].includes(normalize(booking.paymentStatus)) ? 'earned' : 'pending'),
         settlementStatus: booking.settlementStatus || commission.settlementStatus || 'pending',
         paidAt: commission.paidAt || '',
@@ -3597,7 +3626,7 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
       type: row.transactionType || row.type || 'Promoter withdrawal',
       method: row.method || promoterUser.payoutAccount?.method || 'Mobile Money',
       account: row.account || promoterUser.payoutAccount?.account || promoterUser.phone || '',
-      amount: moneyValue(row.amount ?? fallbackWallet?.availableBalance ?? 0, row.currency || fallbackWallet?.currency || 'UGX'),
+      amount: formatMoney(row.amount ?? fallbackWallet?.availableBalance ?? 0, row.currency || fallbackWallet?.currency || 'UGX'),
       currency: row.currency || fallbackWallet?.currency || 'UGX',
       status: row.status || (fallbackWallet?.pendingBalance > 0 ? 'pending' : 'available'),
       reference: row.reference || row.referenceId || '',
@@ -3623,7 +3652,7 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
     sale.customerName || sale.passengerName || '-',
     findListing(sale.listingId)?.title || sale.listingId || '-',
     sale.paymentMethod || '-',
-    moneyValue(sale.amountCollected || 0, sale.currency || 'UGX'),
+    formatMoney(sale.amountCollected || 0, sale.currency || 'UGX'),
     sale.status || 'completed',
     dashboardMeta('agent_sale', sale.id, sale.saleRef || sale.id, sale.status || 'completed', { sale, booking: sale.bookingRef ? bookingDetail(findBooking(sale.bookingRef)) : null }, ['view', 'booking', 'receipt', 'export']),
   ]);
@@ -3651,8 +3680,8 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
     conversion.campaignId || conversion.linkId || '-',
     promoterUser.fullName || promoterId,
     conversion.bookingRef || '-',
-    moneyValue(conversion.amount || 0, conversion.currency || 'UGX'),
-    moneyValue(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
+    formatMoney(conversion.amount || 0, conversion.currency || 'UGX'),
+    formatMoney(conversion.commissionAmount || 0, conversion.currency || 'UGX'),
     conversion.status || 'converted',
     dashboardMeta('campaign_conversion', conversion.id, conversion.bookingRef || conversion.id, conversion.status || 'converted', { conversion, booking: conversion.bookingRef ? bookingDetail(findBooking(conversion.bookingRef)) : null }, ['view', 'booking', 'export']),
   ]);
@@ -3687,13 +3716,13 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
     overviewStats: [
       { label: 'Referral code', value: mainLink.code || promoterUser.referralCode || '-', icon: 'fa-link', hint: 'Primary tracking code' },
       { label: 'Total bookings', value: String(bookings.length), icon: 'fa-ticket', hint: `${paidBookings.length} confirmed / ${cancelledRefundedBookings.length} cancelled-refunded` },
-      { label: 'Gross referred revenue', value: moneyValue(grossRevenue), icon: 'fa-chart-line', hint: 'Total ticket value from referrals' },
-      { label: 'Commission earned', value: moneyValue(commissionEarned), icon: 'fa-coins', hint: 'Promoter commission from referred bookings' },
+      { label: 'Gross referred revenue', value: grossRevenueBreakdown, icon: 'fa-chart-line', hint: 'Total ticket value from referrals' },
+      { label: 'Commission earned', value: commissionEarnedBreakdown, icon: 'fa-coins', hint: 'Promoter commission from referred bookings' },
     ],
     liveActivity: [
-      ['Withdrawable', moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX')],
-      ['Pending withdrawals', moneyValue(pendingWithdrawals || wallet.pendingBalance || 0, wallet.currency || 'UGX')],
-      ['Paid withdrawals', moneyValue(paidWithdrawals, wallet.currency || 'UGX')],
+      ['Withdrawable', formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX')],
+      ['Pending withdrawals', formatMoney(pendingWithdrawals || wallet.pendingBalance || 0, wallet.currency || 'UGX')],
+      ['Paid withdrawals', formatMoney(paidWithdrawals, wallet.currency || 'UGX')],
       ['Conversion rate', allClicks ? `${Math.round((allConversions / allClicks) * 100)}%` : '0%'],
     ],
     links: links.map((link) => {
@@ -3704,26 +3733,26 @@ function promoterDashboardData(links, bookings, promoterId = 'user-promoter-001'
     share: shareListings.map((listing) => {
       const detail = shareDetail(listing);
       const company = findCompany(listing.companyId) || {};
-      return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, `${listing.from || listing.city || ''}${listing.to ? ` to ${listing.to}` : ''}`, moneyValue(listing.priceFrom, listing.currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
+      return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, `${listing.from || listing.city || ''}${listing.to ? ` to ${listing.to}` : ''}`, formatMoney(listing.priceFrom, listing.currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
     }),
     commissions: bookings.map((booking, index) => {
       const detail = commissionDetail(booking, index);
       const status = detail.commission.commissionStatus === 'released' ? 'Earned' : detail.commission.commissionStatus === 'hold' ? 'Hold' : detail.commission.commissionStatus;
       return [detail.commission.commissionId, booking.bookingRef, detail.commission.grossAmount, detail.commission.referralPercent, detail.commission.commissionAmount, status, dashboardMeta('commission', detail.commission.commissionId, detail.commission.commissionId, status, detail, ['view', 'booking', 'export'])];
     }),
-    withdrawals: (withdrawalTransactions.length ? withdrawalTransactions.map((txn) => [txn.id, txn.transactionType || 'Withdrawal', txn.account || promoterUser.phone || promoterId, dateValue(txn.createdAt), moneyValue(txn.amount, txn.currency), txn.status, dashboardMeta('withdrawal', txn.id, txn.id, txn.status, withdrawalDetail(txn), ['view', 'export'])]) : [[wallet.id || 'promoter-wallet', 'available_balance', promoterId, 'Current', moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX'), wallet.pendingBalance > 0 ? 'Pending payout' : 'Available', dashboardMeta('withdrawal', wallet.id || 'promoter-wallet', wallet.id || 'promoter-wallet', wallet.pendingBalance > 0 ? 'pending' : 'available', withdrawalDetail({}, wallet), ['view', 'export'])]]),
+    withdrawals: (withdrawalTransactions.length ? withdrawalTransactions.map((txn) => [txn.id, txn.transactionType || 'Withdrawal', txn.account || promoterUser.phone || promoterId, dateValue(txn.createdAt), formatMoney(txn.amount, txn.currency), txn.status, dashboardMeta('withdrawal', txn.id, txn.id, txn.status, withdrawalDetail(txn), ['view', 'export'])]) : [[wallet.id || 'promoter-wallet', 'available_balance', promoterId, 'Current', formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX'), wallet.pendingBalance > 0 ? 'Pending payout' : 'Available', dashboardMeta('withdrawal', wallet.id || 'promoter-wallet', wallet.id || 'promoter-wallet', wallet.pendingBalance > 0 ? 'pending' : 'available', withdrawalDetail({}, wallet), ['view', 'export'])]]),
     bookings: bookings.map((booking) => {
       const detail = bookingDetail(booking) || {};
-      return [booking.bookingRef, bookingTitle(booking), bookingCustomer(booking), bookingTotal(booking), moneyValue(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency), booking.paymentStatus, dashboardMeta('referral_booking', booking.id, booking.bookingRef, booking.paymentStatus, detail, ['view', 'copy', 'export'])];
+      return [booking.bookingRef, bookingTitle(booking), bookingCustomer(booking), bookingTotal(booking), formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency), booking.paymentStatus, dashboardMeta('referral_booking', booking.id, booking.bookingRef, booking.paymentStatus, detail, ['view', 'copy', 'export'])];
     }),
     campaigns: state.promotionCampaigns.map((campaign) => {
       const detail = campaignDetail(campaign);
       const relatedLinks = links.filter((link) => link.listingId === campaign.listingId).length;
-      return [campaign.name || campaign.title, campaign.placement || campaign.type, String(relatedLinks), String(campaign.clicks || 0), String(campaign.bookings || campaign.conversions || 0), moneyValue(campaign.budget || 0), campaign.status, dashboardMeta('campaign', campaign.id, campaign.name || campaign.title, campaign.status, detail, ['view', 'export'])];
+      return [campaign.name || campaign.title, campaign.placement || campaign.type, String(relatedLinks), String(campaign.clicks || 0), String(campaign.bookings || campaign.conversions || 0), formatMoney(campaign.budget || 0), campaign.status, dashboardMeta('campaign', campaign.id, campaign.name || campaign.title, campaign.status, detail, ['view', 'export'])];
     }),
     payouts: [
-      [wallet.id || 'promoter-wallet', 'Current balance', wallet.currency || 'UGX', moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX'), promoterUser.payoutAccount?.method || 'Wallet', wallet.pendingBalance > 0 ? 'Pending' : 'Available', dashboardMeta('payout', wallet.id || 'promoter-wallet', wallet.id || 'promoter-wallet', wallet.pendingBalance > 0 ? 'pending' : 'available', withdrawalDetail({}, wallet), ['view', 'export'])],
-      ...withdrawalTransactions.map((txn) => [txn.id, dateValue(txn.createdAt), txn.currency || wallet.currency || 'UGX', moneyValue(txn.amount || 0, txn.currency || wallet.currency || 'UGX'), txn.reference || txn.transactionType || 'Withdrawal', txn.status, dashboardMeta('payout', txn.id, txn.id, txn.status, withdrawalDetail(txn), ['view', 'export'])]),
+      [wallet.id || 'promoter-wallet', 'Current balance', wallet.currency || 'UGX', formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX'), promoterUser.payoutAccount?.method || 'Wallet', wallet.pendingBalance > 0 ? 'Pending' : 'Available', dashboardMeta('payout', wallet.id || 'promoter-wallet', wallet.id || 'promoter-wallet', wallet.pendingBalance > 0 ? 'pending' : 'available', withdrawalDetail({}, wallet), ['view', 'export'])],
+      ...withdrawalTransactions.map((txn) => [txn.id, dateValue(txn.createdAt), txn.currency || wallet.currency || 'UGX', formatMoney(txn.amount || 0, txn.currency || wallet.currency || 'UGX'), txn.reference || txn.transactionType || 'Withdrawal', txn.status, dashboardMeta('payout', txn.id, txn.id, txn.status, withdrawalDetail(txn), ['view', 'export'])]),
     ],
     fraud: trafficRows,
     offlineSales: offlineSaleRows,
@@ -3956,7 +3985,7 @@ function recordReferralClick(code, listingId, req) {
   return click;
 }
 
-function settleBookingPayment(bookingRef) {
+async function settleBookingPayment(bookingRef) {
   const booking = findBooking(bookingRef);
   if (!booking || booking.settlementStatus === 'settled') return booking;
   if (booking.paymentStatus !== 'successful') return booking;
@@ -3967,23 +3996,21 @@ function settleBookingPayment(bookingRef) {
   const split = booking.pricing?.split || calculateCommission(booking.pricing?.total || 0, Boolean(booking.promoterAttribution));
   const walletService = require('../wallet/walletService');
   const commissionService = require('../commission/commissionService');
+  const currency = booking.pricing.currency;
 
   commissionService.createCommission(booking, Boolean(booking.promoterAttribution), split);
-  walletService.creditAvailable('platform', 'platform', split.platformFee, {
-    currency: booking.pricing.currency,
+  await walletService.creditAvailable('platform', 'platform', currency, split.platformFee, {
     transactionType: 'platform_fee',
     referenceType: 'booking',
     referenceId: booking.id,
   });
-  walletService.creditPending('company', booking.companyId, split.companyAmount, {
-    currency: booking.pricing.currency,
+  await walletService.creditPending('company', booking.companyId, currency, split.companyAmount, {
     transactionType: 'company_earning_pending',
     referenceType: 'booking',
     referenceId: booking.id,
   });
   if (booking.promoterAttribution?.promoterId) {
-    walletService.creditPending('promoter', booking.promoterAttribution.promoterId, split.promoterAmount, {
-      currency: booking.pricing.currency,
+    await walletService.creditPending('promoter', booking.promoterAttribution.promoterId, currency, split.promoterAmount, {
       transactionType: 'promoter_commission_pending',
       referenceType: 'booking',
       referenceId: booking.id,
@@ -4101,7 +4128,7 @@ function hotelNightRangeFromPayload(payload = {}) {
   return { checkIn, checkOut, nights };
 }
 
-function createBooking(payload = {}, req = null) {
+async function createBooking(payload = {}, req = null) {
   const listing = findListing(payload.listingId || payload.slug);
   if (!listing) {
     const error = new Error('Listing not found');
@@ -4450,7 +4477,7 @@ function createBooking(payload = {}, req = null) {
   if (booking.promoterAttribution?.promoterId) {
     promoterNetworkService.recordConversion(booking, booking.agentSale || booking.offlineSale ? 'agent_offline' : 'booking');
   }
-  if (booking.paymentStatus === 'successful') settleBookingPayment(booking.bookingRef);
+  if (booking.paymentStatus === 'successful') await settleBookingPayment(booking.bookingRef);
   persistBookingGraph(booking);
   return booking;
 }
@@ -4725,9 +4752,9 @@ function companyDetail(company = {}) {
       activeListings: listings.filter((listing) => listing.status === 'active').length,
       totalBookings: companyBookings.length,
       confirmedBookings: companyBookings.filter((booking) => ['confirmed', 'checked_in', 'completed'].includes(booking.bookingStatus)).length,
-      revenue: moneyValue(grossRevenue),
-      ownerEarnings: moneyValue(ownerEarnings),
-      pendingPayout: moneyValue(pendingPayout),
+      revenue: formatMoney(grossRevenue),
+      ownerEarnings: formatMoney(ownerEarnings),
+      pendingPayout: formatMoney(pendingPayout),
     },
     payout: {
       payoutAccount: company.payoutAccount || company.settings?.payoutAccount || '',
@@ -4790,7 +4817,7 @@ function listingDetail(listing = {}) {
     },
     inventory: {
       basePrice: listing.priceFrom,
-      price: moneyValue(listing.priceFrom, listing.currency),
+      price: formatMoney(listing.priceFrom, listing.currency),
       currency: listing.currency,
       totalSeats,
       bookedSeats,
@@ -4814,7 +4841,7 @@ function paymentDetail(booking = {}, payment = {}) {
       provider: payment.provider || booking.paymentProvider || 'Classic Trip Payments',
       providerReference: payment.providerReference || booking.paymentRef || '',
       amount: payment.amount || booking.pricing?.total || 0,
-      formattedAmount: moneyValue(payment.amount || booking.pricing?.total || 0, payment.currency || booking.pricing?.currency || 'UGX'),
+      formattedAmount: formatMoney(payment.amount || booking.pricing?.total || 0, payment.currency || booking.pricing?.currency || 'UGX'),
       currency: payment.currency || booking.pricing?.currency || 'UGX',
       status: payment.status || booking.paymentStatus,
       paidAt: payment.paidAt || booking.paidAt || '',
@@ -4850,15 +4877,15 @@ function promoterDetail(user = {}) {
       totalReferredBookings: referred.length,
       confirmedReferredBookings: referred.filter((booking) => ['confirmed', 'checked_in', 'completed'].includes(booking.bookingStatus)).length,
       cancelledOrRefunded: referred.filter((booking) => /cancel|refund/.test(normalize(booking.bookingStatus))).length,
-      grossReferredRevenue: moneyValue(gross),
-      commissionEarned: moneyValue(commission),
+      grossReferredRevenue: formatMoney(gross),
+      commissionEarned: formatMoney(commission),
       conversionRate: links.reduce((total, link) => total + Number(link.clicks || 0), 0) ? `${Math.round((links.reduce((total, link) => total + Number(link.conversions || 0), 0) / links.reduce((total, link) => total + Number(link.clicks || 0), 0)) * 100)}%` : '0%',
     },
     wallet: {
-      availableBalance: moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX'),
-      pendingBalance: moneyValue(wallet.pendingBalance || 0, wallet.currency || 'UGX'),
-      paidWithdrawals: moneyValue(state.walletTransactions.filter((txn) => txn.ownerType === 'promoter' && txn.ownerId === user.id && txn.status === 'paid').reduce((total, txn) => total + Number(txn.amount || 0), 0), wallet.currency || 'UGX'),
-      pendingWithdrawals: moneyValue(state.walletTransactions.filter((txn) => txn.ownerType === 'promoter' && txn.ownerId === user.id && txn.status !== 'paid').reduce((total, txn) => total + Number(txn.amount || 0), 0), wallet.currency || 'UGX'),
+      availableBalance: formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX'),
+      pendingBalance: formatMoney(wallet.pendingBalance || 0, wallet.currency || 'UGX'),
+      paidWithdrawals: formatMoney(state.walletTransactions.filter((txn) => txn.ownerType === 'promoter' && txn.ownerId === user.id && txn.status === 'paid').reduce((total, txn) => total + Number(txn.amount || 0), 0), wallet.currency || 'UGX'),
+      pendingWithdrawals: formatMoney(state.walletTransactions.filter((txn) => txn.ownerType === 'promoter' && txn.ownerId === user.id && txn.status !== 'paid').reduce((total, txn) => total + Number(txn.amount || 0), 0), wallet.currency || 'UGX'),
     },
     recentBookings: referred.slice(0, 5).map((booking) => booking.bookingRef),
     timestamps: { createdAt: user.createdAt, updatedAt: user.updatedAt },
@@ -4876,12 +4903,12 @@ function customerDetail(user = {}) {
       totalBookings: userBookings.length,
       confirmedBookings: userBookings.filter((booking) => ['confirmed', 'checked_in', 'completed'].includes(booking.bookingStatus)).length,
       cancelledOrRefunded: userBookings.filter((booking) => /cancel|refund/.test(normalize(booking.bookingStatus))).length,
-      totalSpend: moneyValue(totalSpend),
+      totalSpend: formatMoney(totalSpend),
       lastBooking: lastBooking.bookingRef || '',
       lastTravelDate: lastBooking.createdAt || '',
       guestBookingsMatched: userBookings.filter((booking) => !booking.customerUserId).length,
     },
-    wallet: { balance: moneyValue(wallet.availableBalance || 0, wallet.currency || 'UGX'), walletId: wallet.id || '' },
+    wallet: { balance: formatMoney(wallet.availableBalance || 0, wallet.currency || 'UGX'), walletId: wallet.id || '' },
     notes: { adminNote: user.adminNote || user.note || '' },
     timestamps: { createdAt: user.createdAt, updatedAt: user.updatedAt },
   };
@@ -4917,8 +4944,8 @@ function campaignDetail(campaign = {}) {
       status: campaign.status,
       startDate: campaign.startDate,
       endDate: campaign.endDate,
-      budget: moneyValue(campaign.budget || 0),
-      spend: moneyValue(campaign.spend || 0),
+      budget: formatMoney(campaign.budget || 0),
+      spend: formatMoney(campaign.spend || 0),
       clicks: campaign.clicks || 0,
       views: campaign.views || 0,
       conversions: campaign.bookings || campaign.conversions || 0,
@@ -4937,7 +4964,7 @@ function refundDetail(refund = {}) {
       id: refund.id,
       bookingRef: refund.bookingRef,
       reason: refund.reason,
-      amount: moneyValue(refund.amount || detail.payment?.amount || 0, detail.payment?.currency || 'UGX'),
+      amount: formatMoney(refund.amount || detail.payment?.amount || 0, detail.payment?.currency || 'UGX'),
       status: refund.status,
       requestedAt: refund.createdAt,
       reviewedBy: refund.reviewedBy || '',

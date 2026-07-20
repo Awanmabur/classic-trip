@@ -28,7 +28,7 @@ function requirePromoter(promoterId) {
   return promoter;
 }
 
-function ensureAgentProfile(promoterId, payload = {}, actorId = promoterId) {
+async function ensureAgentProfile(promoterId, payload = {}, actorId = promoterId) {
   ensureCollections();
   const promoter = requirePromoter(promoterId);
   let profile = store.state.agentProfiles.find((row) => row.userId === promoterId || row.promoterId === promoterId);
@@ -74,7 +74,7 @@ function ensureAgentProfile(promoterId, payload = {}, actorId = promoterId) {
     offlineSalesEnabled: profile.offlineSalesEnabled,
     agentPermissions: profile.permissions,
   };
-  walletService.getOrCreateWallet('promoter', promoterId, payload.currency || 'UGX');
+  await walletService.getOrCreateWallet('promoter', promoterId, payload.currency || 'UGX');
   return profile;
 }
 

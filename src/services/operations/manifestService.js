@@ -89,8 +89,12 @@ function formatSeatNo(value) {
   return `Seat No ${cleanNumber || raw}`;
 }
 
+function passengerSeatNumber(passenger = {}) {
+  return clean(passenger.seatOrRoom || passenger.seatNumber || passenger.seat || '');
+}
+
 function passengerSeat(passenger = {}) {
-  return formatSeatNo(passenger.seatOrRoom || passenger.seatNumber || passenger.seat || '');
+  return formatSeatNo(passengerSeatNumber(passenger));
 }
 
 function contactFor(booking = {}, passenger = {}) {
@@ -120,9 +124,9 @@ function promoterLabel(booking = {}) {
 }
 
 function ticketForPassenger(booking = {}, scheduleId, passenger = {}) {
-  const seat = passengerSeat(passenger);
-  const ticket = (booking.ticketLegs || []).find((leg) => leg.scheduleId === scheduleId && clean(leg.seatNumber) === seat)
-    || (booking.ticketLegs || []).find((leg) => clean(leg.seatNumber) === seat)
+  const seatNumber = passengerSeatNumber(passenger);
+  const ticket = (booking.ticketLegs || []).find((leg) => leg.scheduleId === scheduleId && clean(leg.seatNumber) === seatNumber)
+    || (booking.ticketLegs || []).find((leg) => clean(leg.seatNumber) === seatNumber)
     || (booking.ticketLegs || [])[0]
     || {};
   return ticket;
