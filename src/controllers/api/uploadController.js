@@ -4,7 +4,7 @@ const blogService = require('../../services/content/blogService');
 
 const COMPANY_TARGETS = ['companyLogo', 'companyCover', 'companyDocument', 'listingMedia', 'busListing', 'hotelListing'];
 const ADMIN_ROLES = new Set(['super_admin', 'admin', 'content_admin']);
-const COMPANY_ROLES = new Set(['company_admin', 'super_admin']);
+const COMPANY_ROLES = new Set(['company_admin']);
 
 function fail(message, status = 400) {
   const error = new Error(message);
@@ -34,7 +34,7 @@ function authorize(req, target) {
     return { user };
   }
   if (COMPANY_TARGETS.includes(target)) {
-    if (!COMPANY_ROLES.has(user.role)) fail('Only company administrators can manage company media', 403);
+    if (!isAdmin(user) && !COMPANY_ROLES.has(user.role)) fail('Only company administrators can manage company media', 403);
     const companyId = resolvedCompanyId(req);
     if (!companyId) fail('Company ID is required for company media uploads', 422);
     if (!isAdmin(user) && req.body.companyId && req.body.companyId !== user.companyId) {

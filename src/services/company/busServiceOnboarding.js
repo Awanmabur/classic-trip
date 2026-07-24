@@ -1,85 +1,131 @@
-const store = require('../data/persistentStore');
+'use strict';
+
+const crypto = require('crypto');
+const IdempotencyKeyRecord = require('../../models/IdempotencyKeyRecord');
+const busRepository = require('../../modules/bus/repositories/busRepository');
 const companyService = require('./companyService');
-const { mongoReady } = require('../shared/mongoUnitOfWork');
 
 const IDEMPOTENCY_SCOPE = 'bus_service_onboarding';
+const CLAIM_TTL_MS = 15 * 60 * 1000;
 
-function cleanText(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
+function cleanText(value, max = 500) {
+  return String(value || '').replace(/<[^>]*>/g, '').trim().slice(0, max);
 }
 
-function audit(actorId, action, target, meta = {}) {
-  store.state.auditLogs.push({
-    id: `audit-${store.state.auditLogs.length + 1}`,
-    actorId,
-    action,
-    target,
-    meta,
-    createdAt: new Date().toISOString(),
-  });
+function normalizedStatus(value, fallback = 'draft') {
+  return cleanText(value || fallback, 40).toLowerCase().replace(/[^a-z_]/g, '_');
 }
 
-// In-process fallback, used only when MongoDB isn't connected (local dev without a database, or
-// the seeded in-memory test read model - the same situation idService.nextId() falls back for).
-// Never durable across restarts/processes, but keeps the double-submit guard working instead of
-// silently no-opping in those environments.
-const fallbackIdempotencyRecords = new Map();
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== 'object' || value instanceof Date) return value;
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = stableValue(value[key]);
+    return result;
+  }, {});
+}
 
-// Claims an idempotency key with one atomic findOneAndUpdate upsert: whichever caller's upsert
-// actually inserts the document is the one that gets to proceed (`claimed: true`); everyone else
-// finds the just-inserted (or older) document already there (`claimed: false`) and replays its
-// result instead of creating a duplicate bus service. This is atomic via the single-document
-// upsert operation itself, not a unique index, so it doesn't race against index-build timing.
-async function claimIdempotencyKey(key) {
-  if (!key) return { claimed: true, record: null };
-  if (!mongoReady()) {
-    const existing = fallbackIdempotencyRecords.get(key);
-    if (!existing || existing.status === 'failed') {
-      const record = existing || { status: 'started', metadata: {}, firstSeenAt: new Date() };
-      record.status = 'started';
-      record.lastSeenAt = new Date();
-      fallbackIdempotencyRecords.set(key, record);
-      return { claimed: true, record };
-    }
-    return { claimed: false, record: existing };
+function payloadHash(payload) {
+  return crypto.createHash('sha256').update(JSON.stringify(stableValue(payload || {}))).digest('hex');
+}
+
+function generatedIdempotencyKey(companyId, actorId, hash) {
+  return `${companyId}:${actorId}:${hash}:${crypto.randomUUID()}`;
+}
+
+async function activeBranchOrThrow(companyId, branchId, label) {
+  const id = cleanText(branchId, 180);
+  if (!id) {
+    const error = new Error(`${label} is required. Create the terminal first, then select it.`);
+    error.status = 422;
+    throw error;
   }
-  const IdempotencyKeyRecord = require('../../models/IdempotencyKeyRecord');
+  const branch = await busRepository.branches.findOne({ id, companyId, status: { $ne: 'archived' } });
+  if (!branch) {
+    const error = new Error(`${label} does not belong to this company or is archived`);
+    error.status = 422;
+    throw error;
+  }
+  return branch;
+}
+
+function branchLabel(branch = {}) {
+  return cleanText([branch.name, branch.city].filter(Boolean).join(', '), 180);
+}
+
+async function claimIdempotencyKey({ companyId, actorId, key, hash }) {
+  const normalizedKey = cleanText(key, 220) || generatedIdempotencyKey(companyId, actorId, hash);
+  const scopedKey = `${companyId}:${normalizedKey}`;
   const now = new Date();
-  const raw = await IdempotencyKeyRecord.findOneAndUpdate(
-    { key, scope: IDEMPOTENCY_SCOPE },
-    {
-      $setOnInsert: {
-        id: `idem-${IDEMPOTENCY_SCOPE}-${key}`,
-        key,
-        scope: IDEMPOTENCY_SCOPE,
-        status: 'started',
-        firstSeenAt: now,
+  const expiresAt = new Date(now.getTime() + CLAIM_TTL_MS);
+
+  try {
+    const result = await IdempotencyKeyRecord.findOneAndUpdate(
+      { key: scopedKey, scope: IDEMPOTENCY_SCOPE },
+      {
+        $setOnInsert: {
+          id: `idem-${crypto.createHash('sha256').update(`${IDEMPOTENCY_SCOPE}:${scopedKey}`).digest('hex')}`,
+          key: scopedKey,
+          scope: IDEMPOTENCY_SCOPE,
+          entityType: 'bus_service',
+          payloadHash: hash,
+          status: 'started',
+          firstSeenAt: now,
+        },
+        $set: { lastSeenAt: now, expiresAt },
       },
-      $set: { lastSeenAt: now },
-    },
-    { upsert: true, new: true, includeResultMetadata: true, setDefaultsOnInsert: true }
-  );
-  const claimed = !raw.lastErrorObject?.updatedExisting;
-  if (!claimed && raw.value?.status === 'failed') {
-    // A previous attempt under this key failed; allow a clean retry instead of blocking forever.
-    await IdempotencyKeyRecord.updateOne({ _id: raw.value._id }, { $set: { status: 'started', lastSeenAt: now } });
-    return { claimed: true, record: raw.value };
+      { upsert: true, new: true, includeResultMetadata: true, setDefaultsOnInsert: true },
+    );
+    const record = result.value;
+    const inserted = !result.lastErrorObject?.updatedExisting;
+    if (inserted) return { claimed: true, record };
+
+    if (record.payloadHash && record.payloadHash !== hash) {
+      const error = new Error('This submission key was already used for different bus-service data. Reopen the form and submit again.');
+      error.status = 409;
+      error.code = 'idempotency_payload_mismatch';
+      throw error;
+    }
+    if (record.status === 'completed') return { claimed: false, record };
+
+    const lastSeenAt = new Date(record.lastSeenAt || record.updatedAt || 0).getTime();
+    const stale = !Number.isFinite(lastSeenAt) || (Date.now() - lastSeenAt) > CLAIM_TTL_MS;
+    if (record.status === 'failed' || stale) {
+      const reclaimed = await IdempotencyKeyRecord.findOneAndUpdate(
+        { _id: record._id, status: record.status, lastSeenAt: record.lastSeenAt },
+        { $set: { status: 'started', payloadHash: hash, lastSeenAt: now, expiresAt, metadata: {} } },
+        { new: true },
+      );
+      if (reclaimed) return { claimed: true, record: reclaimed };
+    }
+
+    return { claimed: false, record };
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    const record = await IdempotencyKeyRecord.findOne({ key: scopedKey, scope: IDEMPOTENCY_SCOPE });
+    if (record?.payloadHash && record.payloadHash !== hash) {
+      const conflict = new Error('This submission key was already used for different bus-service data. Reopen the form and submit again.');
+      conflict.status = 409;
+      conflict.code = 'idempotency_payload_mismatch';
+      throw conflict;
+    }
+    return { claimed: false, record };
   }
-  return { claimed, record: raw.value };
 }
 
-async function resolveIdempotencyKey(record, status, extra = {}) {
-  if (!record) return;
-  if (!mongoReady()) {
-    record.status = status;
-    record.lastSeenAt = new Date();
-    record.metadata = extra;
-    return;
-  }
-  const IdempotencyKeyRecord = require('../../models/IdempotencyKeyRecord');
-  await IdempotencyKeyRecord.updateOne({ _id: record._id }, {
-    $set: { status, lastSeenAt: new Date(), metadata: extra },
-  });
+async function resolveIdempotencyKey(record, status, metadata = {}) {
+  if (!record?._id) return;
+  await IdempotencyKeyRecord.updateOne(
+    { _id: record._id },
+    {
+      $set: {
+        status,
+        lastSeenAt: new Date(),
+        expiresAt: new Date(Date.now() + CLAIM_TTL_MS),
+        metadata,
+      },
+    },
+  );
 }
 
 function summarize(created) {
@@ -87,100 +133,200 @@ function summarize(created) {
     listing: created.listing,
     vehicle: created.vehicle,
     route: created.route,
+    routeStops: created.routeStops || [],
+    fare: created.fare,
     schedule: created.schedule,
-    seats: created.seats,
+    seats: created.seats || [],
   };
 }
 
-// Best-effort compensation for a wizard attempt that failed partway through. Nothing created here
-// can have bookings yet (the schedule - the last, booking-enabling step - either never finished or
-// is itself being rolled back first), so archiving is a safe, complete undo: archived records are
-// excluded from search, marketplace listings, and booking eligibility everywhere else in the app.
-// Uses the existing archive*() functions rather than raw deletes, matching this codebase's
-// no-hard-delete convention and their already-tested cascade behavior (e.g. archiveRoute also
-// archives its schedules).
+// A failed one-screen setup has no accepted bookings. Remove only records created by this request,
+// in reverse dependency order, so a failed wizard never leaves archived or half-connected debris.
 async function rollback(companyId, created, actorId) {
-  const steps = [
-    ['schedule', () => created.schedule && companyService.archiveSchedule(companyId, created.schedule.id)],
-    ['route', () => created.route && companyService.archiveRoute(companyId, created.route.id)],
-    ['vehicle', () => created.vehicle && companyService.archiveVehicle(companyId, created.vehicle.id)],
-    ['listing', () => created.listing && companyService.archiveListing(companyId, created.listing.id)],
-  ];
-  const failures = [];
-  for (const [label, step] of steps) {
-    try {
-      await step();
-    } catch (rollbackError) {
-      failures.push({ step: label, message: rollbackError.message });
+  const listingId = created.listing?.id;
+  const vehicleId = created.vehicle?.id;
+  const routeId = created.route?.id;
+  const fareProductId = created.fare?.id;
+  const scheduleId = created.schedule?.id;
+
+  await busRepository.withTransaction(async (session) => {
+    const options = session ? { session } : {};
+    if (scheduleId) {
+      await busRepository.ticketScans.deleteMany({ companyId, scheduleId }, options);
+      await busRepository.driverAssignments.deleteMany({ companyId, scheduleId }, options);
+      await busRepository.segmentInventory.deleteMany({ companyId, scheduleId }, options);
+      await busRepository.seats.deleteMany({ companyId, scheduleId }, options);
+      await busRepository.schedules.deleteMany({ companyId, id: scheduleId }, options);
     }
-  }
-  audit(actorId, 'company.bus_service.rolled_back', created.listing?.id || companyId, {
+    if (fareProductId) {
+      await busRepository.segmentFares.deleteMany({ companyId, fareProductId }, options);
+      await busRepository.fareProducts.deleteMany({ companyId, id: fareProductId }, options);
+    }
+    if (routeId) {
+      await busRepository.routeSegments.deleteMany({ companyId, routeId }, options);
+      await busRepository.routeStops.deleteMany({ companyId, routeId }, options);
+      await busRepository.routes.deleteMany({ companyId, id: routeId }, options);
+    }
+    if (vehicleId) {
+      await busRepository.seatMapVersions.deleteMany({ companyId, vehicleId }, options);
+      await busRepository.seatMapTemplates.deleteMany({ companyId, vehicleId }, options);
+      await busRepository.vehicles.deleteMany({ companyId, id: vehicleId }, options);
+    }
+    if (listingId) await busRepository.listings.deleteMany({ companyId, id: listingId }, options);
+  });
+
+  await busRepository.audit({
+    actorId,
+    action: 'bus.service_setup.rolled_back',
+    targetType: 'bus_service',
+    targetId: listingId || companyId,
     companyId,
-    createdSteps: Object.keys(created).filter((key) => created[key]),
-    rollbackFailures: failures,
+    metadata: {
+      createdListingId: listingId || '',
+      createdVehicleId: vehicleId || '',
+      createdRouteId: routeId || '',
+      createdFareProductId: fareProductId || '',
+      createdScheduleId: scheduleId || '',
+    },
   });
 }
 
-// Creates a full bus service (listing + vehicle + route/stops + first schedule/seats) as one
-// logical unit. This app's hybrid in-memory/Mongo store means the four underlying creation calls
-// each commit independently (see the architecture note in the onboarding rebuild plan), so
-// atomicity here comes from compensating rollback on failure rather than a single Mongo
-// transaction: whatever succeeded before the failure is archived, not left as an orphaned,
-// half-created, live listing.
-//
-// `payload` takes explicit, non-overlapping sub-objects rather than one flat bag of fields:
-// listing/vehicle/route/schedule each read a `status` (and other same-named fields) with different
-// meanings, so flattening them would silently cross-apply one entity's field to another.
+// Creates the canonical chain used by the individual bus forms. Active means the whole chain,
+// including a future published departure, passed the same backend readiness rules as manual setup.
 async function createBusService(companyId, payload = {}, options = {}) {
-  const actorId = options.actorId || 'company-admin';
-  const idempotencyKey = cleanText(options.idempotencyKey || payload.idempotencyKey);
-  const claim = await claimIdempotencyKey(idempotencyKey);
+  const actorId = cleanText(options.actorId || 'company-admin', 180);
+  const hash = payloadHash(payload);
+  const claim = await claimIdempotencyKey({
+    companyId,
+    actorId,
+    key: options.idempotencyKey || payload.idempotencyKey,
+    hash,
+  });
+
   if (!claim.claimed) {
-    if (claim.record?.status === 'completed') return claim.record.metadata?.result || {};
-    const error = new Error('This bus service submission is already being processed. Please wait before retrying.');
+    if (claim.record?.status === 'completed' && claim.record.metadata?.result) {
+      return { ...claim.record.metadata.result, replayed: true };
+    }
+    const error = new Error('This bus-service submission is already being processed. Do not submit it twice.');
     error.status = 409;
+    error.code = 'idempotency_in_progress';
     throw error;
   }
 
   const listingPayload = payload.listing || {};
   const vehiclePayload = payload.vehicle || {};
   const routePayload = payload.route || {};
+  const farePayload = payload.fare || {};
   const schedulePayload = payload.schedule || {};
-
+  const requestedPublishListing = ['active', 'published'].includes(normalizedStatus(listingPayload.status));
+  const requestedDriverId = cleanText(schedulePayload.driverId || '', 180);
+  const publishListing = requestedPublishListing && Boolean(requestedDriverId);
+  const departureStatus = publishListing ? 'published' : 'draft';
   const created = {};
+
   try {
-    created.listing = await companyService.createListing(companyId, { ...listingPayload, serviceType: listingPayload.serviceType || 'bus' });
+    const originBranch = await activeBranchOrThrow(
+      companyId,
+      routePayload.originBranchId || routePayload.originTerminalId,
+      'Origin terminal / branch',
+    );
+    const destinationBranch = await activeBranchOrThrow(
+      companyId,
+      routePayload.destinationBranchId || routePayload.destinationTerminalId,
+      'Destination terminal / branch',
+    );
+    if (String(originBranch.id) === String(destinationBranch.id)) {
+      const error = new Error('Origin and destination must be different');
+      error.status = 422;
+      throw error;
+    }
+
+    created.listing = await companyService.createListing(companyId, {
+      ...listingPayload,
+      status: 'draft',
+      branchId: listingPayload.branchId || originBranch.id,
+      serviceType: 'bus',
+      actorId,
+    });
+
     created.vehicle = await companyService.createVehicle(companyId, {
       ...vehiclePayload,
       listingId: created.listing.id,
-      serviceType: created.listing.serviceType,
+      serviceType: 'bus',
+      actorId,
     });
+
     created.route = await companyService.createRoute(companyId, {
       ...routePayload,
       listingId: created.listing.id,
-      from: routePayload.origin || routePayload.from || listingPayload.from,
-      to: routePayload.destination || routePayload.to || listingPayload.to,
+      serviceType: 'bus',
+      originBranchId: originBranch.id,
+      destinationBranchId: destinationBranch.id,
+      from: routePayload.origin || routePayload.from || branchLabel(originBranch),
+      to: routePayload.destination || routePayload.to || branchLabel(destinationBranch),
+      actorId,
     });
+    created.routeStops = await busRepository.routeStops.list(
+      { companyId, routeId: created.route.id, status: { $ne: 'archived' } },
+      { sort: { stopOrder: 1 }, limit: 1000 },
+    );
+
+    created.fare = await companyService.createFareProduct(companyId, {
+      ...farePayload,
+      listingId: created.listing.id,
+      routeId: created.route.id,
+      status: farePayload.status || 'active',
+    }, actorId);
+
     const scheduleResult = await companyService.createSchedule(companyId, {
       ...schedulePayload,
+      listingId: created.listing.id,
       routeId: created.route.id,
       vehicleId: created.vehicle.id,
+      fareProductId: created.fare.id,
+      status: departureStatus,
+      actorId,
     });
     created.schedule = scheduleResult.schedule;
     created.seats = scheduleResult.seats;
 
-    const result = summarize(created);
-    audit(actorId, 'company.bus_service.created', created.listing.id, {
+    if (publishListing) {
+      created.listing = await companyService.publishListing(companyId, created.listing.id, actorId);
+    }
+
+    const result = {
+      ...summarize(created), replayed: false,
+      publicationDeferred: requestedPublishListing && !publishListing,
+      publicationMessage: requestedPublishListing && !publishListing
+        ? 'The complete bus setup was saved as Draft because no saved company driver was selected.' : '',
+    };
+    await busRepository.audit({
+      actorId,
+      action: 'bus.service_setup.created',
+      targetType: 'bus_service',
+      targetId: created.listing.id,
       companyId,
-      vehicleId: created.vehicle.id,
-      routeId: created.route.id,
-      scheduleId: created.schedule.id,
+      metadata: {
+        vehicleId: created.vehicle.id,
+        routeId: created.route.id,
+        fareProductId: created.fare.id,
+        scheduleId: created.schedule.id,
+        departureStatus: created.schedule.status,
+        listingStatus: created.listing.status,
+      },
     });
     await resolveIdempotencyKey(claim.record, 'completed', { result });
     return result;
   } catch (error) {
-    await rollback(companyId, created, actorId);
-    await resolveIdempotencyKey(claim.record, 'failed', { error: String(error.message || error) });
+    try {
+      await rollback(companyId, created, actorId);
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError.message || String(rollbackError);
+    }
+    await resolveIdempotencyKey(claim.record, 'failed', {
+      error: cleanText(error.message || error, 1200),
+      rollbackError: cleanText(error.rollbackError || '', 1200),
+    });
     throw error;
   }
 }

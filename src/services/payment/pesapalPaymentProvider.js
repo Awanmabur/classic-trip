@@ -113,7 +113,7 @@ function buildOrder(payment = {}, config = {}, notificationId = '') {
   const bookingRef = payment.bookingRef || payment.orderRef || payment.idempotencyKey;
   return {
     id: bookingRef,
-    currency: String(payment.currency || 'UGX').toUpperCase(),
+    currency: String(payment.currency || platformCurrency()).toUpperCase(),
     amount: Number(payment.amount || 0),
     description: payment.description || `Classic Trip booking ${bookingRef}`,
     callback_url: payment.callbackUrl || config.callbackUrl,
@@ -188,7 +188,7 @@ async function verifyWebhook(payload = {}, config = {}) {
     bookingRef: verified.bookingRef || statusPayload.merchant_reference || fields.bookingRef || '',
     providerReference: fields.providerReference,
     amount: Number(verified.amount || fields.amount || statusPayload.amount || 0),
-    currency: String(verified.currency || fields.currency || statusPayload.currency || 'UGX').toUpperCase(),
+    currency: String(verified.currency || fields.currency || statusPayload.currency || platformCurrency()).toUpperCase(),
     status,
     payload: { ...payload, statusPayload },
   };

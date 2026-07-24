@@ -2,15 +2,15 @@ const app = require('./app');
 const { env, validateEnv } = require('./config/env');
 const { connectDb, mongoose } = require('./config/db');
 const logger = require('./config/logger');
-const store = require('./services/data/persistentStore');
-const { maybeSeedLocalMongo } = require('./config/bootstrapSeed');
+const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
 const { startScheduledJobs } = require('./jobs/scheduler');
+const repositories = require('./repositories');
 
 async function start() {
   validateEnv();
   await connectDb();
-  await maybeSeedLocalMongo();
-  await store.hydrateFromDatabase({ mongoose, logger });
+  repositories.readyRepository('companies');
+  await ensurePlatformConfig();
   startScheduledJobs();
   app.listen(env.port, () => {
     logger.info(`${env.appName} server listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });

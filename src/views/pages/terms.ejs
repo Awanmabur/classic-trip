@@ -12,7 +12,7 @@
 
     <section>
       <h2 id="overview" style="font-size:17px;margin:0 0 10px">1. Overview</h2>
-      <p style="margin:0;color:var(--muted)">Classic Trip ("the platform", "we", "us") is a multi-tenant travel marketplace that connects passengers with bus operators, hotels, airlines, tour operators, and other travel service providers ("Partners") across East Africa. These Terms govern your access to and use of classictrip.com and any related applications or APIs.</p>
+      <p style="margin:0;color:var(--muted)">Classic Trip ("the platform", "we", "us") is a multi-tenant travel marketplace that connects passengers with bus operators and hotels ("Partners") across East Africa. These Terms govern your access to and use of classictrip.com and any related applications or APIs.</p>
     </section>
 
     <section style="border-top:1px solid var(--line);padding-top:20px">
@@ -29,8 +29,8 @@
 
     <section style="border-top:1px solid var(--line);padding-top:20px">
       <h2 id="payments" style="font-size:17px;margin:0 0 10px">4. Payments &amp; fees</h2>
-      <p style="margin:0 0 8px;color:var(--muted)">All payments are processed through our integrated payment providers (M-Pesa, MTN, Airtel Money, Visa, Mastercard, bank transfer). Classic Trip collects the full booking amount on behalf of the Partner and deducts a <b style="color:var(--text)">7% platform fee</b> before releasing Partner payouts.</p>
-      <p style="margin:0;color:var(--muted)">Promoters who refer bookings via valid referral codes earn a <b style="color:var(--text)">3% commission</b> credited to their Classic Trip wallet. Prices displayed are inclusive of all platform fees. Partners set their own service prices.</p>
+      <p style="margin:0 0 8px;color:var(--muted)">All payments are processed through our integrated payment providers (M-Pesa, MTN, Airtel Money, Visa, Mastercard, bank transfer). Classic Trip collects the booking amount on behalf of the Partner and applies the current settlement rules configured by the Super Admin. The current partner commission is <b style="color:var(--text)"><%= platformConfig.partnerCommissionPercent %>%</b>, and the partner receives <b style="color:var(--text)"><%= platformConfig.partnerPayoutPercent %>%</b>.</p>
+      <p style="margin:0;color:var(--muted)">Promoter rewards are funded from Classic Trip’s commission at <b style="color:var(--text)"><%= platformConfig.promoterSharePercent %>%</b> of that commission when a valid referral exists. They are not deducted again from the partner. Any customer-facing service fee is shown before payment.</p>
     </section>
 
     <section style="border-top:1px solid var(--line);padding-top:20px" id="refunds">

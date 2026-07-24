@@ -1,9 +1,10 @@
 const promoterService = require('../../services/promoter/promoterService');
+const { resolvePromoterId } = require('../../utils/promoterScope');
 
-function create(req, res, next) {
+async function create(req, res, next) {
   try {
-    promoterService.createLink({
-      promoterId: req.session?.user?.id || 'user-promoter-001',
+    await promoterService.createLinkLive({
+      promoterId: resolvePromoterId(req),
       listingId: req.body.listingId,
       code: req.body.code,
     });
@@ -13,12 +14,13 @@ function create(req, res, next) {
   }
 }
 
-function archive(req, res, next) {
+async function archive(req, res, next) {
   try {
-    promoterService.archiveLink({
-      promoterId: req.session?.user?.id || 'user-promoter-001',
+    const promoterId = resolvePromoterId(req);
+    await promoterService.archiveLinkLive({
+      promoterId,
       linkId: req.params.id,
-      actorId: req.session?.user?.id || 'user-promoter-001',
+      actorId: promoterId,
     });
     res.redirect('/promoter/links');
   } catch (error) {

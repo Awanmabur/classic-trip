@@ -1,716 +1,430 @@
+'use strict';
 
-    const $ = (s, r=document) => r.querySelector(s);
-    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-    const today = new Date().toISOString().slice(0,10);
+(() => {
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
-    const bootstrap = window.CLASSIC_TRIP_DATA || {};
-    const listings = bootstrap.listings || [];
-    const marketplace = bootstrap.marketplace || {};
+  let bootstrap = {};
+  try {
+    bootstrap = JSON.parse($('#classicTripBootstrap')?.textContent || '{}');
+  } catch (_) {
+    bootstrap = {};
+  }
 
-    const icons = {Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'};
-    let current = null, selected = [], held = [], holdId = '', timerId = null, seconds = 600, addonTotal = 0;
+  const listings = Array.isArray(bootstrap.listings) ? bootstrap.listings : [];
+  const marketplace = bootstrap.marketplace && typeof bootstrap.marketplace === 'object' ? bootstrap.marketplace : {};
+  const platformConfig = bootstrap.platformConfig && typeof bootstrap.platformConfig === 'object' ? bootstrap.platformConfig : {};
+  const defaultCurrency = String(platformConfig.defaultCurrency || '').trim().toUpperCase();
+  const loggedIn = Boolean(document.body?.dataset.userId);
 
-    function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-    function money(n, c='UGX'){return `${escapeHtml(c)} ${Math.round(Number(n) || 0).toLocaleString()}`}
-    function safeIcon(value, fallback='fa-ticket'){return String(value || fallback).split(/\s+/).filter(part=>/^fa-[a-z0-9-]+$/i.test(part)).join(' ') || fallback}
-    function safeUrl(value, fallback='#'){
+  const groupConfig = {
+    bus: { container: 'cards', section: 'bus', label: 'bus services' },
+    hotel: { container: 'hotelCards', section: 'hotel', label: 'hotels' },
+  };
+
+  const serviceIcons = {
+    bus: 'fa-bus',
+    hotel: 'fa-hotel',
+  };
+
+  const initialLimit = () => (window.matchMedia('(max-width: 680px)').matches ? 3 : 6);
+  const visibleCounts = Object.fromEntries(Object.keys(groupConfig).map((group) => [group, initialLimit()]));
+  let activeCorridor = 'all';
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[character]);
+  }
+
+  function safeInternalUrl(value, fallback = '/') {
+    try {
+      const url = new URL(String(value || fallback), window.location.origin);
+      if (!['http:', 'https:'].includes(url.protocol) || url.origin !== window.location.origin) return fallback;
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function safeImageUrl(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.origin);
+      if (!['http:', 'https:'].includes(url.protocol) || !['http:', 'https:'].includes(url.protocol)) return '';
+      return url.origin === window.location.origin ? `${url.pathname}${url.search}` : url.href;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function money(amount, currency) {
+    const code = String(currency || defaultCurrency || '').trim().toUpperCase();
+    const value = Number(amount);
+    if (!code || !Number.isFinite(value)) return 'Price unavailable';
+    return `${escapeHtml(code)} ${Math.round(value).toLocaleString()}`;
+  }
+
+  function toast(message) {
+    const element = $('#toast');
+    if (!element) return;
+    element.textContent = String(message || '');
+    element.classList.add('show');
+    clearTimeout(window.__classicTripToast);
+    window.__classicTripToast = setTimeout(() => element.classList.remove('show'), 2400);
+  }
+
+  function csrfToken() {
+    return $('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  }
+
+  function listingId(item) {
+    return String(item?.id || item?._id || '').trim();
+  }
+
+  function listingUrl(item) {
+    const type = encodeURIComponent(String(item?.serviceType || 'service'));
+    const identifier = encodeURIComponent(String(item?.slug || listingId(item)));
+    return safeInternalUrl(item?.url, `/listings/${type}/${identifier}`);
+  }
+
+  function bookingUrl(item) {
+    return item?.bookable ? safeInternalUrl(item?.bookingUrl, listingUrl(item)) : listingUrl(item);
+  }
+
+  function savedIds() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('classicTripSavedListingIds') || '[]');
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function storeSavedIds(ids) {
+    localStorage.setItem('classicTripSavedListingIds', JSON.stringify(Array.from(ids)));
+  }
+
+  function updateSavedButtons() {
+    const saved = savedIds();
+    $$('[data-save-id]').forEach((button) => {
+      const isSaved = saved.has(String(button.dataset.saveId || ''));
+      button.classList.toggle('loved', isSaved);
+      const icon = $('i', button);
+      if (icon) icon.className = isSaved ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+      button.setAttribute('aria-pressed', isSaved ? 'true' : 'false');
+    });
+  }
+
+  async function saveListing(id) {
+    const item = listings.find((row) => listingId(row) === String(id || ''));
+    if (!item) return toast('Listing not found.');
+
+    const saved = savedIds();
+    if (saved.has(String(id))) return toast('This listing is already saved.');
+
+    if (loggedIn) {
       try {
-        const url = new URL(String(value || fallback), window.location.origin);
-        if(!['http:','https:'].includes(url.protocol)) return fallback;
-        return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : url.href;
-      } catch(error) { return fallback; }
-    }
-    function safeInternalUrl(value, fallback='#'){
-      try {
-        const url = new URL(String(value || fallback), window.location.origin);
-        if(!['http:','https:'].includes(url.protocol) || url.origin !== window.location.origin) return fallback;
-        return `${url.pathname}${url.search}${url.hash}`;
-      } catch(error) { return fallback; }
-    }
-    function safeAttrUrl(value, fallback='#'){return escapeHtml(safeUrl(value, fallback))}
-    function jsString(value){return String(value ?? '').replace(/[\\'\r\n<>]/g, ch => ({'\\':'\\\\', "'":"\\'", '\r':' ', '\n':' ', '<':'\\x3c', '>':'\\x3e'}[ch] || ' '))}
-    function inlineJs(value){return escapeHtml(jsString(value))}
-    function savedButtonsFor(id){const needle=String(id ?? '');return Array.from(document.querySelectorAll('[data-save-id]')).filter(btn=>btn.dataset.saveId===needle)}
-    function toast(msg){const t=$('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2300)}
-    function csrfToken(){return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}
-    function jsonHeaders(){const h={'Content-Type':'application/json'}; const token=csrfToken(); if(token) h['x-csrf-token']=token; return h}
-    const loggedIn = !!(document.body && document.body.dataset.userId);
-    function getSavedItems(){try{return JSON.parse(localStorage.getItem('ct_saved')||'[]')}catch(e){return[]}}
-    function setSavedItems(arr){try{localStorage.setItem('ct_saved',JSON.stringify(arr))}catch(e){}}
-    function getSavedIds(){return new Set(getSavedItems().map(x=>x.id))}
-    function updateHeartButtons(id,saved){
-      savedButtonsFor(id).forEach(btn=>{
-        btn.classList.toggle('loved',saved);
-        const i=btn.querySelector('i'); if(i) i.className=saved?'fa-solid fa-heart':'fa-regular fa-heart';
-      });
-    }
-    function initSavedStates(){getSavedIds().forEach(id=>updateHeartButtons(id,true))}
-    function listingUrl(item){
-      const fallback = item ? `/listings/${encodeURIComponent(item.serviceType || '')}/${encodeURIComponent(item.slug || '')}` : window.location.pathname;
-      return safeInternalUrl(item?.url || fallback, fallback);
-    }
-    function bookingUrl(item){
-      const fallback = item?.bookable ? `/book/${encodeURIComponent(item.serviceType || '')}/${encodeURIComponent(item.slug || '')}` : listingUrl(item);
-      return safeInternalUrl(item?.bookingUrl || fallback, fallback);
-    }
-    function copyFallback(text, message){
-      const input = document.createElement('textarea');
-      input.value = text;
-      input.setAttribute('readonly', '');
-      input.style.position = 'fixed';
-      input.style.left = '-9999px';
-      document.body.appendChild(input);
-      input.select();
-      let copied = false;
-      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
-      input.remove();
-      toast(copied ? message : 'Share link ready to copy from the address bar.');
-    }
-    function copyText(text, message){
-      if(navigator.clipboard?.writeText){
-        navigator.clipboard.writeText(text).then(()=>toast(message)).catch(()=>copyFallback(text, message));
-      } else {
-        copyFallback(text, message);
+        const response = await fetch('/account/saved', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'x-csrf-token': csrfToken(),
+          },
+          body: new URLSearchParams({ listingId: String(id) }).toString(),
+        });
+        if (!response.ok) throw new Error('Unable to save this listing.');
+      } catch (error) {
+        return toast(error.message || 'Unable to save this listing.');
       }
     }
 
+    saved.add(String(id));
+    storeSavedIds(saved);
+    updateSavedButtons();
+    toast(loggedIn ? 'Listing saved to your account.' : 'Listing saved on this device.');
+  }
 
-    const blogs = {
-      route:{tag:'Route guide', icon:'fa-route', title:'Kampala to Nairobi: what travelers should know', date:'06 May 2026', read:'4 min read', img:'https://images.unsplash.com/photo-1517840901100-8179e982acb7?auto=format&fit=crop&w=1200&q=70', intro:'A simple guide for customers comparing buses between Uganda and Kenya.', body:['Choose a departure that gives enough time for check-in, luggage loading and border processing. In the real platform, each partner can add pickup points, boarding instructions and document rules.', 'The seat map helps customers choose a preferred position before payment. When they hold a seat, the platform reserves it for 10 minutes so another customer cannot take it during checkout.', 'For cross-border trips, add clear passport or ID requirements, baggage limits, refund rules and support contacts so customers know what to prepare before travel.']},
-      hotel:{tag:'Stay tips', icon:'fa-hotel', title:'How to choose rooms, houses and apartments safely', date:'04 May 2026', read:'3 min read', img:'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=70', intro:'Help customers understand room maps, amenities and booking confidence.', body:['Hotel partners can upload a room, floor or house layout so customers understand exactly what they are booking. This is useful for rooms, apartments, villas and guest houses.', 'Customers should check the room type, capacity, amenities, cancellation rule and payment method before confirming. The saved page also lets them compare favorite stays later.', 'After payment, the receipt and booking details appear in My Bookings and can also be delivered through Gmail or WhatsApp.']},
-      promo:{tag:'Promotion', icon:'fa-bullhorn', title:'How partner promotions help companies get bookings', date:'01 May 2026', read:'5 min read', img:'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=70', intro:'Show partners how promoted listings, banners and referral links can increase visibility.', body:['Promoted listings can place a partner higher in the route, hotel, flight or train results. A clean ads page can show active campaigns, budget, clicks and bookings.', 'Promoters can share links and receive commission when their link converts. In this concept, the platform supports promoter commission and platform fee tracking.', 'Good promotion pages should include images, route/city targeting, performance analytics, payment history and simple controls for pausing or boosting a campaign.']},
-      tickets:{tag:'Booking help', icon:'fa-ticket', title:'Where to find tickets after Gmail or WhatsApp delivery', date:'29 Apr 2026', read:'2 min read', img:'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=70', intro:'Customers can access tickets from messages and from the My Bookings page.', body:['After payment, the booking can be sent through Gmail and WhatsApp. The same ticket should also be stored in My Bookings so customers can open it later.', 'The receipt button helps customers see the service, selected seat or room, total paid, customer name, delivery channel and confirmation status.', 'In the real backend, this page can sync tickets by email, phone number, account login or booking code.']}
-    };
-    let activeBlogId = null;
-    function openBlog(id){
-      const ev = window.event; if(ev) ev.stopPropagation();
-      const b = blogs[id]; if(!b) return toast('Blog page not found.');
-      activeBlogId = id;
-      $('#blogModalTag').innerHTML = `<i class="fa-solid ${safeIcon(b.icon)}"></i> ${escapeHtml(b.tag)}`;
-      $('#blogModalTitle').textContent = b.title;
-      $('#blogModalSub').textContent = `${b.date} - ${b.read}`;
-      $('#blogModalImg').src = safeUrl(b.img, '');
-      $('#blogHeroTitle').textContent = b.title;
-      $('#blogHeroIntro').textContent = b.intro;
-      $('#blogArticleBody').innerHTML = `<div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> ${escapeHtml(b.date)}</span><span><i class="fa-regular fa-clock"></i> ${escapeHtml(b.read)}</span><span><i class="fa-solid ${safeIcon(b.icon)}"></i> ${escapeHtml(b.tag)}</span></div>` + b.body.map((p,i)=>`${i===1?'<h4>Before you book</h4>':''}<p>${escapeHtml(p)}</p>`).join('');
-      $('#blogModal').classList.add('open');
-      document.body.style.overflow='hidden';
+  function shareListing(id) {
+    const item = listings.find((row) => listingId(row) === String(id || ''));
+    if (!item) return toast('Listing not found.');
+    const url = new URL(listingUrl(item), window.location.origin).href;
+    const shareData = { title: item.title || 'Classic Trip listing', url };
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {});
+      return;
     }
-    function closeBlog(){ $('#blogModal').classList.remove('open'); document.body.style.overflow=''; }
-    function loveBlog(id){ const ev = window.event; if(ev) ev.stopPropagation(); const b = blogs[id]; toast(b ? `${b.title} saved.` : 'Blog saved.'); }
-    function shareBlog(id){
-      const ev = window.event; if(ev) ev.stopPropagation();
-      const b = blogs[id]; const title = b ? b.title : 'Classic Trip blog';
-      const url = `${window.location.origin}${window.location.pathname}#blog-${id || ''}`;
-      if(navigator.share){ navigator.share({title, text:`Read this on Classic Trip: ${title}`, url}).catch(()=>copyText(url, 'Blog share link copied.')); }
-      else copyText(url, 'Blog share link copied.');
-    }
-    function loveActiveBlog(){ loveBlog(activeBlogId); }
-    function shareActiveBlog(){ shareBlog(activeBlogId); }
+    navigator.clipboard?.writeText(url).then(() => toast('Share link copied.')).catch(() => toast('Open the listing to copy its link.'));
+  }
 
-    const backendBookings = (window.CLASSIC_TRIP_DATA && window.CLASSIC_TRIP_DATA.bookings) || [];
-    let myBookings = backendBookings;
-    function saveBookings(){ myBookings = backendBookings.concat(myBookings.filter(item => !backendBookings.some(existing => existing.code === item.code))); }
-    function bookingIcon(type){ return icons[type] || 'fa-ticket'; }
+  function nextDepartureLabel(item) {
+    if (!item?.nextDepartAt) return 'No published departure';
+    const date = new Date(item.nextDepartAt);
+    if (Number.isNaN(date.getTime())) return 'Departure time unavailable';
+    return date.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  }
 
-    function saveListing(id){
-      const ev=window.event; if(ev) ev.stopPropagation();
-      const item=listings.find(x=>x.id===id);
-      const ids=getSavedIds();
-      const nowSaved=!ids.has(id);
-      updateHeartButtons(id,nowSaved);
-      const modalBtn=document.getElementById('modalSaveBtn');
-      if(modalBtn&&current?.id===id){modalBtn.classList.toggle('loved',nowSaved);const mi=modalBtn.querySelector('i');if(mi)mi.className=nowSaved?'fa-solid fa-heart':'fa-regular fa-heart';}
-      const items=getSavedItems();
-      if(nowSaved){
-        if(item&&!ids.has(id)) items.unshift({id:item.id,title:item.title,type:item.type,partner:item.partner,img:item.img,price:item.price,currency:item.currency||'UGX',url:listingUrl(item),bookingUrl:bookingUrl(item),rating:item.rating,from:item.from,time:item.time,bookable:!!item.bookable});
-        setSavedItems(items);
-        if(id) fetch('/account/saved',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','x-csrf-token':csrfToken()},body:`listingId=${encodeURIComponent(id)}`}).catch(()=>{});
-      } else { setSavedItems(items.filter(x=>x.id!==id)); }
-      toast(nowSaved?(item?`${item.title} saved.`:'Saved to your list.'):(item?`${item.title} removed.`:'Removed.'));
-    }
-    function shareListing(id){
-      const ev = window.event; if(ev) ev.stopPropagation();
-      const item = listings.find(x=>x.id===id);
-      const title = item ? item.title : 'Classic Trip listing';
-      const href = new URL(listingUrl(item), window.location.origin).href;
-      if(navigator.share){
-        navigator.share({title, text:`Check this on Classic Trip: ${title}`, url: href}).catch(()=>copyText(href, 'Share link copied.'));
-      } else {
-        copyText(href, 'Share link copied.');
-      }
-    }
-    function saveCurrentListing(){ saveListing(current?.id || ''); }
-    function shareCurrentListing(){ shareListing(current?.id || ''); }
+  function availabilityBadge(item) {
+    const remaining = Number(item?.remainingInventory ?? item?.availability);
+    if (item?.isSponsored) return { className: 'promo', icon: 'fa-bullhorn', text: 'Sponsored' };
+    if (item?.bookable) return { className: 'available', icon: 'fa-circle-check', text: Number.isFinite(remaining) ? `${remaining} available` : 'Available' };
+    if (Number.isFinite(remaining) && remaining <= 0) return { className: 'full', icon: 'fa-circle-xmark', text: 'No inventory' };
+    return { className: 'promo', icon: 'fa-clock', text: 'View service' };
+  }
 
-    function renderSaved(){
-      const wrap = $('#savedCards'); if(!wrap) return;
-      const savedItems = getSavedItems();
-      if(!savedItems.length){
-        wrap.innerHTML = `<div class="ticketCard"><h3 class="ticketTitle">No saved trips yet</h3><p class="muted" style="margin:0;font-size:13px;font-weight:800">Save listings with the heart button and they will appear here.</p></div>`;
-        return;
-      }
-      wrap.innerHTML = savedItems.map(x=>{
-        const id = String(x.id ?? '');
-        const action = x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${inlineJs(id)}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${inlineJs(id)}', event)"><i class="fa-regular fa-eye"></i> View</button>`;
-        return `<article class="ticketCard"><div class="ticketTop"><div><span class="badge badgeInfo"><i class="fa-solid ${safeIcon(icons[x.type])}"></i> ${escapeHtml(x.type)}</span><h3 class="ticketTitle" style="margin-top:8px">${escapeHtml(x.title)}</h3><div class="ticketMeta"><span><i class="fa-solid fa-building"></i> ${escapeHtml(x.partner)}</span><span><i class="fa-regular fa-clock"></i> ${escapeHtml(x.time)}</span><span><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating)}</span></div></div><div class="ticketCode">Saved</div></div><div class="kv"><div><span>From</span><b>${escapeHtml(x.from)}</b></div><div><span>To</span><b>${escapeHtml(x.to)}</b></div><div><span>Price</span><b>${money(x.price,x.currency)}</b></div></div><div class="ticketActions"><button class="btn btnGhost" onclick="toast('Saved pick kept in your account.')"><i class="fa-regular fa-heart"></i> Saved</button>${action}</div></article>`;
-      }).join('');
-    }
-    function renderBookings(){
-      const wrap = $('#bookingCards'); if(!wrap) return;
-      if(!myBookings.length){
-        wrap.innerHTML = `<div class="ticketCard"><h3 class="ticketTitle">No bookings yet</h3><p class="muted" style="margin:0;font-size:13px;font-weight:800">After payment confirmation, tickets will appear here. Tickets received from Gmail or WhatsApp can also be synced into this page later.</p></div>`;
-        return;
-      }
-      wrap.innerHTML = myBookings.map((b,i)=>{
-        const ticketUrl = b.ticketUrl ? safeAttrUrl(b.ticketUrl, '') : '';
-        const ticketAction = ticketUrl ? `<a class="btn btnPrimary" href="${ticketUrl}"><i class="fa-solid fa-ticket"></i> Open ticket</a>` : `<a class="btn btnPrimary" href="/tickets?bookingRef=${encodeURIComponent(b.code || '')}"><i class="fa-solid fa-ticket"></i> Find ticket</a>`;
-        return `
-        <article class="ticketCard">
-          <div class="ticketTop">
-            <div>
-              <span class="badge badgeInfo"><i class="fa-solid ${safeIcon(bookingIcon(b.type))}"></i> ${escapeHtml(b.type)}</span>
-              <h3 class="ticketTitle" style="margin-top:8px">${escapeHtml(b.title)}</h3>
-              <div class="ticketMeta"><span><i class="fa-solid fa-user"></i> ${escapeHtml(b.customer)}</span><span><i class="fa-solid fa-chair"></i> ${escapeHtml(b.selected)}</span><span><i class="fa-solid fa-share-nodes"></i> ${escapeHtml(b.channel)}</span></div>
-            </div>
-            <div class="ticketCode">${escapeHtml(b.code)}</div>
-          </div>
-          <div class="kv"><div><span>Status</span><b>${escapeHtml(b.status)}</b></div><div><span>Total</span><b>${escapeHtml(b.total)}</b></div><div><span>Source</span><b>${escapeHtml(b.date)}</b></div></div>
-          <div class="ticketActions"><button class="btn btnGhost" onclick="openReceipt(${i})"><i class="fa-solid fa-receipt"></i> Open receipt</button>${ticketAction}</div>
-        </article>`;
-      }).join('');
-    }
-    function renderMarketplaceSurface(){
-      const typeStats = marketplace.typeStats || [];
-      typeStats.forEach(stat => {
-        const sectionMap = {bus:'bus',hotel:'hotel',flight:'flight',train:'train',more:'more'};
-        const sectionId = sectionMap[stat.type] || '';
-        if(!sectionId) return;
-        const text = document.querySelector(`#${sectionId} .sectionHead p`);
-        if(!text || !stat.count) return;
-        const parts = [`${stat.count} live listings`, `${stat.remainingSeats || 0} seats / rooms open`];
-        if(stat.nextDeparture) parts.push(`next ${new Date(stat.nextDeparture).toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'})}`);
-        if(stat.price?.lowest) parts.push(`from ${money(stat.price.lowest, stat.price.currency)}`);
-        text.textContent = parts.join(' - ');
-      });
+  function cardHtml(item) {
+    const id = listingId(item);
+    const group = String(item.group || item.serviceType || 'more');
+    const type = String(item.serviceType || item.type || group || 'service').toLowerCase();
+    const isBus = type === 'bus';
+    const icon = serviceIcons[type] || 'fa-ticket';
+    const badge = availabilityBadge(item);
+    const image = safeImageUrl(item.img || item.image || item.media?.[0]?.url || '');
+    const route = item.routeLabel || [item.from, item.to].filter(Boolean).join(' → ');
+    const place = isBus ? (route || 'Route information') : (item.location || item.city || route || 'Property location');
+    const rating = Number(item.ratingAverage || item.rating);
+    const ratingText = Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : 'New';
+    const partner = item.partner || item.companyName || 'Service partner';
+    const amount = Number(item.priceFrom ?? item.price ?? 0);
+    const price = amount > 0 ? money(amount, item.currency) : 'Price pending';
+    const description = item.sub || item.shortDescription || item.description || (isBus
+      ? 'Public bus service with live departure and seat availability.'
+      : 'Verified hotel property with dated room availability and secure booking.');
+    const priceHint = item.bookable
+      ? (isBus ? 'Starting fare · choose boarding and drop-off' : 'Starting price · per available room night')
+      : 'Open service details';
 
-      const ads = $('#adsCards');
-      const highlights = marketplace.routeHighlights || [];
-      if(ads && highlights.length){
-        ads.innerHTML = highlights.slice(0,4).map(item => `
-          <article class="promoCard">
-            <div class="promoIcon"><i class="fa-solid fa-route"></i></div>
-            <span class="badge badgeInfo">${escapeHtml(item.corridor || item.key || 'Route')}</span>
-            <h3>${escapeHtml(item.label || 'Live route')}</h3>
-            <p>${escapeHtml(String(item.count || 0))} listings with ${escapeHtml(String(item.remainingSeats || 0))} seats or rooms open from backend inventory.</p>
-            <a class="btn btnGhost" href="/search?corridor=${encodeURIComponent(item.corridor || item.key || '')}">View options</a>
-          </article>
-        `).join('');
-      }
-
-      const guides = marketplace.guides || [];
-      const blogCards = $('#blogCards');
-      if(blogCards && guides.length){
-        blogCards.innerHTML = guides.map(card => `
-          <article class="promoCard blogCard">
-            <div class="blogImage">
-              <img src="${safeAttrUrl(card.image || '', '')}" alt="${escapeHtml(card.title || 'Travel guide')}">
-              <span class="badge badgeInfo blogTag"><i class="fa-solid fa-route"></i> ${escapeHtml(card.tag || 'Guide')}</span>
-              <div class="blogIconActions">
-                <a class="miniIcon" title="View" href="${safeAttrUrl(card.url || '#')}"><i class="fa-regular fa-eye"></i></a>
-                <button class="miniIcon" title="Save" data-save-id="${escapeHtml(card.listingId || '')}" onclick="saveListing('${inlineJs(card.listingId || '')}')"><i class="fa-regular fa-heart"></i></button>
-                <button class="miniIcon" title="Share" onclick="shareListing('${inlineJs(card.listingId || '')}')"><i class="fa-solid fa-share-nodes"></i></button>
-              </div>
-            </div>
-            <div class="blogBody">
-              <h3>${escapeHtml(card.title || 'Travel guide')}</h3>
-              <div class="blogMeta"><span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(card.location || 'Route')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(card.partner || 'Partner')}</span><span><i class="fa-solid fa-coins"></i> ${card.price ? money(card.price.amount, card.price.currency) : 'Live price'}</span></div>
-              <p>${escapeHtml(card.excerpt || 'Generated from live listing data.')}</p>
-              <div class="blogActions"><a class="btn btnGhost" href="${safeAttrUrl(card.url || '#')}"><i class="fa-regular fa-eye"></i> Open listing</a></div>
-            </div>
-          </article>
-        `).join('');
-      }
-    }
-    function openReceipt(i){
-      const b = myBookings[i]; if(!b) return;
-      $('#receiptTitle').textContent = b.title;
-      $('#receiptSub').textContent = `${b.code} - ${b.status}`;
-      $('#receiptPaper').innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px"><div class="brand"><span class="mark">CT</span><span>Classic Trip</span></div><span class="ticketCode">${escapeHtml(b.code)}</span></div>
-        <div class="receiptRow"><span>Customer</span><b>${escapeHtml(b.customer)}</b></div>
-        <div class="receiptRow"><span>Service</span><b>${escapeHtml(b.title)}</b></div>
-        <div class="receiptRow"><span>Type</span><b>${escapeHtml(b.type)}</b></div>
-        <div class="receiptRow"><span>Selected</span><b>${escapeHtml(b.selected)}</b></div>
-        <div class="receiptRow"><span>Paid total</span><b>${escapeHtml(b.total)}</b></div>
-        <div class="receiptRow"><span>Delivery</span><b>${escapeHtml(b.channel)} + My bookings</b></div>
-        <div class="receiptRow"><span>Status</span><b>${escapeHtml(b.status)}</b></div>`;
-      $('#receiptModal').classList.add('open');
-      document.body.style.overflow='hidden';
-    }
-    function closeReceipt(){ $('#receiptModal').classList.remove('open'); document.body.style.overflow=''; }
-
-    function listingCornerBadge(x){
-      if(x.availability <= 0) return {cls:'full', icon:'fa-circle-xmark', text:'No seats'};
-      if(x.isSponsored) return {cls:'promo', icon:'fa-bullhorn', text:'Sponsored'};
-      if(!x.bookable) return {cls:'promo', icon:'fa-clock', text:'Teaser'};
-      return {cls:'available', icon:'fa-circle-check', text:`${x.remainingInventory || x.availability || 'Live'} left`};
-    }
-
-    function cardHTML(x){
-      const corner = listingCornerBadge(x);
-      const id = String(x.id ?? '');
-      const jsId = inlineJs(id);
-      return `<article class="listing" data-id="${escapeHtml(id)}" data-group="${escapeHtml(x.group)}" data-corridor="${escapeHtml(x.corridor||'regional')}" role="button" tabindex="0" aria-label="Open ${escapeHtml(x.title)}">
-        <div class="thumb"><img src="${safeAttrUrl(x.img, '')}" alt="${escapeHtml(x.title)}"><div class="cornerBadge ${escapeHtml(corner.cls)}"><i class="fa-solid ${safeIcon(corner.icon)}"></i> ${escapeHtml(corner.text)}</div><div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(x.rating || 'New')}</span><span class="badge badgeInfo"><i class="fa-solid ${safeIcon(icons[x.type])}"></i> ${escapeHtml(x.typeLabel || x.type)}</span></div><div class="thumbActions"><button class="miniIcon" type="button" title="Save" data-save-id="${escapeHtml(id)}" onclick="saveListing('${jsId}')"><i class="fa-regular fa-heart"></i></button><button class="miniIcon" type="button" title="Share" onclick="shareListing('${jsId}')"><i class="fa-solid fa-share-nodes"></i></button></div></div>
-        <div class="listingBody">
-          <h3 class="listingTitle">${escapeHtml(x.title)}</h3>
-          <div class="meta"><span><i class="fa-regular fa-clock"></i> ${escapeHtml(x.nextDepartLabel || x.time || 'Flexible')}</span><span><i class="fa-solid fa-layer-group"></i> ${escapeHtml(x.unitsLabel || 'Live availability')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(x.partner)}</span></div>
-          <p class="desc">${escapeHtml(x.sub || '')}. ${escapeHtml(x.policy || '')}. ${escapeHtml(x.bookableReason || 'Catalog availability is synced from backend inventory.')}</p>
-          <div class="priceRow"><div><div class="price">${money(x.price,x.currency)}</div><div class="small">${escapeHtml(x.bookableReason || (x.bookable ? 'Starting price' : 'Read-only preview'))}</div></div><div class="actions"><button class="btn btnGhost" onclick="goListing('${jsId}', event)"><i class="fa-regular fa-eye"></i> View</button>${x.bookable ? `<button class="btn btnPrimary" onclick="goBook('${jsId}', event)"><i class="fa-solid fa-ticket"></i> Book</button>` : `<button class="btn btnGhost" onclick="goListing('${jsId}', event)"><i class="fa-regular fa-clock"></i> Soon</button>`}</div></div>
+    return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
+      <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
+        <div class="thumb">
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
+          <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
+          <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : type === 'hotel' ? 'Hotel' : 'Service'))}</span></div>
         </div>
-      </article>`;
-    }
-    function goListing(id, ev){
-      ev?.stopPropagation();
-      const item = listings.find(x=>x.id===id);
-      if(!item) return toast('Listing not found.');
-      window.location.href = listingUrl(item);
-    }
+      </a>
+      <div class="listingBody">
+        <h3 class="listingTitle"><a href="${escapeHtml(listingUrl(item))}">${escapeHtml(item.title || 'Untitled service')}</a></h3>
+        <div class="meta"><span><i class="fa-solid ${isBus ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
+        <p class="desc">${escapeHtml(description)}</p>
+        <div class="priceRow"><div><div class="price">${price}</div><div class="small">${escapeHtml(priceHint)}</div></div><div class="actions"><a class="btn btnGhost" href="${escapeHtml(listingUrl(item))}"><i class="fa-regular fa-eye"></i> View</a>${item.bookable ? `<a class="btn btnPrimary" href="${escapeHtml(bookingUrl(item))}"><i class="fa-solid fa-ticket"></i> Book</a>` : ''}</div></div>
+      </div>
+    </article>`;
+  }
 
-    function goBook(id, ev){
-      ev?.stopPropagation();
-      const item = listings.find(x=>x.id===id);
-      if(!item) return toast('Listing not found.');
-      if(item.bookable){ openListing(id, true); return; }
-      window.location.href = listingUrl(item);
-    }
+  function renderGroup(group) {
+    const config = groupConfig[group];
+    const container = document.getElementById(config.container);
+    if (!container) return;
+    const rows = listings.filter((item) => String(item.group || 'more') === group);
+    const shown = rows.slice(0, visibleCounts[group]);
+    container.innerHTML = shown.length
+      ? shown.map(cardHtml).join('')
+      : `<div class="card marketplaceEmptyCard" data-home-empty="${escapeHtml(group)}"><strong>No published ${escapeHtml(config.label)} yet</strong><p class="muted">Services will appear after their complete records and bookable inventory are published.</p></div>`;
 
-    const groupConfig = {
-      bus:{container:'cards', section:'bus', label:'buses'},
-      hotel:{container:'hotelCards', section:'hotel', label:'hotels'},
-      flight:{container:'flightCards', section:'flight', label:'flights'},
-      train:{container:'trainCards', section:'train', label:'trains'},
-      more:{container:'moreCards', section:'more', label:'more services'}
-    };
-    const initialCardLimit = () => window.matchMedia('(max-width: 680px)').matches ? 3 : 6;
-    const visibleCounts = {bus:initialCardLimit(), hotel:initialCardLimit(), flight:initialCardLimit(), train:initialCardLimit(), more:initialCardLimit()};
+    const button = document.getElementById(`more-${group}`);
+    if (button) {
+      const remaining = rows.length - shown.length;
+      button.classList.toggle('hide', remaining <= 0);
+      button.innerHTML = `<i class="fa-solid fa-plus"></i> More ${Math.min(initialLimit(), Math.max(remaining, 0))}`;
+    }
+  }
 
-    function renderGroup(group){
-      const cfg = groupConfig[group];
-      const data = listings.filter(x=>x.group===group);
-      const shown = data.slice(0, visibleCounts[group]);
-      $('#' + cfg.container).innerHTML = shown.map(cardHTML).join('');
-      initSavedStates();
-      const btn = $('#more-' + group);
-      if(btn){
-        const left = data.length - shown.length;
-        btn.classList.toggle('hide', left <= 0);
-        const next = window.matchMedia('(max-width: 680px)').matches ? 3 : 6;
-        btn.innerHTML = `<i class="fa-solid fa-plus"></i> More ${Math.min(next, Math.max(left,0))}`;
-      }
-    }
-    function render(){ Object.keys(groupConfig).forEach(renderGroup); applyHighlights(); }
-    function showMore(group){
-      const cfg = groupConfig[group];
-      const data = listings.filter(x=>x.group===group);
-      const oldCount = visibleCounts[group];
-      const next = window.matchMedia('(max-width: 680px)').matches ? 3 : 6;
-      visibleCounts[group] = Math.min(oldCount + next, data.length);
-      renderGroup(group);
-      applyHighlights();
-      const container = document.getElementById(cfg.container);
-      if(container){
-        Array.from(container.children).slice(oldCount).forEach((card, i)=>{
-          card.classList.add('revealIn');
-          card.style.animationDelay = `${Math.min(i * 45, 220)}ms`;
-        });
-      }
-      const firstNew = data[oldCount];
-      if(firstNew){
-        setTimeout(()=>scrollToCardId(firstNew.id), 80);
-      }
-      toast(`More ${cfg.label} opened.`);
-    }
+  function render() {
+    Object.keys(groupConfig).forEach(renderGroup);
+    updateSavedButtons();
+    applyCorridorHighlight();
+    updateSectionSummaries();
+  }
 
-    let activeGroup = 'all', activeCorridor = 'all';
-    function applyHighlights(){
-      $$('.listing').forEach(c=>{
-        c.classList.remove('hide');
-        const routeOk = activeCorridor !== 'all' && (c.dataset.corridor === activeCorridor || equivalentCorridor(c.dataset.corridor) === activeCorridor);
-        c.classList.toggle('routeMatch', routeOk);
-      });
-    }
-    function equivalentCorridor(code){
-      const map = {'ke-ug':'ug-ke'};
-      return map[code] || code;
-    }
-    function navOffset(){
-      const nav = document.querySelector('.nav');
-      return nav ? Math.ceil(nav.getBoundingClientRect().height + 10) : 10;
-    }
-    function scrollWithGap(el){
-      if(!el) return;
-      const top = el.getBoundingClientRect().top + window.pageYOffset - navOffset();
-      window.scrollTo({top: Math.max(top, 0), behavior:'smooth'});
-    }
-    function scrollToSectionId(id){
-      scrollWithGap(document.getElementById(id));
-      setActiveNavById(id);
-    }
-    function scrollToCardId(id){
-      scrollWithGap($$('.listing').find(card=>card.dataset.id===String(id ?? '')));
-    }
-    function filterCards(group, btn){
-      activeGroup = group;
-      $$('#categoryFilters button, #drawerCategoryFilters button').forEach(b=>b.classList.remove('active'));
-      btn?.classList.add('active');
-      applyHighlights();
-      const target = group === 'all' ? 'bus' : (groupConfig[group]?.section || 'bus');
-      scrollToSectionId(target);
-      toast(group==='all'?'Moved to all listings':'Moved to '+groupConfig[group].label);
-      if(btn?.closest('.drawerPanel')) $('#drawer')?.classList.remove('open');
-    }
-    function filterRoute(corridor, btn){
-      activeCorridor = corridor;
-      $$('#routeFilters button, #drawerRouteFilters button').forEach(b=>b.classList.remove('active'));
-      btn?.classList.add('active');
-      applyHighlights();
-      if(corridor === 'all'){
-        scrollToSectionId('bus');
-        toast('Showing all East Africa routes.');
-        if(btn?.closest('.drawerPanel')) $('#drawer')?.classList.remove('open');
-        return;
-      }
-      const first = listings.find(x=>x.corridor===corridor || equivalentCorridor(x.corridor)===corridor);
-      if(first){
-        visibleCounts[first.group] = Math.max(visibleCounts[first.group], listings.filter(x=>x.group===first.group).findIndex(x=>x.id===first.id)+1);
-        renderGroup(first.group); applyHighlights();
-        scrollToSectionId(groupConfig[first.group].section);
-        setTimeout(()=>scrollToCardId(first.id), 250);
-        toast('Route highlighted without hiding other listings.');
-        if(btn?.closest('.drawerPanel')) $('#drawer')?.classList.remove('open');
-      } else {
-        scrollToSectionId('bus');
-        toast('Route selected. Add listings for this corridor later.');
-        if(btn?.closest('.drawerPanel')) $('#drawer')?.classList.remove('open');
-      }
-    }
-
-    function runSearch(){
-      const type = $('.tab.active', $('#searchTabs')).dataset.type;
-      const params = new URLSearchParams();
-      params.set('serviceType', type);
-      const date = $('#dateInput')?.value;
-      if(date) params.set('date', date);
-      if(type === 'hotel'){
-        const city = $('#cityInput')?.value.trim();
-        if(city) params.set('city', city);
-      } else {
-        const origin = $('#fromInput')?.value.trim();
-        const destination = $('#toInput')?.value.trim();
-        if(origin) params.set('origin', origin);
-        if(destination) params.set('destination', destination);
-      }
-      window.location.href = `/search?${params.toString()}`;
-    }
-
-    function openListing(id, bookNow=false){
-      current = listings.find(x=>x.id===id); selected=[]; held=[]; holdId=''; addonTotal=0; seconds=600;
-      if(!current) return toast('Listing not found.');
-      $('#modalType').innerHTML = `<i class="fa-solid ${safeIcon(icons[current.type])}"></i> ${escapeHtml(current.type)}`;
-      $('#modalTitle').textContent=current.title; $('#modalSub').textContent=`${current.partner} - ${current.from} -> ${current.to} - ${current.time}`;
-      $('#modalImg').src=safeUrl(current.img, ''); $('#modalHeroTitle').textContent=current.title; $('#modalHeroSub').textContent=current.sub;
-      $('#layoutTitle').textContent = current.group==='hotel' ? 'Choose room / house unit' : current.group==='flight' ? 'Choose flight seat' : current.group==='train' ? 'Choose coach seat' : current.group==='more' ? 'Choose available slot' : 'Choose bus seat';
-      $('#layoutHint').textContent = current.group==='hotel' ? 'Partner can upload floor plan and mark room status.' : 'Partner can choose 2+2, 2+1, VIP, sleeper or custom layout.';
-      $('#addons').innerHTML = addonOptions(current.group).map(a=>`<label class="addon"><span><input type="checkbox" value="${Number(a.price) || 0}" onchange="calc()"> ${escapeHtml(a.name)}</span><b>${money(a.price,current.currency)}</b></label>`).join('');
-      renderLayout();
-      updateSummary();
-      $('#checkoutStep').classList.remove('active');
-      $('.sheetBody').style.display='grid';
-      $('#viewModal').classList.add('open'); document.body.style.overflow='hidden';
-      const _mb=document.getElementById('modalSaveBtn'); if(_mb){const _sv=getSavedIds().has(id);_mb.classList.toggle('loved',_sv);const _mi=_mb.querySelector('i');if(_mi)_mi.className=_sv?'fa-solid fa-heart':'fa-regular fa-heart';}
-      startTimer();
-      if(bookNow) toast('Select an available option, then proceed booking.');
-    }
-    function closeModal(){ $('#viewModal').classList.remove('open'); document.body.style.overflow=''; clearInterval(timerId); }
-    $('#viewModal').addEventListener('click', e=>{ if(e.target.id==='viewModal') closeModal(); });
-
-    function addonOptions(g){
-      if(g==='flight') return [{name:'Extra baggage 20kg',price:90000},{name:'Preferred meal',price:35000},{name:'Priority boarding',price:45000}];
-      if(g==='hotel') return [{name:'Breakfast',price:25000},{name:'Airport pickup',price:70000},{name:'Late checkout',price:50000}];
-      if(g==='bus'||g==='train') return [{name:'Extra luggage',price:10000},{name:'Travel insurance',price:5000},{name:'Snack pack',price:8000}];
-      return [{name:'Insurance',price:15000},{name:'Guide support',price:30000},{name:'Priority service',price:20000}];
-    }
-
-    function cell(code, cls='seat', label=code){
-      const taken = (current.taken || []).includes(code);
-      const isSel = selected.includes(code);
-      const isHeld = held.includes(code);
-      return `<button class="${escapeHtml(cls)} ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${inlineJs(code)}')"><span>Seat No</span><b>${escapeHtml(label)}</b></button>`;
-    }
-    function renderLayout(){
-      let h = '';
-      if(current.layout==='bus-2-2'){
-        h += '<div class="vehicleFront">DRIVER • FRONT</div>';
-        for(let row=0; row<8; row++){ const start = row * 4 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span>${cell(String(start+2),'seat',start+2)}${cell(String(start+3),'seat',start+3)}</div>`; }
-      } else if(current.layout==='bus-2-1'){
-        h += '<div class="vehicleFront">VIP FRONT</div>';
-        for(let row=0; row<7; row++){ const start = row * 3 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span><span></span>${cell(String(start+2),'seat',start+2)}</div>`; }
-      } else if(current.layout==='bus-sleeper'){
-        h += '<div class="vehicleFront">SLEEPER COACH</div>';
-        for(let row=0; row<6; row++){ const start = row * 4 + 1; h += `<div class="seatRow">${cell(String(start),'seat',start)}${cell(String(start+1),'seat',start+1)}<span class="aisle"></span>${cell(String(start+2),'seat',start+2)}${cell(String(start+3),'seat',start+3)}</div>`; }
-      } else if(current.layout==='hotel-rooms'){
-        h += '<div class="vehicleFront">FLOOR PLAN • TAP ROOM</div><div class="roomGrid">';
-        ['101','102','103','104','201','202','203','204','301','302','303','304'].forEach(r=>h += roomCell(r));
-        h += '</div>';
-      } else if(current.layout==='hotel-house'){
-        h += '<div class="vehicleFront">VILLA / HOUSE UNITS</div><div class="roomGrid">';
-        ['Villa 1','Villa 2','R1','R2','R3','R4','R5','R6'].forEach(r=>h += roomCell(r));
-        h += '</div>';
-      } else if(current.layout==='flight'){
-        h += '<div class="vehicleFront">COCKPIT • FRONT</div><div class="flightGrid">';
-        for(let i=1;i<=8;i++){h += `<div class="flightRow">${cell(i+'A')}${cell(i+'B')}${cell(i+'C')}<span></span>${cell(i+'D')}${cell(i+'E')}${cell(i+'F')}</div>`}
-        h += '</div>';
-      } else if(current.layout==='train'){
-        h += '<div class="vehicleFront">COACH A</div><div class="trainGrid">';
-        ['A','B','C','D','E','F'].forEach(r=>[1,2,3,4].forEach(n=>h += cell(r+n,'slot')));
-        h += '</div>';
-      } else {
-        h += '<div class="vehicleFront">AVAILABLE SLOTS</div><div class="trainGrid">';
-        ['S1','S2','S3','S4','S5','S6','S7','S8','SUV 1','SUV 2','SUV 3','SUV 5'].forEach(s=>h += cell(s,'slot'));
-        h += '</div>';
-      }
-      $('#layoutBox').innerHTML = h;
-    }
-
-    function roomCell(code){
-      const taken = (current.taken || []).includes(code), isSel=selected.includes(code), isHeld=held.includes(code);
-      return `<button class="room ${taken?'taken':''} ${isSel?'selected':''} ${isHeld?'holding':''}" ${taken?'disabled':''} onclick="togglePick('${inlineJs(code)}')"><span>${escapeHtml(code)}</span><small>${taken?'Booked':'Available'}</small></button>`;
-    }
-    function togglePick(code){
-      if(selected.includes(code)) selected = selected.filter(x=>x!==code);
-      else {
-        if((current.bookable || current.group==='more') && selected.length >= 1) selected = [code];
-        else selected.push(code);
-      }
-      renderLayout(); updateSummary();
-    }
-
-    function calc(){
-      addonTotal = $$('#addons input:checked').reduce((s,i)=>s+Number(i.value),0);
-      updateSummary();
-    }
-
-    function updateSummary(){
-      const qty = Math.max(selected.length, 0);
-      const base = qty * current.price;
-      const fee = qty ? Math.round(base * 0.045 + 3500) : 0;
-      const total = base + fee + addonTotal;
-      $('#selectedOut').textContent = selected.length ? selected.join(', ') : 'None';
-      $('#baseOut').textContent = money(base,current.currency);
-      $('#feeOut').textContent = money(fee,current.currency);
-      $('#totalOut').textContent = money(total,current.currency);
-    }
-
-    async function holdSelection(){
-      if(!selected.length) return toast('Choose at least one available option first.');
-      if(!current.bookable) return toast('Booking is not open for this service yet.');
-      try {
-        const response = await fetch(`/api/listings/${current.id}/hold`, {
-          method:'POST',
-          headers:jsonHeaders(),
-          body:JSON.stringify({ selected:selected[0], selectedSeats: current.group === 'bus' ? selected.join(',') : '', roomId: current.group === 'hotel' ? selected[0] : '' })
-        });
-        const data = await response.json();
-        if(!response.ok) throw new Error(data.error || 'Hold failed');
-        holdId = data.hold.id;
-        held = [...new Set([...held, ...selected])];
-        selected = [];
-        seconds = 600;
-        renderLayout(); updateSummary(); startTimer();
-        toast('Selected option held for 10 minutes.');
-      } catch (error) {
-        toast(error.message || 'Unable to hold selection.');
-      }
-    }
-
-    function resetSelection(){ selected=[]; held=[]; holdId=''; addonTotal=0; $$('#addons input').forEach(i=>i.checked=false); renderLayout(); updateSummary(); seconds=600; updateTimer(); toast('Selection reset.'); }
-
-    function startTimer(){ clearInterval(timerId); updateTimer(); timerId=setInterval(()=>{seconds--; updateTimer(); if(seconds<=0){clearInterval(timerId); held=[]; selected=[]; renderLayout(); updateSummary(); toast('Hold expired. Please select again.'); seconds=600;}},1000); }
-    function updateTimer(){const m=String(Math.floor(seconds/60)).padStart(2,'0'), s=String(seconds%60).padStart(2,'0'); $('#timer').textContent=`${m}:${s}`;}
-
-    function getChoice(){ return selected.length ? selected : held; }
-    function getTotals(choice=getChoice()){
-      const qty = Math.max(choice.length,1);
-      const base = qty * current.price;
-      const fee = Math.round(base * 0.045 + 3500);
-      return {base, fee, total:base + fee + addonTotal};
-    }
-    function goPaymentPage(){
-      const choice = getChoice();
-      if(!choice.length) return toast('Select or hold a seat/room/slot first.');
-      if(!current.bookable) return toast('Booking is not open for this service yet.');
-      const totals = getTotals(choice);
-      $('#checkoutListing').textContent = current.title;
-      $('#checkoutSelected').textContent = choice.join(', ');
-      $('#checkoutTotal').textContent = money(totals.total,current.currency);
-      $('.sheetBody').style.display='none';
-      $('#checkoutStep').classList.add('active');
-      toast('Payment page opened. Fill user info and payment details.');
-    }
-    function backToSelection(){
-      $('#checkoutStep').classList.remove('active');
-      $('.sheetBody').style.display='grid';
-    }
-    async function confirmBooking(){
-      const choice = getChoice();
-      if(!choice.length) return toast('Select or hold a seat/room/slot first.');
-      const name = $('#nameInput').value.trim();
-      const phone = $('#phoneInput').value.trim();
-      const email = $('#emailInput').value.trim();
-      if(!name || !phone || !email) return toast('Enter customer name, phone number, and email.');
-      const method = document.querySelector('input[name="payMethod"]:checked')?.value || 'Mobile Money';
-      const total = getTotals(choice).total;
-      try {
-        const response = await fetch('/api/bookings', {
-          method:'POST',
-          headers:jsonHeaders(),
-          body:JSON.stringify({ listingId:current.id, fullName:name, passengerName:name, phone, email, selected:choice[0], holdId, total, notes:`Homepage quick checkout via ${method}` })
-        });
-        const data = await response.json();
-        if(!response.ok) throw new Error(data.error || 'Booking failed');
-        const booking = {
-          code:data.booking.bookingRef,
-          title:current.title,
-          type:current.type,
-          selected:choice.join(', '),
-          total:money(data.booking.pricing.total,data.booking.pricing.currency),
-          customer:name,
-          date:'Just confirmed',
-          channel:'Backend ticket',
-          status:data.booking.bookingStatus,
-          ticketUrl:data.ticketUrl
-        };
-        myBookings.unshift(booking); saveBookings(); renderBookings();
-        toast(`Ticket saved in My bookings: ${booking.code}`);
-        $('#modalHeroTitle').textContent = 'Payment page completed';
-        $('#modalHeroSub').textContent = `Customer: ${name} - Payment: ${method} - Ticket available in My bookings.`;
-        held = [...new Set([...held, ...choice])]; selected=[]; backToSelection(); renderLayout(); updateSummary(); closeModal(); window.location.href = safeInternalUrl(data.ticketUrl, '/tickets');
-      } catch (error) {
-        toast(error.message || 'Booking failed. Please try again.');
-      }
-    }
-
-
-    function setupDrawerFilters(){
-      const holder = $('#drawerFilters');
-      if(!holder) return;
-      const cat = $('#categoryFilters')?.cloneNode(true);
-      const routes = $('#routeFilters')?.cloneNode(true);
-      if(cat){ cat.id = 'drawerCategoryFilters'; }
-      if(routes){ routes.id = 'drawerRouteFilters'; }
-      holder.innerHTML = '<div><div class="drawerFilterTitle">Categories</div><div class="drawerFilterHint">Choose what to browse.</div></div>';
-      if(cat) holder.appendChild(cat);
-      const routeWrap = document.createElement('div');
-      routeWrap.innerHTML = '<div class="drawerFilterTitle">Country routes</div><div class="drawerFilterHint">Country-to-country first, then local routes.</div>';
-      if(routes) routeWrap.appendChild(routes);
-      holder.appendChild(routeWrap);
-    }
-    setupDrawerFilters();
-
-    $('#themeBtn').addEventListener('click',()=>{
-      const next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
-      document.documentElement.setAttribute('data-theme',next); localStorage.setItem('ct_theme',next);
-      $('#themeIcon').className=next==='dark'?'fa-solid fa-moon':'fa-solid fa-sun';
+  function updateSectionSummaries() {
+    const typeStats = Array.isArray(marketplace.typeStats) ? marketplace.typeStats : [];
+    typeStats.forEach((stat) => {
+      const section = document.getElementById(groupConfig[stat.type]?.section || '');
+      const description = section?.querySelector('.sectionHead p');
+      if (!description || !Number(stat.count)) return;
+      const parts = [`${Number(stat.count)} published`];
+      if (Number.isFinite(Number(stat.remainingSeats))) parts.push(`${Number(stat.remainingSeats)} available`);
+      description.textContent = parts.join(' • ');
     });
-    const saved = localStorage.getItem('ct_theme'); if(saved){document.documentElement.setAttribute('data-theme',saved); $('#themeIcon').className=saved==='dark'?'fa-solid fa-moon':'fa-solid fa-sun'}
-    $('#menuBtn')?.addEventListener('click',()=>$('#drawer').classList.add('open'));
+  }
 
-    document.addEventListener('click', e=>{
-      const card = e.target.closest('.listing');
-      if(!card || e.target.closest('button,a,input,select,textarea,label')) return;
-      goListing(card.dataset.id, e);
+  function showMore(group) {
+    if (!groupConfig[group]) return;
+    const rows = listings.filter((item) => String(item.group || 'more') === group);
+    visibleCounts[group] = Math.min(visibleCounts[group] + initialLimit(), rows.length);
+    renderGroup(group);
+    updateSavedButtons();
+  }
+
+  function equivalentCorridor(code) {
+    const reversePairs = { 'ke-ug': 'ug-ke', 'ug-ke': 'ug-ke' };
+    return reversePairs[code] || code;
+  }
+
+  function applyCorridorHighlight() {
+    $$('.listing').forEach((card) => {
+      const cardCorridor = equivalentCorridor(card.dataset.corridor || '');
+      const selected = equivalentCorridor(activeCorridor);
+      card.classList.toggle('routeMatch', activeCorridor !== 'all' && cardCorridor === selected);
     });
-    document.addEventListener('keydown', e=>{
-      if((e.key !== 'Enter' && e.key !== ' ') || !e.target.classList?.contains('listing')) return;
-      e.preventDefault(); goListing(e.target.dataset.id, e);
-    });
-    $('#closeDrawer')?.addEventListener('click',()=>$('#drawer').classList.remove('open'));
-    $('#drawer').addEventListener('click',e=>{if(e.target.id==='drawer')$('#drawer').classList.remove('open')});
-    $('#blogModal')?.addEventListener('click',e=>{if(e.target.id==='blogModal')closeBlog()});
-    $$('#drawer a').forEach(a=>a.addEventListener('click',()=>$('#drawer').classList.remove('open')));
+  }
 
-    $('#searchTabs').addEventListener('click',e=>{
-      const b=e.target.closest('.tab'); if(!b)return;
-      $$('.tab',$('#searchTabs')).forEach(x=>x.classList.remove('active')); b.classList.add('active');
-      const isHotel=b.dataset.type==='hotel'; $('#cityField').classList.toggle('hide',!isHotel); $('#fromField').classList.toggle('hide',isHotel); $('#toField').classList.toggle('hide',isHotel);
-    });
+  function navigationOffset() {
+    return Math.ceil($('.nav')?.getBoundingClientRect().height || 0) + 10;
+  }
 
+  function scrollToElement(element) {
+    if (!element) return;
+    const top = element.getBoundingClientRect().top + window.scrollY - navigationOffset();
+    window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+  }
 
-    function setActiveNavById(id){
-      $$('#navLinks a, .drawerLinks a').forEach(a=>{
-        const target = (a.getAttribute('href')||'').replace('#','');
-        a.classList.toggle('active', target === id);
-      });
+  function scrollToSection(id) {
+    scrollToElement(document.getElementById(id));
+  }
+
+  function activateButtonSet(selector, selected) {
+    $$(selector).forEach((button) => button.classList.toggle('active', button.dataset.filter === selected));
+  }
+
+  function filterCards(group) {
+    activateButtonSet('#categoryFilters button, #drawerCategoryFilters button', group);
+    scrollToSection(group === 'all' ? 'bus' : (groupConfig[group]?.section || 'bus'));
+    $('#drawer')?.classList.remove('open');
+  }
+
+  function filterRoute(corridor) {
+    activeCorridor = corridor || 'all';
+    activateButtonSet('#routeFilters button, #drawerRouteFilters button', activeCorridor);
+    applyCorridorHighlight();
+    const match = listings.find((item) => equivalentCorridor(item.corridor) === equivalentCorridor(activeCorridor));
+    if (match && groupConfig[match.group]) {
+      const rows = listings.filter((item) => item.group === match.group);
+      visibleCounts[match.group] = Math.max(visibleCounts[match.group], rows.findIndex((item) => listingId(item) === listingId(match)) + 1);
+      renderGroup(match.group);
+      updateSavedButtons();
+      applyCorridorHighlight();
+      scrollToSection(groupConfig[match.group].section);
+    } else {
+      scrollToSection('bus');
+      if (activeCorridor !== 'all') toast('No published service currently matches this corridor.');
     }
-    $$('#navLinks a, .drawerLinks a').forEach(a=>{
-      a.addEventListener('click',(e)=>{
-        const href=a.getAttribute('href')||'#home';
-        if(!href.startsWith('#')) return;
-        e.preventDefault();
-        const id=href.replace('#','');
-        scrollToSectionId(id);
-        $('#drawer')?.classList.remove('open');
-      });
-    });
-    const navSections=['home','bus','hotel','flight','train','more','ads','blogs'].map(id=>document.getElementById(id)).filter(Boolean);
-    window.addEventListener('scroll',()=>{
-      let currentId='home';
-      navSections.forEach(sec=>{
-        if(sec.getBoundingClientRect().top <= navOffset() + 10) currentId=sec.id;
-      });
-      setActiveNavById(currentId);
-    }, {passive:true});
+    $('#drawer')?.classList.remove('open');
+  }
 
-    Object.assign(window, {
-      toast,
-      openBlog,
-      closeBlog,
-      loveBlog,
-      shareBlog,
-      loveActiveBlog,
-      shareActiveBlog,
-      saveListing,
-      shareListing,
-      saveCurrentListing,
-      shareCurrentListing,
-      renderSaved,
-      renderBookings,
-      openReceipt,
-      closeReceipt,
-      goListing,
-      goBook,
-      render,
-      showMore,
-      scrollToSectionId,
-      filterCards,
-      filterRoute,
-      runSearch,
-      openListing,
-      closeModal,
-      togglePick,
-      calc,
-      holdSelection,
-      resetSelection,
-      goPaymentPage,
-      backToSelection,
-      confirmBooking
-    });
+  function runSearch() {
+    const activeTab = $('#searchTabs .tab.active');
+    const serviceType = activeTab?.dataset.type || 'bus';
+    const params = new URLSearchParams({ serviceType });
+    const date = $('#dateInput')?.value;
+    if (date) params.set('date', date);
+    if (serviceType === 'hotel') {
+      const city = $('#cityInput')?.value.trim();
+      if (city) params.set('city', city);
+    } else {
+      const origin = $('#fromInput')?.value.trim();
+      const destination = $('#toInput')?.value.trim();
+      if (origin) params.set('origin', origin);
+      if (destination) params.set('destination', destination);
+    }
+    window.location.assign(`/search?${params.toString()}`);
+  }
 
-    renderMarketplaceSurface();
-    render();
-    initSavedStates();
-    renderSaved();
-    renderBookings();
-  
+  function setupDrawerFilters() {
+    const holder = $('#drawerFilters');
+    if (!holder) return;
+    const categories = $('#categoryFilters')?.cloneNode(true);
+    const routes = $('#routeFilters')?.cloneNode(true);
+    if (categories) categories.id = 'drawerCategoryFilters';
+    if (routes) routes.id = 'drawerRouteFilters';
+    holder.replaceChildren();
+    const categoryTitle = document.createElement('div');
+    categoryTitle.innerHTML = '<div class="drawerFilterTitle">Categories</div><div class="drawerFilterHint">Choose what to browse.</div>';
+    holder.appendChild(categoryTitle);
+    if (categories) holder.appendChild(categories);
+    const routeHolder = document.createElement('div');
+    routeHolder.innerHTML = '<div class="drawerFilterTitle">Country routes</div><div class="drawerFilterHint">Highlight an available corridor.</div>';
+    if (routes) routeHolder.appendChild(routes);
+    holder.appendChild(routeHolder);
+  }
+
+  function setTheme(theme) {
+    const normalized = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', normalized);
+    localStorage.setItem('classicTripTheme', normalized);
+    const icon = $('#themeIcon');
+    if (icon) icon.className = normalized === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  }
+
+  function shareDataset(button) {
+    const url = safeInternalUrl(button.dataset.u, '/');
+    const absoluteUrl = new URL(url, window.location.origin).href;
+    if (navigator.share) navigator.share({ title: button.dataset.t || 'Classic Trip', url: absoluteUrl }).catch(() => {});
+    else navigator.clipboard?.writeText(absoluteUrl).then(() => toast('Share link copied.')).catch(() => {});
+  }
+
+  setupDrawerFilters();
+  render();
+
+  const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme');
+  if (savedTheme) setTheme(savedTheme);
+  const dateInput = $('#dateInput');
+  if (dateInput) dateInput.min = new Date().toISOString().slice(0, 10);
+
+  $('#themeBtn')?.addEventListener('click', () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  $('#menuBtn')?.addEventListener('click', () => $('#drawer')?.classList.add('open'));
+  $('#closeDrawer')?.addEventListener('click', () => $('#drawer')?.classList.remove('open'));
+  $('#drawer')?.addEventListener('click', (event) => { if (event.target.id === 'drawer') $('#drawer').classList.remove('open'); });
+
+  $('#searchTabs')?.addEventListener('click', (event) => {
+    const tab = event.target.closest('.tab');
+    if (!tab) return;
+    $$('.tab', $('#searchTabs')).forEach((item) => item.classList.toggle('active', item === tab));
+    const hotel = tab.dataset.type === 'hotel';
+    $('#cityField')?.classList.toggle('hide', !hotel);
+    $('#fromField')?.classList.toggle('hide', hotel);
+    $('#toField')?.classList.toggle('hide', hotel);
+  });
+
+  document.addEventListener('click', (event) => {
+    const actionElement = event.target.closest('[data-home-action]');
+    if (actionElement) {
+      const action = actionElement.dataset.homeAction;
+      if (action === 'scroll-section') scrollToSection(actionElement.dataset.sectionId);
+      else if (action === 'navigate' && actionElement.dataset.url?.startsWith('/')) window.location.assign(actionElement.dataset.url);
+      else if (action === 'drawer-toggle') $('#drawer')?.classList.toggle('open');
+      else if (action === 'run-search') runSearch();
+      else if (action === 'filter-cards') filterCards(actionElement.dataset.filter || 'all');
+      else if (action === 'filter-route') filterRoute(actionElement.dataset.filter || 'all');
+      else if (action === 'show-more') showMore(actionElement.dataset.group);
+      else if (action === 'save-listing') saveListing(actionElement.dataset.id);
+      else if (action === 'share-listing') shareListing(actionElement.dataset.id);
+      else if (action === 'share-dataset') shareDataset(actionElement);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    const card = event.target.closest('.listing');
+    if (card && !event.target.closest('a,button,input,select,textarea,label')) {
+      const item = listings.find((row) => listingId(row) === String(card.dataset.id || ''));
+      if (item) window.location.assign(listingUrl(item));
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!['Enter', ' '].includes(event.key) || !event.target.classList?.contains('listing')) return;
+    event.preventDefault();
+    const item = listings.find((row) => listingId(row) === String(event.target.dataset.id || ''));
+    if (item) window.location.assign(listingUrl(item));
+  });
+
+  $$('#navLinks a, .drawerLinks a').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      const href = link.getAttribute('href') || '';
+      if (!href.startsWith('#')) return;
+      event.preventDefault();
+      scrollToSection(href.slice(1));
+      $('#drawer')?.classList.remove('open');
+    });
+  });
+})();

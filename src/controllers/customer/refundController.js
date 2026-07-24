@@ -1,27 +1,19 @@
 const workflowService = require('../../services/support/workflowService');
-const store = require('../../services/data/persistentStore');
+const customerService = require('../../services/customer/customerService');
 const { pushFlash } = require('../../middlewares/flash');
-const { ownsBooking } = require('../../utils/bookingOwnership');
 
-function requestRefund(req, res, next) {
+async function requestRefund(req, res, next) {
   try {
-    const user = req.session?.user || {};
-    const userId = user.id;
-    const booking = store.findBooking(req.body.bookingRef);
-    if (!booking || !ownsBooking(booking, user)) {
+    const user = await customerService.requireSessionUser(req);
+    const booking = await customerService.findOwnedBooking(req.body.bookingRef, user);
+    if (!booking) {
       pushFlash(req, 'error', 'You do not have permission to request a refund for this booking.');
       return res.redirect('/account/bookings');
     }
-    workflowService.requestRefund({
-      bookingRef: req.body.bookingRef,
-      requesterId: userId || 'guest',
-      amount: req.body.amount,
-      reason: req.body.reason,
-    });
+    const customerRepository = require('../../repositories/domain/customerRepository');
+    await Promise.resolve(workflowService.requestRefund({ bookingRef: booking.bookingRef, requesterId: user.id, amount: req.body.amount, reason: req.body.reason }));
     return res.redirect('/account/bookings');
-  } catch (error) {
-    return next(error);
-  }
+  } catch (error) { return next(error); }
 }
 
 module.exports = { requestRefund };

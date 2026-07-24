@@ -1,0 +1,24 @@
+<%- include('../../partials/site-head', { seo }) %>
+<%- include('../../partials/site-header') %>
+<main class="container paymentPage" style="padding:28px 0 44px">
+  <section class="sheet" style="max-width:820px;margin:0 auto">
+    <div class="sheetTop">
+      <div>
+        <div class="badge badgeInfo"><i class="fa-solid fa-shield-halved"></i> Restricted onboarding</div>
+        <div class="sheetTitle"><%= user.role === 'driver' ? 'Driver verification is in progress' : 'Your account setup is in progress' %></div>
+        <div class="sheetSub">Your login is active, but operational access remains restricted until the required membership and verification checks are approved.</div>
+      </div>
+    </div>
+    <div class="gridCards" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px">
+      <div class="listing" style="padding:16px"><span class="muted">Account</span><h3 style="margin:6px 0"><%= user.fullName %></h3><p class="muted" style="margin:0"><%= user.email || user.phone %></p><span class="badge badgeOk" style="margin-top:10px">Login active</span></div>
+      <div class="listing" style="padding:16px"><span class="muted">Company</span><h3 style="margin:6px 0"><%= company?.name || 'Assigned company' %></h3><p class="muted" style="margin:0"><%= membership?.roleTitle || user.role.replace(/_/g, ' ') %></p><span class="badge badgeInfo" style="margin-top:10px"><%= membership?.status || 'Pending assignment' %></span></div>
+      <div class="listing" style="padding:16px"><span class="muted">Verification</span><h3 style="margin:6px 0"><%= user.verificationStatus || 'pending' %></h3><p class="muted" style="margin:0"><%= review?.status || 'Waiting for review' %></p><span class="badge badgeWarn" style="margin-top:10px">Operations locked</span></div>
+    </div>
+    <% if (review?.checklist?.length) { %>
+      <div class="summaryCard" style="margin-top:14px"><h3>Verification checklist</h3><div class="metricList"><% review.checklist.forEach(item => { %><div class="metricRow"><div><strong><%= item.label || item.key %></strong><span><%= item.notes || item.value || 'Awaiting review' %></span></div><b class="badge <%= ['approved','waived'].includes(item.status) ? 'ok' : item.status === 'rejected' ? 'bad' : 'info' %>"><%= item.status %></b></div><% }) %></div></div>
+    <% } %>
+    <% if (user.phone && !user.phoneVerifiedAt) { %><div class="summaryCard" style="margin-top:14px"><h3>Verify your phone</h3><p class="muted">Phone verification is required before driver, promoter, or partner approval.</p><a class="btn btnPrimary" href="/account/phone-verification">Verify phone number</a></div><% } %>
+    <div class="summaryCard" style="margin-top:14px"><h3>What happens next</h3><p class="muted">The Partner Admin reviews the submitted driver account, licence, safety, assignment, and permissions. After Partner Admin approval, the same account immediately opens the driver dashboard. Platform review can continue later when required.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btnGhost" href="/support">Contact support</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnPrimary" type="submit">Sign out</button></form></div></div>
+  </section>
+</main>
+<%- include('../../partials/site-footer') %>

@@ -1,0 +1,57 @@
+<section class="section" id="schedules">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3><%= isEmployeeDashboard ? 'Assigned schedules' : 'Departures & Fares' %></h3>
+        <p><%= isEmployeeDashboard ? 'Review assigned departures, manifests, live seat maps, availability, and delay notices.' : 'Create dated departures, then manage the route-level fare plans and stop-to-stop prices they use.' %></p>
+      </div>
+      <% if(isEmployeeDashboard){ %>
+        <button class="btn btnBlue" data-modal="create" data-type="delay notice"><i class="fa-solid fa-triangle-exclamation"></i> Send delay notice</button>
+      <% } else { %>
+        <div class="rowActions">
+          <button class="btn" data-modal="create" data-type="fare product"><i class="fa-solid fa-tags"></i> Fare plan</button>
+          <button class="btn" data-modal="create" data-type="segment fare"><i class="fa-solid fa-route"></i> Stop-to-stop price</button>
+          <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-circle-plus"></i> Add-on</button>
+          <button class="btn btnBlue" data-modal="create" data-type="schedule"><i class="fa-solid fa-plus"></i> Create departure</button>
+        </div>
+      <% } %>
+    </div>
+    <div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div>
+  </div>
+
+  <% if(!isEmployeeDashboard){ %>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <h3>Fare plans</h3>
+            <p>Purpose: store the travel class and reusable baggage, refund and change rules. A departure selects one plan instead of retyping these rules.</p>
+          </div>
+          <button class="btn" data-modal="create" data-type="fare product"><i class="fa-solid fa-plus"></i> Add fare plan</button>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Product</th><th>Route</th><th>Class</th><th>Full-route fare</th><th>Segments</th><th>Status</th><th></th></tr></thead><tbody id="companyFareProductsTable"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <h3>Stop-to-stop prices</h3>
+            <p>Purpose: store the actual amount charged from one boarding stop to a later drop-off stop. The full-route price is one stop pair; intermediate pairs are added only when needed.</p>
+          </div>
+          <button class="btn" data-modal="create" data-type="segment fare"><i class="fa-solid fa-plus"></i> Add stop price</button>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Fare plan</th><th>Boarding → drop-off</th><th>Route</th><th>Amount</th><th>Stop order</th><th>Status</th><th></th></tr></thead><tbody id="companySegmentFaresTable"></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="cardHead">
+        <div class="cardTitle">
+          <h3>Optional trip add-ons</h3>
+          <p>Extra luggage, priority boarding, ticket delivery, meals, insurance, lounge access, flexible changes and other partner extras shown on the public listing preview.</p>
+        </div>
+        <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-plus"></i> Add optional extra</button>
+      </div>
+      <div class="tableWrap"><table><thead><tr><th>Add-on</th><th>Listing</th><th>Category</th><th>Unit price</th><th>Charged</th><th>Available for</th><th>Status</th><th></th></tr></thead><tbody id="companyServiceAddonsTable"></tbody></table></div>
+    </div>
+  <% } %>
+</section>

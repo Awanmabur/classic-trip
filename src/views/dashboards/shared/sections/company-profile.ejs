@@ -1,0 +1,96 @@
+<section class="section" id="company-profile">
+        <% const companyProfile = dashboardData?.company || {}; const companyStats = dashboardData?.stats || {}; %>
+        <% if (companyProfile.profileIncomplete) { %><div class="notice" style="margin-bottom:12px"><i class="fa-solid fa-location-dot"></i> Complete the company location before verification or service setup. Open <strong>Edit profile</strong> and add the head-office city<%= companyProfile.missingProfileFields?.length ? ` (${companyProfile.missingProfileFields.join(', ')})` : '' %>.</div><% } %>
+        <div class="grid2">
+          <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Company Profile</h3><p>Company-owned profile, branches, policies, support contacts, payout identity, and verification state.</p></div><div class="heroActions"><span class="badge <%= companyProfile.verificationStatus === 'verified' ? 'ok' : 'warn' %>"><%= companyProfile.verificationStatus || 'pending' %></span><button class="btn" data-modal="edit" data-type="profile"><i class="fa-solid fa-pen"></i> Edit profile</button></div></div>
+            <div class="metricList">
+              <div class="metricRow"><div><strong><%= companyProfile.name || 'Company partner' %></strong><span><%= [companyProfile.city, companyProfile.country].filter(Boolean).join(', ') || 'Location pending' %></span></div><b class="badge info"><%= companyProfile.type || 'partner' %></b></div>
+              <div class="metricRow"><div><strong>Support</strong><span><%= companyProfile.supportEmail || companyProfile.supportPhone || companyProfile.supportWhatsapp || 'Support contact pending' %></span></div><b class="badge info">Scoped</b></div>
+              <div class="metricRow"><div><strong>Payout account</strong><span><%= (typeof companyProfile.payoutAccount === 'object' ? (companyProfile.payoutAccount.account || companyProfile.payoutAccount.accountNumber || '') : companyProfile.payoutAccount) || 'Payout account pending' %></span></div><b class="badge warn"><%= companyProfile.defaultCurrency || platformConfig.defaultCurrency %></b></div>
+            </div>
+          </div>
+          <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Company readiness</h3><p>Publishing should stay blocked until Super Admin verification, policies, inventory, and payout details are complete.</p></div></div>
+            <div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Can publish</span><span class="badge <%= companyProfile.canPublish ? 'ok' : 'bad' %>"><%= companyProfile.canPublish ? 'Yes' : 'No' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Active listings</span><strong><%= companyStats.activeListings || '0' %></strong></div></div><% if(!isCompanyDashboard || companySupportsBusOperations){ %><div class="splitItem"><div class="splitTop"><span>Routes</span><strong><%= companyStats.routeCount || '0' %></strong></div></div><% } %><% if(!isCompanyDashboard || companySupportsHotel){ %><div class="splitItem"><div class="splitTop"><span>Room types</span><strong><%= companyStats.roomTypes || '0' %></strong></div></div><% } %></div>
+          </div>
+        </div>
+        <div class="card" id="verification" style="margin-top:14px">
+          <div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-shield-halved"></i> Partner verification</h3><p>Complete this checklist while keeping listings, routes, vehicles, seat maps, fares, and departures in draft until Super Admin approval.</p></div><span class="badge <%= companyProfile.verificationStatus === 'verified' ? 'ok' : 'warn' %>"><%= companyProfile.verificationStatus || 'pending' %></span></div>
+          <% if (!currentUser?.phone) { %><div class="notice">Add the owner phone number through <strong>Edit profile</strong>, then verify it before final approval.</div><% } else if (!currentUser?.phoneVerifiedAt) { %><div class="notice">Verify the owner phone number before final approval. <a href="/account/phone-verification">Verify phone</a></div><% } %>
+          <form class="formPanel" method="POST" action="/company/verification">
+            <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+            <div class="formGrid">
+              <div class="field"><label>Payout method</label><div class="control"><i class="fa-solid fa-wallet"></i><select name="payoutMethod" required><option value="Mobile Money">Mobile Money</option><option value="Bank Transfer">Bank transfer</option></select></div></div>
+              <div class="field"><label>Bank / mobile-money provider</label><div class="control"><i class="fa-solid fa-building-columns"></i><input name="payoutProvider" value="<%= (typeof companyProfile.payoutAccount === 'object' ? companyProfile.payoutAccount.provider : '') || '' %>" placeholder="MTN MoMo, Airtel Money, bank name" required></div></div>
+              <div class="field"><label>Account name</label><div class="control"><i class="fa-solid fa-user-check"></i><input name="accountName" value="<%= (typeof companyProfile.payoutAccount === 'object' ? companyProfile.payoutAccount.accountName : '') || companyProfile.name || '' %>" required></div></div>
+              <div class="field"><label>Account number</label><div class="control"><i class="fa-solid fa-hashtag"></i><input name="accountNumber" value="<%= (typeof companyProfile.payoutAccount === 'object' ? (companyProfile.payoutAccount.accountNumber || companyProfile.payoutAccount.account) : companyProfile.payoutAccount) || '' %>" required></div></div>
+              <div class="field"><label>Settlement currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><input name="currency" value="<%= companyProfile.defaultCurrency || platformConfig.defaultCurrency %>" readonly></div></div>
+              <div class="field"><label>Business-license reference</label><div class="control"><i class="fa-regular fa-id-card"></i><input name="documentReference" placeholder="Upload the document below, then enter its reference"></div></div>
+              <div class="field"><label>Support email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="supportEmail" type="email" value="<%= companyProfile.supportEmail || '' %>" required></div></div>
+              <div class="field"><label>Support phone / WhatsApp</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="supportPhone" value="<%= companyProfile.supportPhone || companyProfile.supportWhatsapp || '' %>" required></div></div>
+              <div class="field full"><label>Agreement summary</label><div class="control"><textarea name="agreementSummary" required>Company accepts Classic Trip listing, booking, payment, refund, commission, settlement, safety, privacy, and support rules.</textarea></div></div>
+              <div class="field full"><label class="checkLine"><input type="checkbox" name="agreementAccepted" required> I confirm the company information, payout ownership, uploaded documents, and operational details are accurate.</label></div>
+            </div>
+            <div class="notice">Verification submission does not publish services automatically. Super Admin must approve each required check. Draft setup remains available while review is pending.</div>
+            <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Submit verification</button>
+          </form>
+        </div>
+        <%
+          const companyDocs = Array.isArray(companyProfile.documents) ? companyProfile.documents : [];
+          const companyMediaOptions = dashboardData?.options || {};
+          const mediaListings = companyMediaOptions.listings || [];
+          const mediaVehicles = companyMediaOptions.vehicles || [];
+          const mediaDrivers = companyMediaOptions.drivers || [];
+          const mediaHotelProperties = companyMediaOptions.hotelProperties || [];
+          const mediaRoomTypes = companyMediaOptions.roomTypes || [];
+          const mediaRoomUnits = companyMediaOptions.roomUnits || [];
+        %>
+        <div class="mediaUploadGrid" data-dashboard-media-upload="true">
+          <div class="mediaUploadCard">
+            <h4><i class="fa-solid fa-cloud-arrow-up"></i> Media & verification uploads</h4>
+            <p>Upload company documents, bus/vehicle documents, driver documents, hotel photos, room photos, and verification files without leaving the dashboard.</p>
+            <form class="mediaUploadForm" method="POST" action="/company/media" enctype="multipart/form-data">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="next" value="/company/profile">
+              <div class="field"><label>Upload target</label><div class="control"><i class="fa-solid fa-folder-open"></i><select name="target" required>
+                <option value="companyLogo">Company logo</option>
+                <option value="companyCover">Company cover/banner</option>
+                <option value="companyDocument">Business / tax document</option>
+                <option value="companyVerificationDocument">Company verification document</option>
+                <% if(companySupportsBus){ %><option value="busListing">Bus listing image</option><option value="vehiclePhoto">Vehicle photo</option><option value="vehicleDocument">Vehicle registration / insurance</option><option value="driverDocument">Driver license / ID</option><% } %>
+                <% if(companySupportsHotel){ %><option value="hotelListing">Hotel listing image</option><option value="hotelPropertyMedia">Hotel property photo/document</option><option value="roomTypeMedia">Room type photo</option><option value="roomUnitMedia">Room unit photo</option><option value="guestDocument">Guest ID document</option><% } %>
+              </select></div></div>
+              <div class="field"><label>Linked record</label><div class="control"><i class="fa-solid fa-link"></i><select name="targetId">
+                <option value="">Company profile / general</option>
+                <% mediaListings.forEach(function(item){ %><option value="<%= item.value || item.id %>">Listing: <%= item.label || item.value || item.id %></option><% }) %>
+                <% mediaVehicles.forEach(function(item){ %><option value="<%= item.value || item.id %>">Vehicle: <%= item.label || item.value || item.id %></option><% }) %>
+                <% mediaDrivers.forEach(function(item){ %><option value="<%= item.value || item.id %>">Driver: <%= item.label || item.value || item.id %></option><% }) %>
+                <% mediaHotelProperties.forEach(function(item){ %><option value="<%= item.value || item.id %>">Property: <%= item.label || item.value || item.id %></option><% }) %>
+                <% mediaRoomTypes.forEach(function(item){ %><option value="<%= item.value || item.id %>">Room type: <%= item.label || item.value || item.id %></option><% }) %>
+                <% mediaRoomUnits.forEach(function(item){ %><option value="<%= item.value || item.id %>">Room unit: <%= item.label || item.value || item.id %></option><% }) %>
+              </select></div><small class="fieldHelp">Choose the related listing, vehicle, driver, property, room type, or room unit when applicable.</small></div>
+              <div class="field"><label>Document type</label><div class="control"><i class="fa-regular fa-id-card"></i><select name="documentType">
+                <option value="business_license">Business license</option><option value="tax_certificate">Tax certificate</option><option value="operator_permit">Operator permit</option><option value="vehicle_registration">Vehicle registration</option><option value="vehicle_insurance">Vehicle insurance</option><option value="driver_license">Driver license</option><option value="driver_identity">Driver ID</option><option value="hotel_license">Hotel license</option><option value="property_verification">Property verification</option><option value="guest_identity">Guest ID</option><option value="photo">Photo / gallery image</option>
+              </select></div></div>
+              <div class="field"><label>Reference</label><div class="control"><i class="fa-solid fa-hashtag"></i><input name="documentReference" placeholder="License, permit, policy, or ID number"></div></div>
+              <div class="field full"><label>Upload file</label><div class="control"><i class="fa-solid fa-file-arrow-up"></i><input type="file" name="imageFile" accept="image/*,application/pdf" required></div><small class="fieldHelp">Images and PDF documents are accepted. Files are stored through the configured Cloudinary/local media adapter.</small></div>
+              <div class="field full"><label>Note</label><div class="control"><textarea name="note" placeholder="Internal note for Super Admin review"></textarea></div></div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-cloud-arrow-up"></i> Upload for review</button>
+            </form>
+          </div>
+          <div class="mediaUploadCard">
+            <h4><i class="fa-solid fa-file-shield"></i> Company review documents</h4>
+            <p>Pending files remain visible here so the company and Super Admin can review document state.</p>
+            <div class="documentList">
+              <% if(companyDocs.length){ companyDocs.slice(0,8).forEach(function(doc){ %>
+                <div class="documentItem">
+                  <div><strong><%= doc.label || doc.documentType || 'Company document' %></strong><span><%= doc.documentReference || doc.publicId || 'No reference' %> · <%= doc.status || 'pending_review' %></span></div>
+                  <div class="documentActions"><% if(doc.secureUrl || doc.url){ %><a class="btn tiny" href="<%= doc.secureUrl || doc.url %>" target="_blank" rel="noopener"><i class="fa-solid fa-eye"></i> View</a><% } %><span class="badge <%= /approved|verified/i.test(doc.status || '') ? 'ok' : /reject/i.test(doc.status || '') ? 'bad' : 'warn' %>"><%= doc.status || 'pending' %></span></div>
+                </div>
+              <% }) } else { %>
+                <div class="notice">No company documents uploaded yet. Upload business license, tax certificate, payout proof, or service verification documents.</div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Branches / terminals</h3><p><%= companySupportsHotel ? 'Hotel branches, front desks, and property desks.' : companySupportsBus ? 'Company branches, terminals, pickup points, and offices.' : 'Company branches, stations, and service desks.' %></p></div><button class="btn btnBlue" data-modal="create" data-type="branch"><i class="fa-solid fa-plus"></i> Add branch</button></div><div class="tableWrap"><table><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Services</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody id="companyBranchesTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Policies</h3><p><%= companySupportsHotel ? 'Cancellation, refund, stay, check-in/out, support, and operational policies.' : companySupportsBus ? 'Cancellation, baggage, refund, boarding, support, and route policies.' : 'Cancellation, refund, support, and operational policies.' %></p></div><button class="btn" data-modal="create" data-type="policy"><i class="fa-solid fa-plus"></i> Add policy</button></div><div class="tableWrap"><table><thead><tr><th>Policy</th><th>Type</th><th>Service</th><th>Visibility</th><th>Summary</th><th>Status</th><th></th></tr></thead><tbody id="companyPoliciesTable"></tbody></table></div></div></div>
+      </section>

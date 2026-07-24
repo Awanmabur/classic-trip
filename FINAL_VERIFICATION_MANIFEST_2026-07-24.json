@@ -1,0 +1,194 @@
+{
+  "artifact": "Classic Trip final bus and hotel platform \u2014 commission-only partners",
+  "date": "2026-07-24",
+  "generated_at": "2026-07-24T12:19:44.215140+00:00",
+  "commercial_model": {
+    "model": "percentage_commission",
+    "default_partner_commission_percent": 10,
+    "default_partner_payout_percent": 90,
+    "promoter_share_of_platform_commission_percent": 30,
+    "partner_signup": "direct; no plan, package, registration charge, recurring charge, upgrade or renewal",
+    "activation_gate": "company verification",
+    "history": "commission percentage frozen on each booking"
+  },
+  "removed_runtime_components": [
+    "Subscription model",
+    "SubscriptionOrder model",
+    "billing controller",
+    "billing service",
+    "billing repository",
+    "pricing plan page",
+    "billing checkout page",
+    "billing success page",
+    "company billing page",
+    "plan signup selection",
+    "upgrade and renewal routes",
+    "monthly and annual partner fee fields",
+    "pricing compatibility alias",
+    "company billing compatibility alias",
+    "invitation commissionPlan field"
+  ],
+  "verification": [
+    {
+      "name": "JavaScript syntax",
+      "passed": 420,
+      "total": 420
+    },
+    {
+      "name": "EJS templates",
+      "passed": 118,
+      "total": 118
+    },
+    {
+      "name": "Commission-only commercial model",
+      "passed": 40,
+      "total": 40
+    },
+    {
+      "name": "Production architecture",
+      "passed": 5604,
+      "total": 5604
+    },
+    {
+      "name": "Bus workflow",
+      "passed": 28,
+      "total": 28
+    },
+    {
+      "name": "Bus form contracts",
+      "passed": 45,
+      "total": 45
+    },
+    {
+      "name": "Smart bus forms",
+      "passed": 30,
+      "total": 30
+    },
+    {
+      "name": "Smart listing publication",
+      "passed": 19,
+      "total": 19
+    },
+    {
+      "name": "Driver assignment",
+      "passed": 15,
+      "total": 15
+    },
+    {
+      "name": "Driver UI and accessibility",
+      "passed": 26,
+      "total": 26
+    },
+    {
+      "name": "Driver materialization",
+      "passed": 5,
+      "total": 5
+    },
+    {
+      "name": "Staff and driver workflow",
+      "passed": 50,
+      "total": 50
+    },
+    {
+      "name": "Partner ownership",
+      "passed": 19,
+      "total": 19
+    },
+    {
+      "name": "Partner registration identity",
+      "passed": 9,
+      "total": 9
+    },
+    {
+      "name": "Multipart CSRF",
+      "passed": 40,
+      "total": 40
+    },
+    {
+      "name": "Browser CSRF",
+      "passed": 4,
+      "total": 4
+    },
+    {
+      "name": "Dashboard repository readiness",
+      "passed": 8,
+      "total": 8
+    },
+    {
+      "name": "Add-ons, return and seat layout",
+      "passed": 30,
+      "total": 30
+    },
+    {
+      "name": "Stop pricing and UI",
+      "passed": 15,
+      "total": 15
+    },
+    {
+      "name": "End-to-end bus and hotel",
+      "passed": 57,
+      "total": 57
+    },
+    {
+      "name": "Final bus and hotel architecture",
+      "passed": 95,
+      "total": 95
+    },
+    {
+      "name": "Final bus and hotel conclusion",
+      "passed": 37,
+      "total": 37
+    },
+    {
+      "name": "Final hotel operations",
+      "passed": 27,
+      "total": 27
+    },
+    {
+      "name": "Final regression",
+      "passed": 43,
+      "total": 43
+    },
+    {
+      "name": "Route security",
+      "status": "passed"
+    },
+    {
+      "name": "Architecture and security",
+      "status": "passed"
+    },
+    {
+      "name": "Entity relationship UI",
+      "status": "passed"
+    },
+    {
+      "name": "Dashboard scope and static route smoke",
+      "status": "passed"
+    },
+    {
+      "name": "Package/package-lock declarations",
+      "status": "matched"
+    }
+  ],
+  "runtime_not_executed": [
+    "Mongoose/PDFKit module initialization because dependencies are not installed in the artifact environment",
+    "Jest unit and integration tests",
+    "MongoDB transaction and concurrency tests",
+    "Current npm vulnerability audit",
+    "Payment provider sandbox callbacks and reconciliation",
+    "SMTP, SMS, push and media-provider live delivery",
+    "Load testing and penetration testing"
+  ],
+  "migration": {
+    "commission_dry_run": "npm run migrate:commission-only:dry",
+    "commission_apply": "npm run migrate:commission-only",
+    "hotel_dry_run": "npm run migrate:hotel-domain:dry",
+    "hotel_apply": "npm run migrate:hotel-domain",
+    "requirement": "Back up the database and inspect each dry-run before applying."
+  },
+  "file_counts": {
+    "source_javascript": 364,
+    "checked_javascript": 420,
+    "ejs_templates": 118
+  }
+}

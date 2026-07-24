@@ -1,0 +1,38 @@
+<section class="section" id="<%= item.page %>">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle">
+                  <h3><i class="fa-solid <%= item.icon %>"></i> <%= item.label %></h3>
+                  <p><%= item.group %> workspace for <%= dashboardShell?.label || 'Classic Trip' %>. This page uses the same admin shell and is scoped by role, company, service type, and permissions.</p>
+                </div>
+                <span class="badge info"><%= dashboardRoleKey %></span>
+              </div>
+              <div class="splitGrid">
+                <div class="splitItem"><div class="splitTop"><span>Access scope</span><span class="badge ok"><%= dashboardRoleKey === 'company' ? (companyServiceProfile.primaryLabel || 'Company service') : (dashboardShell?.label || 'Role') %></span></div><p>Only allowed data and actions should appear here.</p></div>
+                <div class="splitItem"><div class="splitTop"><span>Data source</span><span class="badge info">Live read model</span></div><p>Tables and actions are fed from the dashboard payload with safe empty states.</p></div>
+                <div class="splitItem"><div class="splitTop"><span>Audit</span><span class="badge warn">Required</span></div><p>Write actions should create an audit/activity record.</p></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardHead">
+                <div class="cardTitle"><h3>Actions</h3><p>Use these actions without leaving the shared dashboard experience.</p></div>
+              </div>
+              <div class="heroActions">
+                <a class="btn btnBlue" href="<%= dynamicActionHref(item.page) %>"><i class="fa-solid fa-up-right-from-square"></i> Open <%= item.label %></a>
+                <% if(employeeDynamicAction){ %><button class="btn btnPrimary" data-modal="create" data-type="<%= employeeDynamicAction %>"><i class="fa-solid fa-pen-to-square"></i> <%= employeeDynamicLabel %></button><% } %>
+                <button class="btn" data-modal="view" data-type="<%= item.label %>" data-label="<%= dashboardShell?.label || 'Dashboard' %>"><i class="fa-regular fa-eye"></i> View details</button>
+                <button class="btn" data-export-row="<%= item.label %>" data-label="<%= item.label %>"><i class="fa-solid fa-file-export"></i> Export</button>
+              </div>
+            </div>
+            <div class="card full">
+              <div class="cardHead"><div class="cardTitle"><h3><%= item.label %> checklist</h3><p>End-to-end implementation checkpoints for this role page.</p></div></div>
+              <div class="tableWrap"><table><thead><tr><th>Layer</th><th>Requirement</th><th>Status</th></tr></thead><tbody>
+                <tr><td>Backend</td><td>Route/controller must enforce role and company scope.</td><td><span class="badge ok">Configured</span></td></tr>
+                <tr><td>Frontend</td><td>Page must use this same admin shell, not a separate dashboard design.</td><td><span class="badge ok">Shared shell</span></td></tr>
+                <tr><td>Data</td><td>Missing data must render as an empty state, not a JavaScript error.</td><td><span class="badge ok">Safe</span></td></tr>
+                <tr><td>Actions</td><td>POST actions must use CSRF and audit logging.</td><td><span class="badge warn">Verify per action</span></td></tr>
+              </tbody></table></div>
+            </div>
+          </div>
+        </section>

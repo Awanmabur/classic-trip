@@ -7,10 +7,11 @@
     <h1 class="heroTitle" style="max-width:44ch">Simple, transparent pricing for every travel business.</h1>
     <p class="heroSub">Every plan includes partner dashboard access, secure payment collection, booking workflows, staff tools, manifests, support cases and payout reporting. No hidden fees.</p>
     <div class="actions" style="margin-top:14px">
-      <a class="btn btnPrimary" href="/partner/onboarding?plan=<%= selectedPlanId %>"><i class="fa-solid fa-arrow-right"></i> Start onboarding</a>
-      <a class="btn btnGhost" href="/company/billing"><i class="fa-solid fa-building"></i> Upgrade existing company</a>
+      <% if (plans.length) { %><a class="btn btnPrimary" href="/register?role=partner&plan=<%= selectedPlanId %>#partner"><i class="fa-solid fa-arrow-right"></i> Start onboarding</a><% } %>
+      <% if (currentUser?.role === 'company_admin') { %><a class="btn btnGhost" href="/company/billing"><i class="fa-solid fa-building"></i> Company billing</a><% } %>
       <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How it works</a>
     </div>
+    <% if (!plans.length) { %><div class="notice" style="margin-top:14px">Partner plans have not been configured yet. The Super Admin can create them in Platform Settings.</div><% } %>
   </section>
 
   <section class="grid3" style="gap:16px;margin-bottom:20px">
@@ -33,7 +34,7 @@
         <ul style="margin:0;padding-left:18px;font-size:13px;font-weight:800;line-height:2;color:var(--muted)">
           <% plan.features.forEach(feature => { %><li><%= feature %></li><% }) %>
         </ul>
-        <a class="btn <%= plan.recommended ? 'btnBlue' : 'btnGhost' %>" href="/partner/onboarding?plan=<%= plan.id %>" style="margin-top:auto;height:46px;font-size:14px"><i class="fa-solid fa-lock"></i> Choose <%= plan.name %></a>
+        <a class="btn <%= plan.recommended ? 'btnBlue' : 'btnGhost' %>" href="/register?role=partner&plan=<%= plan.id %>#partner" style="margin-top:auto;height:46px;font-size:14px"><i class="fa-solid fa-lock"></i> Choose <%= plan.name %></a>
       </article>
     <% }) %>
   </section>
@@ -48,7 +49,7 @@
   </section>
 
   <div style="text-align:center;padding:14px 0;color:var(--muted);font-size:13px;font-weight:820">
-    Questions? <a href="/support" style="color:var(--primary)">Contact our partner team</a> &bull; All plans include a 14-day setup period &bull; Cancel anytime
+    Questions? <a href="/support" style="color:var(--primary)">Contact our partner team</a> &bull; Billing terms are shown on each configured plan
   </div>
 </main>
 <%- include('../partials/site-footer') %>

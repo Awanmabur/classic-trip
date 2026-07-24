@@ -1,71 +1,100 @@
-const store = require('../data/persistentStore');
+const { platformCurrency } = require('../../utils/currency');
+const promoterRepository = require('../../repositories/domain/promoterRepository');
+const notificationService = require('../notification/notificationService');
 const walletService = require('../wallet/walletService');
+const busBookingService = require('../../modules/bus/services/busBookingService');
+const hotelService = require('../hotel/hotelService');
+const { nextId } = require('../data/idService');
 
-function cleanText(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 500);
+function cleanText(value, max = 500) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
 }
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function hasOfflinePermission(agent = {}) {
-  const profile = agent.promoterProfile || agent.agentProfile || {};
-  const permissions = profile.agentPermissions || profile.permissions || agent.permissions || [];
-  if (profile.offlineSalesEnabled === true || profile.canSellOffline === true || agent.canSellOffline === true) return true;
-  if (Array.isArray(permissions) && (permissions.includes('offline_sales') || permissions.includes('agent_sales'))) return true;
-  if (permissions && typeof permissions === 'object' && (permissions.offlineSales || permissions.agentSales)) return true;
-  return normalize(agent.role) === 'promoter' && agent.status !== 'suspended';
+function normalizePhone(value) {
+  return String(value || '').replace(/[^\d+]/g, '').replace(/^00/, '+').trim();
 }
 
-function ensureAgent(agentId) {
-  const agent = store.state.users.find((user) => user.id === agentId);
+function hasOfflinePermission(agent = {}, profile = {}) {
+  const embedded = agent.promoterProfile || agent.agentProfile || {};
+  const permissions = profile.permissions || profile.agentPermissions || embedded.agentPermissions || embedded.permissions || agent.permissions || [];
+  if (profile.offlineSalesEnabled === true || embedded.offlineSalesEnabled === true || embedded.canSellOffline === true || agent.canSellOffline === true) return true;
+  if (Array.isArray(permissions) && (permissions.includes('offline_sales') || permissions.includes('agent_sales'))) return true;
+  if (permissions && typeof permissions === 'object' && (permissions.offlineSales || permissions.agentSales)) return true;
+  return normalize(agent.role) === 'promoter' && normalize(agent.status) === 'active' && normalize(agent.verificationStatus || 'verified') === 'verified';
+}
+
+async function ensureAgent(agentId) {
+  const agent = await promoterRepository.users.findOne({ id: agentId });
+  const profile = await promoterRepository.profiles.findOne({ $or: [{ userId: agentId }, { promoterId: agentId }] });
   if (!agent || normalize(agent.role) !== 'promoter') {
-    const error = new Error('Offline ticket sales are only available to approved promoter/agent accounts');
+    const error = new Error('Offline ticket sales are only available to approved promoter accounts');
     error.status = 403;
     throw error;
   }
-  if (!hasOfflinePermission(agent)) {
-    const error = new Error('Agent offline sales permission is not enabled');
+  const verified = normalize(agent.verificationStatus) === 'verified';
+  if (normalize(agent.status) !== 'active' || !verified) {
+    const error = new Error('Promoter account must be active and verified before recording offline sales');
     error.status = 403;
     throw error;
   }
-  return agent;
+  if (profile && normalize(profile.status) !== 'active') {
+    const error = new Error('Promoter offline-sales profile is not active');
+    error.status = 403;
+    throw error;
+  }
+  if (!hasOfflinePermission(agent, profile || {})) {
+    const error = new Error('Agent offline-sales permission is not enabled');
+    error.status = 403;
+    throw error;
+  }
+  return { agent, profile: profile || {} };
 }
 
 async function findOrCreateCustomer(payload = {}) {
-  const email = cleanText(payload.email || payload.customerEmail).toLowerCase();
-  const phone = cleanText(payload.phone || payload.customerPhone);
-  const fullName = cleanText(payload.fullName || payload.customerName || payload.passengerName || 'Offline Customer');
-  const existing = store.state.users.find((user) => (email && normalize(user.email) === normalize(email)) || (phone && normalize(user.phone) === normalize(phone)));
+  const email = cleanText(payload.email || payload.customerEmail, 254).toLowerCase();
+  const phone = normalizePhone(payload.phone || payload.customerPhone);
+  const fullName = cleanText(payload.fullName || payload.customerName || payload.passengerName || 'Offline Customer', 160);
+  let existing = null;
+  if (email) existing = await promoterRepository.users.findOne({ email });
+  if (!existing && phone) existing = await promoterRepository.users.findOne({ phone });
   if (existing) {
-    existing.fullName = existing.fullName || fullName;
-    existing.phone = existing.phone || phone;
-    existing.email = existing.email || email;
-    existing.updatedAt = new Date().toISOString();
+    if (existing.role !== 'customer') {
+      const error = new Error('The supplied customer contact belongs to a non-customer account');
+      error.status = 409;
+      throw error;
+    }
+    Object.assign(existing, {
+      fullName: existing.fullName || fullName,
+      phone: existing.phone || phone,
+      email: existing.email || email,
+      updatedAt: new Date().toISOString(),
+    });
+    await promoterRepository.users.save(existing, { id: existing.id });
     return existing;
   }
   const customer = {
-    id: `user-offline-customer-${store.state.users.length + 1}`,
     role: 'customer',
     fullName,
-    email: email || `offline-${Date.now()}@classictrip.local`,
+    email: email || `offline-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@classictrip.local`,
     phone,
     status: 'active',
     isVerified: false,
     source: 'agent_offline_sale',
     createdAt: new Date().toISOString(),
   };
-  store.state.users.push(customer);
-  await walletService.getOrCreateWallet('customer', customer.id, cleanText(payload.currency || 'UGX'));
+  Object.assign(customer, await promoterRepository.users.insert(customer));
+  await walletService.getOrCreateWallet('customer', customer.id, cleanText(payload.currency || platformCurrency(), 8).toUpperCase());
   return customer;
 }
 
 function createReceipt({ sale, booking, payment }) {
   const now = new Date().toISOString();
-  const receiptRef = `RCPT-${String(store.state.offlineSales.length + 1).padStart(5, '0')}`;
   return {
-    receiptRef,
+    receiptRef: `RCPT-${sale.saleRef}`,
     receiptUrl: `/promoter/offline-sales/${encodeURIComponent(sale.id)}/receipt`,
     ticketUrl: `/tickets/${encodeURIComponent(booking.bookingRef)}`,
     printedAt: now,
@@ -73,87 +102,156 @@ function createReceipt({ sale, booking, payment }) {
   };
 }
 
-// Offline sales mark payment "successful" without ever going through Pesapal, and the amount
-// collected is entirely self-reported by the agent — so unlike online bookings (where inflating
-// the total just means the customer has to pay more), there is nothing else forcing this number
-// to be real. Commission is calculated straight off it, so a wildly inflated figure is a direct
-// path to fabricated commission. This doesn't block legitimate group/multi-night sales — it just
-// keeps the number within a generous multiple of the listing's own advertised price.
-const MAX_REASONABLE_PRICE_MULTIPLIER = 3;
-const MAX_REASONABLE_UNITS = 20;
-
-function assertReasonableAmount(listing, amountCollected, payload) {
-  const basePrice = Number(listing.priceFrom) || 0;
-  if (!basePrice || !amountCollected) return;
-  const passengerCount = Math.max(1, Math.min(MAX_REASONABLE_UNITS, Number(payload.passengerCount) || (Array.isArray(payload.passengers) ? payload.passengers.length : 0) || 1));
-  const ceiling = basePrice * MAX_REASONABLE_PRICE_MULTIPLIER * passengerCount;
-  if (amountCollected > ceiling) {
-    const error = new Error('This amount is far above the listing\'s advertised price and needs admin review before it can be recorded as an offline sale.');
-    error.status = 422;
+async function enforceDailyLimit(agent, profile, amountCollected) {
+  const dailyLimit = Number(profile.dailyLimit || agent.promoterProfile?.dailyLimit || 0);
+  if (!dailyLimit) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = await promoterRepository.offlineSales.list({ agentId: agent.id });
+  const collectedToday = existing
+    .filter((sale) => String(sale.createdAt || '').slice(0, 10) === today && ['completed', 'confirmed'].includes(sale.status))
+    .reduce((sum, sale) => sum + Number(sale.amountCollected || 0), 0);
+  if (collectedToday + amountCollected > dailyLimit) {
+    const error = new Error('This sale exceeds the promoter daily offline-sales limit');
+    error.status = 403;
     throw error;
   }
 }
 
+async function findListing(identifier) {
+  const key = cleanText(identifier, 180);
+  if (!key) return null;
+  return promoterRepository.listings.findOne({ $or: [{ id: key }, { slug: key }] });
+}
+
+
+function listValues(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  if (!value) return [];
+  try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed.map((item) => String(item || '').trim()).filter(Boolean); } catch (error) { /* comma-separated fallback */ }
+  return String(value).split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
+}
 async function createOfflineSale(payload = {}, context = {}) {
-  const agent = ensureAgent(context.agentId || payload.agentId);
-  const listing = store.findListing(payload.listingId || payload.slug);
-  if (!listing) {
-    const error = new Error('Listing not found for offline sale');
-    error.status = 404;
+  const { agent, profile } = await ensureAgent(context.agentId || payload.agentId);
+  const listing = await findListing(payload.listingId || payload.slug);
+  if (!listing || listing.status !== 'active' || listing.bookable === false) {
+    const error = new Error('Listing is not available for offline sale');
+    error.status = listing ? 409 : 404;
     throw error;
   }
-  const customer = await findOrCreateCustomer(payload);
-  const link = store.state.promoterLinks.find((row) => row.promoterId === agent.id && row.listingId === listing.id && row.status !== 'archived')
-    || store.state.promoterLinks.find((row) => row.promoterId === agent.id && row.status !== 'archived');
-  const paymentMethod = cleanText(payload.paymentMethod || 'cash');
+  if (!['bus', 'hotel'].includes(listing.serviceType)) {
+    const error = new Error('Offline sales are enabled only for live bus and hotel inventory');
+    error.status = 422;
+    throw error;
+  }
+
+  const paymentMethod = normalize(payload.paymentMethod || 'cash');
+  if (paymentMethod !== 'cash') {
+    const error = new Error('Offline promoter sales must be recorded as cash; online methods must use the normal checkout flow');
+    error.status = 422;
+    throw error;
+  }
   const amountCollected = Math.max(0, Number(payload.amountCollected || payload.total || 0));
-  assertReasonableAmount(listing, amountCollected, payload);
-  const booking = await store.createBooking({
+  if (amountCollected <= 0) {
+    const error = new Error('Amount collected must be greater than zero');
+    error.status = 422;
+    throw error;
+  }
+  await enforceDailyLimit(agent, profile, amountCollected);
+
+  const externalReference = cleanText(payload.paymentReference, 120);
+  if (externalReference) {
+    const replay = await promoterRepository.payments.findOne({ provider: 'cash', providerReference: externalReference });
+    if (replay) {
+      const priorSale = await promoterRepository.offlineSales.findOne({ bookingRef: replay.bookingRef });
+      const priorBooking = await promoterRepository.bookings.findOne({ bookingRef: replay.bookingRef });
+      if (priorSale && priorBooking && priorSale.agentId === agent.id) return { sale: priorSale, booking: priorBooking, payment: replay, replayed: true };
+      const error = new Error('Payment reference has already been used');
+      error.status = 409;
+      throw error;
+    }
+  }
+
+  const customer = await findOrCreateCustomer(payload);
+  const link = await promoterRepository.links.findOne({ promoterId: agent.id, listingId: listing.id, status: { $ne: 'archived' } })
+    || await promoterRepository.links.findOne({ promoterId: agent.id, status: { $ne: 'archived' } });
+
+  const idempotencyKey = cleanText(payload.idempotencyKey, 180)
+    || `offline:${agent.id}:${externalReference || `${listing.id}:${payload.scheduleId || payload.roomTypeId || payload.roomUnitId || ''}:${customer.id}:${Date.now()}`}`;
+  const canonicalPayload = {
+    ...payload,
     listingId: listing.id,
-    scheduleId: cleanText(payload.scheduleId),
-    seatNumber: cleanText(payload.seatNumber || payload.selected),
-    roomId: cleanText(payload.roomId),
-    fullName: cleanText(payload.fullName || payload.customerName),
-    customerName: cleanText(payload.customerName || payload.fullName),
-    passengerName: cleanText(payload.passengerName || payload.customerName || payload.fullName),
-    email: cleanText(payload.email || payload.customerEmail || customer.email),
-    phone: cleanText(payload.phone || payload.customerPhone || customer.phone),
+    selectedSeats: listValues(payload.selectedSeats || payload.selected || payload.seatNumber),
+    returnSeats: listValues(payload.returnSeats),
+    passengerNames: listValues(payload.passengerNames),
+    passengerPhones: listValues(payload.passengerPhones),
+    passengerEmails: listValues(payload.passengerEmails),
+    identityNumbers: listValues(payload.identityNumbers || payload.passengerIdentityNumbers),
+    identityTypes: listValues(payload.identityTypes),
+    nationalities: listValues(payload.nationalities),
+    luggageCounts: listValues(payload.luggageCounts),
+    roomUnitIds: listValues(payload.roomUnitIds || payload.roomUnitId),
+    addons: listValues(payload.addons),
+    fullName: cleanText(payload.fullName || payload.customerName || customer.fullName, 160),
+    customerName: cleanText(payload.customerName || payload.fullName || customer.fullName, 160),
+    passengerName: cleanText(payload.passengerName || payload.customerName || payload.fullName || customer.fullName, 160),
+    email: cleanText(payload.email || payload.customerEmail || customer.email, 254).toLowerCase(),
+    phone: normalizePhone(payload.phone || payload.customerPhone || customer.phone),
     customerUserId: customer.id,
-    paymentStatus: 'successful',
+    amountCollected,
     total: amountCollected,
-    agentSale: true,
-    offlineSale: true,
-    promoterAttribution: { promoterId: agent.id, linkId: link?.id || null, code: link?.code || agent.referralCode || 'AGENT-OFFLINE' },
-  });
-  booking.bookingChannel = 'agent_offline';
-  booking.createdByAgentId = agent.id;
-  booking.paymentMethod = paymentMethod;
-  booking.paymentMethodNote = `Offline ${paymentMethod}`;
-  booking.agentSale = { agentId: agent.id, agentName: agent.fullName, location: cleanText(payload.agentLocation || agent.agentLocation || '') };
-
-  const payment = {
-    id: `payment-offline-${store.state.payments.length + 1}`,
-    bookingId: booking.id,
-    bookingRef: booking.bookingRef,
-    provider: 'offline_agent',
-    method: paymentMethod,
-    methodNote: `Collected by ${agent.fullName}`,
-    amount: amountCollected || booking.pricing?.total || 0,
-    currency: booking.pricing?.currency || payload.currency || 'UGX',
-    status: 'successful',
-    providerReference: cleanText(payload.paymentReference) || `OFFLINE-${booking.bookingRef}`,
-    idempotencyKey: `offline-${booking.bookingRef}`,
-    collectedBy: agent.id,
-    createdAt: new Date().toISOString(),
-  };
-  store.state.payments.unshift(payment);
-
-  const sale = {
-    id: `offline-sale-${store.state.offlineSales.length + 1}`,
-    saleRef: `AGSALE-${String(store.state.offlineSales.length + 1).padStart(5, '0')}`,
+    currency: cleanText(payload.currency || listing.currency || platformCurrency(), 8).toUpperCase(),
+    paymentMethod: 'cash',
+    paymentProvider: 'cash',
+    provider: 'cash',
+    paymentStatus: 'successful',
+    paymentRef: externalReference,
+    paymentReference: externalReference,
+    idempotencyKey,
+    source: 'agent_offline',
+    actorId: agent.id,
     agentId: agent.id,
     agentName: agent.fullName,
-    agentLocation: cleanText(payload.agentLocation || agent.agentLocation || 'Office/terminal'),
+    promoterAttribution: { promoterId: agent.id, linkId: link?.id || null, code: link?.code || agent.referralCode || 'AGENT-OFFLINE' },
+  };
+  let booking;
+  let payment;
+  let replayed = false;
+  if (listing.serviceType === 'bus') {
+    ({ booking, payment, replayed } = await busBookingService.createTrustedOfflineBooking(canonicalPayload, {
+      agentId: agent.id,
+      agentName: agent.fullName,
+      ip: context.ip || '',
+      userAgent: context.userAgent || '',
+      requestId: context.requestId || '',
+    }));
+  } else {
+    booking = await hotelService.createHotelBooking(canonicalPayload, {
+      session: { user: { id: agent.id } },
+      ip: context.ip || '',
+      headers: { 'user-agent': context.userAgent || '' },
+    }, { trustedOffline: true, companyId: listing.companyId, actorId: agent.id });
+    payment = await promoterRepository.payments.findOne({ bookingRef: booking.bookingRef, provider: 'cash' });
+    if (!payment) throw Object.assign(new Error('Canonical hotel cash payment record was not created'), { status: 500, code: 'offline_hotel_payment_missing' });
+  }
+
+  if (replayed) {
+    const priorSale = await promoterRepository.offlineSales.findOne({ bookingRef: booking.bookingRef });
+    return { sale: priorSale, booking, customer, payment, replayed: true };
+  }
+
+  const due = Number(booking.pricing?.total || 0);
+  if (amountCollected + 0.0001 < due) {
+    const error = new Error(`Collected amount is below the computed booking total of ${booking.pricing?.currency || platformCurrency()} ${due}`);
+    error.status = 422;
+    throw error;
+  }
+
+  const sale = {
+    id: await nextId('offline-sale'),
+    saleRef: `AGSALE-${String(await nextId('offline-sale-ref')).replace(/^offline-sale-ref-/, '').padStart(5, '0')}`,
+    agentId: agent.id,
+    agentName: agent.fullName,
+    agentLocation: cleanText(payload.agentLocation || profile.location || agent.agentLocation || 'Office/terminal', 240),
     listingId: listing.id,
     companyId: listing.companyId,
     scheduleId: booking.scheduleId,
@@ -164,34 +262,36 @@ async function createOfflineSale(payload = {}, context = {}) {
     customerEmail: customer.email,
     customerPhone: customer.phone,
     passengerName: booking.passengers?.[0]?.fullName || customer.fullName,
-    seatNumber: booking.passengers?.[0]?.seatOrRoom || cleanText(payload.seatNumber),
-    paymentMethod,
+    seatNumber: booking.passengers?.[0]?.seatOrRoom || cleanText(payload.seatNumber, 40),
+    paymentMethod: 'cash',
     paymentReference: payment.providerReference,
     amountCollected: payment.amount,
     currency: payment.currency,
     commissionAmount: booking.pricing?.split?.promoterAmount || 0,
     commissionStatus: 'pending',
     status: 'completed',
-    notes: cleanText(payload.notes),
+    notes: cleanText(payload.notes, 1000),
     createdAt: new Date().toISOString(),
-    meta: { bookingChannel: 'agent_offline', listingTitle: listing.title, paymentId: payment.id },
+    meta: { bookingChannel: 'agent_offline', listingTitle: listing.title, paymentId: payment.id, idempotencyKey },
   };
-  const receipt = createReceipt({ sale, booking, payment });
-  Object.assign(sale, receipt);
-  store.state.offlineSales.unshift(sale);
+  Object.assign(sale, createReceipt({ sale, booking, payment }));
+  await promoterRepository.offlineSales.save(sale, { saleRef: sale.saleRef });
 
-  store.state.notifications.unshift({
-    id: `notification-${store.state.notifications.length + 1}`,
-    ownerType: 'customer',
-    ownerId: customer.id,
+  await notificationService.queueNotification({
+    userId: customer.id,
+    channels: ['in_app', 'email', 'sms'],
     title: 'Classic Trip offline ticket issued',
     message: `Your ticket ${booking.bookingRef} was issued by ${agent.fullName}.`,
-    channel: 'system',
-    status: 'queued',
-    createdAt: new Date().toISOString(),
+    recipient: { email: customer.email, phone: customer.phone, name: customer.fullName },
+    ownerType: 'customer',
+    ownerId: customer.id,
+    referenceType: 'booking',
+    referenceId: booking.id,
+    meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, promoterId: agent.id, ticketUrl: sale.ticketUrl },
   });
-  store.state.auditLogs.push({
-    id: `audit-${store.state.auditLogs.length + 1}`,
+
+  const audit = {
+    id: await nextId('audit'),
     actorId: agent.id,
     actorRole: 'promoter',
     actorName: agent.fullName,
@@ -204,22 +304,23 @@ async function createOfflineSale(payload = {}, context = {}) {
     afterSummary: `Created booking ${booking.bookingRef}, receipt ${sale.receiptRef}, and collected ${sale.currency} ${sale.amountCollected}`,
     status: 'success',
     createdAt: new Date().toISOString(),
-  });
-  return { sale, booking, customer, payment };
-}
-
-function receiptForSale(saleId, agentId = '') {
-  const sale = store.state.offlineSales.find((row) => row.id === saleId || row.saleRef === saleId || row.bookingRef === saleId);
-  if (!sale) return null;
-  if (agentId && sale.agentId !== agentId) return null;
-  return {
-    sale,
-    booking: store.findBooking(sale.bookingRef),
-    listing: store.findListing(sale.listingId),
-    company: store.findCompany(sale.companyId),
-    customer: store.state.users.find((user) => user.id === sale.customerUserId),
-    payment: store.state.payments.find((payment) => payment.bookingRef === sale.bookingRef),
   };
+  await promoterRepository.auditLogs.save(audit, { id: audit.id });
+  return { sale, booking, customer, payment, replayed: false };
 }
 
-module.exports = { createOfflineSale, receiptForSale, hasOfflinePermission };
+async function receiptForSale(saleId, agentId = '') {
+  const sale = await promoterRepository.offlineSales.findOne({ $or: [{ id: saleId }, { saleRef: saleId }, { bookingRef: saleId }] });
+  if (!sale || (agentId && sale.agentId !== agentId)) return null;
+  const [booking, listing, company, customer, payment] = await Promise.all([
+    promoterRepository.bookings.findOne({ bookingRef: sale.bookingRef }),
+    promoterRepository.listings.findOne({ id: sale.listingId }),
+    promoterRepository.companies.findOne({ id: sale.companyId }),
+    promoterRepository.users.findOne({ id: sale.customerUserId }),
+    promoterRepository.payments.findOne({ bookingRef: sale.bookingRef }),
+  ]);
+  return { sale, booking, listing, company, customer, payment };
+}
+
+module.exports = { createOfflineSale, receiptForSale, hasOfflinePermission, ensureAgent };
+

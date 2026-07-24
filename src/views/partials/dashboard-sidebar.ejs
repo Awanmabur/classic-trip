@@ -1,12 +1,13 @@
 <% const shell = dashboardShell || {}; const groups = shell.groups || []; %>
 <aside class="sidebar dashboardSidebar dashboardShellSidebar" id="sidebar" aria-label="<%= shell.label || 'Dashboard' %> navigation" data-dashboard-role="<%= shell.currentRole || shell.roleKey || '' %>">
-  <div class="sideTop">
+  <a class="sideTop dashboardHomeLink" href="/" aria-label="Go to Classic Trip home page">
     <img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip">
     <div class="brandText">
       <strong>Classic Trip</strong>
-      <span><%= shell.consoleName || 'Workspace' %></span>
+      <span>Back to marketplace</span>
     </div>
-  </div>
+    <i class="fa-solid fa-arrow-up-right-from-square dashboardHomeIcon" aria-hidden="true"></i>
+  </a>
 
   <div class="sideSearch">
     <label class="searchBox">

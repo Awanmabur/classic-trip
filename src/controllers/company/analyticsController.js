@@ -1,15 +1,12 @@
-const store = require('../../services/data/persistentStore');
+const reportingRepository = require('../../repositories/domain/reportingRepository');
 const { resolveCompanyId } = require('../../utils/companyScope');
-function summary(req, res, next) {
+async function summary(req, res, next) {
   try {
     const companyId = resolveCompanyId(req, { allowOverride: true });
-    res.json({
-      listings: store.state.listings.filter((listing) => listing.companyId === companyId).length,
-      bookings: store.state.bookings.filter((booking) => booking.companyId === companyId).length,
-      campaigns: store.state.promotionCampaigns.filter((campaign) => campaign.companyId === companyId).length,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const [listings, bookings, campaigns] = await Promise.all([
+      reportingRepository.listings.count({ companyId }), reportingRepository.bookings.count({ companyId }), reportingRepository.promotionCampaigns?.count?.({ companyId }) || reportingRepository.offlineSales.count({ companyId: '__none__' }),
+    ]);
+    res.json({ listings, bookings, campaigns });
+  } catch (error) { next(error); }
 }
 module.exports = { summary };

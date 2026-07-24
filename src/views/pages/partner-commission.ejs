@@ -1,0 +1,23 @@
+<%- include('../partials/site-header') %>
+<main class="container pagePad">
+  <section class="heroCard">
+    <span class="badge badgeInfo"><i class="fa-solid fa-percent"></i> Commission-only partnership</span>
+    <h1 class="heroTitle">Register directly and pay one percentage.</h1>
+    <p class="heroSub">Any eligible bus operator or hotel business can create a partner account. Classic Trip earns only when a completed booking earns revenue.</p>
+    <div class="heroActions">
+      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Create partner account</a>
+      <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-info"></i> How it works</a>
+    </div>
+  </section>
+  <section class="statsGrid" style="margin-top:18px">
+    <div class="stat"><b><%= platformConfig.partnerCommissionPercent %>%</b><span>Classic Trip commission</span></div>
+    <div class="stat"><b><%= platformConfig.partnerPayoutPercent %>%</b><span>Partner share</span></div>
+    <div class="stat"><b>0</b><span>Registration charges</span></div>
+    <div class="stat"><b>No expiry</b><span>Partner account</span></div>
+  </section>
+  <section class="grid2" style="margin-top:18px">
+    <article class="card"><div class="cardHead"><div class="cardTitle"><h3>How the split works</h3><p>One auditable commission percentage is frozen into every booking.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Customer pays</span><strong>100%</strong></div></div><div class="splitItem"><div class="splitTop"><span>Partner receives</span><strong><%= platformConfig.partnerPayoutPercent %>%</strong></div></div><div class="splitItem"><div class="splitTop"><span>Classic Trip retains</span><strong><%= platformConfig.partnerCommissionPercent %>%</strong></div></div><div class="notice">When a promoter referred the booking, the promoter reward comes from Classic Trip’s commission. It is not charged again to the partner or customer.</div></div></article>
+    <article class="card"><div class="cardHead"><div class="cardTitle"><h3>What partners receive</h3><p>All verified partners use the complete bus or hotel workflow.</p></div></div><div class="splitGrid"><div class="splitItem"><span>Listings, inventory and schedules</span></div><div class="splitItem"><span>Bookings, tickets or hotel vouchers</span></div><div class="splitItem"><span>Staff, drivers and operational permissions</span></div><div class="splitItem"><span>Wallet, settlements, payouts and reports</span></div><div class="splitItem"><span>Support, disputes, refunds and audit history</span></div></div></article>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

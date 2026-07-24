@@ -8,7 +8,7 @@
       <div>
         <span class="badge badgeHot" style="width:max-content;margin-bottom:10px"><i class="fa-regular fa-heart"></i> Saved trips</span>
         <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">Your saved listings</h1>
-        <p class="heroSub">Buses, hotels, flights and more you&rsquo;ve marked to book later. Tap the heart on any listing to save it here.</p>
+        <p class="heroSub">Buses and hotels you&rsquo;ve marked to book later. Tap the heart on any listing to save it here.</p>
         <div class="actions" style="margin-top:14px">
           <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse more</a>
           <a class="btn btnGhost" href="/my-bookings"><i class="fa-solid fa-ticket"></i> My bookings</a>
@@ -23,7 +23,7 @@
 
   <% if (savedListings && savedListings.length) { %>
   <div class="gridCards">
-    <% var typeIcons = {Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'}; %>
+    <% var typeIcons = {Bus:'fa-bus',Hotel:'fa-hotel'}; %>
     <% savedListings.forEach(function(l) { %>
     <%
       var cornerCls, cornerIcon, cornerText;
@@ -33,7 +33,7 @@
       else { cornerCls='available'; cornerIcon='fa-circle-check'; cornerText=(l.remainingInventory||l.availability||'Live')+' left'; }
       var typeIcon = typeIcons[l.type] || 'fa-ticket';
     %>
-    <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" role="button" tabindex="0" aria-label="Open <%= l.title %>" data-url="<%= l.url %>" onclick="location.href=this.dataset.url">
+    <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" role="button" tabindex="0" aria-label="Open <%= l.title %>" data-url="<%= l.url %>" data-saved-action="open">
       <div class="thumb">
         <img src="<%= l.img || '' %>" alt="<%= l.title %>">
         <div class="cornerBadge <%= cornerCls %>"><i class="fa-solid <%= cornerIcon %>"></i> <%= cornerText %></div>
@@ -42,8 +42,8 @@
           <span class="badge badgeInfo"><i class="fa-solid <%= typeIcon %>"></i> <%= l.typeLabel || l.type %></span>
         </div>
         <div class="thumbActions">
-          <button class="miniIcon loved" type="button" title="Saved" data-id="<%= l.id %>" onclick="event.stopPropagation();ctUnsave(this)"><i class="fa-solid fa-heart"></i></button>
-          <button class="miniIcon" type="button" title="Share" data-url="<%= l.url %>" data-title="<%= l.title %>" onclick="event.stopPropagation();ctShare(this.dataset.url,this.dataset.title)"><i class="fa-solid fa-share-nodes"></i></button>
+          <button class="miniIcon loved" type="button" title="Saved" data-id="<%= l.id %>" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>
+          <button class="miniIcon" type="button" title="Share" data-url="<%= l.url %>" data-title="<%= l.title %>" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>
         </div>
       </div>
       <div class="listingBody">
@@ -56,12 +56,12 @@
         <p class="desc"><%= [l.sub, l.policy, l.bookableReason || 'Live listing from Classic Trip.'].filter(Boolean).join('. ') %></p>
         <div class="priceRow">
           <div>
-            <div class="price"><%= (l.currency || 'UGX') + ' ' + Number(l.price || 0).toLocaleString() %></div>
+            <div class="price"><%= (l.currency || platformConfig.defaultCurrency) + ' ' + Number(l.price || 0).toLocaleString() %></div>
             <div class="small"><%= l.bookableReason || (l.bookable ? 'Starting price' : 'Read-only preview') %></div>
           </div>
           <div class="actions">
-            <a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()"><i class="fa-regular fa-eye"></i> View</a>
-            <% if (l.bookingUrl) { %><a class="btn btnPrimary" href="<%= l.bookingUrl %>" onclick="event.stopPropagation()"><i class="fa-solid fa-ticket"></i> Book</a><% } else { %><a class="btn btnGhost" href="<%= l.url %>" onclick="event.stopPropagation()"><i class="fa-regular fa-clock"></i> Soon</a><% } %>
+            <a class="btn btnGhost" href="<%= l.url %>"><i class="fa-regular fa-eye"></i> View</a>
+            <% if (l.bookingUrl) { %><a class="btn btnPrimary" href="<%= l.bookingUrl %>"><i class="fa-solid fa-ticket"></i> Book</a><% } else { %><a class="btn btnGhost" href="<%= l.url %>"><i class="fa-regular fa-clock"></i> Soon</a><% } %>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@
     <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
     <div>
       <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">No saved trips yet</h2>
-      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses, hotels, flights and more here for later.</p>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Browse listings and tap the <i class="fa-regular fa-heart"></i> heart to save buses and hotels here for later.</p>
     </div>
     <div class="actions" style="justify-content:center">
       <a class="btn btnPrimary" href="/search"><i class="fa-solid fa-magnifying-glass"></i> Browse listings</a>
@@ -94,7 +94,7 @@
     <i class="fa-regular fa-heart" style="font-size:52px;color:var(--muted)"></i>
     <div>
       <h2 style="margin:0 0 8px;font-size:22px;letter-spacing:-.4px">Sign in to see saved trips</h2>
-      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Log in to access your saved buses, hotels, flights and more. Or browse and tap the heart now &mdash; they&rsquo;ll be here after you sign in.</p>
+      <p class="muted" style="margin:0;font-size:14px;font-weight:760;max-width:44ch">Log in to access your saved buses and hotels. Or browse and tap the heart now &mdash; they&rsquo;ll be here after you sign in.</p>
     </div>
     <div class="actions" style="justify-content:center">
       <a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a>
@@ -106,7 +106,7 @@
 
 </main>
 
-<script>
+<script nonce="<%= cspNonce %>">
 function ctToast(msg){var t=document.getElementById('ctToastEl');if(!t){t=document.createElement('div');t.id='ctToastEl';t.className='toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(window._ctT);window._ctT=setTimeout(function(){t.classList.remove('show')},2300);}
 function ctShare(url,title){var full=location.origin+url;if(navigator.share){navigator.share({title:title,url:full}).catch(function(){ctCopyLink(full)})}else{ctCopyLink(full)}}
 function ctCopyLink(text){try{navigator.clipboard.writeText(text).then(function(){ctToast('Link copied.')}).catch(function(){ctToast('Copy: '+text)})}catch(e){ctToast('Share link: '+text)}}
@@ -117,10 +117,29 @@ function ctUnsave(btn){
   if(card){card.style.transition='opacity .2s';card.style.opacity='0';setTimeout(function(){card.remove()},220);}
   ctToast('Removed from saved.');
 }
+document.addEventListener('click', function(event){
+  var trigger=event.target.closest('[data-saved-action]');
+  if(!trigger) return;
+  var action=trigger.dataset.savedAction;
+  if(action==='unsave'){event.preventDefault();event.stopPropagation();ctUnsave(trigger);return;}
+  if(action==='share'){event.preventDefault();event.stopPropagation();ctShare(trigger.dataset.url||'/',trigger.dataset.title||'Classic Trip');return;}
+  if(action==='open' && !event.target.closest('a,button,input,select,textarea,label')){
+    var url=trigger.dataset.url;
+    if(url && url.charAt(0)==='/') location.assign(url);
+  }
+});
+document.addEventListener('keydown', function(event){
+  if(!['Enter',' '].includes(event.key)) return;
+  var card=event.target.closest('[data-saved-action="open"]');
+  if(!card) return;
+  event.preventDefault();
+  var url=card.dataset.url;
+  if(url && url.charAt(0)==='/') location.assign(url);
+});
 </script>
 
 <% if (!currentUser) { %>
-<script>
+<script nonce="<%= cspNonce %>">
 (function(){
   var saved=[];try{saved=JSON.parse(localStorage.getItem('ct_saved')||'[]')}catch(e){}
   if(!saved.length) return;
@@ -129,24 +148,25 @@ function ctUnsave(btn){
   if(gs) gs.style.display='';
   var cards=document.getElementById('guestSavedCards');if(!cards) return;
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];})}
-  var iconMap={Bus:'fa-bus',Hotel:'fa-hotel',Flight:'fa-plane-departure',Train:'fa-train',Ferry:'fa-ship',Tour:'fa-map-location-dot','Car rental':'fa-car','Airport transfer':'fa-van-shuttle',Events:'fa-calendar-days',Cargo:'fa-boxes-stacked','Visa support':'fa-passport','Travel insurance':'fa-shield-heart','Travel packages':'fa-suitcase-rolling'};
+  var iconMap={Bus:'fa-bus',Hotel:'fa-hotel'};
+  var defaultCurrency=<%- toScriptJson(platformConfig.defaultCurrency) %>;
   function corner(l){if(!l.bookable)return{cls:'promo',icon:'fa-clock',text:'Teaser'};return{cls:'available',icon:'fa-circle-check',text:'Live'};}
   cards.innerHTML=saved.map(function(l){
     var c=corner(l),ti=iconMap[l.type]||'fa-ticket';
-    return '<article class="listing" data-id="'+esc(l.id)+'" data-url="'+esc(l.url||'/')+'" role="button" tabindex="0" aria-label="Open '+esc(l.title)+'" onclick="location.href=this.dataset.url">'
+    return '<article class="listing" data-id="'+esc(l.id)+'" data-url="'+esc(l.url||'/')+'" role="button" tabindex="0" aria-label="Open '+esc(l.title)+'" data-saved-action="open">'
       +'<div class="thumb">'+(l.img?'<img src="'+esc(l.img)+'" alt="'+esc(l.title)+'">':'')
       +'<div class="cornerBadge '+c.cls+'"><i class="fa-solid '+c.icon+'"></i> '+esc(c.text)+'</div>'
       +'<div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> '+esc(l.rating||'New')+'</span><span class="badge badgeInfo"><i class="fa-solid '+ti+'"></i> '+esc(l.type||'Service')+'</span></div>'
       +'<div class="thumbActions">'
-      +'<button class="miniIcon loved" type="button" title="Saved" data-id="'+esc(l.id)+'" onclick="event.stopPropagation();ctUnsave(this)"><i class="fa-solid fa-heart"></i></button>'
-      +'<button class="miniIcon" type="button" title="Share" data-url="'+esc(l.url||'/')+'" data-title="'+esc(l.title)+'" onclick="event.stopPropagation();ctShare(this.dataset.url,this.dataset.title)"><i class="fa-solid fa-share-nodes"></i></button>'
+      +'<button class="miniIcon loved" type="button" title="Saved" data-id="'+esc(l.id)+'" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>'
+      +'<button class="miniIcon" type="button" title="Share" data-url="'+esc(l.url||'/')+'" data-title="'+esc(l.title)+'" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>'
       +'</div></div>'
       +'<div class="listingBody"><h3 class="listingTitle">'+esc(l.title)+'</h3>'
       +'<div class="meta"><span><i class="fa-regular fa-clock"></i> '+esc(l.time||'Flexible')+'</span><span><i class="fa-solid fa-layer-group"></i> Live availability</span>'+(l.partner?'<span><i class="fa-solid fa-building"></i> '+esc(l.partner)+'</span>':'')+'</div>'
       +'<p class="desc">Live listing from Classic Trip.</p>'
-      +'<div class="priceRow"><div><div class="price">'+(l.price?esc(l.currency||'UGX')+' '+Number(l.price).toLocaleString():'Price on request')+'</div><div class="small">'+(l.bookable?'Starting price':'Read-only preview')+'</div></div>'
-      +'<div class="actions"><a class="btn btnGhost" href="'+esc(l.url||'/')+'" onclick="event.stopPropagation()"><i class="fa-regular fa-eye"></i> View</a>'
-      +(l.bookingUrl?'<a class="btn btnPrimary" href="'+esc(l.bookingUrl)+'" onclick="event.stopPropagation()"><i class="fa-solid fa-ticket"></i> Book</a>':'<a class="btn btnGhost" href="'+esc(l.url||'/')+'" onclick="event.stopPropagation()"><i class="fa-regular fa-clock"></i> Soon</a>')
+      +'<div class="priceRow"><div><div class="price">'+(l.price?esc(l.currency||defaultCurrency)+' '+Number(l.price).toLocaleString():'Price on request')+'</div><div class="small">'+(l.bookable?'Starting price':'Read-only preview')+'</div></div>'
+      +'<div class="actions"><a class="btn btnGhost" href="'+esc(l.url||'/')+'"><i class="fa-regular fa-eye"></i> View</a>'
+      +(l.bookingUrl?'<a class="btn btnPrimary" href="'+esc(l.bookingUrl)+'"><i class="fa-solid fa-ticket"></i> Book</a>':'<a class="btn btnGhost" href="'+esc(l.url||'/')+'"><i class="fa-regular fa-clock"></i> Soon</a>')
       +'</div></div></div></article>';
   }).join('');
 })();

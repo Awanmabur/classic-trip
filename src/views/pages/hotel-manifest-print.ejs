@@ -1,17 +1,49 @@
 <%- include('../partials/site-head', { seo }) %>
+<style>
+  .hotelManifestPrint{padding:28px;border-radius:24px;background:#fff;box-shadow:0 14px 40px rgba(15,23,42,.08)}
+  .hotelManifestPrintHead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .hotelManifestPrintActions{display:flex;gap:8px;flex-wrap:wrap}
+  .hotelManifestPrintActions a,.hotelManifestPrintActions button{border:0;border-radius:999px;padding:10px 15px;text-decoration:none;background:#111827;color:#fff;font:inherit;cursor:pointer}
+  .hotelManifestTableWrap{overflow:auto;border:1px solid #e5e7eb;border-radius:18px}
+  .hotelManifestTable{width:100%;border-collapse:collapse;min-width:1700px;font-size:12px}
+  .hotelManifestTable th,.hotelManifestTable td{padding:12px 14px;text-align:left;border-bottom:1px solid #e5e7eb;vertical-align:top;white-space:normal}
+  .hotelManifestTable th{background:#f8fafc;position:sticky;top:0}
+  @media print{
+    header,footer,.hotelManifestPrintActions{display:none!important}
+    body{background:#fff!important}
+    .container{max-width:none!important;padding:0!important}
+    .hotelManifestPrint{box-shadow:none;padding:0;border-radius:0}
+    .hotelManifestTableWrap{overflow:visible;border:0}
+    .hotelManifestTable{min-width:0;font-size:8px}
+    .hotelManifestTable th,.hotelManifestTable td{padding:4px}
+  }
+</style>
 <main class="container py-4">
-  <section class="card print-card">
-    <h1>Hotel <%= mode %> manifest</h1>
-    <p>Listing: <%= listingId %></p>
-    <p><button onclick="window.print()">Print</button> <a href="/company/hotels/<%= listingId %>/manifest.csv?mode=<%= mode %>">CSV</a> <a href="/company/hotels/<%= listingId %>/manifest.pdf?mode=<%= mode %>">PDF</a></p>
-    <table class="table">
-      <thead><tr><th>Booking</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr></thead>
-      <tbody>
-        <% rows.forEach((row) => { %>
-          <tr><td><%= row[0] %></td><td><%= row[1] %></td><td><%= row[2] %></td><td><%= row[3] %></td><td><%= row[4] %></td><td><%= row[5] %></td></tr>
-        <% }) %>
-      </tbody>
-    </table>
+  <section class="hotelManifestPrint" aria-label="Hotel guest manifest">
+    <header class="hotelManifestPrintHead">
+      <div>
+        <h1>Hotel <%= String(mode || 'all').replace(/-/g, ' ') %> manifest</h1>
+        <p class="muted"><strong>Date:</strong> <%= date %> &nbsp; <strong>Scope:</strong> <%= listingId === 'all' ? 'All hotel properties' : listingId %> &nbsp; <strong>Records:</strong> <%= rows.length %></p>
+      </div>
+      <div class="hotelManifestPrintActions">
+        <button type="button" data-page-action="print">Print</button>
+        <a href="<%= manifestBasePath %>.csv?mode=<%= encodeURIComponent(mode) %>&date=<%= encodeURIComponent(date) %>">CSV</a>
+        <a href="<%= manifestBasePath %>.pdf?mode=<%= encodeURIComponent(mode) %>&date=<%= encodeURIComponent(date) %>">PDF</a>
+      </div>
+    </header>
+    <div class="hotelManifestTableWrap">
+      <table class="hotelManifestTable">
+        <thead><tr><% columns.forEach((column) => { %><th><%= column.label %></th><% }) %></tr></thead>
+        <tbody>
+          <% if (!rows.length) { %>
+            <tr><td colspan="<%= columns.length %>">No hotel records match this date and manifest view.</td></tr>
+          <% } %>
+          <% rows.forEach((row) => { %>
+            <tr><% columns.forEach((column) => { const value = row[column.key]; %><td><%= Array.isArray(value) ? value.join(', ') : (value || '-') %></td><% }) %></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
   </section>
 </main>
 <%- include('../partials/site-footer') %>

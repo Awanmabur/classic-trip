@@ -3,26 +3,35 @@
 <%
   const safeAvailability = availability || {};
   const previewData = preview || {};
-  const currency = previewData.currency || listing.currency || 'UGX';
-  const serviceFee = previewData.serviceFee ?? Math.round((listing.priceFrom || 0) * 0.045 + 3500);
+  const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency;
+  const customerFeeFor = (subtotal) => Math.round((Number(subtotal || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(subtotal || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
+  const serviceFee = previewData.serviceFee ?? customerFeeFor(listing.priceFrom || 0);
   const totalEstimate = previewData.totalEstimate ?? ((listing.priceFrom || 0) + serviceFee);
   const serviceIcon = previewData.serviceIcon || 'fa-ticket';
   const rawPreviewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 32);
-  const previewSeats = rawPreviewSeats.map((seat, seatIndex) => Object.assign({}, seat, { displaySeatNumber: String(seatIndex + 1), displaySeatLabel: `Seat No ${seatIndex + 1}` }));
+  const previewSeats = rawPreviewSeats.map((seat, seatIndex) => { const number = String(seat.seatNumber || (seatIndex + 1)); return Object.assign({}, seat, { displaySeatNumber: number, displaySeatLabel: `Seat No ${number}` }); });
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 12);
   const firstSeat = previewData.firstSeat || (previewSeats.find(seat => seat.status === 'available') || previewSeats[0] || {}).seatNumber || '';
   const firstRoom = previewData.firstRoom || (previewRooms.find(room => room.inventory > 0) || previewRooms[0] || {}).id || '';
-  const firstSeatDisplay = (previewSeats.find(seat => seat.seatNumber === firstSeat) || previewSeats[0] || {}).displaySeatLabel || 'Seat No 1';
-  const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || 'Room pending') : firstSeatDisplay);
+  const firstSeatDisplay = (previewSeats.find(seat => seat.seatNumber === firstSeat) || previewSeats[0] || {}).displaySeatLabel || '';
+  const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || '') : firstSeatDisplay);
   const selectedValue = listing.serviceType === 'hotel' ? firstRoom : firstSeat;
   const addons = previewData.addons || [];
   const previewSchedules = safeAvailability.schedules || [];
-  const partnerName = previewData.partnerName || listing.partner || company?.name || 'Classic Trip partner';
-  const supportPhone = previewData.supportPhone || company?.supportPhone || company?.phone || '+256 700 000 000';
-  const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureLabel || listing.time || 'Flexible schedule';
-  const ticketAccess = previewData.ticketAccess || 'Email, SMS, WhatsApp';
-  const policy = previewData.policy || (listing.bookable ? 'Instant checkout' : 'Provider teaser');
-  const paymentMethods = previewData.paymentMethods || ['Mobile Money', 'Card', 'Wallet', 'Pay at office'];
+  const returnSchedules = safeAvailability.returnSchedules || [];
+  const routeStops = safeAvailability.stops || [];
+  const selectedJourney = safeAvailability.journey || {};
+  const partnerName = previewData.partnerName || listing.partner || company?.name || '';
+  const supportPhone = previewData.supportPhone || company?.supportContacts?.phone || company?.supportPhone || company?.phone || '';
+  const scheduleLabel = previewData.scheduleLabel || (safeAvailability.schedules || [])[0]?.departureLabel || listing.time || '';
+  const ticketAccess = previewData.ticketAccess || 'Issued after confirmed payment';
+  const policy = previewData.policy || (listing.bookable ? 'Booking available' : 'Booking unavailable');
+  const paymentMethods = previewData.paymentMethods || [];
+  const todayDate = new Date();
+  const tomorrowDate = new Date(todayDate); tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const followingDate = new Date(tomorrowDate); followingDate.setUTCDate(followingDate.getUTCDate() + 1);
+  const defaultCheckIn = tomorrowDate.toISOString().slice(0, 10);
+  const defaultCheckOut = followingDate.toISOString().slice(0, 10);
 %>
 <main class="container listingPreviewPage" style="padding:16px 0 30px">
   <div class="modal open previewModal" id="viewModal">
@@ -31,11 +40,11 @@
         <div>
           <div class="badge badgeInfo" id="modalType"><i class="fa-solid <%= serviceIcon %>"></i> <%= listing.type || listing.serviceType %></div>
           <div class="sheetTitle" id="modalTitle"><%= listing.title %></div>
-          <div class="sheetSub" id="modalSub"><%= partnerName %> - <%= listing.from %> to <%= listing.to %> - <%= scheduleLabel %></div>
+          <div class="sheetSub" id="modalSub"><%= [partnerName, [listing.from, listing.to].filter(Boolean).join(' to '), scheduleLabel].filter(Boolean).join(' · ') %></div>
         </div>
         <div class="sheetTopActions">
           <a class="iconbtn" title="Partner profile" href="/companies/<%= listing.companySlug %>"><i class="fa-solid fa-building"></i></a>
-          <button class="iconbtn" title="Share" type="button" onclick="sharePreviewListing(event)"><i class="fa-solid fa-share-nodes"></i></button>
+          <button class="iconbtn" title="Share" type="button" data-listing-action="share"><i class="fa-solid fa-share-nodes"></i></button>
           <a class="iconbtn" title="Close preview" href="/search"><i class="fa-solid fa-xmark"></i></a>
         </div>
       </div>
@@ -60,15 +69,45 @@
               </div>
               <% if (previewSchedules.length) { %>
                 <div class="bookingForm" style="margin-top:10px">
-                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" onchange="onOutboundScheduleChange()">
+                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" data-listing-action="outbound-schedule">
                     <% previewSchedules.forEach((schedule) => { %>
                       <option value="<%= schedule.id %>" <%= schedule.id === safeAvailability.scheduleId ? 'selected' : '' %>><%= schedule.departureLabel %></option>
                     <% }) %>
                   </select>
+                  <select id="outboundOriginStopSelect" aria-label="Boarding stop" data-listing-action="outbound-journey">
+                    <% routeStops.filter((stop) => stop.pickupAllowed !== false).forEach((stop) => { %>
+                      <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.originStopId ? 'selected' : '' %>>Board at: <%= stop.name %></option>
+                    <% }) %>
+                  </select>
+                  <select id="outboundDestinationStopSelect" aria-label="Drop-off stop" data-listing-action="outbound-journey">
+                    <% routeStops.filter((stop) => stop.dropoffAllowed !== false).forEach((stop) => { %>
+                      <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.destinationStopId ? 'selected' : '' %>>Drop at: <%= stop.name %></option>
+                    <% }) %>
+                  </select>
+                  <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Your ticket price is recalculated from the boarding stop to the selected drop-off stop. A shorter journey costs its configured lower fare.</div>
                 </div>
               <% } else { %>
                 <div class="notice">No upcoming trips are scheduled for this route yet.</div>
               <% } %>
+            </div>
+          <% } %>
+
+          <% if (listing.serviceType === 'hotel') { %>
+            <div class="selector hotelDateSelector">
+              <div class="selectorTop">
+                <div>
+                  <b>Choose your stay dates</b>
+                  <div class="muted" style="font-size:13px;font-weight:800">Availability and price are checked for every night of your stay.</div>
+                </div>
+              </div>
+              <div class="bookingForm" style="margin-top:10px">
+                <label>Check-in<input type="date" id="hotelCheckIn" value="<%= defaultCheckIn %>" min="<%= new Date().toISOString().slice(0, 10) %>" data-listing-action="hotel-dates" required></label>
+                <label>Check-out<input type="date" id="hotelCheckOut" value="<%= defaultCheckOut %>" min="<%= defaultCheckOut %>" data-listing-action="hotel-dates" required></label>
+                <label>Rooms<input type="number" id="hotelRooms" value="1" min="1" max="10" inputmode="numeric" data-listing-action="hotel-guests" required></label>
+                <label>Adults<input type="number" id="hotelAdults" value="1" min="1" max="40" inputmode="numeric" data-listing-action="hotel-guests" required></label>
+                <label>Children<input type="number" id="hotelChildren" value="0" min="0" max="40" inputmode="numeric" data-listing-action="hotel-guests"></label>
+                <div class="full journeyPriceHint" id="hotelAvailabilityHint"><i class="fa-solid fa-calendar-check"></i> Room availability and the stay total update for the selected dates.</div>
+              </div>
             </div>
           <% } %>
 
@@ -88,31 +127,12 @@
             <div class="layoutBox" id="layoutBox">
               <% if (listing.serviceType === 'bus') { %>
                 <div class="vehicleFront">DRIVER - FRONT</div>
-                <div class="seatRows" id="outboundSeatGrid">
-                  <% for (let i = 0; i < previewSeats.length; i += 4) { const row = previewSeats.slice(i, i + 4); %>
-                    <div class="seatRow">
-                      <% row.slice(0, 2).forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
-                        <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
-                      <% }) %>
-                      <span class="aisle"></span>
-                      <% row.slice(2, 4).forEach(seat => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
-                        <button class="seat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : seat.seatNumber === firstSeat ? 'selected' : 'available' %>" type="button" data-choice="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" data-seat-kind="outbound" onclick="selectPreviewOption(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
-                      <% }) %>
-                    </div>
-                  <% } %>
-                </div>
+                <div class="seatRows" id="outboundSeatGrid"></div>
               <% } else if (listing.serviceType === 'hotel') { %>
                 <div class="vehicleFront">ROOM / HOUSE UNITS</div>
                 <div class="roomGrid">
                   <% previewRooms.forEach((room, index) => { %>
-                    <button class="room <%= room.inventory <= 0 ? 'taken' : room.id === firstRoom || index === 0 ? 'selected' : '' %>" type="button" data-choice="<%= room.id %>" data-label="<%= room.roomType %>" data-price="<%= room.nightlyPrice || listing.priceFrom %>" onclick="selectPreviewOption(this)" <%= room.inventory <= 0 ? 'disabled' : '' %>><span><%= room.roomType.split(' ')[0] %></span><small><%= room.inventory %> left</small></button>
-                  <% }) %>
-                </div>
-              <% } else { %>
-                <div class="vehicleFront">PROVIDER STRUCTURE PREVIEW</div>
-                <div class="trainGrid">
-                  <% ['S1','S2','S3','S4','S5','S6','S7','S8'].forEach((slot, index) => { %>
-                    <button class="slot <%= index === 0 ? 'selected' : index === 5 ? 'holding' : index === 7 ? 'taken' : '' %>" type="button" data-choice="<%= slot %>" data-label="<%= slot %>" onclick="selectPreviewOption(this)" <%= index === 7 ? 'disabled' : '' %>><%= slot %></button>
+                    <button class="room <%= room.inventory <= 0 ? 'taken' : room.id === firstRoom || index === 0 ? 'selected' : '' %>" type="button" data-choice="<%= room.id %>" data-label="<%= room.roomType %>" data-price="<%= room.nightlyPrice || listing.priceFrom %>" data-capacity="<%= room.capacity || 1 %>" data-inventory="<%= room.inventory || 0 %>" data-listing-action="select-option" <%= room.inventory <= 0 ? 'disabled' : '' %>><span><%= room.roomType.split(' ')[0] %></span><small><%= room.inventory %> left</small></button>
                   <% }) %>
                 </div>
               <% } %>
@@ -123,8 +143,7 @@
         <div class="sidePanel">
           <div class="summaryCard">
             <h3>Booking summary</h3>
-            <div class="timer" id="timerBox"><span><i class="fa-regular fa-clock"></i> Hold expires in</span><b id="timer">10:00</b></div>
-            <div class="kv" style="margin-top:10px">
+            <div class="kv">
               <div><span>Selected</span><b id="selectedOut"><%= selectedPreview %></b></div>
               <div><span>Base price</span><b id="baseOut"><%= money(listing.priceFrom, currency) %></b></div>
               <div><span>Service fee</span><b id="feeOut"><%= money(serviceFee, currency) %></b></div>
@@ -134,37 +153,39 @@
           </div>
 
           <div class="summaryCard">
-            <h3>Addons</h3>
+            <h3>Optional extras</h3>
             <div class="addons" id="addons">
-              <% addons.forEach(addon => { %>
-                <label class="addon"><span><input type="checkbox" value="<%= addon.id %>" data-price="<%= addon.price %>" onchange="togglePreviewAddon()"> <%= addon.name %></span><b><%= money(addon.price, currency) %></b></label>
+              <% addons.forEach(addon => { const basisLabel = (listing.serviceType === 'hotel' ? ({ per_booking: 'per booking', per_passenger: 'per guest', per_trip_leg: 'per room / night', per_passenger_per_leg: 'per guest / night' }) : ({ per_booking: 'per booking', per_passenger: 'per traveler', per_trip_leg: 'per trip leg', per_passenger_per_leg: 'per traveler / leg' }))[addon.chargeBasis] || 'per booking'; %>
+                <label class="addon" data-available-for="<%= addon.availableFor || 'all' %>">
+                  <input type="checkbox" value="<%= addon.id %>" data-price="<%= addon.price %>" data-charge-basis="<%= addon.chargeBasis || 'per_booking' %>" data-available-for="<%= addon.availableFor || 'all' %>" data-listing-action="addon">
+                  <span class="addonIcon"><i class="fa-solid <%= addon.icon || 'fa-circle-plus' %>"></i></span>
+                  <span class="addonCopy"><strong><%= addon.name %></strong><small><%= addon.description || 'Optional service supplied by the partner.' %></small></span>
+                  <span class="addonPrice"><b><%= money(addon.price, addon.currency || currency) %></b><small><%= basisLabel %></small></span>
+                </label>
               <% }) %>
+              <% if (!addons.length) { %><div class="notice">This partner has not added optional extras for this service yet.</div><% } %>
             </div>
           </div>
 
           <% if (listing.serviceType === 'bus') { %>
             <div class="summaryCard multiTicketPanel">
               <div class="multiTicketTop">
-                <h3>Multi-ticket mode is on</h3>
+                <h3>Seats and return journey</h3>
                 <span class="badge badgeInfo" id="ticketCountBadge">1 ticket</span>
               </div>
-              <label class="switchLine"><input type="checkbox" id="returnTripToggle" onchange="toggleReturnTrip()"> Two-way / return ticket</label>
+              <label class="switchLine"><input type="checkbox" id="returnTripToggle" data-listing-action="return-toggle"> Add a return journey</label>
+              <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Choose a reverse departure after arrival, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
               <div class="bookingForm" id="returnTripFields" style="display:none">
-                <% const outboundDepartAtMs = new Date((previewSchedules.find((schedule) => schedule.id === safeAvailability.scheduleId) || previewSchedules[0] || {}).departAt || 0).getTime();
-                   const eligibleReturnSchedules = previewSchedules.filter((schedule) => new Date(schedule.departAt || 0).getTime() > outboundDepartAtMs); %>
-                <select class="full" id="returnScheduleSelect" aria-label="Return schedule" onchange="onReturnScheduleChange()">
-                  <% eligibleReturnSchedules.forEach((schedule, index) => { %>
-                    <option value="<%= schedule.id %>" <%= index === 0 ? 'selected' : '' %>><%= schedule.departureLabel %></option>
+                <select class="full" id="returnScheduleSelect" aria-label="Return schedule" data-listing-action="return-schedule">
+                  <% returnSchedules.forEach((schedule, index) => { %>
+                    <option value="<%= schedule.id %>" data-origin-stop-id="<%= schedule.originStopId %>" data-destination-stop-id="<%= schedule.destinationStopId %>" <%= index === 0 ? 'selected' : '' %>><%= schedule.departureLabel %></option>
                   <% }) %>
+                  <% if (!returnSchedules.length) { %><option value="">No reverse trips available</option><% } %>
                 </select>
-                <% if (!eligibleReturnSchedules.length) { %>
-                  <div class="notice full">No later trips are scheduled yet for a return leg.</div>
+                <% if (!returnSchedules.length) { %>
+                  <div class="notice full" id="returnTripNotice">No reverse trips are scheduled after this outbound journey.</div>
                 <% } %>
-                <div class="full returnSeatGrid" id="returnSeatGrid">
-                  <% previewSeats.forEach((seat) => { const unavailable = seat.status === 'taken' || seat.status === 'locked' || seat.status === 'blocked' || seat.status === 'maintenance'; %>
-                    <button class="returnSeat <%= ['blocked','maintenance'].includes(seat.status) ? seat.status : seat.status === 'taken' ? 'taken' : seat.status === 'locked' ? 'holding' : 'available' %>" type="button" data-return-seat="<%= seat.seatNumber %>" data-label="<%= seat.displaySeatLabel || ('Seat No ' + seat.displaySeatNumber) %>" data-price-delta="<%= seat.priceDelta || 0 %>" onclick="toggleReturnSeat(this)" <%= unavailable ? 'disabled' : '' %>><span>Seat No</span><b><%= seat.displaySeatNumber %></b></button>
-                  <% }) %>
-                </div>
+                <div class="full returnSeatGrid" id="returnSeatGrid"></div>
               </div>
             </div>
           <% } %>
@@ -177,14 +198,12 @@
               <div><span>Ticket access</span><b><%= ticketAccess %></b></div>
               <div><span>Policy</span><b><%= policy %></b></div>
             </div>
-            <p class="muted" style="font-weight:800;margin:10px 0 0"><%= listing.cancellationRules || 'Cancellation and refund rules depend on the partner policy, service time, and payment status.' %></p>
           </div>
 
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
             <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-rotate-left"></i> Reset</a>
             <% if (listing.bookable) { %>
-              <button class="btn btnBlue" id="holdButton" type="button" onclick="holdSelection(event)"><i class="fa-solid fa-clock"></i> Hold 10 mins</button>
-              <button class="btn btnPrimary" type="button" onclick="goPaymentPage()"><i class="fa-solid fa-lock"></i> Proceed to payment</button>
+              <button class="btn btnPrimary" type="button" data-listing-action="payment"><i class="fa-solid fa-arrow-right"></i> Proceed to payment</button>
             <% } else { %>
               <a class="btn btnGhost" href="/services"><i class="fa-regular fa-clock"></i> Coming soon</a>
             <% } %>
@@ -194,30 +213,32 @@
     </div>
   </div>
 </main>
-<script>
-  let activeHoldId = '';
+<script nonce="<%= cspNonce %>">
   let activeSelection = <%- toScriptJson(selectedValue || '') %>;
   let activeSelectionLabel = <%- toScriptJson(selectedPreview || '') %>;
   let activeSelections = activeSelection ? [activeSelection] : [];
   let activeSelectionLabels = activeSelectionLabel ? [activeSelectionLabel] : [];
   let activeReturnSelections = [];
-  let activeRoomId = <%- toScriptJson(firstRoom || '') %>;
-  let holdTimerId = null;
-  const previewSchedulesData = <%- toScriptJson(previewSchedules.map((schedule) => ({ id: schedule.id, basePrice: Number(schedule.basePrice || listing.priceFrom || 0), label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
+  let activeRoomTypeId = <%- toScriptJson(firstRoom || '') %>;
+  let returnSchedulesData = <%- toScriptJson(returnSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, originStopId: schedule.originStopId, destinationStopId: schedule.destinationStopId, label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
+  const previewAddonOptions = <%- toScriptJson(addons) %>;
+  const initialPreviewSeats = <%- toScriptJson(previewSeats) %>;
+  const previewRoomsData = <%- toScriptJson(previewRooms) %>;
+  let currentOutboundLayout = <%- toScriptJson(safeAvailability.schedule?.layoutName || safeAvailability.layoutName || '2x2') %>;
+  let currentReturnLayout = '2x2';
   const listingBasePrice = Number('<%= listing.priceFrom || 0 %>');
   const previewPricing = {
     serviceType: <%- toScriptJson(listing.serviceType) %>,
     currency: <%- toScriptJson(currency) %>,
-    basePrice: listingBasePrice,
-    scheduleId: <%- toScriptJson(safeAvailability.scheduleId || (safeAvailability.schedules || [])[0]?.id || '') %>
+    basePrice: Number(<%- toScriptJson(safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0) %>),
+    scheduleId: <%- toScriptJson(safeAvailability.scheduleId || (safeAvailability.schedules || [])[0]?.id || '') %>,
+    originStopId: <%- toScriptJson(selectedJourney.originStopId || '') %>,
+    destinationStopId: <%- toScriptJson(selectedJourney.destinationStopId || '') %>
   };
-  const returnPricing = { basePrice: listingBasePrice, scheduleId: '' };
-  function schedulePriceFor(scheduleId) {
-    const schedule = previewSchedulesData.find((item) => item.id === scheduleId);
-    return schedule ? schedule.basePrice : listingBasePrice;
-  }
-  previewPricing.basePrice = schedulePriceFor(previewPricing.scheduleId);
-  const previewAddonOptions = <%- toScriptJson(addons) %>;
+  const returnPricing = { basePrice: 0, scheduleId: '', originStopId: '', destinationStopId: '' };
+  const customerFeeConfig = <%- toScriptJson({ percent: platformConfig.customerServiceFeePercent || 0, flat: platformConfig.customerServiceFeeFlat || 0, taxPercent: platformConfig.customerTaxPercent || 0 }) %>;
+  function customerFees(subtotal) { const base = Math.max(0, Number(subtotal || 0)); return Math.round((base * Number(customerFeeConfig.percent || 0) / 100) + Number(customerFeeConfig.flat || 0) + (base * Number(customerFeeConfig.taxPercent || 0) / 100)); }
+
   function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   }
@@ -233,7 +254,10 @@
     toast.textContent = message;
     toast.classList.add('show');
     clearTimeout(window.__listingToast);
-    window.__listingToast = setTimeout(() => toast.classList.remove('show'), 2400);
+    window.__listingToast = setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   }
   function copyPreviewLink(url) {
     if (navigator.clipboard?.writeText) {
@@ -251,7 +275,7 @@
     document.body.appendChild(input);
     input.select();
     let copied = false;
-    try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+    try { copied = document.execCommand('copy'); } catch (_) { copied = false; }
     input.remove();
     notify(copied ? 'Share link copied.' : 'Share link ready to copy from the address bar.');
   }
@@ -275,22 +299,56 @@
     return selectedButtons()[0] || null;
   }
   function selectedBasePrice(button, base = previewPricing.basePrice) {
-    if (!button) return base;
-    if (button.dataset.price) return Number(button.dataset.price) || base;
-    return base + (Number(button.dataset.priceDelta) || 0);
+    if (!button) return Number(base || 0);
+    if (button.dataset.price) return Number(button.dataset.price) || Number(base || 0);
+    return Number(base || 0) + (Number(button.dataset.priceDelta) || 0);
   }
-  function outboundBasePrice() {
-    if (previewPricing.serviceType !== 'bus') return selectedBasePrice(selectedButton());
-    const buttons = selectedButtons();
-    if (!buttons.length) return previewPricing.basePrice;
-    return buttons.reduce((sum, button) => sum + selectedBasePrice(button), 0);
+  function hotelStayRange() {
+    const checkIn = document.getElementById('hotelCheckIn')?.value || '';
+    const checkOut = document.getElementById('hotelCheckOut')?.value || '';
+    const start = new Date(`${checkIn}T00:00:00Z`);
+    const end = new Date(`${checkOut}T00:00:00Z`);
+    const nights = Math.round((end - start) / 86400000);
+    if (!checkIn || !checkOut || !Number.isFinite(nights) || nights < 1) throw new Error('Check-out must be after check-in.');
+    if (nights > 90) throw new Error('A stay cannot exceed 90 nights.');
+    return { checkIn, checkOut, nights };
   }
-  function returnBasePrice() {
-    if (previewPricing.serviceType !== 'bus' || !document.getElementById('returnTripToggle')?.checked) return 0;
-    return activeReturnSelections.reduce((sum, seatNumber) => {
-      const button = Array.from(document.querySelectorAll('[data-return-seat]')).find((item) => item.dataset.returnSeat === seatNumber);
-      return sum + selectedBasePrice(button, returnPricing.basePrice);
-    }, 0);
+  function hotelRoomCount() {
+    return Math.max(1, Math.min(10, Number(document.getElementById('hotelRooms')?.value || 1)));
+  }
+  function hotelGuestCount() {
+    const adults = Math.max(1, Math.min(40, Number(document.getElementById('hotelAdults')?.value || 1)));
+    const children = Math.max(0, Math.min(40, Number(document.getElementById('hotelChildren')?.value || 0)));
+    return { adults, children, total: adults + children };
+  }
+  function addonMultiplier(chargeBasis) {
+    const hotelStay = previewPricing.serviceType === 'hotel' ? hotelStayRange() : null;
+    const passengerCount = previewPricing.serviceType === 'hotel' ? hotelGuestCount().total : Math.max(1, activeSelections.length || 1);
+    const roomCount = previewPricing.serviceType === 'hotel' ? hotelRoomCount() : 1;
+    const legCount = previewPricing.serviceType === 'hotel' ? hotelStay.nights : (document.getElementById('returnTripToggle')?.checked ? 2 : 1);
+    if (chargeBasis === 'per_passenger') return passengerCount;
+    if (chargeBasis === 'per_trip_leg') return previewPricing.serviceType === 'hotel' ? roomCount * legCount : legCount;
+    if (chargeBasis === 'per_passenger_per_leg') return passengerCount * legCount;
+    return 1;
+  }
+  function activeAddons() {
+    return Array.from(document.querySelectorAll('#addons input:checked:not(:disabled)')).map((input) => {
+      const catalogItem = previewAddonOptions.find((addon) => addon.id === input.value) || {};
+      const chargeBasis = input.dataset.chargeBasis || catalogItem.chargeBasis || 'per_booking';
+      const unitPrice = Number(input.dataset.price || catalogItem.price || 0);
+      const quantity = addonMultiplier(chargeBasis);
+      return { id: input.value, name: catalogItem.name || input.value, price: unitPrice * quantity, unitPrice, quantity, chargeBasis };
+    });
+  }
+  function syncAddonAvailability() {
+    const tripType = document.getElementById('returnTripToggle')?.checked ? 'round_trip' : 'one_way';
+    document.querySelectorAll('#addons input[data-available-for]').forEach((input) => {
+      const allowed = input.dataset.availableFor || 'all';
+      const enabled = allowed === 'all' || allowed === tripType;
+      input.disabled = !enabled;
+      if (!enabled) input.checked = false;
+      input.closest('.addon')?.classList.toggle('is-disabled', !enabled);
+    });
   }
   function syncActiveSelectionFromButtons() {
     if (previewPricing.serviceType !== 'bus') return;
@@ -302,293 +360,462 @@
     const badge = document.getElementById('ticketCountBadge');
     if (badge) badge.textContent = `${Math.max(1, activeSelections.length)} ticket${activeSelections.length === 1 ? '' : 's'}`;
   }
-  function activeAddons() {
-    return Array.from(document.querySelectorAll('#addons input:checked')).map((input) => {
-      const catalogItem = previewAddonOptions.find((addon) => addon.id === input.value) || {};
-      return {
-        id: input.value,
-        name: catalogItem.name || input.closest('.addon')?.textContent?.trim() || input.value,
-        price: Number(input.dataset.price || catalogItem.price || 0)
-      };
-    });
+  function outboundBasePrice() {
+    if (previewPricing.serviceType === 'hotel') return selectedBasePrice(selectedButton()) * hotelStayRange().nights * hotelRoomCount();
+    if (previewPricing.serviceType !== 'bus') return selectedBasePrice(selectedButton());
+    return selectedButtons().reduce((sum, button) => sum + selectedBasePrice(button, previewPricing.basePrice), 0);
   }
-  function refreshPreviewTotals(button) {
+  function returnBasePrice() {
+    if (previewPricing.serviceType !== 'bus' || !document.getElementById('returnTripToggle')?.checked) return 0;
+    return activeReturnSelections.reduce((sum, seatNumber) => {
+      const button = Array.from(document.querySelectorAll('[data-return-seat]')).find((item) => item.dataset.returnSeat === seatNumber);
+      return sum + selectedBasePrice(button, returnPricing.basePrice);
+    }, 0);
+  }
+  function refreshPreviewTotals() {
     if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
-    const base = outboundBasePrice() + returnBasePrice();
-    const fee = Math.round(base * 0.045 + 3500);
+    const outboundBase = outboundBasePrice();
+    const returnBase = returnBasePrice();
+    const base = outboundBase + returnBase;
+    const isReturn = previewPricing.serviceType === 'bus' && document.getElementById('returnTripToggle')?.checked && activeReturnSelections.length;
+    const fee = base > 0 ? customerFees(base) : 0;
     const addonTotal = activeAddons().reduce((sum, addon) => sum + addon.price, 0);
     const total = base + fee + addonTotal;
-    document.getElementById('selectedOut').textContent = activeSelectionLabel || activeSelection || 'Select option';
+    const returnLabels = activeReturnSelections.length ? ` · Return: ${activeReturnSelections.map((seat) => `Seat No ${seat}`).join(', ')}` : '';
+    const hotelSelectionSuffix = previewPricing.serviceType === 'hotel' ? ` · ${hotelRoomCount()} room${hotelRoomCount() === 1 ? '' : 's'}` : '';
+    document.getElementById('selectedOut').textContent = `${activeSelectionLabel || activeSelection || 'Select option'}${hotelSelectionSuffix}${returnLabels}`;
     document.getElementById('baseOut').textContent = moneyPreview(base);
     document.getElementById('feeOut').textContent = moneyPreview(fee);
     document.getElementById('addonOut').textContent = moneyPreview(addonTotal);
     document.getElementById('totalOut').textContent = moneyPreview(total);
     return { base, fee, addonTotal, total };
   }
-  function togglePreviewAddon() {
-    refreshPreviewTotals();
-  }
+  function togglePreviewAddon() { refreshPreviewTotals(); }
   function seatStatusClass(seat) {
-    if (['blocked', 'maintenance'].includes(seat.status)) return seat.status;
-    if (seat.status === 'taken') return 'taken';
-    if (seat.status === 'locked') return 'holding';
+    const status = String(seat.status || '').toLowerCase();
+    if (['blocked', 'maintenance', 'disabled', 'unavailable'].includes(status)) return status === 'maintenance' ? 'maintenance' : 'blocked';
+    if (['taken', 'booked', 'checked_in', 'no_show'].includes(status)) return 'taken';
+    if (['locked', 'held'].includes(status)) return 'holding';
     return 'available';
   }
-  function seatButtonHtml(seat, displayNumber, kind) {
-    const label = seat.displaySeatLabel || `Seat No ${displayNumber}`;
-    const unavailable = ['taken', 'locked', 'blocked', 'maintenance'].includes(seat.status);
-    const statusClass = seatStatusClass(seat);
-    const disabledAttr = unavailable ? 'disabled' : '';
-    if (kind === 'return') {
-      return `<button class="returnSeat ${statusClass}" type="button" data-return-seat="${seat.seatNumber}" data-label="${label}" data-price-delta="${seat.priceDelta || 0}" onclick="toggleReturnSeat(this)" ${disabledAttr}><span>Seat No</span><b>${displayNumber}</b></button>`;
-    }
-    return `<button class="seat ${statusClass}" type="button" data-choice="${seat.seatNumber}" data-label="${label}" data-price-delta="${seat.priceDelta || 0}" data-seat-kind="outbound" onclick="selectPreviewOption(this)" ${disabledAttr}><span>Seat No</span><b>${displayNumber}</b></button>`;
+  function seatUnavailable(seat) {
+    return ['taken', 'booked', 'checked_in', 'no_show', 'locked', 'held', 'blocked', 'maintenance', 'disabled', 'unavailable'].includes(String(seat.status || '').toLowerCase()) || seat.available === false;
   }
-  function renderOutboundSeats(seats) {
+  function seatButtonHtml(seat, kind) {
+    const number = String(seat.seatNumber || '');
+    const label = `Seat No ${number}`;
+    const disabledAttr = seatUnavailable(seat) ? 'disabled' : '';
+    const selected = kind === 'return' ? activeReturnSelections.includes(number) : activeSelections.includes(number);
+    const statusClass = `${seatStatusClass(seat)}${selected && !seatUnavailable(seat) ? ' selected' : ''}`;
+    if (kind === 'return') {
+      return `<button class="returnSeat ${statusClass}" type="button" data-return-seat="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-listing-action="return-seat" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+    }
+    return `<button class="seat ${statusClass}" type="button" data-choice="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-seat-kind="outbound" data-listing-action="select-option" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+  }
+  function layoutSides(layoutName, seatCount) {
+    const normalized = String(layoutName || '').toLowerCase();
+    if (normalized === 'sleeper') return [1, Math.max(1, seatCount - 1)];
+    const match = normalized.match(/^(\d+)x(\d+)$/);
+    if (match) return [Number(match[1]), Number(match[2])];
+    const left = Math.max(1, Math.floor(seatCount / 2));
+    return [left, Math.max(0, seatCount - left)];
+  }
+  function seatRowsHtml(seats, kind, layoutName) {
+    const groups = new Map();
+    const [leftColumns, rightColumns] = layoutSides(layoutName, 4);
+    const fallbackColumns = Math.max(1, leftColumns + rightColumns);
+    seats.forEach((seat, index) => {
+      const row = Number(seat.row || (Math.floor(index / fallbackColumns) + 1));
+      if (!groups.has(row)) groups.set(row, []);
+      groups.get(row).push(seat);
+    });
+    return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([rowNumber, rowSeats]) => {
+      rowSeats.sort((a, b) => Number(a.column || 0) - Number(b.column || 0));
+      const [leftCount] = layoutSides(layoutName, rowSeats.length);
+      const left = rowSeats.slice(0, leftCount).map((seat) => seatButtonHtml(seat, kind)).join('');
+      const right = rowSeats.slice(leftCount).map((seat) => seatButtonHtml(seat, kind)).join('');
+      return `<div class="seatRow" data-seat-row="${rowNumber}"><span class="seatGroup">${left}</span><span class="aisle" aria-hidden="true"></span><span class="seatGroup">${right}</span></div>`;
+    }).join('');
+  }
+  function renderOutboundSeats(seats, layoutName = currentOutboundLayout) {
     const container = document.getElementById('outboundSeatGrid');
     if (!container) return;
-    let html = '';
-    for (let i = 0; i < seats.length; i += 4) {
-      const row = seats.slice(i, i + 4);
-      const left = row.slice(0, 2).map((seat, index) => seatButtonHtml(seat, i + index + 1, 'outbound')).join('');
-      const right = row.slice(2, 4).map((seat, index) => seatButtonHtml(seat, i + index + 3, 'outbound')).join('');
-      html += `<div class="seatRow">${left}<span class="aisle"></span>${right}</div>`;
-    }
-    container.innerHTML = html;
+    currentOutboundLayout = layoutName || currentOutboundLayout;
+    container.dataset.layout = currentOutboundLayout;
+    container.innerHTML = seats.length ? seatRowsHtml(seats, 'outbound', currentOutboundLayout) : '<div class="notice">No seats are available for this journey.</div>';
   }
-  function renderReturnSeats(seats) {
+  function renderReturnSeats(seats, layoutName = currentReturnLayout) {
     const container = document.getElementById('returnSeatGrid');
     if (!container) return;
-    container.innerHTML = seats.map((seat, index) => seatButtonHtml(seat, index + 1, 'return')).join('');
+    currentReturnLayout = layoutName || currentReturnLayout;
+    container.dataset.layout = currentReturnLayout;
+    container.innerHTML = seats.length ? seatRowsHtml(seats, 'return', currentReturnLayout) : '<div class="notice full">Select an available reverse departure.</div>';
   }
-  async function fetchScheduleAvailability(scheduleId) {
-    const response = await fetch(`/api/listings/<%= listing.id %>/availability?scheduleId=${encodeURIComponent(scheduleId)}`);
-    if (!response.ok) throw new Error('Unable to load seats for that schedule.');
-    return response.json();
-  }
-  function clearActiveHold() {
-    activeHoldId = '';
-    clearInterval(holdTimerId);
-    const holdButton = document.getElementById('holdButton');
-    if (holdButton) {
-      holdButton.disabled = false;
-      holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
+  function synchronizeJourneySelectors(changedId = '') {
+    const originSelect = document.getElementById('outboundOriginStopSelect');
+    const destinationSelect = document.getElementById('outboundDestinationStopSelect');
+    if (!originSelect || !destinationSelect) return;
+    const originOrder = Number(originSelect.selectedOptions?.[0]?.dataset.stopOrder || -1);
+    const destinationOrder = Number(destinationSelect.selectedOptions?.[0]?.dataset.stopOrder || Number.MAX_SAFE_INTEGER);
+    Array.from(destinationSelect.options).forEach((option) => {
+      if (!option.value) return;
+      option.disabled = Number(option.dataset.stopOrder || -1) <= originOrder;
+      option.hidden = option.disabled;
+    });
+    if (destinationSelect.selectedOptions?.[0]?.disabled) {
+      const next = Array.from(destinationSelect.options).find((option) => option.value && !option.disabled);
+      destinationSelect.value = next?.value || '';
     }
-    const timer = document.getElementById('timer');
-    if (timer) timer.textContent = '10:00';
+    const effectiveDestinationOrder = Number(destinationSelect.selectedOptions?.[0]?.dataset.stopOrder || Number.MAX_SAFE_INTEGER);
+    Array.from(originSelect.options).forEach((option) => {
+      if (!option.value) return;
+      option.disabled = Number(option.dataset.stopOrder || Number.MAX_SAFE_INTEGER) >= effectiveDestinationOrder;
+      option.hidden = option.disabled;
+    });
+    if (originSelect.selectedOptions?.[0]?.disabled) {
+      const candidates = Array.from(originSelect.options).filter((option) => option.value && !option.disabled);
+      originSelect.value = (changedId === 'outboundDestinationStopSelect' ? candidates[candidates.length - 1] : candidates[0])?.value || '';
+    }
   }
-  function populateReturnScheduleOptions(afterScheduleId) {
+  function selectedJourneyIds(changedId = '') {
+    synchronizeJourneySelectors(changedId);
+    return {
+      originStopId: document.getElementById('outboundOriginStopSelect')?.value || previewPricing.originStopId,
+      destinationStopId: document.getElementById('outboundDestinationStopSelect')?.value || previewPricing.destinationStopId,
+    };
+  }
+  function renderJourneyOptions(data) {
+    const originSelect = document.getElementById('outboundOriginStopSelect');
+    const destinationSelect = document.getElementById('outboundDestinationStopSelect');
+    if (!originSelect || !destinationSelect) return;
+    const stops = data.stops || [];
+    const journey = data.journey || {};
+    const origins = stops.filter((stop) => stop.pickupAllowed !== false);
+    const destinations = stops.filter((stop) => stop.dropoffAllowed !== false);
+    originSelect.innerHTML = origins.map((stop) => `<option value="${escapeHtml(stop.id)}" data-stop-order="${Number(stop.stopOrder || 0)}">Board at: ${escapeHtml(stop.name)}</option>`).join('');
+    destinationSelect.innerHTML = destinations.map((stop) => `<option value="${escapeHtml(stop.id)}" data-stop-order="${Number(stop.stopOrder || 0)}">Drop at: ${escapeHtml(stop.name)}</option>`).join('');
+    originSelect.value = journey.originStopId || origins[0]?.id || '';
+    destinationSelect.value = journey.destinationStopId || destinations[destinations.length - 1]?.id || '';
+    previewPricing.originStopId = originSelect.value;
+    previewPricing.destinationStopId = destinationSelect.value;
+    synchronizeJourneySelectors();
+  }
+  async function fetchScheduleAvailability(scheduleId, originStopId = '', destinationStopId = '', holdId = '') {
+    const params = new URLSearchParams();
+    if (originStopId) params.set('originStopId', originStopId);
+    if (destinationStopId) params.set('destinationStopId', destinationStopId);
+    if (holdId) params.set('holdId', holdId);
+    const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(scheduleId)}/availability?${params.toString()}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to load seats for that departure.');
+    return result;
+  }
+  async function refreshReturnSchedules() {
+    if (!previewPricing.scheduleId || !previewPricing.originStopId || !previewPricing.destinationStopId) return [];
+    const params = new URLSearchParams({ originStopId: previewPricing.originStopId, destinationStopId: previewPricing.destinationStopId });
+    const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(previewPricing.scheduleId)}/returns?${params.toString()}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to load reverse departures.');
+    returnSchedulesData = result.departures || [];
     const select = document.getElementById('returnScheduleSelect');
-    if (!select) return;
-    const outbound = previewSchedulesData.find((item) => item.id === afterScheduleId);
-    const outboundTime = outbound ? new Date(outbound.departAt).getTime() : 0;
-    const eligible = previewSchedulesData.filter((item) => new Date(item.departAt).getTime() > outboundTime);
-    const previousValue = select.value;
-    select.innerHTML = eligible.length
-      ? eligible.map((item) => `<option value="${item.id}">${item.label}</option>`).join('')
-      : '<option value="">No later trips available</option>';
-    select.value = eligible.some((item) => item.id === previousValue) ? previousValue : (eligible[0]?.id || '');
-    return eligible;
+    const notice = document.getElementById('returnTripNotice');
+    if (select) {
+      select.innerHTML = returnSchedulesData.length
+        ? returnSchedulesData.map((item) => `<option value="${escapeHtml(item.id)}" data-origin-stop-id="${escapeHtml(item.originStopId)}" data-destination-stop-id="${escapeHtml(item.destinationStopId)}">${escapeHtml(item.departureLabel || item.label || item.id)}</option>`).join('')
+        : '<option value="">No reverse trips available</option>';
+    }
+    if (notice) notice.style.display = returnSchedulesData.length ? 'none' : 'block';
+    return returnSchedulesData;
+  }
+  function applyOutboundAvailability(data) {
+    previewPricing.basePrice = Number(data.fare?.baseAmountPerSeat || 0);
+    previewPricing.currency = data.fare?.currency || previewPricing.currency;
+    currentOutboundLayout = data.schedule?.layoutName || currentOutboundLayout;
+    renderJourneyOptions(data);
+    renderOutboundSeats(data.seats || [], currentOutboundLayout);
+    activeSelections = [];
+    activeSelectionLabels = [];
+    activeSelection = '';
+    activeSelectionLabel = '';
   }
   async function onOutboundScheduleChange() {
     const scheduleId = document.getElementById('outboundScheduleSelect')?.value || '';
-    if (!scheduleId || scheduleId === previewPricing.scheduleId) return;
+    if (!scheduleId) return;
     try {
-      const data = await fetchScheduleAvailability(scheduleId);
       previewPricing.scheduleId = scheduleId;
-      previewPricing.basePrice = schedulePriceFor(scheduleId);
-      activeSelections = [];
-      activeSelectionLabels = [];
-      activeSelection = '';
-      activeSelectionLabel = '';
-      clearActiveHold();
-      renderOutboundSeats(data.seats || []);
-      const eligibleReturns = populateReturnScheduleOptions(scheduleId);
-      if (document.getElementById('returnTripToggle')?.checked) {
-        if (eligibleReturns.length) await onReturnScheduleChange();
-        else {
-          activeReturnSelections = [];
-          renderReturnSeats([]);
-          notify('No later trips are scheduled yet for a return leg.');
-        }
-      }
+      const data = await fetchScheduleAvailability(scheduleId);
+      applyOutboundAvailability(data);
+      await refreshReturnSchedules();
+      activeReturnSelections = [];
+      renderReturnSeats([]);
+      if (document.getElementById('returnTripToggle')?.checked && returnSchedulesData.length) await onReturnScheduleChange();
       refreshPreviewTotals();
-    } catch (error) {
-      notify(error.message);
-    }
+    } catch (error) { notify(error.message); }
+  }
+  async function onOutboundJourneyChange(changedId = '') {
+    const journey = selectedJourneyIds(changedId);
+    if (!previewPricing.scheduleId || !journey.originStopId || !journey.destinationStopId) return;
+    try {
+      const data = await fetchScheduleAvailability(previewPricing.scheduleId, journey.originStopId, journey.destinationStopId);
+      applyOutboundAvailability(data);
+      await refreshReturnSchedules();
+      activeReturnSelections = [];
+      renderReturnSeats([]);
+      if (document.getElementById('returnTripToggle')?.checked && returnSchedulesData.length) await onReturnScheduleChange();
+      refreshPreviewTotals();
+    } catch (error) { notify(error.message); }
   }
   async function onReturnScheduleChange() {
-    const scheduleId = document.getElementById('returnScheduleSelect')?.value || '';
+    const select = document.getElementById('returnScheduleSelect');
+    const scheduleId = select?.value || '';
+    const option = select?.selectedOptions?.[0];
     if (!scheduleId) {
+      returnPricing.scheduleId = '';
       activeReturnSelections = [];
       renderReturnSeats([]);
       refreshPreviewTotals();
       return;
     }
     try {
-      const data = await fetchScheduleAvailability(scheduleId);
       returnPricing.scheduleId = scheduleId;
-      returnPricing.basePrice = schedulePriceFor(scheduleId);
+      returnPricing.originStopId = option?.dataset.originStopId || returnSchedulesData.find((item) => item.id === scheduleId)?.originStopId || '';
+      returnPricing.destinationStopId = option?.dataset.destinationStopId || returnSchedulesData.find((item) => item.id === scheduleId)?.destinationStopId || '';
+      const data = await fetchScheduleAvailability(scheduleId, returnPricing.originStopId, returnPricing.destinationStopId);
+      returnPricing.basePrice = Number(data.fare?.baseAmountPerSeat || 0);
       activeReturnSelections = [];
-      renderReturnSeats(data.seats || []);
+      currentReturnLayout = data.schedule?.layoutName || currentReturnLayout;
+      renderReturnSeats(data.seats || [], currentReturnLayout);
       refreshPreviewTotals();
-    } catch (error) {
-      notify(error.message);
-    }
+    } catch (error) { notify(error.message); }
   }
+  async function refreshHotelAvailability() {
+    if (previewPricing.serviceType !== 'hotel') return;
+    const stay = hotelStayRange();
+    const params = new URLSearchParams({ checkIn: stay.checkIn, checkOut: stay.checkOut });
+    const hint = document.getElementById('hotelAvailabilityHint');
+    if (hint) hint.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking room availability for these dates...';
+    const response = await fetch(`/api/v1/listings/<%= listing.id %>/availability?${params.toString()}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to check room availability.');
+    const roomsById = new Map((result.rooms || []).map((room) => [String(room.id || room.roomTypeId), room]));
+    document.querySelectorAll('[data-choice]').forEach((button) => {
+      const room = roomsById.get(String(button.dataset.choice || ''));
+      if (!room) return;
+      const inventory = Math.max(0, Number(room.inventory || room.availableUnits || 0));
+      button.dataset.price = String(Number(room.nightlyPrice || button.dataset.price || 0));
+      button.dataset.capacity = String(Number(room.capacity || button.dataset.capacity || 1));
+      button.dataset.inventory = String(inventory);
+      button.disabled = inventory <= 0;
+      button.classList.toggle('taken', inventory <= 0);
+      const small = button.querySelector('small');
+      if (small) small.textContent = inventory > 0 ? `${inventory} left` : 'Unavailable';
+      if (button.classList.contains('selected') && inventory <= 0) button.classList.remove('selected');
+    });
+    let selected = selectedButton();
+    if (!selected || selected.disabled) {
+      selected = Array.from(document.querySelectorAll('[data-choice]')).find((button) => !button.disabled) || null;
+      document.querySelectorAll('[data-choice]').forEach((button) => button.classList.toggle('selected', button === selected));
+    }
+    activeSelection = selected?.dataset.choice || '';
+    activeSelectionLabel = selected?.dataset.label || activeSelection;
+    activeRoomTypeId = activeSelection;
+    const availableCount = (result.rooms || []).reduce((sum, room) => sum + Number(room.inventory || room.availableUnits || 0), 0);
+    if (hint) hint.innerHTML = availableCount
+      ? `<i class="fa-solid fa-circle-check"></i> ${availableCount} room${availableCount === 1 ? '' : 's'} available for ${stay.nights} night${stay.nights === 1 ? '' : 's'}.`
+      : '<i class="fa-solid fa-circle-exclamation"></i> No rooms are available for the selected dates.';
+    refreshPreviewTotals();
+  }
+
+  async function onHotelDatesChange() {
+    if (previewPricing.serviceType !== 'hotel') return;
+    try {
+      const checkIn = document.getElementById('hotelCheckIn');
+      const checkOut = document.getElementById('hotelCheckOut');
+      if (checkIn && checkOut) {
+        const nextDay = new Date(`${checkIn.value}T00:00:00Z`);
+        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+        checkOut.min = nextDay.toISOString().slice(0, 10);
+      }
+      hotelStayRange();
+      await refreshHotelAvailability();
+    } catch (error) { notify(error.message); }
+  }
+  function onHotelGuestsChange() {
+    if (previewPricing.serviceType !== 'hotel') return;
+    const guests = hotelGuestCount();
+    const roomCount = hotelRoomCount();
+    const selectedRoom = selectedButton();
+    const room = previewRoomsData.find((item) => String(item.id) === String(selectedRoom?.dataset.choice || '')) || {};
+    const perRoomCapacity = Number(selectedRoom?.dataset.capacity || room.capacity || 0);
+    const availableInventory = Number(selectedRoom?.dataset.inventory || room.inventory || room.availableUnits || 0);
+    const totalCapacity = perRoomCapacity * roomCount;
+    if (totalCapacity && guests.total > totalCapacity) notify(`The selected ${roomCount} room${roomCount === 1 ? '' : 's'} can accommodate up to ${totalCapacity} guest${totalCapacity === 1 ? '' : 's'}. Choose more rooms, another room type, or reduce guests.`);
+    if (availableInventory && roomCount > availableInventory) notify(`Only ${availableInventory} room${availableInventory === 1 ? '' : 's'} of this type are available for the selected dates.`);
+    refreshPreviewTotals();
+  }
+
   function selectPreviewOption(button) {
     if (!button || button.disabled) return;
     if (previewPricing.serviceType === 'bus') {
       button.classList.toggle('selected');
       if (!selectedButtons().length) button.classList.add('selected');
       syncActiveSelectionFromButtons();
+      // A return booking must always have the same traveler count as the
+      // outbound selection. Reset the return seats whenever outbound seats
+      // change so stale return inventory cannot be submitted accidentally.
+      activeReturnSelections = [];
+      document.querySelectorAll('[data-return-seat].selected').forEach((seatButton) => {
+        seatButton.classList.remove('selected', 'holding');
+      });
     } else {
-      document.querySelectorAll('[data-choice]').forEach(item => item.classList.remove('selected'));
+      document.querySelectorAll('[data-choice]').forEach((item) => item.classList.remove('selected'));
       button.classList.add('selected');
       activeSelection = button.dataset.choice || '';
       activeSelectionLabel = button.dataset.label || activeSelection;
     }
-    if (previewPricing.serviceType === 'hotel') activeRoomId = activeSelection;
-    activeHoldId = '';
-    clearInterval(holdTimerId);
-    document.querySelectorAll('[data-choice].holding').forEach(item => item.classList.remove('holding'));
-    const holdButton = document.getElementById('holdButton');
-    if (holdButton) {
-      holdButton.disabled = false;
-      holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
-    }
-    const timer = document.getElementById('timer');
-    if (timer) timer.textContent = '10:00';
-    refreshPreviewTotals(button);
+    if (previewPricing.serviceType === 'hotel') activeRoomTypeId = activeSelection;
+    refreshPreviewTotals();
   }
-  function startHoldTimer(lockedUntil) {
-    clearInterval(holdTimerId);
-    const timer = document.getElementById('timer');
-    const deadline = new Date(lockedUntil || Date.now() + 600000).getTime();
-    function tick() {
-      const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-      const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
-      const seconds = String(remaining % 60).padStart(2, '0');
-      if (timer) timer.textContent = `${minutes}:${seconds}`;
-      if (remaining <= 0) {
-        clearInterval(holdTimerId);
-        activeHoldId = '';
-        selectedButtons().forEach((button) => button.classList.remove('holding'));
-        const holdButton = document.getElementById('holdButton');
-        if (holdButton) {
-          holdButton.disabled = false;
-          holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
-        }
-        if (timer) timer.textContent = 'Expired';
-      }
-    }
-    tick();
-    holdTimerId = setInterval(tick, 1000);
-  }
-  function toggleReturnTrip() {
+  async function toggleReturnTrip() {
     const fields = document.getElementById('returnTripFields');
     const enabled = document.getElementById('returnTripToggle')?.checked;
     if (fields) fields.style.display = enabled ? 'grid' : 'none';
+    syncAddonAvailability();
     if (!enabled) {
       activeReturnSelections = [];
-      document.querySelectorAll('[data-return-seat].selected').forEach((item) => item.classList.remove('selected'));
+      renderReturnSeats([]);
       refreshPreviewTotals();
       return;
     }
-    onReturnScheduleChange();
+    try {
+      if (!returnSchedulesData.length) await refreshReturnSchedules();
+      if (!returnSchedulesData.length) {
+        const toggle = document.getElementById('returnTripToggle');
+        if (toggle) toggle.checked = false;
+        if (fields) fields.style.display = 'none';
+        syncAddonAvailability();
+        notify('No reverse trips are scheduled after this outbound journey.');
+        return;
+      }
+      await onReturnScheduleChange();
+    } catch (error) { notify(error.message); }
   }
   function toggleReturnSeat(button) {
     if (!button || button.disabled) return;
+    const willSelect = !button.classList.contains('selected');
+    if (willSelect && activeReturnSelections.length >= activeSelections.length) {
+      notify(`Select exactly ${activeSelections.length} return seat${activeSelections.length === 1 ? '' : 's'}.`);
+      return;
+    }
     button.classList.toggle('selected');
     activeReturnSelections = Array.from(document.querySelectorAll('[data-return-seat].selected')).map((item) => item.dataset.returnSeat).filter(Boolean);
     refreshPreviewTotals();
   }
-  async function holdSelection(event) {
-    if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
-    if (!activeSelection) {
-      notify('Select an available seat, room, or slot first.');
-      return;
-    }
-    const timer = document.getElementById('timer');
-    const holdButton = event?.currentTarget;
-    if (holdButton) {
-      holdButton.disabled = true;
-      holdButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Holding';
-    }
-    try {
-      const response = await fetch('/api/listings/<%= listing.id %>/hold', {
-        method: 'POST',
-        headers: jsonHeaders(),
-        body: JSON.stringify({
-          scheduleId: previewPricing.scheduleId,
-          selected: previewPricing.serviceType === 'hotel' ? '' : activeSelection,
-          selectedSeats: previewPricing.serviceType === 'bus' ? activeSelections.join(',') : '',
-          roomId: previewPricing.serviceType === 'hotel' ? activeRoomId : ''
-        })
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Unable to hold selection');
-      activeHoldId = result.hold.id;
-      selectedButtons().forEach((button) => button.classList.add('holding'));
-      startHoldTimer(result.hold.lockedUntil);
-      if (holdButton) holdButton.innerHTML = '<i class="fa-solid fa-check"></i> Held 10 mins';
-    } catch (error) {
-      if (timer) timer.textContent = 'Failed';
-      if (holdButton) {
-        holdButton.disabled = false;
-        holdButton.innerHTML = '<i class="fa-solid fa-clock"></i> Hold 10 mins';
-      }
-      notify(error.message);
-    }
-  }
-  function goPaymentPage() {
-    const params = new URLSearchParams();
+  async function goPaymentPage() {
     const ref = <%- toScriptJson(referralCode || '') %>;
     if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
     const selected = previewPricing.serviceType === 'hotel' ? '' : activeSelection;
-    const roomId = previewPricing.serviceType === 'hotel' ? activeRoomId : '';
-    const scheduleId = previewPricing.scheduleId;
+    const roomTypeId = previewPricing.serviceType === 'hotel' ? activeRoomTypeId : '';
+    if (previewPricing.serviceType === 'hotel') {
+      try { hotelStayRange(); } catch (error) { notify(error.message); return; }
+      const selectedRoom = selectedButton();
+      const roomCount = hotelRoomCount();
+      const guests = hotelGuestCount();
+      const inventory = Number(selectedRoom?.dataset.inventory || 0);
+      const capacity = Number(selectedRoom?.dataset.capacity || 0) * roomCount;
+      if (inventory && roomCount > inventory) { notify(`Only ${inventory} room${inventory === 1 ? '' : 's'} of this type are available.`); return; }
+      if (capacity && guests.total > capacity) { notify(`The selected rooms can accommodate up to ${capacity} guests.`); return; }
+    }
     if (!activeSelection) {
       notify('Select an available option first.');
       return;
     }
     const hasReturn = previewPricing.serviceType === 'bus' && document.getElementById('returnTripToggle')?.checked;
-    if (hasReturn && !activeReturnSelections.length) {
-      notify('Select return seats before continuing.');
+    if (hasReturn && activeReturnSelections.length !== activeSelections.length) {
+      notify(`Select ${activeSelections.length} return seat${activeSelections.length === 1 ? '' : 's'} before continuing.`);
       return;
     }
-    if (ref) params.set('ref', ref);
-    if (activeHoldId) params.set('holdId', activeHoldId);
-    if (scheduleId) params.set('scheduleId', scheduleId);
-    if (roomId) params.set('roomId', roomId);
-    if (selected) params.set('selected', selected);
+
     if (previewPricing.serviceType === 'bus') {
-      params.set('selectedSeats', activeSelections.join(','));
-      params.set('passengerCount', String(activeSelections.length));
+      const payload = {
+        ref,
+        scheduleId: previewPricing.scheduleId,
+        selectedSeats: activeSelections,
+        passengerCount: activeSelections.length,
+        originStopId: previewPricing.originStopId,
+        destinationStopId: previewPricing.destinationStopId,
+        addons: activeAddons().map((addon) => addon.id),
+      };
       if (hasReturn) {
-        const returnScheduleId = document.getElementById('returnScheduleSelect')?.value || '';
-        if (returnScheduleId) params.set('returnScheduleId', returnScheduleId);
-        params.set('returnSeats', activeReturnSelections.join(','));
+        Object.assign(payload, {
+          returnScheduleId: returnPricing.scheduleId,
+          returnSeats: activeReturnSelections,
+          returnOriginStopId: returnPricing.originStopId,
+          returnDestinationStopId: returnPricing.destinationStopId,
+        });
       }
+      try {
+        const response = await fetch('/book/bus/<%= listing.slug %>/prepare', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to open secure checkout.');
+        window.location.href = result.redirectUrl;
+      } catch (error) {
+        notify(error.message || 'Unable to open secure checkout.');
+      }
+      return;
     }
-    const totals = refreshPreviewTotals();
-    params.set('total', String(totals.total));
+
+    const params = new URLSearchParams();
+    if (ref) params.set('ref', ref);
+    if (roomTypeId) params.set('roomTypeId', roomTypeId);
+    if (previewPricing.serviceType === 'hotel') {
+      const stay = hotelStayRange();
+      const guests = hotelGuestCount();
+      params.set('checkIn', stay.checkIn);
+      params.set('checkOut', stay.checkOut);
+      params.set('roomCount', String(hotelRoomCount()));
+      params.set('adults', String(guests.adults));
+      params.set('children', String(guests.children));
+    }
+    if (selected) params.set('selected', selected);
     activeAddons().forEach((addon) => params.append('addons', addon.id));
     const query = params.toString();
     window.location.href = `/book/<%= listing.serviceType %>/<%= listing.slug %>${query ? '?' + query : ''}`;
   }
-  Object.assign(window, {
-    sharePreviewListing,
-    togglePreviewAddon,
-    selectPreviewOption,
-    onOutboundScheduleChange,
-    onReturnScheduleChange,
-    toggleReturnTrip,
-    toggleReturnSeat,
-    holdSelection,
-    goPaymentPage
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-listing-action]');
+    if (!trigger) return;
+    const actions = {
+      share: () => sharePreviewListing(event),
+      'select-option': () => selectPreviewOption(trigger),
+      'return-seat': () => toggleReturnSeat(trigger),
+      payment: () => goPaymentPage(),
+    };
+    actions[trigger.dataset.listingAction]?.();
   });
-  if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
+  document.addEventListener('change', (event) => {
+    const actions = {
+      'outbound-schedule': () => onOutboundScheduleChange(),
+      'outbound-journey': () => onOutboundJourneyChange(event.target.id),
+      addon: () => togglePreviewAddon(),
+      'return-toggle': () => toggleReturnTrip(),
+      'return-schedule': () => onReturnScheduleChange(),
+      'hotel-dates': () => onHotelDatesChange(),
+      'hotel-guests': () => onHotelGuestsChange(),
+    };
+    actions[event.target.dataset.listingAction]?.();
+  });
+  Object.assign(window, { sharePreviewListing, togglePreviewAddon, selectPreviewOption, onOutboundScheduleChange, onOutboundJourneyChange, onReturnScheduleChange, toggleReturnTrip, toggleReturnSeat, goPaymentPage });
+  if (previewPricing.serviceType === 'bus') {
+    renderOutboundSeats(initialPreviewSeats, currentOutboundLayout);
+    syncActiveSelectionFromButtons();
+  }
+  syncAddonAvailability();
   refreshPreviewTotals();
+  if (previewPricing.serviceType === 'hotel') refreshHotelAvailability().catch((error) => notify(error.message));
 </script>
 <%- include('../partials/site-footer') %>

@@ -8,6 +8,8 @@
     <p>QR payload</p>
     <pre style="white-space:pre-wrap;text-align:left;background:#f5f7fb;padding:1rem;border-radius:12px"><%= card.qrPayload %></pre>
     <p>Share this card with customers. Bookings from this link are tracked for commission and fraud review.</p>
-    <button onclick="window.print()" class="btn btnPrimary">Print referral card</button>
+    <button type="button" data-page-action="print" class="btn btnPrimary">Print referral card</button>
   </section>
 </main>
+
+<script src="/js/page-actions.js" defer></script>

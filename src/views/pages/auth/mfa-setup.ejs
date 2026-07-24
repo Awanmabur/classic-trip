@@ -1,0 +1,21 @@
+<%- include('../../partials/site-head', { seo }) %>
+<%- include('../../partials/site-header') %>
+<main class="container paymentPage" style="padding:28px 0 44px">
+  <section class="sheet" style="max-width:820px;margin:0 auto">
+    <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
+      <div style="display:grid;gap:8px;margin-bottom:12px"><% flashMessages.forEach(message => { %><div class="listing" role="alert" style="padding:12px"><%= message.text %></div><% }) %></div>
+    <% } %>
+    <% if (Array.isArray(recoveryCodes) && recoveryCodes.length) { %>
+      <div class="sheetTop"><div><div class="badge badgeOk"><i class="fa-solid fa-shield-circle-check"></i> MFA enabled</div><div class="sheetTitle">Save your recovery codes now</div><div class="sheetSub">Each code works once. Store them in a password manager or another secure offline location. They will not be shown again.</div></div></div>
+      <div class="summaryCard" style="margin-top:16px"><div class="gridCards" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><% recoveryCodes.forEach(code => { %><code class="listing" style="display:block;padding:14px;text-align:center;font-size:15px"><%= code %></code><% }) %></div></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px"><a class="btn btnPrimary" href="<%= dashboardUrl %>"><i class="fa-solid fa-arrow-right"></i> Continue to dashboard</a></div>
+    <% } else { %>
+      <div class="sheetTop"><div><div class="badge badgeInfo"><i class="fa-solid fa-mobile-screen-button"></i> Administrator security</div><div class="sheetTitle">Set up authenticator MFA</div><div class="sheetSub">Platform administrators must complete a second factor before any administrative dashboard, API, finance, support, content, or operations access is granted.</div></div></div>
+      <div class="gridCards" style="grid-template-columns:minmax(240px,.8fr) minmax(280px,1.2fr);gap:16px;margin-top:16px">
+        <div class="summaryCard" style="display:grid;place-items:center;text-align:center"><img src="<%= qrDataUrl %>" alt="Authenticator QR code" width="260" height="260" style="max-width:100%;border-radius:18px;background:#fff;padding:8px"><p class="muted">Scan with Google Authenticator, Microsoft Authenticator, 1Password, Authy, or another TOTP application.</p></div>
+        <div class="summaryCard"><h3>Manual setup</h3><p class="muted">Enter this secret manually when QR scanning is unavailable.</p><code class="listing" style="display:block;padding:14px;word-break:break-all;font-size:16px"><%= setup.secret %></code><form method="post" action="/auth/mfa/setup" style="display:grid;gap:12px;margin-top:16px"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><label>Six-digit authenticator code</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" placeholder="000000" required><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Verify and enable MFA</button></form><p class="muted" style="margin-top:12px">The temporary setup secret expires in 15 minutes. The stored secret is encrypted with AES-256-GCM.</p></div>
+      </div>
+    <% } %>
+  </section>
+</main>
+<%- include('../../partials/site-footer') %>

@@ -1,12 +1,22 @@
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <main class="container paymentPage" style="padding:16px 0 30px">
+  <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
+    <div style="display:grid;gap:8px;margin-bottom:12px">
+      <% flashMessages.forEach(message => { %>
+        <div class="listing" role="alert" style="padding:12px;border-color:<%= message.type === 'error' ? 'rgba(255,99,99,.55)' : 'rgba(89,207,147,.5)' %>">
+          <i class="fa-solid <%= message.type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check' %>"></i>
+          <span><%= message.text %></span>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
   <section class="sheet">
     <div class="sheetTop">
       <div>
         <div class="badge badgeOk"><i class="fa-solid fa-building-circle-check"></i> Partner onboarding</div>
-        <div class="sheetTitle">Create your company and continue to plan payment.</div>
-        <div class="sheetSub">Choose a plan, add business details, then complete checkout on the next page.</div>
+        <div class="sheetTitle">Create your partner account and begin the verified setup path.</div>
+        <div class="sheetSub">Choose one primary service type, provide legal and operating details, pay for the selected plan, complete verification, then build the service dependencies in order.</div>
       </div>
       <a class="iconbtn" href="/pricing" title="Back to plans"><i class="fa-solid fa-arrow-left"></i></a>
     </div>
@@ -32,35 +42,56 @@
         <div class="summaryCard">
           <h3>2. Company details</h3>
           <div class="bookingForm" style="margin-top:10px">
-            <input name="contactName" placeholder="Contact person" required>
-            <input name="email" type="email" placeholder="Work email" required>
-            <input name="phone" placeholder="Phone / WhatsApp" required>
-            <input class="full" name="name" placeholder="Company name" required>
+            <input name="contactName" placeholder="Contact person" value="<%= currentUser?.fullName || form?.contactName || '' %>" required>
+            <input name="email" type="email" placeholder="Work email" value="<%= currentUser?.email || form?.email || '' %>" required>
+            <input name="phone" placeholder="Phone / WhatsApp" value="<%= currentUser?.phone || form?.phone || '' %>" required>
+            <input name="password" type="password" autocomplete="new-password" placeholder="<%= currentUser?.role === 'company_admin' ? 'New password (leave blank when already signed in)' : 'Create account password' %>" <%= currentUser?.role === 'company_admin' ? '' : 'required' %>>
+            <input name="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirm account password" <%= currentUser?.role === 'company_admin' ? '' : 'required' %>>
+            <input name="name" placeholder="Trading / brand name" value="<%= form?.name || '' %>" required>
+            <input name="legalName" placeholder="Registered legal name" value="<%= form?.legalName || '' %>" required>
+            <input name="registrationNumber" placeholder="Business registration number" value="<%= form?.registrationNumber || '' %>">
+            <input name="taxNumber" placeholder="Tax / TIN number" value="<%= form?.taxNumber || '' %>">
             <select name="companyType" required>
               <option value="">Company type</option>
-              <option value="bus">Bus / coach operator</option>
-              <option value="hotel">Hotel / stay partner</option>
-              <option value="flight">Flight / airline partner</option>
-              <option value="tour">Tour / package partner</option>
-              <option value="car_rental">Car rental</option>
-              <option value="event">Event ticketing</option>
+              <option value="bus" <%= form?.companyType === 'bus' ? 'selected' : '' %>>Bus operator</option>
+              <option value="hotel" <%= form?.companyType === 'hotel' ? 'selected' : '' %>>Hotel / stay partner</option>
+              <option disabled>──────── Coming soon ────────</option>
+              <% comingSoonServiceTypes.forEach(function(key){ var service = serviceCatalog[key]; %><option value="<%= key %>" disabled><%= service.label %> — coming soon</option><% }) %>
             </select>
-            <input name="country" placeholder="Country" value="Uganda">
-            <select name="operatingCurrency">
-              <option value="UGX">Operating currency: UGX</option>
-              <option value="KES">Operating currency: KES</option>
-              <option value="RWF">Operating currency: RWF</option>
-              <option value="TZS">Operating currency: TZS</option>
-              <option value="USD">Operating currency: USD</option>
+            <select name="country">
+              <option value="Uganda" <%= form?.country === 'Uganda' ? 'selected' : '' %>>Uganda</option>
+              <option value="Kenya" <%= form?.country === 'Kenya' ? 'selected' : '' %>>Kenya</option>
+              <option value="Rwanda" <%= form?.country === 'Rwanda' ? 'selected' : '' %>>Rwanda</option>
+              <option value="Tanzania" <%= form?.country === 'Tanzania' ? 'selected' : '' %>>Tanzania</option>
+              <option value="South Sudan" <%= form?.country === 'South Sudan' ? 'selected' : '' %>>South Sudan</option>
+              <option value="DR Congo" <%= form?.country === 'DR Congo' ? 'selected' : '' %>>DR Congo</option>
             </select>
-            <input name="city" placeholder="City / branch">
-            <textarea class="full" name="description" placeholder="What services will you sell on Classic Trip?" style="border-radius:22px;min-height:90px"></textarea>
+            <select name="operatingCurrency"><% platformConfig.supportedCurrencies.forEach(function(code){ %><option value="<%= code %>" <%= (form?.operatingCurrency || platformConfig.defaultCurrency) === code ? 'selected' : '' %>>Operating currency: <%= code %></option><% }) %></select>
+            <input name="city" placeholder="Head-office city" value="<%= form?.city || '' %>" required>
+            <input name="headOfficeAddress" placeholder="Head-office address" value="<%= form?.headOfficeAddress || '' %>">
+            <input class="full" name="website" type="url" placeholder="Company website (optional)" value="<%= form?.website || '' %>">
+            <textarea class="full" name="description" placeholder="Describe the service your company will operate on Classic Trip." style="border-radius:22px;min-height:90px"><%= form?.description || '' %></textarea>
           </div>
           <p class="muted" style="margin:6px 0 0;font-size:12px">Your operating currency applies to every listing and departure you create, and can't be changed after your account is set up - choose the currency you actually price in.</p>
+          <label class="listing full" style="display:flex;align-items:flex-start;gap:10px;padding:12px;margin-top:12px;cursor:pointer">
+            <input type="checkbox" name="termsAccepted" required style="margin-top:3px">
+            <span>I accept the partner terms, privacy rules, verification requirements, commission rules, and service-specific operating responsibilities.</span>
+          </label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
             <a class="btn btnGhost" href="/pricing"><i class="fa-solid fa-table-list"></i> Compare plans</a>
             <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Continue to payment</button>
           </div>
+        </div>
+
+        <div class="summaryCard">
+          <h3>3. What happens after payment?</h3>
+          <div class="gridCards" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
+            <div class="listing" style="padding:14px"><span class="badge badgeInfo">Step 1</span><h3 style="margin:8px 0 4px">Verification</h3><p class="muted" style="margin:0">Upload company registration, tax, operating licence, payout proof, and service-specific documents. Publishing remains blocked until approval.</p></div>
+            <div class="listing" style="padding:14px"><span class="badge badgeInfo">Step 2</span><h3 style="margin:8px 0 4px">Reusable setup</h3><p class="muted" style="margin:0">Create operating locations and policies first. Bus partners then create a listing, route, vehicle/seat template, driver, and schedule. Hotels create a listing, property, room type, room units, and room-night inventory.</p></div>
+            <div class="listing" style="padding:14px"><span class="badge badgeInfo">Step 3</span><h3 style="margin:8px 0 4px">Go live</h3><p class="muted" style="margin:0">Once dependencies are complete, activate the listing and inventory. Customers can then book; tickets, passengers, manifests, payments, timelines, commission, and settlement records are generated automatically.</p></div>
+            <div class="listing" style="padding:14px"><span class="badge badgeOk">Daily work</span><h3 style="margin:8px 0 4px">Operate, do not recreate setup</h3><p class="muted" style="margin:0">Daily teams use schedules, manifests, check-in, delays, housekeeping, support, refunds, and settlement. They select existing setup records instead of typing internal IDs.</p></div>
+          </div>
+          <p class="muted" style="margin:10px 0 0;font-size:12px">One company account has one primary service category. A bus operator and a hotel operator should use separate verified company accounts so permissions, inventory, wallets, and dashboards remain isolated.</p>
         </div>
       </div>
     </form>

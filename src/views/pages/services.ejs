@@ -4,7 +4,7 @@
   <section class="card heroCard">
     <span class="badge badgeInfo"><i class="fa-solid fa-layer-group"></i> Service catalog</span>
     <h1 class="heroTitle">All Classic Trip services in one marketplace.</h1>
-    <p class="heroSub">Bus and hotel services are fully bookable in v1. Flights, trains, ferries, tours, transfers, events, cargo, visa support, insurance, and packages are visible as provider-ready inventory.</p>
+    <p class="heroSub">Bus and hotel booking are live now. Flights, trains, local transport, tours, rentals, cargo and ferries remain visible as the next planned services.</p>
     <div class="metricRow" style="margin-top:14px">
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.listingsCount, 0) %></b><span>Total services</span></div>
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.bookableListingsCount, 0) %></b><span>Bookable now</span></div>
@@ -32,5 +32,20 @@
       <% if (!group.listings.length) { %><div class="empty">No active listings yet. The backend category is ready for partner onboarding.</div><% } %>
     </section>
   <% }) %>
+
+  <% if (Array.isArray(comingSoon) && comingSoon.length) { %>
+    <section class="section" id="coming-soon">
+      <div class="sectionHead"><div><h2><i class="fa-solid fa-clock"></i> Coming soon</h2><p>These service areas stay visible in the product structure while their booking and partner operations are built properly.</p></div><span class="badge badgeInfo"><%= comingSoon.length %> planned services</span></div>
+      <div class="gridCards">
+        <% comingSoon.forEach(function(service){ %>
+          <article class="listing card" style="padding:16px">
+            <span class="badge badgeInfo"><i class="fa-solid <%= service.icon %>"></i> Coming soon</span>
+            <h3 style="margin:12px 0 6px"><%= service.label %></h3>
+            <p class="muted" style="margin:0"><%= service.description %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
 </main>
 <%- include('../partials/site-footer') %>

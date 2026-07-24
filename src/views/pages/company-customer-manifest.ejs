@@ -12,25 +12,26 @@
     .signatureGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 28px 22px}.signatureBox{border:1px dashed #94a3b8;border-radius:14px;padding:13px;min-height:54px;font-size:11px;font-weight:900;color:#475569}.signatureLine{display:block;margin-top:18px;border-top:1px solid #94a3b8;padding-top:5px;color:#111827}.printOnly{display:none}.maskablePhone{white-space:nowrap}
     @media print{@page{size:A4 landscape;margin:10mm}.printOnly{display:block}.signatureGrid{break-inside:avoid}.seatGrid{break-inside:avoid}table{font-size:10px}th,td{padding:6px}.footer{break-inside:avoid}.sheet{overflow:visible}.pageBreak{break-before:page}}
   </style>
+  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
 </head>
 <body>
   <main class="sheet">
     <section class="hero"><h1>Customer List / Manifest</h1><p>Filter by route, schedule, vehicle, driver, terminal, date, ticket status, check-in status, payment status, promoter, and booking source.</p></section>
     <form class="filters" method="GET" action="/company/manifests">
-      <input name="scheduleId" placeholder="Schedule" value="<%= filters.scheduleId || '' %>">
-      <input name="routeId" placeholder="Route ID" value="<%= filters.routeId || '' %>">
-      <input name="vehicleId" placeholder="Vehicle ID" value="<%= filters.vehicleId || '' %>">
-      <input name="driver" placeholder="Driver" value="<%= filters.driver || '' %>">
-      <input name="terminal" placeholder="Terminal / pickup / dropoff" value="<%= filters.terminal || '' %>">
+      <select name="scheduleId"><option value="">Any schedule</option><% (filterOptions?.schedules || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.scheduleId===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
+      <select name="routeId"><option value="">Any route</option><% (filterOptions?.routes || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.routeId===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
+      <select name="vehicleId"><option value="">Any vehicle</option><% (filterOptions?.vehicles || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.vehicleId===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
+      <select name="driver"><option value="">Any driver</option><% (filterOptions?.drivers || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.driver===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
+      <select name="terminal"><option value="">Any terminal / branch</option><% (filterOptions?.branches || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.terminal===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
       <input name="date" type="date" value="<%= filters.date || '' %>">
       <select name="checkInStatus"><option value="">Any check-in</option><option <%= filters.checkInStatus==='boarding'?'selected':'' %> value="boarding">Boarding</option><option <%= filters.checkInStatus==='checked in'?'selected':'' %> value="checked in">Checked in</option><option <%= filters.checkInStatus==='no-show'?'selected':'' %> value="no-show">No-show</option></select>
       <select name="paymentStatus"><option value="">Any payment</option><option <%= filters.paymentStatus==='successful'?'selected':'' %> value="successful">Successful</option><option <%= filters.paymentStatus==='pending'?'selected':'' %> value="pending">Pending</option></select>
-      <input name="promoter" placeholder="Promoter" value="<%= filters.promoter || '' %>">
-      <input name="bookingSource" placeholder="Booking source" value="<%= filters.bookingSource || '' %>">
+      <select name="promoter"><option value="">Any promoter</option><% (filterOptions?.promoters || []).forEach(function(option){ %><option value="<%= option.value %>" <%= filters.promoter===option.value?'selected':'' %>><%= option.label %></option><% }) %></select>
+      <select name="bookingSource"><option value="">Any booking source</option><% (filterOptions?.bookingSources || []).forEach(function(source){ %><option value="<%= source %>" <%= filters.bookingSource===source?'selected':'' %>><%= source %></option><% }) %></select>
       <button type="submit">Apply filters</button>
     </form>
     <nav class="tools">
-      <button class="btn primary" onclick="window.print();return false;">Print customer list</button>
+      <button class="btn primary" type="button" data-page-action="print">Print customer list</button>
       <a class="btn" href="/company/manifests.pdf?<%= new URLSearchParams(filters).toString() %>">Download PDF</a>
       <a class="btn" href="/company/manifests.csv?<%= new URLSearchParams(filters).toString() %>">Download CSV</a>
       <a class="btn" href="/company/manifests.xls?<%= new URLSearchParams(filters).toString() %>">Download Excel</a>
@@ -50,5 +51,6 @@
     <section class="signatureGrid"><div class="signatureBox">Generated by<span class="signatureLine"><%= generatedBy || 'System' %></span></div><div class="signatureBox">Boarding staff signature<span class="signatureLine">Name / Signature</span></div><div class="signatureBox">Driver / supervisor signature<span class="signatureLine">Name / Signature</span></div></section>
     <footer class="footer">This list is print-ready before departure and after check-in, with PDF, CSV, and Excel export support.</footer>
   </main>
+  <script src="/js/page-actions.js" defer></script>
 </body>
 </html>

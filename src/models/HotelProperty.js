@@ -1,21 +1,42 @@
 const { Schema, mediaSchema, model } = require('./_helpers');
 
 const hotelPropertySchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, required: true, index: true },
   companyId: { type: String, required: true, index: true },
   listingId: { type: String, required: true, index: true },
   propertyName: { type: String, required: true },
+  normalizedName: { type: String, required: true },
+  propertyType: { type: String, enum: ['hotel', 'lodge', 'resort', 'guest_house', 'serviced_apartment', 'hostel', 'camp'], default: 'hotel' },
+  category: { type: String, enum: ['unrated', 'budget', 'standard', 'premium', 'luxury'], default: 'unrated' },
+  starRating: { type: Number, min: 0, max: 5, default: 0 },
   address: String,
   city: String,
   country: String,
+  timezone: { type: String, default: 'Africa/Kampala' },
   mapLocation: String,
+  latitude: Number,
+  longitude: Number,
+  contactEmail: String,
+  contactPhone: String,
   checkInTime: String,
   checkOutTime: String,
   amenities: [String],
+  accessibilityFeatures: [String],
+  childPolicy: String,
+  petPolicy: String,
+  smokingPolicy: String,
+  paymentPolicy: String,
+  depositPolicy: String,
+  houseRules: [String],
   policies: [String],
+  taxPercent: { type: Number, default: 0, min: 0 },
+  serviceFeePercent: { type: Number, default: 0, min: 0 },
   taxesAndFees: [Schema.Types.Mixed],
   media: [mediaSchema],
-  status: { type: String, default: 'active', index: true },
+  status: { type: String, default: 'active', index: true, enum: ['active', 'paused', 'archived'] },
+  createdBy: String,
+  updatedBy: String,
 }, { timestamps: true });
-
+hotelPropertySchema.index({ companyId: 1, listingId: 1 }, { unique: true });
+hotelPropertySchema.index({ country: 1, city: 1, status: 1 });
 module.exports = model('HotelProperty', hotelPropertySchema);

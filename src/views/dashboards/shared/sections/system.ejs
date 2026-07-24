@@ -1,0 +1,29 @@
+<%
+  const health = dashboardData?.systemHealth || {};
+  const pendingPartners = (dashboardData?.partners || []).filter(function(row){ return /pending|review|submitted/.test((Array.isArray(row) ? row.join(' ') : String(row || '')).toLowerCase()); }).length;
+  const openSupport = (dashboardData?.support || []).filter(function(row){ return !/closed|resolved|completed/.test((Array.isArray(row) ? row.join(' ') : String(row || '')).toLowerCase()); }).length;
+  const pendingPayouts = (dashboardData?.payoutRequests || []).filter(function(row){ return /pending|review|requested|approved/.test((Array.isArray(row) ? row.join(' ') : String(row || '')).toLowerCase()); }).length;
+%>
+<section class="section" id="system">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>System health</h3><p>Runtime information reported by the current application process and database-backed queues.</p></div><span class="badge <%= health.appStatus === 'Online' ? 'ok' : 'warn' %>"><i class="fa-solid fa-circle-check"></i> <%= health.appStatus || 'Unknown' %></span></div>
+      <div class="metricList">
+        <div class="metricRow"><div><strong>Application environment</strong><span>Current Node environment</span></div><b><%= health.environment || health.nodeEnv || 'Not reported' %></b></div>
+        <div class="metricRow"><div><strong>Process uptime</strong><span>Seconds since this application process started</span></div><b><%= Number(health.uptimeSeconds || 0).toLocaleString() %>s</b></div>
+        <div class="metricRow"><div><strong>Database source</strong><span><%= health.databaseStatus || 'Not reported' %></span></div><b class="badge ok">MongoDB</b></div>
+        <div class="metricRow"><div><strong>Queued records</strong><span>Notification and support work currently stored</span></div><b><%= Number(health.queueJobs || 0).toLocaleString() %></b></div>
+        <div class="metricRow"><div><strong>Recent failed operations</strong><span>Failed audit events in the current snapshot</span></div><b class="badge <%= Number(health.recentFailedOperations || 0) ? 'warn' : 'ok' %>"><%= Number(health.recentFailedOperations || 0).toLocaleString() %></b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Operational queues</h3><p>Actual records that still require administrator or finance action.</p></div></div>
+      <div class="splitGrid">
+        <div class="splitItem"><div class="splitTop"><span>Failed payments</span><span class="badge <%= Number(health.recentFailedPayments || 0) ? 'warn' : 'ok' %>"><%= Number(health.recentFailedPayments || 0).toLocaleString() %></span></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Pending payout requests</span><span class="badge <%= pendingPayouts ? 'warn' : 'ok' %>"><%= pendingPayouts.toLocaleString() %></span></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Partners awaiting review</span><span class="badge <%= pendingPartners ? 'warn' : 'ok' %>"><%= pendingPartners.toLocaleString() %></span></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Open support cases</span><span class="badge <%= openSupport ? 'bad' : 'ok' %>"><%= openSupport.toLocaleString() %></span></div></div>
+      </div>
+    </div>
+  </div>
+</section>

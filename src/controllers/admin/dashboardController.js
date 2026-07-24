@@ -1,4 +1,3 @@
-const store = require('../../services/data/persistentStore');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
@@ -13,20 +12,20 @@ function activePageFromRequest(req) {
 }
 
 async function renderAdminShell(req, res, role, title) {
-  const [dashboardData, companies, notifications] = await Promise.all([
-    mongoDashboardService.roleDashboard('admin'),
-    mongoDashboardService.listEntity('companies', {}, { limit: 250 }),
-    mongoDashboardService.listEntity('notifications', {}, { limit: 250 }),
+  const [dashboardData, companies, notificationRows, notificationCount] = await Promise.all([
+    mongoDashboardService.roleDashboard(role),
+    role === 'admin' ? mongoDashboardService.listEntity('companies', {}, { limit: 250 }) : Promise.resolve([]),
+    notificationService.dashboardRowsLive(role, {}),
+    notificationService.unreadCountLive(role, {}),
   ]);
-  const notificationRows = notificationService.dashboardRows(role, {});
-  res.render('dashboards/admin/index', {
+  res.render(`dashboards/${role}/index`, {
     seo: { title },
     dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: SERVICE_DASHBOARDS, roles: ROLE_DASHBOARD_FEATURES } },
     dashboardShell: buildDashboardShell(role, {
       user: req.session?.user,
-      companies: companies.length ? companies : store.state.companies,
+      companies,
       notifications: notificationRows,
-      notificationCount: notificationService.unreadCount(role, {}),
+      notificationCount,
         activePage: activePageFromRequest(req),
     }),
   });
@@ -45,4 +44,5 @@ module.exports = {
   support: roleDashboard('support', 'Support dashboard | Classic Trip'),
   finance: roleDashboard('finance', 'Finance dashboard | Classic Trip'),
   operations: roleDashboard('operations', 'Operations dashboard | Classic Trip'),
+  content: roleDashboard('content', 'Content dashboard | Classic Trip'),
 };

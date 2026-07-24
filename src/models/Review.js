@@ -9,7 +9,7 @@ const reviewSchema = new Schema({
   rating: Number,
   comment: String,
   companyReply: Schema.Types.Mixed,
-  status: { type: String, default: 'published', index: true },
+  status: { type: String, default: 'published', index: true, enum: ['published', 'replied', 'hidden'] },
 }, { timestamps: true });
 
 module.exports = model('Review', reviewSchema);

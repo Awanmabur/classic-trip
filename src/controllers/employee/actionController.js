@@ -11,7 +11,7 @@ function actorId(req) {
 
 async function createBooking(req, res, next) {
   try {
-    await actionService.createManualBooking(companyId(req), req.body, actorId(req));
+    await actionService.createManualBooking(companyId(req), req.body, actorId(req), { canRecordPayment: false });
     res.redirect('/employee/dashboard#bookings');
   } catch (error) {
     next(error);
@@ -93,14 +93,10 @@ async function createHandover(req, res, next) {
 async function updateProfile(req, res, next) {
   try {
     const actorRole = req.session?.user?.role || 'company_employee';
-    await actionService.updateEmployeeProfile(companyId(req), req.body, actorId(req), {
+    const result = await actionService.updateEmployeeProfile(companyId(req), req.body, actorId(req), {
       canManageProfileAssignments: ['company_admin', 'super_admin'].includes(actorRole),
     });
-    if (req.session?.user) {
-      req.session.user.fullName = req.body.fullName || req.session.user.fullName;
-      req.session.user.phone = req.body.phone || req.session.user.phone;
-      req.session.user.email = req.body.email || req.session.user.email;
-    }
+    if (req.session?.user && result?.user) Object.assign(req.session.user, result.user);
     res.redirect('/employee/dashboard#profile');
   } catch (error) {
     next(error);

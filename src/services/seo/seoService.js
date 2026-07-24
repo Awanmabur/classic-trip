@@ -1,5 +1,5 @@
 const { env } = require('../../config/env');
-const store = require('../data/persistentStore');
+const contentRepository = require('../../repositories/domain/contentRepository');
 
 const PRIVATE_DISALLOWS = [
   '/admin',
@@ -10,7 +10,6 @@ const PRIVATE_DISALLOWS = [
   '/promoter/dashboard',
   '/api',
   '/cart',
-  '/billing/checkout',
   '/booking',
   '/tickets/',
   '/uploads',
@@ -24,8 +23,7 @@ const STATIC_PUBLIC_URLS = [
   { path: '/companies', priority: '0.8', changefreq: 'weekly' },
   { path: '/promoters', priority: '0.7', changefreq: 'weekly' },
   { path: '/promoter-program', priority: '0.7', changefreq: 'weekly' },
-  { path: '/pricing', priority: '0.7', changefreq: 'weekly' },
-  { path: '/future-services', priority: '0.6', changefreq: 'weekly' },
+  { path: '/partner-commission', priority: '0.7', changefreq: 'weekly' },
   { path: '/blogs', priority: '0.6', changefreq: 'weekly' },
   { path: '/support', priority: '0.5', changefreq: 'monthly' },
   { path: '/how-it-works', priority: '0.6', changefreq: 'monthly' },
@@ -81,74 +79,46 @@ function addUnique(target, seen, entry = {}) {
   });
 }
 
-function dynamicUrls() {
+async function dynamicUrls() {
   const entries = [];
+  const [categories, listings, companies, blogs] = await Promise.all([
+    contentRepository.categories.list({}, { limit: 2000 }),
+    contentRepository.listings.list({ status: { $nin: ['archived', 'deleted', 'draft', 'inactive', 'disabled', 'pending'] } }, { limit: 50000 }),
+    contentRepository.companies.list({ status: { $nin: ['archived', 'deleted', 'inactive', 'disabled'] } }, { limit: 10000 }),
+    contentRepository.blogs.list({ status: { $nin: ['archived', 'deleted', 'draft', 'inactive', 'disabled', 'pending'] } }, { limit: 10000 }),
+  ]);
 
-  (store.state.categories || [])
-    .filter((category) => statusAllowsPublic(category) && (category.key || category.slug))
-    .forEach((category) => {
-      const key = slug(category.key || category.slug);
-      entries.push({ path: `/search?serviceType=${key}`, priority: '0.8', changefreq: 'daily', updatedAt: category.updatedAt });
-    });
+  categories.filter((category) => statusAllowsPublic(category) && (category.key || category.slug)).forEach((category) => {
+    const key = slug(category.key || category.slug);
+    entries.push({ path: `/search?serviceType=${key}`, priority: '0.8', changefreq: 'daily', updatedAt: category.updatedAt });
+  });
 
-  (store.state.listings || [])
-    .filter((listing) => statusAllowsPublic(listing) && (listing.slug || listing.id) && (listing.serviceType || listing.type))
-    .forEach((listing) => {
-      entries.push({
-        path: `/listings/${slug(listing.serviceType || listing.type)}/${slug(listing.slug || listing.id)}`,
-        priority: listing.bookable === false ? '0.6' : '0.9',
-        changefreq: 'daily',
-        updatedAt: listing.updatedAt || listing.createdAt,
-      });
-    });
+  listings.filter((listing) => statusAllowsPublic(listing) && (listing.slug || listing.id) && (listing.serviceType || listing.type)).forEach((listing) => {
+    entries.push({ path: `/listings/${slug(listing.serviceType || listing.type)}/${slug(listing.slug || listing.id)}`, priority: listing.bookable === false ? '0.6' : '0.9', changefreq: 'daily', updatedAt: listing.updatedAt || listing.createdAt });
+  });
 
-  (store.state.companies || [])
-    .filter((company) => statusAllowsPublic(company) && (company.slug || company.id || company.name))
-    .forEach((company) => {
-      entries.push({
-        path: `/companies/${slug(company.slug || company.id || company.name)}`,
-        priority: company.verificationStatus === 'verified' ? '0.8' : '0.6',
-        changefreq: 'weekly',
-        updatedAt: company.updatedAt || company.createdAt,
-      });
-    });
+  companies.filter((company) => statusAllowsPublic(company) && (company.slug || company.id || company.name)).forEach((company) => {
+    entries.push({ path: `/companies/${slug(company.slug || company.id || company.name)}`, priority: company.verificationStatus === 'verified' ? '0.8' : '0.6', changefreq: 'weekly', updatedAt: company.updatedAt || company.createdAt });
+  });
 
-  (store.state.blogs || [])
-    .filter((blog) => statusAllowsPublic(blog) && (blog.slug || blog.id))
-    .forEach((blog) => {
-      entries.push({
-        path: `/blogs/${slug(blog.slug || blog.id)}`,
-        priority: '0.6',
-        changefreq: 'monthly',
-        updatedAt: blog.updatedAt || blog.publishedAt || blog.createdAt,
-      });
-    });
-
-  (store.state.futureServiceModules || [])
-    .filter((module) => module.key || module.serviceType)
-    .forEach((module) => {
-      entries.push({
-        path: `/future-services/${slug(module.key || module.serviceType)}`,
-        priority: '0.5',
-        changefreq: 'weekly',
-        updatedAt: module.updatedAt || module.createdAt,
-      });
-    });
+  blogs.filter((blog) => statusAllowsPublic(blog) && (blog.slug || blog.id)).forEach((blog) => {
+    entries.push({ path: `/blogs/${slug(blog.slug || blog.id)}`, priority: '0.6', changefreq: 'monthly', updatedAt: blog.updatedAt || blog.publishedAt || blog.createdAt });
+  });
 
   (env.seo.publicSitemapExtraUrls || []).forEach((url) => entries.push({ url, priority: '0.5', changefreq: 'weekly' }));
   return entries;
 }
 
-function buildSitemapUrls() {
+async function buildSitemapUrls() {
   const urls = [];
   const seen = new Set();
   STATIC_PUBLIC_URLS.forEach((entry) => addUnique(urls, seen, entry));
-  dynamicUrls().forEach((entry) => addUnique(urls, seen, entry));
+  (await dynamicUrls()).forEach((entry) => addUnique(urls, seen, entry));
   return urls.slice(0, 50000);
 }
 
-function sitemapXml() {
-  const urls = buildSitemapUrls();
+async function sitemapXml() {
+  const urls = await buildSitemapUrls();
   const rows = urls.map((url) => [
     '  <url>',
     `    <loc>${escapeXml(url.loc)}</loc>`,
@@ -186,10 +156,10 @@ function robotsTxt() {
   return [...sections.flatMap((section) => [...section, '']), `Sitemap: ${absoluteUrl('/sitemap.xml')}`, ''].join('\n');
 }
 
-function llmsTxt() {
-  const urls = buildSitemapUrls();
+async function llmsTxt() {
+  const urls = await buildSitemapUrls();
   const catalog = urls
-    .filter((url) => /\/(listings|companies|blogs|future-services)\//.test(url.loc))
+    .filter((url) => /\/(listings|companies|blogs)\//.test(url.loc))
     .slice(0, 80)
     .map((url) => `- ${url.loc}`);
   return [
@@ -203,7 +173,7 @@ function llmsTxt() {
     `- ${absoluteUrl('/services')}`,
     `- ${absoluteUrl('/routes')}`,
     `- ${absoluteUrl('/companies')}`,
-    `- ${absoluteUrl('/pricing')}`,
+    `- ${absoluteUrl('/partner-commission')}`,
     `- ${absoluteUrl('/support')}`,
     '',
     '## Marketplace Catalog URLs',

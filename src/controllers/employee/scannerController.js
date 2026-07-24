@@ -7,8 +7,9 @@ function companyIdFor(req) {
 
 function actorContext(req) {
   const user = req.session?.user || {};
+  if (!user.id) { const error = new Error('Authenticated employee identity is required'); error.status = 401; throw error; }
   return {
-    userId: user.id || 'employee-demo',
+    userId: user.id,
     actorRole: user.role || 'company_employee',
     companyId: companyIdFor(req),
     ip: req.ip,

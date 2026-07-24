@@ -4,8 +4,8 @@ const inventoryHoldService = require('../services/booking/inventoryHoldService')
 
 async function run() {
   return {
-    seats: await seatLockService.releaseExpiredLocksPersistent(),
-    rooms: roomReservationService.releaseExpiredReservations(),
+    seats: await seatLockService.releaseExpiredLocks(),
+    rooms: await roomReservationService.releaseExpiredReservations(),
     holds: await inventoryHoldService.expireActiveHolds(),
   };
 }

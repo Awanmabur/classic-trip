@@ -1,0 +1,49 @@
+<div class="formCard partnerFormCard">
+  <div class="authTop partnerAuthTop">
+    <div><h2>Register your bus or hotel company</h2><p>Create the owner account and continue directly to company verification. There is no registration charge.</p></div>
+    <span class="badge warn"><i class="fa-solid fa-building-circle-check"></i>Partner</span>
+  </div>
+  <div class="notice"><strong>One percentage only:</strong> Classic Trip retains <%= platformConfig.partnerCommissionPercent %>% from completed bookings and the partner receives <%= platformConfig.partnerPayoutPercent %>%. A promoter reward, when applicable, comes from Classic Trip’s commission.</div>
+  <form class="form active" id="partnerOnboardingForm" action="/partner/onboarding" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+    <div class="partnerSectionTitle"><span>Owner account</span><small>Used to sign in and complete verification</small></div>
+    <div class="row2">
+      <div class="field"><label>Contact person</label><div class="control"><i class="fa-regular fa-user"></i><input name="contactName" value="<%= partnerForm?.contactName || '' %>" autocomplete="name" required></div></div>
+      <div class="field"><label>Phone / WhatsApp</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" value="<%= partnerForm?.phone || '' %>" autocomplete="tel" required></div></div>
+    </div>
+    <div class="field"><label>Work email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" name="email" value="<%= partnerForm?.email || '' %>" autocomplete="email" required></div></div>
+    <div class="row2">
+      <div class="field"><label>Password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,72}" placeholder="8–72 characters" required><button type="button" class="passwordToggle" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
+      <div class="field"><label>Confirm password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="confirmPassword" autocomplete="new-password" maxlength="72" placeholder="Repeat password" required></div></div>
+    </div>
+    <div class="partnerSectionTitle"><span>Company identity</span><small>One account operates one primary service type</small></div>
+    <div class="row2">
+      <div class="field"><label>Trading / brand name</label><div class="control"><i class="fa-solid fa-signature"></i><input name="name" value="<%= partnerForm?.name || '' %>" required></div></div>
+      <div class="field"><label>Registered legal name</label><div class="control"><i class="fa-solid fa-building"></i><input name="legalName" value="<%= partnerForm?.legalName || '' %>" required></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Primary service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select name="companyType" required><option value="">Choose service</option><option value="bus" <%= partnerForm?.companyType === 'bus' ? 'selected' : '' %>>Bus operator</option><option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Hotel / stay partner</option></select></div></div>
+      <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-coins"></i><select name="operatingCurrency" required><% platformConfig.supportedCurrencies.forEach(function(code){ %><option value="<%= code %>" <%= (partnerForm?.operatingCurrency || platformConfig.defaultCurrency) === code ? 'selected' : '' %>><%= code %></option><% }) %></select></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Registration number</label><div class="control"><i class="fa-solid fa-file-signature"></i><input name="registrationNumber" value="<%= partnerForm?.registrationNumber || '' %>" placeholder="Optional during first step"></div></div>
+      <div class="field"><label>Tax / TIN number</label><div class="control"><i class="fa-solid fa-receipt"></i><input name="taxNumber" value="<%= partnerForm?.taxNumber || '' %>" placeholder="Optional during first step"></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><% ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo','Burundi','Somalia'].forEach(function(country){ %><option value="<%= country %>" <%= (partnerForm?.country || 'Uganda') === country ? 'selected' : '' %>><%= country %></option><% }) %></select></div></div>
+      <div class="field"><label>Head-office city</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" value="<%= partnerForm?.city || '' %>" required></div></div>
+    </div>
+    <div class="field"><label>Head-office address</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input name="headOfficeAddress" value="<%= partnerForm?.headOfficeAddress || '' %>"></div></div>
+    <div class="field"><label>Company website</label><div class="control"><i class="fa-solid fa-globe"></i><input type="url" name="website" value="<%= partnerForm?.website || '' %>" placeholder="https://example.com"></div></div>
+    <div class="field"><label>Service description</label><div class="control partnerTextarea"><i class="fa-regular fa-message"></i><textarea name="description" placeholder="Describe the bus or hotel service you will operate."><%= partnerForm?.description || '' %></textarea></div></div>
+    <div class="checkLine"><label><input type="checkbox" name="termsAccepted" required> I accept partner terms, privacy rules, verification requirements, the <%= platformConfig.partnerCommissionPercent %>% commission rate, and operating responsibilities.</label></div>
+    <button class="submit" type="submit"><i class="fa-solid fa-building-circle-check"></i>Create partner account</button>
+    <div class="notice"><strong>After signup:</strong> sign in immediately, complete company verification, then create bus or hotel setup. Publishing, live bookings, payment operations, and payouts stay blocked until approval.</div>
+  </form>
+</div>
+<div class="partnerSteps">
+  <div class="stat"><strong>1</strong><span>Direct partner signup</span></div>
+  <div class="stat"><strong>2</strong><span>Company verification</span></div>
+  <div class="stat"><strong>3</strong><span>Service setup</span></div>
+  <div class="stat"><strong>4</strong><span>Publish and earn</span></div>
+</div>

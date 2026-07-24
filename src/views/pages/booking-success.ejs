@@ -4,13 +4,22 @@
   const safeListing = listing || { title: booking.serviceType || 'Classic Trip service' };
   const guest = booking.guestSnapshot || {};
   const passenger = (booking.passengers || [])[0] || {};
-  const pricing = booking.pricing || { total: 0, currency: 'UGX' };
+  const pricing = booking.pricing || { total: 0, currency: platformConfig.defaultCurrency };
+  const bookingAddons = (Array.isArray(booking.addons) && booking.addons.length)
+    ? booking.addons
+    : (Array.isArray(pricing.addons) ? pricing.addons : []);
+  const addonTotal = Number(pricing.addonTotal || bookingAddons.reduce((sum, addon) => sum + Number(addon.total || addon.lineTotal || 0), 0));
+  const isBusBooking = (booking.serviceType || safeListing.serviceType) === 'bus';
+  const hotelStay = booking.hotelStay || {};
+  const hotelRooms = (booking.passengers || []).map(row => row.roomNumber || row.seatOrRoom || row.roomType).filter(Boolean);
+  const hotelGuestCount = Number(hotelStay.adults || 0) + Number(hotelStay.children || 0);
+  const tripTypeLabel = booking.tripType === 'round_trip' || (booking.bookingLegs || []).length > 1 ? 'Return ticket' : 'One-way ticket';
   const formatBusSeat = (value) => {
     const raw = String(value || '').trim();
     if (!raw) return 'Selected inventory';
     if ((booking.serviceType || safeListing.serviceType) !== 'bus') return raw;
-    const legacy = raw.match(/^[A-Za-z](\d+)$/);
-    const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
+    const prefixed = raw.match(/^[A-Za-z](\d+)$/);
+    const clean = prefixed ? prefixed[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
     return `Seat No ${clean || raw}`;
   };
 %>
@@ -18,18 +27,28 @@
   <section class="detailGrid">
     <div class="ticketPaper">
       <span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Booking confirmed</span>
-      <h1 class="heroTitle" style="font-size:30px">Your ticket is ready.</h1>
+      <h1 class="heroTitle" style="font-size:30px"><%= isBusBooking ? 'Your ticket is ready.' : 'Your hotel voucher is ready.' %></h1>
       <div class="ticketLine"><span>Booking ref</span><b><%= booking.bookingRef %></b></div>
       <div class="ticketLine"><span>Service</span><b><%= safeListing.title %></b></div>
       <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
-      <div class="ticketLine"><span><%= (booking.serviceType || safeListing.serviceType) === 'bus' ? 'Seat' : 'Selected' %></span><b><%= formatBusSeat(passenger.seatOrRoom) %></b></div>
-      <div class="ticketLine"><span>Total paid</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
-      <div class="actions"><a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid fa-ticket"></i> Open ticket</a><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> My bookings</a></div>
+      <div class="ticketLine"><span><%= isBusBooking ? 'Seat' : 'Room / inventory' %></span><b><%= isBusBooking ? formatBusSeat(passenger.seatOrRoom) : (hotelRooms.join(', ') || formatBusSeat(passenger.seatOrRoom)) %></b></div>
+      <% if (isBusBooking) { %><div class="ticketLine"><span>Trip type</span><b><%= tripTypeLabel %></b></div><% } else { %>
+        <div class="ticketLine"><span>Check-in</span><b><%= hotelStay.checkIn || 'Not set' %></b></div>
+        <div class="ticketLine"><span>Check-out</span><b><%= hotelStay.checkOut || 'Not set' %></b></div>
+        <div class="ticketLine"><span>Rooms</span><b><%= Number(hotelStay.roomCount || hotelRooms.length || 1) %></b></div>
+        <div class="ticketLine"><span>Guests</span><b><%= hotelGuestCount || (booking.passengers || []).length || 1 %></b></div>
+      <% } %>
+      <% if (bookingAddons.length) { %>
+        <div class="ticketLine"><span>Optional extras</span><b><%= bookingAddons.map(addon => `${addon.name || 'Add-on'}${Number(addon.quantity || 1) > 1 ? ` × ${addon.quantity}` : ''}`).join(', ') %></b></div>
+        <div class="ticketLine"><span>Add-ons total</span><b><%= money(addonTotal, pricing.currency || platformConfig.defaultCurrency) %></b></div>
+      <% } %>
+      <div class="ticketLine"><span>Total paid</span><b><%= money(pricing.total || 0, pricing.currency || platformConfig.defaultCurrency) %></b></div>
+      <div class="actions"><a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid <%= isBusBooking ? 'fa-ticket' : 'fa-hotel' %>"></i> Open <%= isBusBooking ? 'ticket' : 'voucher' %></a><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><a class="btn btnGhost" href="/account"><i class="fa-regular fa-user"></i> My bookings</a></div>
     </div>
     <aside class="ticketPaper">
       <h3 style="margin:0">QR preview</h3>
       <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:180px;height:180px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
-      <p class="muted">Employee scanners validate this QR once. After check-in, the booking moves toward completed and pending earnings can release.</p>
+      <p class="muted"><%= isBusBooking ? 'Employee scanners validate this QR once. After check-in, the booking moves toward completed and pending earnings can release.' : 'Hotel reception verifies this paid voucher against the live reservation before check-in. Checkout moves the rooms to housekeeping and releases eligible earnings.' %></p>
     </aside>
   </section>
 </main>

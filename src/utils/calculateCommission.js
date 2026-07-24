@@ -1,50 +1,54 @@
-const { env } = require('../config/env');
+'use strict';
+
+const { getCachedPlatformConfig } = require('../services/platform/platformConfigService');
 
 function roundMoney(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function activeRates() {
-  const defaults = {
-    platform: env.commission.platform,
-    promoter: env.commission.promoter,
-    platformWithPromoter: env.commission.platformWithPromoter,
-    company: env.commission.company,
-  };
-  let rules;
-  try {
-    // Lazy require: persistentStore.js requires this module at load time, so a top-level
-    // require here would create a circular dependency and see an empty module.exports.
-    rules = require('../services/data/persistentStore').state?.platformSettings?.financeRules;
-  } catch (error) {
-    rules = null;
-  }
-  if (!rules) return defaults;
-  const platform = Number(rules.platformFeePercent);
-  const promoter = Number(rules.promoterCommissionPercent);
-  const company = Number(rules.partnerPayoutPercent);
-  const hasPlatform = Number.isFinite(platform) && platform >= 0;
-  const hasPromoter = Number.isFinite(promoter) && promoter >= 0;
+function bounded(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+}
+
+function normalizeRates(overrides = {}) {
+  const config = getCachedPlatformConfig();
+  const partnerCommissionPercent = bounded(
+    overrides.partnerCommissionPercent ?? overrides.commissionPercent,
+    config.partnerCommissionPercent,
+  );
+  const promoterSharePercent = bounded(
+    overrides.promoterSharePercent,
+    config.promoterSharePercent,
+  );
   return {
-    platform: hasPlatform ? platform : defaults.platform,
-    promoter: hasPromoter ? promoter : defaults.promoter,
-    platformWithPromoter: hasPlatform && hasPromoter ? Math.max(0, platform - promoter) : defaults.platformWithPromoter,
-    company: Number.isFinite(company) && company >= 0 ? company : defaults.company,
+    partnerCommissionPercent,
+    promoterSharePercent,
+    partnerPayoutPercent: Math.max(0, 100 - partnerCommissionPercent),
   };
 }
 
-module.exports = function calculateCommission(total, hasValidReferral = false) {
-  const amount = Number(total) || 0;
-  const rates = activeRates();
-  const platformRate = hasValidReferral ? rates.platformWithPromoter : rates.platform;
-  const promoterRate = hasValidReferral ? rates.promoter : 0;
-  const companyRate = rates.company;
+module.exports = function calculateCommission(total, hasValidReferral = false, rateOverrides = {}) {
+  const amount = roundMoney(Math.max(0, Number(total) || 0));
+  const rates = normalizeRates(rateOverrides);
+  const totalCommission = roundMoney((amount * rates.partnerCommissionPercent) / 100);
+  const promoterAmount = hasValidReferral
+    ? roundMoney((totalCommission * rates.promoterSharePercent) / 100)
+    : 0;
+  const platformFee = roundMoney(Math.max(0, totalCommission - promoterAmount));
+  const companyAmount = roundMoney(Math.max(0, amount - totalCommission));
   return {
-    platformRate,
-    promoterRate,
-    companyRate,
-    platformFee: roundMoney((amount * platformRate) / 100),
-    promoterAmount: roundMoney((amount * promoterRate) / 100),
-    companyAmount: roundMoney((amount * companyRate) / 100),
+    commercialModel: 'percentage_commission',
+    partnerCommissionPercent: rates.partnerCommissionPercent,
+    promoterSharePercent: hasValidReferral ? rates.promoterSharePercent : 0,
+    partnerPayoutPercent: rates.partnerPayoutPercent,
+    promoterEffectivePercent: amount > 0 ? roundMoney((promoterAmount / amount) * 100) : 0,
+    platformNetPercent: amount > 0 ? roundMoney((platformFee / amount) * 100) : 0,
+    totalCommission,
+    platformFee,
+    promoterAmount,
+    companyAmount,
   };
 };
+
+module.exports.normalizeRates = normalizeRates;

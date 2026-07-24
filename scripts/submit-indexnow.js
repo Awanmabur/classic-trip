@@ -11,7 +11,7 @@ async function main() {
   if (typeof fetch !== 'function') {
     throw new Error('This script requires Node.js with global fetch support.');
   }
-  const urls = seoService.buildSitemapUrls().map((item) => item.loc).slice(0, 10000);
+  const urls = (await seoService.buildSitemapUrls()).map((item) => item.loc).slice(0, 10000);
   const payload = {
     host: new URL(seoService.siteUrl()).host,
     key: env.seo.indexNowKey,

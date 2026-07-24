@@ -40,14 +40,14 @@
     </div>
 
     <div>
-      <% if (booking) { %>
+      <% if (booking) { const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful'; %>
         <div class="card" style="padding:20px;display:grid;gap:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Ticket found</span>
+            <span class="badge <%= ready ? 'badgeOk' : 'badgeWarn' %>"><i class="fa-solid <%= ready ? 'fa-circle-check' : 'fa-clock' %>"></i> <%= ready ? 'Confirmed booking found' : 'Booking found — payment pending' %></span>
             <span class="ticketCode"><%= booking.bookingRef %></span>
           </div>
           <% if (listing) { %><div style="font-weight:950;font-size:15px"><%= listing.title %></div><% } %>
-          <% if (qrDataUrl) { %>
+          <% if (ready && qrDataUrl) { %>
             <div style="display:flex;justify-content:center;padding:14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,183,3,.3);border-radius:18px">
               <img src="<%= qrDataUrl %>" alt="Ticket QR" style="width:140px;height:140px;border-radius:12px">
             </div>
@@ -58,9 +58,10 @@
             <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
             <div><span>Amount</span><b><%= money((booking.pricing || {}).total || 0, (booking.pricing || {}).currency) %></b></div>
           </div>
+          <% if (!ready) { %><div class="notice">Payment is still pending or failed. No QR or PDF voucher is valid until the payment provider confirms success.</div><% } %>
           <div class="actions">
-            <a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid fa-qrcode"></i> Open Full Ticket</a>
-            <a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+            <a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid <%= ready ? 'fa-qrcode' : 'fa-circle-info' %>"></i> <%= ready ? 'Open Full Ticket' : 'Open Booking Status' %></a>
+            <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><% } %>
           </div>
         </div>
       <% } else if (lookupAttempted) { %>

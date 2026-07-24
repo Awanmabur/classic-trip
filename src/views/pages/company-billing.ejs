@@ -9,13 +9,14 @@
       <div class="metricRow" style="margin-top:14px">
         <div class="stat"><b><%= billing.subscription.planName %></b><span>Current plan</span></div>
         <div class="stat"><b><%= billing.subscription.status %></b><span>Status</span></div>
-        <div class="stat"><b><%= new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() %></b><span>Period end</span></div>
+        <div class="stat"><b><%= billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : 'No expiry' %></b><span>Period end</span></div>
       </div>
     <% } else { %>
       <div class="notice" style="margin-top:14px">No active plan yet. Select a plan below to activate billing.</div>
     <% } %>
   </section>
 
+  <% if (!billing.plans.length) { %><div class="notice" style="margin-top:14px">No subscription plans are configured. Contact the Super Admin.</div><% } %>
   <section class="gridCards" style="margin-top:14px">
     <% billing.plans.forEach(plan => { const active = billing.subscription?.planId === plan.id; %>
       <article class="listing" style="padding:16px;display:flex;flex-direction:column;gap:12px;border-color:<%= active ? 'rgba(61,220,151,.65)' : plan.recommended ? 'rgba(79,140,255,.55)' : '' %>">

@@ -1,12 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const { readComposedDashboardSource } = require('./dashboard-source');
 
 function read(file) {
   return fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 }
 
 const companyRoutes = read('src/routes/web/company.js');
-const dashboard = read('src/views/dashboards/admin/index.ejs');
+const dashboard = readComposedDashboardSource(path.join(__dirname, '..')).combined;
 const app = read('src/app.js');
 const errorHandler = read('src/middlewares/errorHandler.js');
 const flash = read('src/middlewares/flash.js');
@@ -72,9 +73,6 @@ if (!app.includes("require('./middlewares/flash')") || !app.includes('app.use(fl
 }
 if (!errorHandler.includes('pushFlash') || !errorHandler.includes('res.redirect(safeBack(req))')) {
   failures.push('Error handler does not redirect POST failures back with flash feedback');
-}
-if (!fs.existsSync(path.join(__dirname, '..', 'tests/e2e/companyDashboardSmoke.test.js'))) {
-  failures.push('Missing executable dashboard route smoke test file');
 }
 
 if (failures.length) {

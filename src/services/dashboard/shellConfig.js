@@ -12,11 +12,11 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'staff', label: 'Staff & Driver Requests', icon: 'fa-user-tie' },
       ] },
       { label: 'Bus Setup', items: [
-        { page: 'listings', label: 'Bus Listings', icon: 'fa-layer-group' },
+        { page: 'listings', label: 'Bus Listings (Public)', icon: 'fa-layer-group' },
         { page: 'routes', label: 'Routes & Stops', icon: 'fa-route' },
-        { page: 'vehicles', label: 'Buses / Vehicles', icon: 'fa-bus-simple' },
-        { page: 'seat-maps', label: 'Seat Maps', icon: 'fa-chair' },
-        { page: 'schedules', label: 'Schedules & Fares', icon: 'fa-calendar-days' },
+        { page: 'vehicles', label: 'Vehicles & Seat Templates', icon: 'fa-bus-simple' },
+        { page: 'seat-maps', label: 'Live Departure Seat Maps', icon: 'fa-chair' },
+        { page: 'schedules', label: 'Departures & Fares', icon: 'fa-calendar-days' },
       ] },
       { label: 'Bus Daily Work', items: [
         { page: 'bookings', label: 'Bus Bookings', icon: 'fa-ticket' },
@@ -41,8 +41,8 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'staff', label: 'Hotel Staff', icon: 'fa-user-tie' },
       ] },
       { label: 'Hotel Setup', items: [
-        { page: 'listings', label: 'Hotel Properties', icon: 'fa-hotel' },
-        { page: 'hotel-rooms', label: 'Rooms & Inventory', icon: 'fa-bed' },
+        { page: 'listings', label: 'Hotel Listings (Public)', icon: 'fa-hotel' },
+        { page: 'hotel-rooms', label: 'Properties, Rooms & Inventory', icon: 'fa-bed' },
       ] },
       { label: 'Hotel Daily Work', items: [
         { page: 'bookings', label: 'Hotel Bookings', icon: 'fa-ticket' },
@@ -57,256 +57,7 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
       ] },
     ],
-  },
-  flight: {
-    createLabel: 'Create Flight Offer',
-    groups: [
-      { label: 'Provider', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Provider Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Flight Setup', items: [
-        { page: 'listings', label: 'Flight Offers', icon: 'fa-plane' },
-        { page: 'routes', label: 'Airports & Routes', icon: 'fa-route' },
-        { page: 'vehicles', label: 'Aircraft / Fleet', icon: 'fa-plane-departure' },
-        { page: 'seat-maps', label: 'Seat Maps', icon: 'fa-chair' },
-        { page: 'schedules', label: 'Flight Schedules', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Flight Work', items: [
-        { page: 'bookings', label: 'PNR Bookings', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Passenger Manifests', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'Boarding / Check-in', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Changes / Support', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Flight Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  train: {
-    createLabel: 'Create Train Departure',
-    groups: [
-      { label: 'Provider', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Provider Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Train Setup', items: [
-        { page: 'listings', label: 'Train Services', icon: 'fa-train' },
-        { page: 'routes', label: 'Stations & Routes', icon: 'fa-route' },
-        { page: 'vehicles', label: 'Coaches / Fleet', icon: 'fa-train-subway' },
-        { page: 'seat-maps', label: 'Coach Seat Maps', icon: 'fa-chair' },
-        { page: 'schedules', label: 'Schedules & Fares', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Train Work', items: [
-        { page: 'bookings', label: 'Train Bookings', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Passenger Manifests', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'Boarding Check-ins', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Train Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  tour: {
-    createLabel: 'Create Tour Date',
-    groups: [
-      { label: 'Operator', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Operator Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff & Guides', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Tour Setup', items: [
-        { page: 'listings', label: 'Tour Packages', icon: 'fa-map-location-dot' },
-        { page: 'schedules', label: 'Tour Dates & Capacity', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Tour Work', items: [
-        { page: 'bookings', label: 'Participants / Bookings', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Participant Lists', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'Voucher / QR Check-ins', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Tour Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  car_rental: {
-    createLabel: 'Add Rental Vehicle',
-    groups: [
-      { label: 'Provider', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Provider Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Rental Setup', items: [
-        { page: 'listings', label: 'Rental Listings', icon: 'fa-car' },
-        { page: 'vehicles', label: 'Rental Vehicles', icon: 'fa-car-side' },
-        { page: 'schedules', label: 'Availability Calendar', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Rental Work', items: [
-        { page: 'bookings', label: 'Rental Bookings', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Pickup / Return Lists', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'Pickup / Return', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Rental Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  event: {
-    createLabel: 'Create Event',
-    groups: [
-      { label: 'Organizer', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Organizer Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Event Setup', items: [
-        { page: 'listings', label: 'Events & Venues', icon: 'fa-calendar-check' },
-        { page: 'seat-maps', label: 'Seat Map / Capacity', icon: 'fa-chair' },
-        { page: 'schedules', label: 'Event Dates', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Event Work', items: [
-        { page: 'bookings', label: 'Ticket Sales', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Entry Lists', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'QR Entry', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Event Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  cargo: {
-    createLabel: 'Create Shipment',
-    groups: [
-      { label: 'Provider', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Provider Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Cargo Setup', items: [
-        { page: 'listings', label: 'Cargo Services', icon: 'fa-boxes-stacked' },
-        { page: 'routes', label: 'Cargo Routes', icon: 'fa-route' },
-        { page: 'vehicles', label: 'Fleet', icon: 'fa-truck' },
-        { page: 'schedules', label: 'Dispatch Schedules', icon: 'fa-calendar-days' },
-      ] },
-      { label: 'Cargo Work', items: [
-        { page: 'bookings', label: 'Shipments / Waybills', icon: 'fa-ticket' },
-        { page: 'manifests', label: 'Cargo Manifests', icon: 'fa-file-lines' },
-        { page: 'checkins', label: 'Tracking / Delivery Proof', icon: 'fa-qrcode' },
-        { page: 'support', label: 'Claims / Support', icon: 'fa-headset' },
-      ] },
-      { label: 'Cargo Finance', items: [
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  insurance: {
-    createLabel: 'Add Insurance Product',
-    groups: [
-      { label: 'Provider', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Provider Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Insurance Setup', items: [
-        { page: 'listings', label: 'Products & Coverage', icon: 'fa-shield-heart' },
-      ] },
-      { label: 'Insurance Work', items: [
-        { page: 'bookings', label: 'Policies Sold', icon: 'fa-ticket' },
-        { page: 'support', label: 'Claims / Support', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-      ] },
-      { label: 'Insurance Finance', items: [
-        { page: 'revenue', label: 'Premiums / Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
-  corporate: {
-    createLabel: 'Create Approval Request',
-    groups: [
-      { label: 'Corporate Account', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Corporate Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Travel Managers', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Travel Management', items: [
-        { page: 'listings', label: 'Travel Policies', icon: 'fa-briefcase' },
-        { page: 'bookings', label: 'Employee Trips', icon: 'fa-ticket' },
-        { page: 'support', label: 'Approvals / Support', icon: 'fa-headset' },
-        { page: 'reports', label: 'Statements & Reports', icon: 'fa-chart-pie' },
-      ] },
-      { label: 'Corporate Billing', items: [
-        { page: 'revenue', label: 'Invoices', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-      ] },
-    ],
-  },
-  loyalty: {
-    createLabel: 'Create Loyalty Rule',
-    groups: [
-      { label: 'Partner', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Partner Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Loyalty Setup', items: [
-        { page: 'listings', label: 'Points / Coupons', icon: 'fa-gift' },
-      ] },
-      { label: 'Loyalty Work', items: [
-        { page: 'bookings', label: 'Redemptions', icon: 'fa-ticket' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-      { label: 'Loyalty Finance', items: [
-        { page: 'revenue', label: 'Credit Liability', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-      ] },
-    ],
-  },
-  partner: {
-    createLabel: 'Create',
-    groups: [
-      { label: 'Company', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'company-profile', label: 'Company Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Staff', icon: 'fa-user-tie' },
-      ] },
-      { label: 'Work', items: [
-        { page: 'listings', label: 'Services', icon: 'fa-layer-group' },
-        { page: 'bookings', label: 'Bookings', icon: 'fa-ticket' },
-        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
-        { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
-        { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
-        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
-        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
-      ] },
-    ],
-  },
+  }
 };
 
 const EMPLOYEE_SERVICE_MENU_CONFIG = {
@@ -359,24 +110,6 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
       ] },
     ],
   },
-  cargo: {
-    createLabel: 'Create Booking',
-    groups: [
-      { label: 'Cargo Shift', items: [
-        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
-        { page: 'bookings', label: 'Shipments / Waybills', icon: 'fa-ticket' },
-        { page: 'schedule', label: 'Dispatch Schedule', icon: 'fa-calendar-days' },
-        { page: 'inventory', label: 'Tracking / Delivery Proof', icon: 'fa-boxes-stacked' },
-      ] },
-      { label: 'Back Office', items: [
-        { page: 'payments', label: 'Payments', icon: 'fa-wallet' },
-        { page: 'support', label: 'Claims / Support', icon: 'fa-headset' },
-        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
-        { page: 'reports', label: 'My Reports', icon: 'fa-file-lines' },
-        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
-      ] },
-    ],
-  },
   default: {
     createLabel: 'Create Booking',
     groups: [
@@ -404,9 +137,9 @@ const ROLE_SWITCH_TARGETS = [
   { key: 'employee', role: 'company_employee', label: 'Company Staff', href: '/employee/dashboard' },
   { key: 'customer', role: 'customer', label: 'Customer', href: '/account' },
   { key: 'promoter', role: 'promoter', label: 'Promoter / Agent', href: '/promoter/dashboard' },
-  { key: 'support', role: 'support_agent', label: 'Support', href: '/support/dashboard' },
-  { key: 'finance', role: 'finance_agent', label: 'Finance', href: '/finance/dashboard' },
-  { key: 'operations', role: 'operations_agent', label: 'Operations', href: '/operations/dashboard' },
+  { key: 'support', role: 'support_admin', label: 'Support', href: '/support/dashboard' },
+  { key: 'finance', role: 'finance_admin', label: 'Finance', href: '/finance/dashboard' },
+  { key: 'operations', role: 'operations_admin', label: 'Operations', href: '/operations/dashboard' },
 ];
 
 function initials(name = '') {
@@ -438,12 +171,22 @@ function applyCompanyServiceProfile(menu, serviceProfile = {}, company = {}) {
   const serviceType = serviceProfile.primaryServiceType || 'partner';
   const config = COMPANY_SERVICE_MENU_CONFIG[serviceType] || COMPANY_SERVICE_MENU_CONFIG.partner;
   const visiblePages = new Set(serviceProfile.visiblePages || []);
-  const groups = (config.groups || []).map((group) => ({
+  let groups = (config.groups || []).map((group) => ({
     ...group,
     items: (group.items || [])
       .filter((item) => !visiblePages.size || visiblePages.has(item.page))
       .map((item) => ({ ...item })),
   })).filter((group) => group.items.length);
+  if (!groups.some((group) => (group.items || []).some((item) => item.page === 'setup-guide'))) {
+    groups = groups.map((group, index) => index === 0 ? {
+      ...group,
+      items: [
+        ...(group.items || []).slice(0, 1),
+        { page: 'setup-guide', label: 'Setup & Workflow Guide', icon: 'fa-diagram-project' },
+        ...(group.items || []).slice(1),
+      ],
+    } : group);
+  }
   const pageMeta = serviceProfile.pageMeta || {};
   const title = pageMeta.overview?.[0] || `${serviceProfile.dashboardLabel || 'Company'} Dashboard`;
   const subtitle = pageMeta.overview?.[1] || menu.subtitle;
@@ -472,11 +215,51 @@ function applyEmployeeServiceProfile(menu, serviceProfile = {}) {
   };
 }
 
+
+const EMPLOYEE_PAGE_PERMISSIONS = {
+  overview: [],
+  bookings: ['booking.view', 'booking.create_manual'],
+  checkin: ['checkin.scan', 'checkin.manage'],
+  schedule: ['schedule.update', 'schedule.delay_notice', 'manifest.view'],
+  'driver-ops': ['manifest.view'],
+  'driver-manifest': ['manifest.view'],
+  'driver-incidents': ['manifest.view'],
+  inventory: ['inventory.update', 'manifest.view'],
+  customers: ['customer.note', 'booking.view'],
+  payments: ['payment.record'],
+  refunds: ['refund.request'],
+  support: ['support.manage', 'support.note'],
+  handover: ['handover.create'],
+  reports: ['reports.view'],
+  profile: ['profile.update'],
+  notifications: [],
+};
+
+function employeePageAllowed(page, permissions = []) {
+  const key = String(page || 'overview').trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(EMPLOYEE_PAGE_PERMISSIONS, key)) return false;
+  const granted = new Set(permissions || []);
+  if (granted.has('*')) return true;
+  const required = EMPLOYEE_PAGE_PERMISSIONS[key];
+  return required.length === 0 || required.some((permission) => granted.has(permission));
+}
+
+function filterEmployeeMenuByPermissions(menu, permissions = []) {
+  return {
+    ...menu,
+    groups: (menu.groups || []).map((group) => ({
+      ...group,
+      items: (group.items || []).filter((item) => employeePageAllowed(item.page, permissions)),
+    })).filter((group) => group.items.length),
+  };
+}
+
 function menuHref(roleKey, page) {
   const servicePages = new Set(SERVICE_DASHBOARDS.map((item) => item.key));
   if (roleKey === 'company') {
     const companyRoutes = {
       overview: '/company/dashboard',
+      'setup-guide': '/company/dashboard/setup-guide',
       'company-profile': '/company/profile',
       staff: '/company/employees',
       listings: '/company/listings',
@@ -496,15 +279,6 @@ function menuHref(roleKey, page) {
       reports: '/company/reports',
       'bus-dashboard': '/company/bus-dashboard',
       'hotel-dashboard': '/company/hotel-dashboard',
-      'flight-dashboard': '/company/flight-dashboard',
-      'train-dashboard': '/company/train-dashboard',
-      'tour-dashboard': '/company/tour-dashboard',
-      'car-rental-dashboard': '/company/car-rental-dashboard',
-      'event-dashboard': '/company/event-dashboard',
-      'cargo-dashboard': '/company/cargo-dashboard',
-      'insurance-dashboard': '/company/insurance-dashboard',
-      'corporate-dashboard': '/company/corporate-dashboard',
-      'loyalty-dashboard': '/company/loyalty-dashboard',
     };
     return companyRoutes[page] || `/company/dashboard/${page}`;
   }
@@ -530,6 +304,21 @@ function attachMenuHrefs(menu) {
   };
 }
 
+function injectWorkflowGuideItem(menu) {
+  if (menu.roleKey === 'company') return menu;
+  const alreadyHas = (menu.groups || []).some((group) => (group.items || []).some((item) => item.page === 'workflow-guide'));
+  if (alreadyHas) return menu;
+  const guideItem = { page: 'workflow-guide', label: 'How This Dashboard Works', icon: 'fa-circle-question', href: '#workflow-guide' };
+  const groups = (menu.groups || []).map((group, index) => {
+    if (index !== 0) return group;
+    const items = [...(group.items || [])];
+    const overviewIndex = items.findIndex((item) => item.page === 'overview');
+    items.splice(overviewIndex >= 0 ? overviewIndex + 1 : 0, 0, guideItem);
+    return { ...group, items };
+  });
+  return { ...menu, groups };
+}
+
 function injectNotificationsItem(menu) {
   const notifItem = { page: 'notifications', label: 'Notifications', icon: 'fa-bell', href: '#notifications' };
   const alreadyHas = (menu.groups || []).some(function(g) { return (g.items || []).some(function(i) { return i.page === 'notifications'; }); });
@@ -549,7 +338,9 @@ function buildDashboardShell(requestedRole, options = {}) {
   }
   if (menu.roleKey === 'employee' && options.serviceProfile) {
     menu = applyEmployeeServiceProfile(menu, options.serviceProfile);
+    menu = filterEmployeeMenuByPermissions(menu, options.permissions || []);
   }
+  menu = injectWorkflowGuideItem(menu);
   menu = injectNotificationsItem(menu);
   menu = attachMenuHrefs(menu);
   const preferMenuIdentity = menu.roleKey === 'company' && menu.profileName;
@@ -574,7 +365,8 @@ function buildDashboardShell(requestedRole, options = {}) {
     currentCompanyId: user.companyId || options.companyId || '',
     breadcrumbs: options.breadcrumbs || [menu.consoleName || menu.label],
     activePage: options.activePage || 'overview',
+    permissions: options.permissions || [],
   };
 }
 
-module.exports = { buildDashboardShell };
+module.exports = { buildDashboardShell, employeePageAllowed, EMPLOYEE_PAGE_PERMISSIONS, filterEmployeeMenuByPermissions };

@@ -6,11 +6,11 @@
       <div>
         <p class="text-uppercase small text-muted mb-1">Multi-service cart</p>
         <h1 class="h3 mb-1"><%= cart.cartRef %></h1>
-        <p class="text-muted mb-0">One Classic Trip checkout can contain bus seats, hotel rooms, and enabled future service units.</p>
+        <p class="text-muted mb-0">One Classic Trip checkout can contain live bus seats and hotel rooms.</p>
       </div>
       <div class="text-end">
         <span class="badge text-bg-<%= ['checked_out','validated'].includes(cart.status) ? 'success' : ['payment_failed','inventory_failed','validation_failed'].includes(cart.status) ? 'danger' : 'secondary' %>"><%= cart.status %></span>
-        <div class="fs-4 fw-bold mt-2"><%= money(cart.pricing && cart.pricing.total, cart.pricing && cart.pricing.currency || 'UGX') %></div>
+        <div class="fs-4 fw-bold mt-2"><%= money(cart.pricing && cart.pricing.total, cart.pricing && cart.pricing.currency || platformConfig.defaultCurrency) %></div>
       </div>
     </div>
     <% if (recovery || cart.recoveryState) { %>
@@ -46,10 +46,10 @@
         <div class="border rounded-3 p-3 bg-light">
           <h2 class="h5">Checkout summary</h2>
           <dl class="row small mb-0">
-            <dt class="col-7">Subtotal</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.subtotal, cart.pricing && cart.pricing.currency || 'UGX') %></dd>
-            <dt class="col-7">Discount</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.discount || 0, cart.pricing && cart.pricing.currency || 'UGX') %></dd>
-            <dt class="col-7">Taxes / fees</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.fees, cart.pricing && cart.pricing.currency || 'UGX') %></dd>
-            <dt class="col-7">Total</dt><dd class="col-5 text-end fw-bold"><%= money(cart.pricing && cart.pricing.total, cart.pricing && cart.pricing.currency || 'UGX') %></dd>
+            <dt class="col-7">Subtotal</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.subtotal, cart.pricing && cart.pricing.currency || platformConfig.defaultCurrency) %></dd>
+            <dt class="col-7">Discount</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.discount || 0, cart.pricing && cart.pricing.currency || platformConfig.defaultCurrency) %></dd>
+            <dt class="col-7">Taxes / fees</dt><dd class="col-5 text-end"><%= money(cart.pricing && cart.pricing.fees, cart.pricing && cart.pricing.currency || platformConfig.defaultCurrency) %></dd>
+            <dt class="col-7">Total</dt><dd class="col-5 text-end fw-bold"><%= money(cart.pricing && cart.pricing.total, cart.pricing && cart.pricing.currency || platformConfig.defaultCurrency) %></dd>
           </dl>
           <% if (cart.validation && cart.validation.messages) { %><p class="small mt-3 mb-0"><%= cart.validation.messages.join(' · ') %></p><% } %>
           <form method="post" action="/cart/<%= cart.cartRef %>/validate" class="mt-3">

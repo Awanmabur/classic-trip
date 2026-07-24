@@ -1,145 +1,270 @@
-# Classic Trip Platform
+# Classic Trip — Final Bus and Hotel Platform
 
-Classic Trip is a Node.js + Express + MongoDB + Mongoose + EJS monolith for a multi-tenant travel marketplace. Public booking, company operations, employee/driver tools, customer accounts, promoter workflows, and super-admin controls now run through one production dashboard system with role-scoped data and actions.
+Production-oriented Node.js, Express and MongoDB marketplace for **bus travel and hotel stays**. The current release exposes only service types completed end to end: `bus` and `hotel`.
 
-## What is implemented
+The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
-- Public marketplace homepage migrated to EJS, with the uploaded design preserved.
-- Expanded backend reference seed data: 30 partner companies, 95 service listings, 30 bus routes, 120 schedules, 120 hotel room records, 10 starter bookings, promoter links, wallets, campaigns, support tickets, refunds and blog posts.
-- Public pages:
-  - `/` marketplace
-  - `/search` backend-filtered listings
-  - `/services` all service categories
-  - `/routes` route directory
-  - `/companies` partner directory
-  - `/companies/:slug` partner profile
-  - `/promoters` promoter program, links and marketing assets
-  - `/listings/:serviceType/:slug` listing detail
-  - `/book/:serviceType/:slug` guest checkout
-  - `/booking/success/:bookingRef`
-  - `/tickets` guest ticket lookup
-  - `/tickets/:bookingRef`
-  - `/tickets/:bookingRef.pdf`
-  - `/blogs`
-  - `/health`
-- Unified role dashboard routes:
-  - `/admin`
-  - `/company/dashboard`
-  - `/employee/dashboard`
-  - `/driver/dashboard`
-  - `/account`
-  - `/promoter/dashboard`
-- Clean route file names: `public.js`, `auth.js`, `customer.js`, `company.js`, `employee.js`, `promoter.js`, `admin.js`.
-- API routes for search, listings, bookings, payments, scanner validation, webhooks and uploads.
-- Mongoose model files for all major blueprint entities.
-- Cloudinary upload service with production folder targets for company logos, covers, documents, listing images, blogs and tickets.
-- Google OAuth wiring with Passport Google OAuth 2.0. It is disabled until Google environment variables are set.
-- Guest checkout with Pesapal payment initiation, payment callbacks/webhooks, booking reference, private guest lookup code, QR ticket value, downloadable PDF ticket and one-time scanner validation.
-- Notification adapters for SMTP email plus HTTP SMS/WhatsApp providers, with safe queued fallback when provider credentials are not configured.
-- Wallet, ledger and commission split logic:
-  - With valid promoter referral: promoter 3%, platform 7%, company 90%.
-  - Without referral: platform 10%, company 90%.
-- Seat lock and room reservation services for temporary holds.
-- Promotion/sponsored listing logic where sponsored listings remain visibly labeled.
-- Scheduled jobs for commission release, promotion expiry, booking reminders, expired locks and payout reports. They run in production or when `ENABLE_JOBS=true`.
-- Release roadmap API for v1, teaser, architecture-ready, and future platform features.
-- Integration and unit coverage for booking flow, driver manifests, hotel operations, support timelines, commission splits, company management, platform hardening, ticket PDFs, webhooks, promoter/agent workflows, and acceptance criteria.
+## Requirements
 
-## First run
+- Node.js 20+
+- npm 10+
+- MongoDB Atlas or a replica set with transactions enabled
+- Cloudinary or another configured production media adapter
+- At least one configured payment provider before accepting live payments
+- Email/SMS/push credentials for real notification delivery
+
+Production refuses transaction-sensitive flows when MongoDB transaction support is unavailable.
+
+## Initial setup
 
 ```bash
-cd classic-trip-platform
 cp .env.example .env
-npm install
-npm run lint
-npm test
-npm run dev
+npm ci
+npm run seed:superadmin
+npm run verify
+npm start
 ```
 
-Open:
+Use strong independent secrets for sessions, MFA encryption, payment webhooks and the Super Admin. Do not commit `.env`.
+
+## Unified authentication and onboarding
+
+There is one rendered authentication/onboarding page:
+
+- Login
+- Customer signup
+- Promoter signup
+- Partner/company-owner onboarding
+- Password recovery
+- Email verification
+- Phone verification
+- MFA screens when enabled
+
+`GET /partner/onboarding` is only a compatibility redirect into the Partner panel on the shared page. `POST /partner/onboarding` remains the one secure partner/company provisioning service.
+
+Role rules:
+
+- Customers, promoters and new company owners may self-register.
+- Company staff and drivers are invitation-only.
+- Platform administrators are invitation-only and MFA-governed.
+- Super Admin is created or updated only through the supported bootstrap command.
+- Pending partners may enter a restricted onboarding workspace but cannot publish, operate live bookings, collect operational payments or request payouts until verified.
+
+
+## Partner commission model
+
+Partner companies do not purchase a platform package. Any eligible bus or hotel company may create an owner account and enter the restricted verification workspace immediately.
+
+The commercial flow is:
 
 ```text
-http://localhost:5000
+Customer booking total
+  -> one partner commission percentage retained by Classic Trip
+  -> partner receives the remainder
+  -> when a promoter referred the booking, the promoter reward comes from Classic Trip's commission
 ```
 
-## Demo login accounts
+- The default percentage is managed in **Super Admin → Platform Settings**.
+- Super Admin may set a partner-specific percentage from **Partners / Companies**.
+- A company accepts its percentage contract during onboarding.
+- Every bus or hotel booking stores an immutable contract and split snapshot.
+- Later percentage changes affect only new bookings.
+- Verification, not a payment package, controls publishing, operational payments and payouts.
+- There are no partner renewals, recurring charges or commercial feature tiers.
 
-For local demo mode only, set `ALLOW_DEMO_LOGIN=true` and use the password below for every demo account:
+The fresh-install default is 10% commission. Promoters receive 30% of Classic Trip's commission on an eligible referral, producing the former 90% partner / 7% platform net / 3% promoter result without charging the partner twice. Super Admin can change both percentages.
+
+## Canonical bus architecture
 
 ```text
-Password123
+Company
+  -> Branch / terminal
+  -> Public bus listing
+  -> Compliant vehicle
+  -> Published versioned seat map
+  -> Route
+      -> Ordered stops
+      -> Generated route segments
+  -> Fare product
+      -> Segment fares
+  -> Dated departure
+      -> Frozen route / seat-map / fare snapshots
+      -> Verified operational driver assignment
+      -> Seat-segment inventory
+  -> Inventory hold
+  -> Booking and booking item
+  -> Bus reservation
+  -> Passenger
+  -> Seat assignment
+  -> Ticket / QR
+  -> Payment
+  -> Manifest / check-in / no-show
+  -> Cancellation / refund / settlement
 ```
 
-Accounts:
+A bus departure cannot be published unless linked records belong to the same company and listing and publication readiness passes. Driver assignment requires a real driver account, accepted invitation, active company membership, required verification/safety state and operational permissions. A job title or legacy permission label cannot substitute for a driver identity.
+
+Seat availability is authoritative per seat and overlapping route segment. Return travel creates independent outbound and return reservations, inventory claims and tickets inside one customer booking.
+
+## Canonical hotel architecture
 
 ```text
-admin@classictrip.test       -> /admin
-company@classictrip.test     -> /company/dashboard
-employee@classictrip.test    -> /employee/dashboard
-customer@classictrip.test    -> /account
-promoter@classictrip.test    -> /promoter/dashboard
+Company
+  -> Public hotel listing
+  -> Hotel property
+  -> Room type
+      -> Occupancy and bed rules
+      -> Rate plan and cancellation policy
+  -> Physical room unit
+  -> Explicit dated room-night inventory
+  -> Booking and booking item
+  -> Hotel reservation
+  -> Named hotel guests
+  -> Room assignments
+  -> Payment
+  -> Operational voucher
+  -> Arrival / check-in
+  -> In-house stay
+  -> Check-out
+  -> Housekeeping task
+  -> Settlement eligibility
+  -> Cancellation / no-show / refund review
 ```
 
-## MongoDB-first data layer
+Hotel rules:
 
-The old in-memory demo store has been removed from runtime. The app expects MongoDB as the system of record when `DEMO_MODE=false`. For local development, start MongoDB, seed the reference data, then run the app:
+- One canonical property per company listing.
+- Internal relationships use selectors; staff do not type foreign IDs.
+- Room types define adult, child and infant limits.
+- Every declared traveler must have a named guest record.
+- Sellable room-night inventory must be deliberately configured; checkout never manufactures missing inventory.
+- A physical room must be available and housekeeping-ready before sale.
+- Pricing is recalculated server-side from room nights, hotel rate plans, occupancy surcharges, property taxes, service fees, add-ons and the partner commission contract.
+- Only the completed `pay_now` flow is exposed. Security/incidental policies do not act as booking-payment deposits.
+- Payment confirms the reservation but keeps settlement `pending_fulfillment`.
+- Check-out creates housekeeping work and changes earnings to `eligible`; payment alone never settles a hotel stay.
+- Hotel cancellation evaluates the immutable booked rate policy. Non-refundable, missing-policy or penalty-window cases go to finance review instead of receiving an unsafe automatic full refund.
+- Hotel no-show is transactional: reservation, guests, assignments and booking items are updated, safe room nights are released and finance reconciliation is required.
+
+## Hotel operations UI
+
+The Partner/Employee dashboard uses the same shared design for:
+
+- Properties
+- Room types
+- Rate plans
+- Room units
+- Room calendar and inventory
+- Housekeeping
+- Arrivals
+- In-house guests
+- Departures
+- Manifests and history/no-shows
+- Operational vouchers and PDF vouchers
+
+Hotel manifests can cover one selected listing/property or the company’s complete hotel portfolio. They include guest identity masking, nationality, contact, emergency contact, occupancy, assigned rooms, payment, actual arrival/departure times, special requests and stay status.
+
+## Payments and finance
+
+- Prices and totals are never trusted from the browser.
+- Provider callbacks/webhooks must be verified and idempotent.
+- Booking status, payment status, fulfillment status and settlement status remain separate.
+- Financial corrections use auditable refund/ledger workflows.
+- Hotel payment success creates pending earnings; fulfillment controls eligibility.
+- Payout requests and approvals remain separate from booking fulfillment.
+
+## Security baseline
+
+- CSRF protection, including multipart uploads
+- Same-origin checks before multipart parsing
+- Server-side authentication and authorization
+- Tenant/company isolation
+- Service-type and resource-ownership checks
+- Permission-scoped employee operations
+- Signed invitation lifecycle
+- Rate limiting on sensitive routes
+- Password hashing and bounded password input
+- Session rotation and revocation
+- Audit/timeline records for sensitive actions
+- File validation, scanning adapter and private media workflow
+- No raw payment secrets in application data
+- Idempotency for booking, payment, refund and operational transitions
+
+No software can honestly be guaranteed permanently vulnerability-proof. Production release still requires dependency-backed tests, current vulnerability scanning, provider sandbox certification, concurrency testing and penetration testing.
+
+## Existing-database migration
+
+Back up the database first. Run the commercial migration before the hotel-domain migration.
 
 ```bash
-npm run seed:local
-npm run seed:counts
-npm run dev
+npm run migrate:commission-only:dry
+npm run migrate:commission-only
+npm run migrate:hotel-domain:dry
+npm run migrate:hotel-domain
 ```
 
-Use `AUTO_SEED_MONGO=true` only for local/dev bootstrapping when the database is empty.
+The commission migration removes retired partner billing fields and collections, creates one percentage contract for every company and preserves the previous effective split. The hotel migration normalizes legacy hotel bookings and setup records, consolidates duplicate properties safely and rewires dependent room/rate/inventory/reservation records. Inspect dry-run output before applying.
 
-## Environment notes
-
-Real production values are required for:
-
-- `MONGO_URI`
-- `SESSION_SECRET`
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_CALLBACK_URL`
-- `SMS_API_URL`
-- `SMS_API_TOKEN`
-- `WHATSAPP_API_URL`
-- `WHATSAPP_API_TOKEN`
-- `ENABLE_JOBS`
-- `PAYMENT_PROVIDER=pesapal`
-- `PESAPAL_CONSUMER_KEY`
-- `PESAPAL_CONSUMER_SECRET`
-- `PESAPAL_CALLBACK_URL`
-- `PESAPAL_IPN_URL` or `PESAPAL_IPN_ID`
-- `PAYMENT_WEBHOOK_SECRET`
-
-Production ticket PDFs are generated with PDFKit at `/tickets/:bookingRef.pdf`. Cloudinary upload support is available in the PDF service once Cloudinary credentials are configured.
-
-## Current implementation status
-
-The implementation is MongoDB-first with seeded platform records, transaction-style checkout persistence, seat and hotel room-night locking, Pesapal payment initiation, signed/idempotent webhook reconciliation, scoped dashboard notifications, support/partner onboarding, refund and wallet reversal flows, scheduled cleanup jobs, and locally generated ticket PDFs with Cloudinary upload support when production credentials are present.
-
-Recommended release checks:
+## Verification commands
 
 ```bash
 npm run check
+npm run check:runtime
+npm run check:production
+npm run check:bus
+npm run check:bus-forms
+npm run check:smart-bus-forms
+npm run check:smart-publish
+npm run check:driver-assignment
+npm run check:driver-ui
+npm run check:driver-materialization
+npm run check:staff-driver
+npm run check:partner-ownership
+npm run check:architecture-security
+npm run check:routes
+npm run check:csrf
+npm run check:entity-relations
+npm run check:partner-registration
+npm run check:commission-only
+npm run check:dashboard-repository
 npm run check:dashboards
-npm run check:dashboard-smoke-static
-npm run acceptance:matrix
-npm run test:acceptance
-npm run launch:check
+npm run check:addons-return-seats
+npm run check:stop-pricing-ui
+npm run check:end-to-end-final
+npm run check:bus-hotel-final
+npm run check:bus-hotel-conclusion
+npm run check:hotel-operations-final
+npm run check:final-regression
 npm test
 ```
 
-## Production package cleanup
+`npm run verify` executes the complete installed-dependency release suite.
 
-Tests and audit evidence stay in the repository so the platform remains verifiable. They are excluded from production deploy/package payloads through `.slugignore`, `.npmignore`, and `.dockerignore`.
+## Production release checklist
 
-Runtime-required folders are:
+Before deployment:
 
-- `src/` application code, views, models, routes, services, seeds, jobs, config, and middleware.
-- `public/` active CSS/JS assets served by Express.
-- `package.json`, `package-lock.json`, `Procfile`, `.env.example`, and runtime config files.
+```bash
+npm ci
+npm run verify
+NODE_ENV=production npm run launch:check
+```
+
+Also verify:
+
+- MongoDB transactions and restore-tested backups
+- HTTPS and trusted proxy settings
+- Correct public `APP_URL` and `SITE_URL`
+- Cloudinary/media credentials
+- Payment provider callbacks and webhook signatures
+- Email/SMS/push delivery
+- Scheduled jobs enabled in exactly one worker/process
+- Super Admin MFA enabled when operationally ready
+- Current `npm audit`/dependency review
+- Real concurrent final-seat and final-room tests
+- Payment failure, retry, refund and reconciliation tests
+- Provider sandbox certification and penetration testing
+
+## Final bus and hotel UI organization
+
+The hotel workspace now follows one ordered setup journey from public listing through dated inventory, with daily hotel operations separated from setup. Dashboard brand links return to the marketplace, notices and empty table states use consistent spacing and rounded surfaces, and all public marketplace listing pages share one card implementation. See `FINAL_BUS_HOTEL_UI_ORGANIZATION_REPORT_2026-07-24.md`.

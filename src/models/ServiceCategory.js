@@ -5,8 +5,8 @@ const serviceCategorySchema = new Schema({
   label: String,
   icon: String,
   bookable: Boolean,
-  release: String,
-  status: { type: String, default: 'active' },
+  release: { type: String, enum: ['v1', 'teaser', 'architecture-ready'] },
+  status: { type: String, default: 'active', enum: ['active'] },
 }, { timestamps: true });
 
 module.exports = model('ServiceCategory', serviceCategorySchema);

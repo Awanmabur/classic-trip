@@ -1,58 +1,19 @@
-const store = require('../../services/data/persistentStore');
-const { mongoose } = require('../../config/db');
-
-function cleanText(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
-}
-
-function nextId(prefix, rows) {
-  let index = rows.length + 1;
-  let id = `${prefix}-${index}`;
-  while (rows.some((row) => row.id === id)) {
-    index += 1;
-    id = `${prefix}-${index}`;
-  }
-  return id;
-}
-
-async function persist(ticket) {
-  if (mongoose.connection.readyState !== 1) return;
-  const SupportTicket = require('../../models/SupportTicket');
-  await SupportTicket.updateOne({ id: ticket.id }, { $set: ticket }, { upsert: true, runValidators: true });
-}
-
+const supportRepository = require('../../repositories/domain/supportRepository');
+const ticketAccessService = require('../../services/booking/ticketAccessService');
+const { nextId } = require('../../services/data/idService');
+function cleanText(value, max = 2000) { return String(value || '').replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ').slice(0, max); }
 async function create(req, res, next) {
   try {
-    if (!Array.isArray(store.state.supportTickets)) store.state.supportTickets = [];
-    const bookingRef = cleanText(req.body.bookingRef || '').replace(/^#/, '');
-    const booking = bookingRef ? store.findBooking(bookingRef) : null;
-    const contact = cleanText(req.body.contact || req.body.email || req.body.phone || '');
-    const ticket = {
-      id: nextId('support', store.state.supportTickets),
-      ownerType: 'guest',
-      ownerId: contact || 'guest',
-      companyId: booking?.companyId || '',
-      bookingRef: booking?.bookingRef || bookingRef,
-      category: cleanText(req.body.category || req.body.topic || 'Public support'),
-      subject: cleanText(req.body.subject || req.body.category || 'Public support request'),
-      message: cleanText(req.body.message),
-      priority: cleanText(req.body.priority || 'normal').toLowerCase(),
-      status: 'open',
-      assignedTo: 'support',
-      createdBy: contact || 'guest',
-      createdAt: new Date().toISOString(),
-      metadata: {
-        name: cleanText(req.body.fullName || req.body.name || ''),
-        contact,
-        source: 'public_support_form',
-      },
-    };
-    store.state.supportTickets.unshift(ticket);
-    await persist(ticket);
+    const bookingRef = cleanText(req.body.bookingRef || '', 120).replace(/^#/, '');
+    const booking = bookingRef ? await supportRepository.bookings.findOne({ bookingRef }) : null;
+    const contact = cleanText(req.body.contact || req.body.email || req.body.phone || '', 254);
+    if (booking && !(ticketAccessService.contactMatches(booking, contact) || ticketAccessService.accessCodeMatches(booking, req.body.accessCode || req.body.code || ''))) {
+      const error = new Error('The booking contact or access code does not match'); error.status = 403; throw error;
+    }
+    if (!cleanText(req.body.message, 2000)) { const error = new Error('Support message is required'); error.status = 422; throw error; }
+    const ticket = { id: await nextId('support'), ownerType: 'guest', ownerId: contact || 'guest', companyId: booking?.companyId || '', bookingRef: booking?.bookingRef || bookingRef, category: cleanText(req.body.category || req.body.topic || 'Public support', 120), subject: cleanText(req.body.subject || req.body.category || 'Public support request', 180), message: cleanText(req.body.message, 2000), priority: ['low','normal','high','urgent'].includes(String(req.body.priority || '').toLowerCase()) ? String(req.body.priority).toLowerCase() : 'normal', status: 'open', assignedTo: 'support', createdBy: contact || 'guest', createdAt: new Date().toISOString(), metadata: { name: cleanText(req.body.fullName || req.body.name || '', 160), contact, source: 'public_support_form', ip: req.ip } };
+    await supportRepository.tickets.save(ticket, { id: ticket.id });
     return res.redirect('/login#support');
-  } catch (error) {
-    return next(error);
-  }
+  } catch (error) { return next(error); }
 }
-
 module.exports = { create };

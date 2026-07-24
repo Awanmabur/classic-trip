@@ -3,50 +3,42 @@
 <main class="container" style="padding:16px 0 30px">
   <section class="card heroCard">
     <span class="badge badgeHot"><i class="fa-solid fa-share-nodes"></i> Promoter program</span>
-    <h1 class="heroTitle">Promoters can share services and earn commission.</h1>
-    <p class="heroSub">The backend tracks referral links, clicks, conversions, pending commission, available balance, marketing assets, and withdrawals. Valid promoter bookings earn 3% while the company still receives 90%.</p>
+    <h1 class="heroTitle">Share verified services and earn tracked commission.</h1>
+    <p class="heroSub">Promoters create their own referral links inside the secure dashboard. Clicks, bookings, commission, balances and withdrawals are private to the authenticated promoter. The promoter receives <%= platformConfig.promoterSharePercent %>% of Classic Trip’s commission on eligible referred bookings. The partner share is not reduced again.</p>
     <div class="metricRow" style="margin-top:14px">
-      <div class="stat"><b><%= links.length %></b><span>Referral links</span></div>
-      <div class="stat"><b><%= stats.clicks.toLocaleString() %></b><span>Tracked clicks</span></div>
-      <div class="stat"><b><%= stats.conversions %></b><span>Bookings</span></div>
-      <div class="stat"><b><%= stats.conversionRate %>%</b><span>Conversion rate</span></div>
-      <div class="stat"><b><%= money(stats.pendingCommission) %></b><span>Pending</span></div>
-      <div class="stat"><b><%= money(stats.availableCommission) %></b><span>Available</span></div>
+      <div class="stat"><b><%= stats.promotableListings %></b><span>Promotable services</span></div>
+      <div class="stat"><b><%= stats.activeCampaigns %></b><span>Active campaigns</span></div>
+      <div class="stat"><b><%= platformConfig.promoterSharePercent %>%</b><span>Share of platform commission</span></div>
     </div>
     <div class="actions" style="margin-top:14px">
       <a class="btn btnPrimary" href="/promoter/dashboard"><i class="fa-solid fa-chart-line"></i> Open promoter dashboard</a>
-      <a class="btn btnGhost" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Choose a service to share</a>
+      <a class="btn btnGhost" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Browse services</a>
     </div>
   </section>
 
   <section class="section">
-    <div class="sectionHead"><div><h2>Best services to promote</h2><p>Bookable listings with strong recommendation scores.</p></div></div>
+    <div class="sectionHead"><div><h2>Services available to promote</h2><p>Only verified, public and currently bookable services appear here.</p></div></div>
+    <% if (!topListings.length) { %><div class="empty">No bookable services are available yet.</div><% } %>
     <div class="gridCards"><% topListings.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %></div>
   </section>
 
   <section class="section detailGrid">
     <div class="card" style="padding:14px">
-      <div class="sectionHead"><div><h2>Referral links</h2><p>Every link can attribute clicks, bookings, and commission.</p></div></div>
+      <div class="sectionHead"><div><h2>How it works</h2><p>Referral data stays inside the promoter account.</p></div></div>
       <div class="routeList">
-        <% links.forEach(link => { %>
-          <div class="routeItem">
-            <div><strong><%= link.listing?.title %></strong><div class="small"><%= link.code %> - <%= link.clicks %> clicks - <%= link.conversions %> bookings - <%= link.conversionRate %>% conversion</div></div>
-            <a class="btn btnGhost" href="<%= link.url %>"><i class="fa-solid fa-link"></i> Open</a>
-          </div>
-        <% }) %>
+        <div class="routeItem"><div><strong>1. Choose a service</strong><div class="small">Select a public bus departure or hotel listing.</div></div></div>
+        <div class="routeItem"><div><strong>2. Generate your link</strong><div class="small">The dashboard creates a unique trackable URL.</div></div></div>
+        <div class="routeItem"><div><strong>3. Earn after fulfilment</strong><div class="small">Commission becomes eligible only after the configured fulfilment event.</div></div></div>
       </div>
     </div>
     <div class="card" style="padding:14px">
-      <div class="sectionHead"><div><h2>Marketing materials</h2><p>Partner campaigns that promoters can use now.</p></div></div>
+      <div class="sectionHead"><div><h2>Active public campaigns</h2><p>Campaign names and linked services are public; performance remains private.</p></div></div>
+      <% if (!campaigns.length) { %><div class="empty">No active campaigns are available.</div><% } %>
       <div class="routeList">
         <% campaigns.forEach(campaign => { %>
-          <div class="routeItem">
-            <div><strong><%= campaign.name %></strong><div class="small"><%= campaign.company?.name || 'Partner' %> - <%= campaign.placement %> - <%= campaign.clicks %> clicks</div></div>
-            <span class="badge badgeHot">Sponsored</span>
-          </div>
+          <div class="routeItem"><div><strong><%= campaign.name %></strong><div class="small"><%= campaign.listing?.title || 'Published service' %> · <%= campaign.placement || 'Marketplace' %></div></div><span class="badge badgeHot">Sponsored</span></div>
         <% }) %>
       </div>
-      <div class="notice" style="margin-top:12px">Commission remains pending until boarding, trip completion, or hotel check-in is completed.</div>
     </div>
   </section>
 </main>

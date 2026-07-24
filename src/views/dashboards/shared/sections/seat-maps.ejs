@@ -1,0 +1,189 @@
+<section class="section" id="seat-maps">
+        <%
+          const allSeatMaps = (dashboardData?.seatMaps || []);
+          const vehicleTemplates = (dashboardData?.vehicleSeatTemplates || []);
+          const templatePreviewMaps = vehicleTemplates.map(function(vehicle, index){
+            return {
+              id: 'template-preview-' + (vehicle.id || index),
+              scheduleId: '',
+              isTemplatePreview: true,
+              inventorySource: 'vehicle_seat_template',
+              routeLabel: 'Template preview — create a dated departure',
+              listingTitle: vehicle.listingTitle || 'Bus service',
+              vehicleId: vehicle.id || '',
+              vehicleName: vehicle.name || vehicle.plateOrCode || 'Vehicle',
+              layoutName: vehicle.layoutName || '2x2',
+              rows: Number(vehicle.rows || 0),
+              columns: Number(vehicle.columns || 0),
+              departAt: '',
+              status: 'template only',
+              totalSeats: Number(vehicle.totalSeats || (vehicle.seats || []).length || 0),
+              bookedSeats: 0,
+              heldSeats: 0,
+              blockedSeats: (vehicle.seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || seat.blockedReason || ''); }).length,
+              seats: vehicle.seats || []
+            };
+          });
+          const previewMaps = (allSeatMaps.length ? allSeatMaps : templatePreviewMaps).slice(0,12);
+          const selectedSeatMapId = previewMaps[0] ? (previewMaps[0].scheduleId || previewMaps[0].id || 'seat-map-0') : '';
+        %>
+        <div class="seatPageShell">
+          <div class="financeHero">
+            <div class="financeHeroTop">
+              <div>
+                <h3><i class="fa-solid fa-chair"></i> Seat Maps</h3>
+                <p>Choose one route or schedule, review the real visual seat map, then use the scoped table and actions below. This page only manages bus seat templates, schedule snapshots, blocked seats, booked seats, holds, and ticket access.</p>
+              </div>
+              <div class="financeActions">
+                <button class="btn btnBlue" data-modal="edit" data-type="vehicle seat template"><i class="fa-solid fa-wand-magic-sparkles"></i> Template builder</button>
+                <% if(allSeatMaps.length){ %><button class="btn" data-modal="edit" data-type="seat status"><i class="fa-solid fa-chair"></i> Update seat status</button><% } else { %><a class="btn" href="/company/schedules"><i class="fa-regular fa-calendar-plus"></i> Create departure</a><% } %>
+                <a class="btn" href="/company/manifests"><i class="fa-solid fa-file-lines"></i> Open manifest</a>
+              </div>
+            </div>
+            <div class="financeKpis">
+              <div class="financeKpi"><span>Live departures</span><strong><%= allSeatMaps.length %></strong><small>Dated schedules with seat maps</small></div>
+              <div class="financeKpi"><span>Total live seats</span><strong><%= allSeatMaps.reduce((sum,m)=>sum + Number(m.totalSeats || (m.seats || []).length || 0),0) %></strong><small>Across dated departures</small></div>
+              <div class="financeKpi"><span>Booked</span><strong><%= allSeatMaps.reduce((sum,m)=>sum + Number(m.soldSeats || m.bookedSeats || (m.seats || []).filter(s=>/booked|taken|sold/i.test(s.status||'')).length || 0),0) %></strong><small>Confirmed tickets</small></div>
+              <div class="financeKpi"><span>Held / blocked</span><strong><%= allSeatMaps.reduce((sum,m)=>sum + Number(m.blockedSeats || m.heldSeats || (m.seats || []).filter(s=>/block|hold|lock|maintenance/i.test(s.status||'')).length || 0),0) %></strong><small>Pending or restricted</small></div>
+            </div>
+          </div>
+
+          <div class="seatOpsPanel card">
+            <div class="seatOpsHeader">
+              <div>
+                <strong>Filter seat map</strong>
+                <span>Select a route or schedule to load its visual seat map and passenger table below.</span>
+              </div>
+              <span class="badge info">Company scoped</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px">
+              <div class="field" style="margin:0">
+                <label>Route / schedule</label>
+                <div class="control"><i class="fa-solid fa-route"></i>
+                  <select id="seatMapRouteSelector" data-seat-map-select>
+                    <% previewMaps.forEach(function(map, idx){ var mapId = map.scheduleId || map.id || ('seat-map-' + idx); var total = Number(map.totalSeats || (map.seats || []).length || 0); var booked = Number(map.soldSeats || map.bookedSeats || (map.seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0); var held = Number(map.heldSeats || (map.seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0); var blocked = Number(map.blockedSeats || (map.seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0); %>
+                    <option value="<%= mapId %>" data-total="<%= total %>" data-booked="<%= booked %>" data-held="<%= held %>" data-blocked="<%= blocked %>"><%= map.isTemplatePreview ? 'Template preview' : (map.routeLabel || map.listingTitle || 'Route') %> &middot; <%= map.vehicleName || 'Vehicle' %></option>
+                    <% }); %>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Vehicle</label>
+                <div class="control"><i class="fa-solid fa-bus-simple"></i>
+                  <select>
+                    <option value="">All vehicles</option>
+                    <% var _seenVehicles = {}; previewMaps.forEach(function(m){ var vn = m.vehicleName || ''; if(vn && !_seenVehicles[vn]){ _seenVehicles[vn]=1; %><option value="<%= vn %>"><%= vn %></option><% } }); %>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Travel date</label>
+                <div class="control"><i class="fa-regular fa-calendar"></i>
+                  <input type="date">
+                </div>
+              </div>
+              <div class="field" style="margin:0">
+                <label>Status</label>
+                <div class="control"><i class="fa-solid fa-circle-check"></i>
+                  <select>
+                    <option value="">All statuses</option>
+                    <option value="published">Published</option>
+                    <option value="boarding">Boarding</option>
+                    <option value="departed">Departed</option>
+                    <option value="active">Active</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="financeKpis">
+              <div class="financeKpi"><span>Total seats</span><strong data-seat-map-total><%= previewMaps[0] ? Number(previewMaps[0].totalSeats || (previewMaps[0].seats || []).length || 0) : 0 %></strong><small>Selected bus capacity</small></div>
+              <div class="financeKpi"><span>Booked</span><strong data-seat-map-booked><%= previewMaps[0] ? Number(previewMaps[0].soldSeats || previewMaps[0].bookedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /booked|taken|sold/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Confirmed passengers</small></div>
+              <div class="financeKpi"><span>Held</span><strong data-seat-map-held><%= previewMaps[0] ? Number(previewMaps[0].heldSeats || (previewMaps[0].seats || []).filter(function(seat){ return /hold|lock/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Awaiting payment</small></div>
+              <div class="financeKpi"><span>Blocked</span><strong data-seat-map-blocked><%= previewMaps[0] ? Number(previewMaps[0].blockedSeats || (previewMaps[0].seats || []).filter(function(seat){ return /block|maintenance|disabled/i.test(seat.status || ''); }).length || 0) : 0 %></strong><small>Maintenance / restricted</small></div>
+            </div>
+            <div style="margin-top:12px">
+              <% if(allSeatMaps.length){ %><button class="btn btnBlue" type="button" data-seat-map-focus-list><i class="fa-solid fa-table-list"></i> View live table</button><% } else { %><a class="btn btnBlue" href="/company/schedules"><i class="fa-regular fa-calendar-plus"></i> Turn template into live map</a><% } %>
+            </div>
+          </div>
+
+          <div class="card seatMapGridCard seatMapPreviewCard" data-detail-hook="seatMapDetail" data-smoke-marker="Visual seat preview">
+            <div class="cardHead seatPreviewCardHead">
+              <div class="cardTitle"><h3>Visual seat map</h3><p>The seat map below belongs only to the selected route/schedule.</p></div>
+              <div class="seatLegend"><span class="available"><i></i> Available</span><span class="booked"><i></i> Booked</span><span class="held"><i></i> Held</span><span class="selected"><i></i> Selected</span><span class="blocked"><i></i> Blocked / maintenance</span></div>
+            </div>
+            <% if(previewMaps.length){ previewMaps.forEach(function(map, mapIndex){ %>
+              <% const mapId = map.scheduleId || map.id || ('seat-map-' + mapIndex); const rawPreviewSeats = (map.seats || []).slice(0,96); const previewSeats = rawPreviewSeats.map(function(seat, seatIndex){ const clone = Object.assign({}, seat); clone.displaySeatNumber = String(seat.displayLabel || seat.seatNumber || seat.label || (seatIndex + 1)); return clone; }); const layoutName = String(map.layoutName || '2x2').toLowerCase(); const layoutMatch = layoutName.match(/^(\d+)x(\d+)$/); const layoutSides = layoutMatch ? [Number(layoutMatch[1]), Number(layoutMatch[2])] : layoutName === 'sleeper' ? [1,1] : [2,2]; const seatsPerRow = Math.max(1, layoutSides[0] + layoutSides[1]); const rowGroups = {}; previewSeats.forEach(function(seat, seatIndex){ const rowNumber = Number(seat.row || (Math.floor(seatIndex / seatsPerRow) + 1)); if(!rowGroups[rowNumber]) rowGroups[rowNumber] = []; rowGroups[rowNumber].push(seat); }); const rows = Object.keys(rowGroups).sort(function(a,b){ return Number(a)-Number(b); }).map(function(rowNumber){ return rowGroups[rowNumber].sort(function(a,b){ return Number(a.column || a.col || 0)-Number(b.column || b.col || 0); }); }); %>
+              <div class="seatPreviewPanel" data-seat-map-panel="<%= mapId %>" <%= mapIndex === 0 ? '' : 'hidden' %>>
+                <div class="seatPreviewMetaCard">
+                  <div>
+                    <strong><%= map.routeLabel || map.listingTitle || map.scheduleId || 'Seat map' %></strong>
+                    <span><%= map.vehicleName || 'Vehicle' %> · <%= map.departAt || map.travelDate || 'Departure pending' %></span>
+                  </div>
+                  <span class="badge info"><%= map.status || 'active' %></span>
+                </div>
+                <% if(map.isTemplatePreview){ %>
+                  <div class="notice" style="margin:0 0 12px">
+                    <strong>This is the reusable vehicle-template preview, not a live departure yet.</strong>
+                    Create a dated departure under Schedules &amp; Fares and select <%= map.vehicleName || 'this vehicle' %>. Classic Trip will copy these exact labels and seat classes into the live inventory automatically.
+                    <div style="margin-top:10px"><a class="btn btnBlue" href="/company/schedules"><i class="fa-regular fa-calendar-plus"></i> Create dated departure</a></div>
+                  </div>
+                <% } %>
+                <% if(!previewSeats.length){ %>
+                  <div class="notice" style="margin:0 0 12px"><strong>This departure has no persisted seat inventory.</strong> Delete the incomplete departure and create it again after publishing the selected vehicle template. Canonical departures generate their inventory transactionally.</div>
+                <% } %>
+                <div class="busCabin" aria-label="Realistic bus cabin seat map">
+                  <div class="busCabinFront"><div class="busDoor"><i class="fa-solid fa-door-open"></i>&nbsp; Front door</div><div class="busWindshield"><i class="fa-solid fa-bus"></i>&nbsp; Front windshield</div><div class="driverPod"><i class="fa-solid fa-steering-wheel"></i>&nbsp; Driver</div></div>
+                  <div class="busCabinDeck">
+                    <% rows.forEach(function(row){ const sides = [row.slice(0, layoutSides[0]), row.slice(layoutSides[0])]; %>
+                      <div class="busSeatRow" data-layout="<%= layoutName %>">
+                        <% sides.forEach(function(side, sideIndex){ %>
+                          <% if(sideIndex === 1){ %><span class="busAisle" aria-hidden="true"></span><% } %>
+                          <span class="busSeatGroup">
+                            <% side.forEach(function(seat){ const seatDetail = { entity:'seat', id:[seat.scheduleId || map.scheduleId, seat.seatNumber || seat.id].filter(Boolean).join(':'), seat: seat, seatMap: { scheduleId: map.scheduleId, routeLabel: map.routeLabel, vehicleName: map.vehicleName, layoutName: layoutName, status: map.status }, schedule: { id: map.scheduleId, departAt: map.departAt, status: map.status } }; %>
+                              <button class="seat <%= String(seat.status || 'available').toLowerCase() %> <%= seat.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="seat" data-label="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %>" data-row-id="<%= seatDetail.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(seatDetail)) %>" title="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %> - <%= seat.status || 'available' %>"><small>Seat No</small><b><%= seat.displaySeatNumber || seat.seatNumber || seat.id %></b></button>
+                            <% }) %>
+                          </span>
+                        <% }) %>
+                      </div>
+                    <% }) %>
+                  </div>
+                  <div class="busCabinRear"><span class="busRearBadge"><i class="fa-solid fa-person-walking-arrow-right"></i> Rear / emergency exit</span><span><%= previewSeats.length %> seats shown</span></div>
+                </div>
+              </div>
+            <% }) } else { const diagnostics = dashboardData?.seatMapDiagnostics || {}; %>
+              <div class="notice">
+                <% if(Number(diagnostics.scheduleCount || 0) === 0){ %>
+                  <strong>No departure exists yet.</strong> Build the vehicle seat template, then create a dated departure under Schedules & Fares. The live departure seat map is generated automatically from that selected vehicle.
+                <% } else if(Number(diagnostics.templateCount || 0) === 0){ %>
+                  <strong>The departure exists, but its vehicle has no published seat template.</strong> Open Vehicles & reusable seat templates, publish the template, then edit or recreate the departure.
+                <% } else { %>
+                  <strong><%= diagnostics.scheduleCount || 0 %> departure(s) were found, but no usable seat inventory could be resolved.</strong> Check that each departure selects the correct company bus and a published seat-map version. Create or correct the departure so it stores its canonical listing, route, vehicle, fare, seat-map version and generated inventory relationships.
+                <% } %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="card seatMapListCard" id="seatMapListCard">
+            <% if(allSeatMaps.length){ %>
+              <div class="cardHead"><div class="cardTitle"><h3>Selected live seat-map list</h3><p>This table follows the selected dated departure above.</p></div><div class="heroActions"><button class="btn" data-modal="edit" data-type="seat status"><i class="fa-solid fa-pen-to-square"></i> Bulk update seat</button></div></div>
+              <div class="tableWrap"><table><thead><tr><th>Seat map</th><th>Route / listing</th><th>Vehicle</th><th>Total</th><th>Booked</th><th>Held / blocked</th><th>Status</th><th></th></tr></thead><tbody id="companySeatMapsTable"></tbody></table></div>
+              <div class="filterEmpty" data-empty-for="#companySeatMapsTable">No live seat maps match the current filters.</div>
+            <% } else { %>
+              <div class="cardHead"><div class="cardTitle"><h3>Live inventory starts with a dated departure</h3><p>The reusable vehicle template is shown above so you can verify it now. Booked, held and blocked live states begin only after a schedule selects that vehicle.</p></div></div>
+              <div class="notice"><strong>No live inventory table is created from a template alone.</strong> This prevents made-up travel dates, routes, fares and availability. <a href="/company/schedules">Create the dated departure</a> and the table will appear automatically.</div>
+            <% } %>
+          </div>
+
+          <details class="card seatTemplateWorkbench compactSeatTools">
+            <summary><span><i class="fa-solid fa-bus-simple"></i> Vehicle seat templates</span><em>Edit reusable vehicle layouts without crowding the seat preview.</em></summary>
+            <div class="templateToolHeader"><p>Build the reusable seat template first, then publish schedules from it. This avoids entering seats one by one for every departure.</p><button class="btn" data-modal="edit" data-type="vehicle seat template"><i class="fa-solid fa-wand-magic-sparkles"></i> Template builder</button></div>
+            <% if(vehicleTemplates.length){ %>
+              <div class="templateCards">
+                <% vehicleTemplates.forEach(function(vehicle){ const vDetail = { entity:'vehicle', id: vehicle.id, vehicle: vehicle, seatMapTemplate: vehicle.template || {}, seatMapVersion: vehicle.version || {} }; const seats = (vehicle.seats || []).slice(0,96); %>
+                  <article class="templateCard"><div class="templateCardTop"><div><strong><%= vehicle.name || vehicle.plateOrCode || 'Vehicle template' %></strong><span><%= vehicle.layoutName || '2x2' %> · <%= vehicle.totalSeats || seats.length || 0 %> seats · <%= vehicle.seatMapStatus || vehicle.templateStatus || 'active' %><% if(vehicle.seatMapVersion){ %> · version <%= vehicle.seatMapVersion %><% } %></span></div><button class="tinyBtn" data-modal="edit" data-type="vehicle seat template" data-label="<%= vehicle.name || vehicle.plateOrCode || 'Vehicle' %>" data-row-id="<%= vehicle.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(vDetail)) %>" title="Edit seat template"><i class="fa-solid fa-pen"></i></button></div><div class="seatPreviewMini"><% if(seats.length){ seats.forEach(function(seat){ %><span class="seatChip <%= String(seat.seatClass || seat.seatType || '').toLowerCase() %> <%= String(seat.status || '').toLowerCase() %>">Seat <%= seat.displayLabel || seat.seatNumber || seat.label %></span><% }) } else { %><span class="muted">No published seats yet. Open the template builder to generate the first version.</span><% } %></div></article>
+                <% }) %>
+              </div>
+            <% } else { %><div class="notice">No vehicle templates yet. Add a bus/vehicle, then build its seat template.</div><% } %>
+          </details>
+        </div>
+      </section>

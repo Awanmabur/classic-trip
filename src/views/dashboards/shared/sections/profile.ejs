@@ -1,0 +1,38 @@
+<section class="section" id="profile">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3><i class="fa-solid fa-user-gear"></i> My profile</h3>
+                <p>Update staff contact details and shift notes without leaving the employee dashboard.</p>
+              </div>
+              <span class="badge ok"><%= employeeProfileData.status || 'active' %></span>
+            </div>
+            <form class="formPanel" method="POST" action="/employee/profile">
+              <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+              <div class="formGrid">
+                <div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= employeeProfileName %>" required></div></div>
+                <div class="field"><label>Email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" value="<%= employeeProfileData.email || '' %>"></div></div>
+                <div class="field"><label>Phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" value="<%= employeeProfileData.phone || '' %>"></div></div>
+                <div class="field"><label>Shift</label><div class="control"><i class="fa-solid fa-clock"></i><input name="shift" value="<%= employeeProfileShift %>"></div></div>
+                <div class="field full"><label>Notes</label><div class="control"><textarea name="notes"><%= employeeProfileData.notes || '' %></textarea></div></div>
+              </div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save profile</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3>Staff access</h3>
+                <p>Profile, company scope, and permissions are shown from the same dashboard payload as the rest of the employee pages.</p>
+              </div>
+            </div>
+            <div class="splitGrid">
+              <div class="splitItem"><div class="splitTop"><span>Role</span><span class="badge info"><%= employeeProfileRoleTitle %></span></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Branch</span><strong><%= employeeProfileBranch %></strong></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Company</span><strong><%= employeeProfileData.company || employeeCompanyName %></strong></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Permissions</span><span class="badge ok"><%= employeeProfileData.permissionsLabel || 'checkin.assist, booking.view' %></span></div></div>
+            </div>
+          </div>
+        </div>
+      </section>

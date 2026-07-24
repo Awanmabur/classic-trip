@@ -1,0 +1,15 @@
+<%- include('../../partials/site-head', { seo }) %>
+<main class="container paymentPage" style="min-height:100vh;display:grid;place-items:center;padding:28px 0">
+  <section class="sheet" style="max-width:520px;width:94%">
+    <% if (Array.isArray(flashMessages) && flashMessages.length) { %><div style="display:grid;gap:8px;margin-bottom:12px"><% flashMessages.forEach(message => { %><div class="listing" role="alert" style="padding:12px"><%= message.text %></div><% }) %></div><% } %>
+    <div class="badge badgeInfo"><i class="fa-solid fa-shield-halved"></i> Administrator verification</div>
+    <div class="sheetTitle" style="margin-top:12px">Enter your second factor</div>
+    <div class="sheetSub">Password verification succeeded for <%= identity || 'this administrator account' %>. Enter a current authenticator code or one unused recovery code.</div>
+    <form method="post" action="/auth/mfa/challenge" style="display:grid;gap:12px;margin-top:18px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+      <input name="code" autocomplete="one-time-code" inputmode="text" placeholder="Six-digit code or recovery code" required autofocus>
+      <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-right-to-bracket"></i> Verify and continue</button>
+      <a class="btn btnGhost" href="/login">Cancel and sign in again</a>
+    </form>
+  </section>
+</main>

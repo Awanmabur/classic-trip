@@ -10,7 +10,7 @@ const blogPostSchema = new Schema({
   image: String,
   imageAlt: String,
   media: mediaSchema,
-  status: { type: String, default: 'published', index: true },
+  status: { type: String, default: 'published', index: true, enum: ['published'] },
   publishedAt: Date,
 }, { timestamps: true });
 

@@ -1,22 +1,22 @@
-const store = require('../../services/data/persistentStore');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
+const { resolvePromoterId } = require('../../utils/promoterScope');
 
 async function index(req, res, next) {
   try {
-    const promoterId = req.session?.user?.id || 'user-promoter-001';
+    const promoterId = resolvePromoterId(req);
     const dashboardData = await mongoDashboardService.roleDashboard('promoter', { promoterId });
     const notificationContext = { promoterId };
-    const notificationRows = notificationService.dashboardRows('promoter', notificationContext);
-    res.render('dashboards/admin/index', {
+    const [notificationRows, notificationCount] = await Promise.all([notificationService.dashboardRowsLive('promoter', notificationContext), notificationService.unreadCountLive('promoter', notificationContext)]);
+    res.render('dashboards/promoter/index', {
       seo: { title: 'Promoter dashboard | Classic Trip' },
       dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: SERVICE_DASHBOARDS, roles: ROLE_DASHBOARD_FEATURES } },
       dashboardShell: buildDashboardShell('promoter', {
         user: req.session?.user,
         notifications: notificationRows,
-        notificationCount: notificationService.unreadCount('promoter', notificationContext),
+        notificationCount,
         activePage: req.params?.page || (String(req.path || '').split('/').filter(Boolean).pop() === 'dashboard' ? 'overview' : String(req.path || '').split('/').filter(Boolean).pop()),
       }),
     });

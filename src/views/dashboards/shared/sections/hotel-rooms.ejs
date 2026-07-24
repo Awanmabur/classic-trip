@@ -1,0 +1,196 @@
+<%
+  const hotelSubview = dashboardData?.hotelSubview || 'properties';
+  const hotelCounts = {
+    listings: (dashboardData?.options?.hotelListings || []).length,
+    properties: (dashboardData?.hotelProperties || []).length,
+    roomTypes: (dashboardData?.roomTypes || []).length,
+    ratePlans: (dashboardData?.ratePlans || []).length,
+    roomUnits: (dashboardData?.roomUnits || []).length,
+    roomNights: (dashboardData?.roomNightInventory || []).length,
+  };
+  const hotelSetupComplete = [hotelCounts.listings, hotelCounts.properties, hotelCounts.roomTypes, hotelCounts.ratePlans, hotelCounts.roomUnits, hotelCounts.roomNights].filter(Boolean).length;
+  const housekeepingRows = dashboardData?.hotelHousekeepingTasks || [];
+  const housekeepingText = function(task){ return String(Array.isArray(task) ? task.join(' ') : [task?.status, task?.taskType, task?.housekeepingStatus, task?.priority].filter(Boolean).join(' ') || task || '').toLowerCase(); };
+  const openHousekeepingCount = housekeepingRows.filter(function(task){ return /open|in_progress|blocked|cleaning|dirty|inspection|maintenance/.test(housekeepingText(task)) && !/completed|cancelled|closed/.test(housekeepingText(task)); }).length;
+  const cleaningCount = housekeepingRows.filter(function(task){ return /cleaning|dirty|inspection/.test(housekeepingText(task)) && !/completed|cancelled|closed/.test(housekeepingText(task)); }).length;
+  const maintenanceCount = housekeepingRows.filter(function(task){ return /maintenance|blocked/.test(housekeepingText(task)) && !/completed|cancelled|closed/.test(housekeepingText(task)); }).length;
+%>
+<section class="section" id="hotel-rooms">
+  <div class="hotelOpsLayout hotelOpsLayoutSingle">
+    <div class="card hotelOpsMain">
+      <div class="cardHead hotelOpsHeader">
+        <div class="cardTitle">
+          <span class="hotelSectionEyebrow"><i class="fa-solid fa-hotel"></i> Hotel inventory</span>
+          <h3>Properties, rooms and availability</h3>
+          <p>Build each hotel in one safe order. The public listing attracts customers; the property, room types, rate plans, physical rooms and dated inventory make it bookable.</p>
+        </div>
+        <div class="hotelReadinessBadge">
+          <span><%= hotelSetupComplete %> of 6 setup stages ready</span>
+          <strong><%= hotelSetupComplete === 6 ? 'Bookable chain ready' : 'Continue setup' %></strong>
+        </div>
+      </div>
+
+      <div class="hotelSetupBlock">
+        <div class="hotelBlockHeading">
+          <div><h4>Hotel setup journey</h4><p>Complete these connected records in order. A later step always selects the record created before it.</p></div>
+          <a class="btn" href="/company/listings"><i class="fa-solid fa-layer-group"></i> Open public listings</a>
+        </div>
+        <div class="hotelSetupJourney">
+          <article class="hotelSetupStep <%= hotelCounts.listings ? 'is-ready' : 'is-next' %>">
+            <span class="hotelStepNumber">1</span><div class="hotelStepCopy"><strong>Public hotel listing</strong><span>Customer-facing hotel page, media, location and policies.</span><b><%= hotelCounts.listings %> listing<%= hotelCounts.listings === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="listing" title="Create hotel listing"><i class="fa-solid fa-plus"></i></button>
+          </article>
+          <article class="hotelSetupStep <%= hotelCounts.properties ? 'is-ready' : (hotelCounts.listings ? 'is-next' : '') %>">
+            <span class="hotelStepNumber">2</span><div class="hotelStepCopy"><strong>Property profile</strong><span>Operational property, check-in rules, taxes and facilities.</span><b><%= hotelCounts.properties %> propert<%= hotelCounts.properties === 1 ? 'y' : 'ies' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="hotel property" title="Add property"><i class="fa-solid fa-plus"></i></button>
+          </article>
+          <article class="hotelSetupStep <%= hotelCounts.roomTypes ? 'is-ready' : (hotelCounts.properties ? 'is-next' : '') %>">
+            <span class="hotelStepNumber">3</span><div class="hotelStepCopy"><strong>Room types</strong><span>Occupancy, beds, amenities and reusable room category.</span><b><%= hotelCounts.roomTypes %> type<%= hotelCounts.roomTypes === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="room type" title="Add room type"><i class="fa-solid fa-plus"></i></button>
+          </article>
+          <article class="hotelSetupStep <%= hotelCounts.ratePlans ? 'is-ready' : (hotelCounts.roomTypes ? 'is-next' : '') %>">
+            <span class="hotelStepNumber">4</span><div class="hotelStepCopy"><strong>Rate plans</strong><span>Price, meals, cancellation and stay restrictions.</span><b><%= hotelCounts.ratePlans %> plan<%= hotelCounts.ratePlans === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="rate plan" title="Add rate plan"><i class="fa-solid fa-plus"></i></button>
+          </article>
+          <article class="hotelSetupStep <%= hotelCounts.roomUnits ? 'is-ready' : (hotelCounts.ratePlans ? 'is-next' : '') %>">
+            <span class="hotelStepNumber">5</span><div class="hotelStepCopy"><strong>Physical room units</strong><span>Real room numbers, floors, views and housekeeping state.</span><b><%= hotelCounts.roomUnits %> unit<%= hotelCounts.roomUnits === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="room units" title="Add room units"><i class="fa-solid fa-plus"></i></button>
+          </article>
+          <article class="hotelSetupStep <%= hotelCounts.roomNights ? 'is-ready' : (hotelCounts.roomUnits ? 'is-next' : '') %>">
+            <span class="hotelStepNumber">6</span><div class="hotelStepCopy"><strong>Dated inventory</strong><span>Sellable room nights for real dates and rate plans.</span><b><%= hotelCounts.roomNights %> night<%= hotelCounts.roomNights === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="room night inventory" title="Add dated inventory"><i class="fa-solid fa-plus"></i></button>
+          </article>
+        </div>
+      </div>
+
+      <div class="hotelDailyBlock">
+        <div class="hotelBlockHeading compact"><div><h4>Today’s hotel operations</h4><p>Open the operational queue that needs attention.</p></div></div>
+        <div class="hotelOpsNudge">
+          <a class="miniStat miniStatLink" href="/company/arrivals"><span>Arrivals today</span><strong><%= (dashboardData?.hotelArrivals || []).length %></strong><small>Check-in queue</small></a>
+          <a class="miniStat miniStatLink" href="/company/in-house-guests"><span>In-house stays</span><strong><%= (dashboardData?.hotelInHouse || []).length %></strong><small>Current guests</small></a>
+          <a class="miniStat miniStatLink" href="/company/departures"><span>Departures today</span><strong><%= (dashboardData?.hotelDepartures || []).length %></strong><small>Checkout queue</small></a>
+          <a class="miniStat miniStatLink" href="/company/housekeeping"><span>Housekeeping</span><strong><%= openHousekeepingCount %></strong><small>Open room tasks</small></a>
+          <a class="miniStat miniStatLink" href="/company/housekeeping"><span>Maintenance</span><strong><%= maintenanceCount %></strong><small>Blocked rooms</small></a>
+        </div>
+      </div>
+
+      <div class="innerTabs hotelOpsTabs" data-tab-group="hotel-company-tabs">
+        <button type="button" class="tabBtn <%= hotelSubview === 'properties' ? 'is-on' : '' %>" data-tab-target="hotel-properties-pane"><i class="fa-solid fa-hotel"></i> Properties <em><%= hotelCounts.properties %></em></button>
+        <button type="button" class="tabBtn <%= hotelSubview === 'room-types' ? 'is-on' : '' %>" data-tab-target="hotel-room-types-pane"><i class="fa-solid fa-bed"></i> Room types <em><%= hotelCounts.roomTypes %></em></button>
+        <button type="button" class="tabBtn <%= hotelSubview === 'rate-plans' ? 'is-on' : '' %>" data-tab-target="hotel-rate-plans-pane"><i class="fa-solid fa-tags"></i> Rate plans <em><%= hotelCounts.ratePlans %></em></button>
+        <button type="button" class="tabBtn <%= hotelSubview === 'room-units' ? 'is-on' : '' %>" data-tab-target="hotel-room-units-pane"><i class="fa-solid fa-door-open"></i> Room units <em><%= hotelCounts.roomUnits %></em></button>
+        <button type="button" class="tabBtn <%= hotelSubview === 'room-calendar' ? 'is-on' : '' %>" data-tab-target="hotel-room-nights-pane"><i class="fa-regular fa-calendar"></i> Calendar <em><%= hotelCounts.roomNights %></em></button>
+        <button type="button" class="tabBtn <%= hotelSubview === 'housekeeping' ? 'is-on' : '' %>" data-tab-target="hotel-housekeeping-pane"><i class="fa-solid fa-broom"></i> Housekeeping <em><%= openHousekeepingCount %></em></button>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'properties' ? 'is-open' : '' %>" id="hotel-properties-pane">
+        <div class="hotelPaneHeader"><div><h4>Properties</h4><p>Connect each operational property to one existing public hotel listing.</p></div><button class="btn btnBlue" data-modal="create" data-type="hotel property"><i class="fa-solid fa-plus"></i> Add property</button></div>
+        <div class="dashboardFilters" data-filter-target="#companyHotelPropertiesTable">
+          <div class="field"><label>Search properties</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Property, type, listing, city, amenity"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Property</th><th>Type</th><th>Public listing</th><th>Location</th><th>Check-in/out</th><th>Amenities</th><th>Status</th><th></th></tr></thead><tbody id="companyHotelPropertiesTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyHotelPropertiesTable">No hotel properties match the current filters.</div>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'room-types' ? 'is-open' : '' %>" id="hotel-room-types-pane">
+        <div class="hotelPaneHeader"><div><h4>Room types</h4><p>Create reusable categories such as Standard Double, Family Room or Executive Suite.</p></div><button class="btn btnBlue" data-modal="create" data-type="room type"><i class="fa-solid fa-plus"></i> Add room type</button></div>
+        <div class="dashboardFilters" data-filter-target="#companyRoomTypesTable">
+          <div class="field"><label>Search room types</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Room type, property, beds, occupancy, price"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Room type</th><th>Property</th><th>Occupancy</th><th>Beds</th><th>Base price</th><th>Units</th><th>Status</th><th></th></tr></thead><tbody id="companyRoomTypesTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyRoomTypesTable">No room types match the current filters.</div>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'rate-plans' ? 'is-open' : '' %>" id="hotel-rate-plans-pane">
+        <div class="hotelPaneHeader"><div><h4>Rate plans</h4><p>Attach price, meal, occupancy, cancellation and minimum-stay rules to a room type.</p></div><button class="btn btnBlue" data-modal="create" data-type="rate plan"><i class="fa-solid fa-plus"></i> Add rate plan</button></div>
+        <div class="dashboardFilters" data-filter-target="#companyRatePlansTable">
+          <div class="field"><label>Search rate plans</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Rate plan, room type, meal, cancellation"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Rate plan</th><th>Room type</th><th>Property</th><th>Meal plan</th><th>Cancellation</th><th>Base price</th><th>Stay limits</th><th>Status</th><th></th></tr></thead><tbody id="companyRatePlansTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyRatePlansTable">No rate plans match the current filters.</div>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'room-units' ? 'is-open' : '' %>" id="hotel-room-units-pane">
+        <div class="hotelPaneHeader"><div><h4>Physical room units</h4><p>Add the real room numbers used by reception, housekeeping and room-night allocation.</p></div><button class="btn btnBlue" data-modal="create" data-type="room units"><i class="fa-solid fa-plus"></i> Add room units</button></div>
+        <div class="dashboardFilters" data-filter-target="#companyRoomUnitsTable">
+          <div class="field"><label>Search units</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Room number, type, floor, view, housekeeping"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="cleaning">Cleaning</option><option value="reserved">Reserved</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Unit</th><th>Type</th><th>Property</th><th>Location</th><th>View</th><th>Housekeeping</th><th>Status</th><th></th></tr></thead><tbody id="companyRoomUnitsTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyRoomUnitsTable">No room units match the current filters.</div>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'room-calendar' ? 'is-open' : '' %>" id="hotel-room-nights-pane">
+        <div class="hotelPaneHeader"><div><h4>Dated room inventory</h4><p>Create only real sellable dates. Availability is never invented from a room template.</p></div><button class="btn btnBlue" data-modal="create" data-type="room night inventory"><i class="fa-regular fa-calendar-plus"></i> Add inventory</button></div>
+        <div class="hotelCalendarWorkbench">
+          <div class="hotelCalendarTop">
+            <div><h4><i class="fa-regular fa-calendar-days"></i> Room-night calendar</h4><p>Filter dated inventory and click a room-night to inspect booking, guest, rate plan, or operational status.</p></div>
+            <div class="hotelCalendarActions"><button class="btn" data-modal="create" data-type="hotel booking"><i class="fa-solid fa-bed"></i> Manual booking</button></div>
+          </div>
+          <div class="hotelCalendarControls" data-hotel-calendar-controls>
+            <div class="field"><label>Search room / guest</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input id="hotelCalendarSearch" placeholder="Room, guest, booking, type"></div></div>
+            <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select id="hotelCalendarStatus"><option value="">All statuses</option><option value="available">Available</option><option value="held">Held / reserved</option><option value="booked">Booked / occupied</option><option value="cleaning">Cleaning</option><option value="maintenance">Maintenance</option><option value="checked_out">Checked out</option></select></div></div>
+            <div class="field"><label>From</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="hotelCalendarStart"></div></div>
+            <div class="field"><label>Days</label><div class="control"><i class="fa-solid fa-table-cells"></i><select id="hotelCalendarDays"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></div></div>
+            <div class="filterActions"><button class="btn" type="button" id="hotelCalendarReset"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+          </div>
+          <div class="hotelCalLegend"><span class="available"><i></i>Available</span><span class="held"><i></i>Held / reserved</span><span class="booked"><i></i>Booked / occupied</span><span class="cleaning"><i></i>Cleaning</span><span class="maintenance"><i></i>Maintenance</span><span class="out"><i></i>Checked out</span></div>
+          <div class="hotelCalendarGridWrap"><div id="hotelRoomCalendarGrid" class="hotelCalendarGrid" style="--hotel-days:7"><div class="hotelCalHead">Room</div><div class="hotelCalHead">Calendar loading</div></div></div>
+        </div>
+        <div class="dashboardFilters hotelNightFilters" data-filter-target="#companyRoomNightInventoryTable">
+          <div class="field"><label>Search nights</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Date, room, rate plan, guest, booking"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="available">Available</option><option value="held">Held</option><option value="booked">Booked</option><option value="checked_in">Checked-in</option><option value="checked_out">Checked-out</option><option value="maintenance">Maintenance</option><option value="cleaning">Cleaning</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Date</th><th>Unit</th><th>Type</th><th>Rate plan</th><th>Status</th><th>Booking</th><th>Guest</th><th>Price</th><th></th></tr></thead><tbody id="companyRoomNightInventoryTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyRoomNightInventoryTable">No room-night records match the current filters.</div>
+      </div>
+
+      <div class="tabPane hotelOpsPane <%= hotelSubview === 'housekeeping' ? 'is-open' : '' %>" id="hotel-housekeeping-pane">
+        <div class="hotelPaneHeader"><div><h4>Housekeeping and maintenance</h4><p>Track room cleaning, inspection, maintenance blocks and assignment status.</p></div><a class="btn" href="/company/room-calendar"><i class="fa-regular fa-calendar"></i> View room calendar</a></div>
+        <div class="hotelOpsNudge housekeepingStats">
+          <div class="metricTile"><strong id="hkOpenCount"><%= openHousekeepingCount %></strong><span>Open tasks</span></div>
+          <div class="metricTile"><strong id="hkCleaningCount"><%= cleaningCount %></strong><span>Cleaning now</span></div>
+          <div class="metricTile"><strong id="hkMaintenanceCount"><%= maintenanceCount %></strong><span>Maintenance</span></div>
+        </div>
+        <div class="dashboardFilters" data-filter-target="#companyHousekeepingTable">
+          <div class="field"><label>Search housekeeping</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Room, property, assignee, task type"></div></div>
+          <div class="field"><label>Task status</label><div class="control"><i class="fa-solid fa-list-check"></i><select data-filter-select><option value="">All</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></select></div></div>
+          <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+        </div>
+        <div class="tableWrap"><table><thead><tr><th>Room</th><th>Type</th><th>Property</th><th>Task</th><th>Priority</th><th>Assigned to</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="companyHousekeepingTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyHousekeepingTable">No housekeeping tasks match the current filters.</div>
+      </div>
+    </div>
+
+    <div class="card hotelRoomMapCard">
+      <div class="cardHead"><div class="cardTitle"><h3>Room visual map</h3><p>Click a physical room to inspect its stay, guest, housekeeping and dated inventory details.</p></div><a class="btn" href="/company/room-calendar"><i class="fa-regular fa-calendar"></i> Open calendar</a></div>
+      <div class="seatLegend"><span class="available"><i></i> Available</span><span class="booked"><i></i> Booked / occupied</span><span class="held"><i></i> Held / reserved</span><span class="blocked"><i></i> Maintenance / cleaning</span></div>
+      <% const roomMaps = (dashboardData?.roomVisualMaps || []).slice(0,8); %>
+      <% if(roomMaps.length){ roomMaps.forEach(function(map){ %>
+        <div class="splitTop hotelRoomMapTitle"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Hotel rooms' %> · <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
+        <div class="seatGrid roomGrid"><% (map.rooms || []).slice(0,160).forEach(function(room){ %>
+          <% const roomDetail = { entity:'room_unit', id: room.roomUnitId, roomUnit: room, roomType: { id: map.roomTypeId, name: map.roomTypeName }, property: { propertyName: map.propertyName }, listing: { id: map.listingId, title: map.listingTitle } }; %>
+          <button class="seat roomTile <%= String(room.status || '').toLowerCase() %> <%= room.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="room unit" data-label="<%= room.unitNumber || room.roomUnitId %>" data-row-id="<%= room.roomUnitId %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(roomDetail)) %>"><%= room.unitNumber || room.roomUnitId %></button>
+        <% }) %></div>
+      <% }) } else { %><div class="notice hotelEmptyNotice"><strong>No room map yet.</strong> Complete the setup journey above: public listing, property, room type, rate plan, physical rooms and dated inventory.</div><% } %>
+    </div>
+  </div>
+
+  <% if (isCompanyDashboard && companySupportsHotel) { %>
+    <div class="card hotelExtrasCard">
+      <div class="cardHead">
+        <div class="cardTitle"><h3>Optional hotel extras</h3><p>Breakfast, transfers, parking, late checkout, extra beds, meal plans, spa access and custom extras. Partner-entered prices are recalculated by the server at checkout.</p></div>
+        <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-plus"></i> Add hotel extra</button>
+      </div>
+      <div class="tableWrap"><table><thead><tr><th>Extra</th><th>Hotel listing</th><th>Category</th><th>Unit price</th><th>Charged</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="companyServiceAddonsTable"></tbody></table></div>
+    </div>
+  <% } %>
+</section>

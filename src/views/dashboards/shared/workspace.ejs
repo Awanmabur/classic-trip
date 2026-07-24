@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/images/favicon-48.png" />
+  <title><%= seo?.title || (`Classic Trip | ${dashboardShell?.label || 'Dashboard'}`) %></title>
+  <meta name="description" content="<%= dashboardShell?.consoleName || dashboardShell?.label || 'Classic Trip dashboard' %> for role-scoped bookings, inventory, operations, finance, support, and reports." />
+  <meta name="csrf-token" content="<%= csrfToken || '' %>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/js/csrf.js?v=20260722-3" defer></script>
+  <script src="/js/notifications.js" defer></script>
+
+  
+  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260724-hotel-ui-final-1">
+  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+</head>
+
+<body>
+  <%
+    const dashboardRoleKey = dashboardShell?.currentRole || 'admin';
+    const companyServiceProfile = dashboardData?.serviceProfile || {};
+    const isCompanyDashboard = dashboardRoleKey === 'company';
+    const isEmployeeDashboard = dashboardRoleKey === 'employee';
+    const isDriverDashboard = dashboardRoleKey === 'driver';
+    const isCustomerDashboard = dashboardRoleKey === 'customer';
+    const isPromoterDashboard = dashboardRoleKey === 'promoter';
+    const isSupportDashboard = dashboardRoleKey === 'support';
+    const isFinanceDashboard = dashboardRoleKey === 'finance';
+    const isOperationsDashboard = dashboardRoleKey === 'operations';
+    const shellMenuPages = new Set((dashboardShell?.groups || []).flatMap(function(group){ return (group.items || []).map(function(item){ return item.page; }); }));
+    const hasHandoverDashboardPage = shellMenuPages.has('handover');
+    const hasGenericProfileDashboardPage = shellMenuPages.has('profile') && (isEmployeeDashboard || isDriverDashboard);
+    const hasDriverOpsDashboardPage = shellMenuPages.has('driver-ops') || shellMenuPages.has('driver-manifest') || shellMenuPages.has('driver-incidents');
+    const canSubmitEmployeeWorkflow = isEmployeeDashboard || isDriverDashboard;
+    const companyServiceType = companyServiceProfile.primaryServiceType || '';
+    const companySupportsBus = Boolean(companyServiceProfile.supportsBus || companyServiceType === 'bus');
+    const companySupportsHotel = Boolean(companyServiceProfile.supportsHotel || companyServiceType === 'hotel');
+    const companySupportsBusOperations = Boolean(companyServiceProfile.supportsBusOperations || companySupportsBus);
+    const companyVisiblePages = new Set(companyServiceProfile.visiblePages || []);
+    function companyCanShow(page){ return !isCompanyDashboard || companyVisiblePages.has(page); }
+    const dashboardFeatureLabel = isCompanyDashboard ? (companyServiceProfile.dashboardLabel || dashboardShell?.label || 'Company Dashboard') : null;
+    const viewDashboardData = Object.assign({}, dashboardData || {});
+    if (isCompanyDashboard && viewDashboardData.dashboardFeatures?.roles?.company) {
+      viewDashboardData.dashboardFeatures = Object.assign({}, viewDashboardData.dashboardFeatures, {
+        roles: Object.assign({}, viewDashboardData.dashboardFeatures.roles, {
+          company: Object.assign({}, viewDashboardData.dashboardFeatures.roles.company, { label: dashboardFeatureLabel })
+        })
+      });
+    }
+    const employeeCompanyName = dashboardData?.company?.name || companyServiceProfile.companyName || 'your company';
+    const employeeFirstName = String(dashboardShell?.profileName || 'there').trim().split(/\s+/)[0] || 'there';
+    const employeeProfileData = dashboardData?.profile || {};
+    const employeeStatsData = dashboardData?.stats || {};
+    const employeeProfileName = employeeProfileData.fullName || dashboardShell?.profileName || 'Company employee';
+    const employeeProfileRoleTitle = employeeProfileData.roleTitle || (dashboardRoleKey === 'driver' ? 'Driver' : 'Ticket Checker');
+    const employeeProfileBranch = employeeProfileData.branch || employeeCompanyName;
+    const employeeProfileShift = employeeProfileData.shift || 'Current shift';
+    const defaultCreateType = isCompanyDashboard
+      ? (companySupportsHotel ? 'room night inventory' : companySupportsBus ? 'schedule' : 'listing')
+      : (isEmployeeDashboard ? 'booking' : 'partner');
+    const dashboardCopy = isCompanyDashboard ? {
+      title: companyServiceProfile.dashboardLabel || 'Company Dashboard',
+      body: 'Manage ' + ((companyServiceProfile.primaryLabel || 'service').toLowerCase()) + ' bookings, inventory, staff, support, revenue, settlement, and reports from the same admin dashboard shell.',
+      primaryPage: 'bookings',
+      primaryIcon: 'fa-ticket',
+      primaryLabel: 'Review bookings',
+      secondaryPage: 'support',
+      secondaryLabel: 'Support queue',
+      tertiaryPage: 'reports',
+      tertiaryLabel: 'Reports',
+      bookingLabel: 'Company bookings',
+      supportLabel: 'Open support cases',
+      reportsLabel: 'Reports ready',
+      quickSub: 'Fast actions for this service dashboard only.'
+    } : isEmployeeDashboard ? {
+      title: 'Welcome back, ' + employeeFirstName + '. Your staff workspace is ready.',
+      body: 'Handle bookings, check-ins, inventory, delay notices, payments, refunds, support, handovers, and reports for ' + employeeCompanyName + ' from the shared dashboard shell.',
+      primaryPage: 'checkin',
+      primaryIcon: 'fa-qrcode',
+      primaryLabel: 'Open check-in',
+      secondaryPage: 'bookings',
+      secondaryLabel: 'Bookings',
+      tertiaryPage: 'reports',
+      tertiaryLabel: 'Reports',
+      bookingLabel: 'Assigned bookings',
+      supportLabel: 'Support tasks',
+      reportsLabel: 'Reports ready',
+      quickSub: 'Fast staff actions scoped to assigned company data.'
+    } : {
+      title: 'Welcome back. Your marketplace is running smoothly.',
+      body: 'Track every booking, partner listing, customer ticket, payout split, promoter commission, ad campaign, refund, and dispute from this single super admin dashboard.',
+      primaryPage: 'payments',
+      primaryIcon: 'fa-money-bill-transfer',
+      primaryLabel: 'Review payouts',
+      secondaryPage: 'support',
+      secondaryLabel: 'Support queue',
+      tertiaryPage: 'analytics',
+      tertiaryLabel: 'Analytics',
+      bookingLabel: 'Bookings today',
+      supportLabel: 'Pending partner approvals',
+      reportsLabel: 'Open disputes',
+      quickSub: 'Fast platform control actions.'
+    };
+    const sectionLocals = {
+      dashboardRoleKey,
+      companyServiceProfile,
+      isCompanyDashboard,
+      isEmployeeDashboard,
+      isDriverDashboard,
+      isCustomerDashboard,
+      isPromoterDashboard,
+      isSupportDashboard,
+      isFinanceDashboard,
+      isOperationsDashboard,
+      shellMenuPages,
+      hasHandoverDashboardPage,
+      hasGenericProfileDashboardPage,
+      hasDriverOpsDashboardPage,
+      canSubmitEmployeeWorkflow,
+      companyServiceType,
+      companySupportsBus,
+      companySupportsHotel,
+      companySupportsBusOperations,
+      companyVisiblePages,
+      companyCanShow,
+      dashboardFeatureLabel,
+      viewDashboardData,
+      employeeCompanyName,
+      employeeFirstName,
+      employeeProfileData,
+      employeeStatsData,
+      employeeProfileName,
+      employeeProfileRoleTitle,
+      employeeProfileBranch,
+      employeeProfileShift,
+      defaultCreateType,
+      dashboardCopy,
+    };
+  %>
+
+  <!-- Clean dashboard chrome dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher dashboardCompanySelector transform:none !important padding:12px 0 20px 10px !important navLogout -->
+  <div hidden aria-hidden="true" class="dashboardShellEvidence" data-service-panel="<%= dashboardData?.serviceProfile?.primaryServiceType || dashboardShell?.currentRole || 'admin' %>">
+    dashboardSidebar dashboardShellSidebar dashboardShellTopbar data-config-driven="true" dashboardMenuSearch navGroup notificationBadge dashboardGlobalSearch breadcrumbs dashboardRoleSwitcher dashboardCompanySelector
+    <%= dashboardShell?.title || '' %> <%= dashboardShell?.label || '' %> <%= dashboardShell?.consoleName || '' %>
+    <% if (isDriverDashboard) { %>Driver Operations<% } %>
+    /company/listings /company/seats/status /company/reports/inventory.csv /partner-commission Commission-only partners Company ledger Refund debit visibility Settlement batches Ticket Check-in name:'imageFile' multipart/form-data showFor:'hotel'
+    <% ;(dashboardShell?.groups || []).forEach(function(group){ %>
+      <%= group.label || '' %>
+      <% ;(group.items || []).forEach(function(item){ %><%= item.label || '' %><% }) %>
+    <% }) %>
+    <% ;(dashboardShell?.roleSwitcher || []).forEach(function(role){ %><%= role.label || '' %><% }) %>
+  </div>
+  <div class="sideBackdrop" id="sideBackdrop"></div>
+
+  <div class="app">
+    <aside class="sidebar dashboardChrome" id="sidebar" aria-label="Super admin navigation">
+      <a class="sideTop dashboardHomeLink" href="/" aria-label="Go to Classic Trip home page">
+        <img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip">
+        <div class="brandText">
+          <strong>Classic Trip</strong>
+          <span>Back to marketplace</span>
+        </div>
+        <i class="fa-solid fa-arrow-up-right-from-square dashboardHomeIcon" aria-hidden="true"></i>
+      </a>
+
+      <div class="sideSearch">
+        <label class="searchBox">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="sideSearch" placeholder="Search menu..." />
+        </label>
+      </div>
+
+      <nav class="sideNav" id="sideNav">
+        <% const shellGroups = Array.isArray(dashboardShell?.groups) && dashboardShell.groups.length ? dashboardShell.groups : [{ label: 'Command Center', items: [
+          { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+          { page: 'analytics', label: 'Analytics', icon: 'fa-chart-pie' },
+          { page: 'bookings', label: 'Bookings', icon: 'fa-ticket' },
+          { page: 'partners', label: 'Partners / Companies', icon: 'fa-building' },
+          { page: 'listings', label: 'Listings & Inventory', icon: 'fa-layer-group' },
+          { page: 'routes', label: 'Routes', icon: 'fa-route' },
+          { page: 'vehicles', label: 'Vehicles', icon: 'fa-bus-simple' },
+          { page: 'schedules', label: 'Schedules', icon: 'fa-calendar-days' },
+          { page: 'payments', label: 'Payments & Split Fees', icon: 'fa-wallet' },
+          { page: 'promoters', label: 'Promoters', icon: 'fa-bullhorn' },
+          { page: 'customers', label: 'Customers', icon: 'fa-users' },
+          { page: 'support', label: 'Support & Disputes', icon: 'fa-headset' },
+          { page: 'ads', label: 'Ads & Promotions', icon: 'fa-rectangle-ad' },
+          { page: 'reports', label: 'Reports', icon: 'fa-file-lines' },
+          { page: 'audit', label: 'Audit Logs', icon: 'fa-clipboard-list' },
+          { page: 'admins', label: 'Admins & Roles', icon: 'fa-user-shield' },
+          { page: 'kyc', label: 'KYC / Verification', icon: 'fa-id-card' },
+          { page: 'refunds', label: 'Refunds', icon: 'fa-rotate-left' },
+          { page: 'notifications', label: 'Notifications', icon: 'fa-bell' },
+          { page: 'system', label: 'System Health', icon: 'fa-server' },
+          { page: 'settings', label: 'Settings', icon: 'fa-gear' }
+        ] }]; %>
+        <% shellGroups.forEach(function(group){ %>
+          <div class="navGroup"><span><%= group.label || '' %></span></div>
+          <% (group.items || []).forEach(function(item){ %>
+            <a class="navBtn <%= (dashboardShell?.activePage || 'overview') === item.page ? 'is-active' : '' %>" href="<%= item.href || ('#' + item.page) %>" data-page="<%= item.page %>"><i class="fa-solid <%= item.icon || 'fa-circle' %>"></i><span><%= item.label %></span></a>
+          <% }) %>
+        <% }) %>
+        <form class="logoutForm" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="navBtn navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
+      </nav>
+
+      <div class="sideFoot">
+        <div class="miniProfile">
+          <div class="avatar"><%= dashboardShell?.avatar || 'SA' %></div>
+          <div class="profileMeta">
+            <strong><%= dashboardShell?.profileName || 'Super Admin' %></strong>
+            <span><%= dashboardShell?.profileMeta || 'Full platform access' %></span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar dashboardChrome">
+        <div class="topLeft">
+          <button class="iconBtn menuBtn" id="openMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+          <div class="pageTitle">
+            <h1 id="pageHeading">Overview</h1>
+            <p id="pageSub" style="display:none">Use the tools on this page.</p>
+          </div>
+        </div>
+
+        <div class="topActions">
+          <label class="topSearch hideMobile" aria-label="Search dashboard"><i class="fa-solid fa-magnifying-glass"></i><input id="dashboardGlobalSearch" placeholder="Search dashboard..." autocomplete="off"></label>
+          <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+          <a class="iconBtn" href="#notifications" title="Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i><% if ((dashboardShell?.notificationCount || 0) > 0) { %><span class="topNotifBadge"><%= dashboardShell.notificationCount %></span><% } %></a>
+          <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
+          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
+          <button class="btn btnPrimary hideMobile"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></button>
+          <form class="logoutForm topLogout" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn hideMobile navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
+        </div>
+      </header>
+
+      <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
+        <div class="actionFlashStack" data-flash-stack>
+          <% flashMessages.forEach(function(message){ %>
+            <div class="actionFlash <%= message.type || 'info' %>">
+              <div>
+                <strong><i class="fa-solid <%= message.type === 'error' ? 'fa-triangle-exclamation' : message.type === 'warning' ? 'fa-circle-exclamation' : message.type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i> <%= message.type === 'error' ? 'Action needs attention' : message.type === 'warning' ? 'Please review' : message.type === 'success' ? (/^welcome/i.test(message.text || '') ? 'Welcome' : 'Saved') : 'Notice' %></strong>
+                <p><%= message.text %></p>
+              </div>
+              <button type="button" data-dismiss-flash aria-label="Dismiss message"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <section class="section is-open" id="overview">
+        <div class="hero">
+          <div class="heroGrid">
+            <div class="welcome">
+              <div>
+                <span class="badge info"><i class="fa-solid fa-shield-halved"></i> <%= dashboardShell?.label || 'Dashboard' %></span>
+                <h2><%= dashboardCopy.title %></h2>
+                <p><%= dashboardCopy.body %></p>
+              </div>
+              <div class="heroActions">
+                <button class="btn btnPrimary" data-jump="<%= dashboardCopy.primaryPage %>"><i class="fa-solid <%= dashboardCopy.primaryIcon %>"></i> <%= dashboardCopy.primaryLabel %></button>
+                <button class="btn" data-jump="<%= dashboardCopy.secondaryPage %>"><i class="fa-solid fa-headset"></i> <%= dashboardCopy.secondaryLabel %></button>
+                <button class="btn" data-jump="<%= dashboardCopy.tertiaryPage %>"><i class="fa-solid fa-chart-pie"></i> <%= dashboardCopy.tertiaryLabel %></button>
+              </div>
+            </div>
+
+            <div class="livePanel">
+              <div class="liveHeader">
+                <strong>Live activity</strong>
+                <span class="badge ok"><span class="pulse"></span> Online</span>
+              </div>
+              <div class="liveList">
+                <div class="liveItem"><span><%= dashboardCopy.bookingLabel %></span><strong><%= Array.isArray(dashboardData?.bookings) ? dashboardData.bookings.length : '0' %></strong></div>
+                <div class="liveItem"><span><%= companySupportsHotel ? 'Room holds' : companySupportsBus ? 'Seat holds' : 'Inventory holds' %></span><strong><%= dashboardData?.stats?.seatsOnHold || '0' %></strong></div>
+                <div class="liveItem"><span><%= dashboardCopy.supportLabel %></span><strong><%= Array.isArray(dashboardData?.support) ? dashboardData.support.length : '0' %></strong></div>
+                <div class="liveItem"><span><%= dashboardCopy.reportsLabel %></span><strong><%= Array.isArray(dashboardData?.reports) ? dashboardData.reports.length : '0' %></strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="statsGrid">
+            <%
+              let heroStatCards = [];
+              const overviewStatsList = Array.isArray(dashboardData?.overviewStats) ? dashboardData.overviewStats : [];
+              const pickOverviewStat = (label, fallbackIcon) => overviewStatsList.find((item) => item.label === label) || { icon: fallbackIcon, value: '0' };
+              if (isCompanyDashboard) {
+                const companyStats = dashboardData?.stats || {};
+                heroStatCards = [
+                  { icon: 'fa-money-bill-wave', number: companyStats.grossRevenue || `${platformConfig.defaultCurrency} 0`, label: 'Gross revenue' },
+                  { icon: 'fa-route', number: companyStats.activeListings || '0', label: 'Active listings' },
+                  { icon: 'fa-headset', number: companyStats.openSupportCases || '0', label: 'Open support cases' },
+                  { icon: 'fa-wallet', number: companyStats.earnings || `${platformConfig.defaultCurrency} 0`, label: 'Your earnings' },
+                ];
+              } else if (isEmployeeDashboard || isDriverDashboard) {
+                const employeeStats = dashboardData?.stats || {};
+                heroStatCards = [
+                  { icon: 'fa-user-check', number: employeeStats.checkedIn || '0', label: 'Checked in' },
+                  { icon: 'fa-ticket', number: employeeStats.manualBookings || '0', label: 'Manual bookings' },
+                  { icon: 'fa-list-check', number: employeeStats.openTasks || '0', label: 'Open tasks' },
+                  { icon: 'fa-cash-register', number: employeeStats.deskSales || `${platformConfig.defaultCurrency} 0`, label: 'Desk sales' },
+                ];
+              } else if (isCustomerDashboard) {
+                heroStatCards = [
+                  { icon: pickOverviewStat('Upcoming trips', 'fa-calendar-days').icon, number: pickOverviewStat('Upcoming trips', 'fa-calendar-days').value, label: 'Upcoming trips' },
+                  { icon: pickOverviewStat('Past bookings', 'fa-clock-rotate-left').icon, number: pickOverviewStat('Past bookings', 'fa-clock-rotate-left').value, label: 'Past bookings' },
+                  { icon: pickOverviewStat('Wallet balance', 'fa-wallet').icon, number: pickOverviewStat('Wallet balance', 'fa-wallet').value, label: 'Wallet balance' },
+                  { icon: pickOverviewStat('Total spend', 'fa-coins').icon, number: pickOverviewStat('Total spend', 'fa-coins').value, label: 'Total spend' },
+                ];
+              } else if (isPromoterDashboard) {
+                heroStatCards = overviewStatsList.map((item) => ({ icon: item.icon || 'fa-chart-line', number: item.value, label: item.label }));
+              } else {
+                heroStatCards = [
+                  { icon: pickOverviewStat('Gross revenue', 'fa-money-bill-wave').icon, number: pickOverviewStat('Gross revenue', 'fa-money-bill-wave').value, label: 'Gross revenue' },
+                  { icon: pickOverviewStat('Partner companies', 'fa-building').icon, number: pickOverviewStat('Partner companies', 'fa-building').value, label: 'Partner companies' },
+                  { icon: pickOverviewStat('Promoter commission', 'fa-hand-holding-dollar').icon, number: pickOverviewStat('Promoter commission', 'fa-hand-holding-dollar').value, label: 'Promoter commission' },
+                  { icon: pickOverviewStat('Platform commission', 'fa-percent').icon, number: pickOverviewStat('Platform commission', 'fa-percent').value, label: 'Platform commission' },
+                ];
+              }
+            %>
+            <% heroStatCards.forEach((card) => { %>
+              <article class="statCard">
+                <div class="statTop"><div class="statIcon"><i class="fa-solid <%= card.icon %>"></i></div></div>
+                <div class="statNumber"><%= card.number %></div>
+                <div class="statLabel"><%= card.label %></div>
+              </article>
+            <% }); %>
+          </div>
+        </div>
+
+
+        <% const roleFeatureKey = dashboardShell?.currentRole || dashboardShell?.roleKey || 'admin'; const roleFeature = viewDashboardData?.dashboardFeatures?.roles?.[roleFeatureKey] || viewDashboardData?.dashboardFeatures?.roles?.admin; %>
+        <% if (roleFeature && Array.isArray(roleFeature.features)) { %>
+        <div class="card" style="margin-top:14px">
+          <div class="cardHead"><div class="cardTitle"><h3><%= roleFeature.label || dashboardShell?.label || 'Dashboard' %> features</h3><p>This role uses the same admin dashboard shell. Only menu, permissions, data scope, and actions change.</p></div><span class="badge ok">Config-driven</span></div>
+          <div class="splitGrid">
+            <% roleFeature.features.forEach(function(feature){ %>
+              <div class="splitItem"><div class="splitTop"><span><%= feature %></span><span class="badge info">Enabled</span></div></div>
+            <% }) %>
+          </div>
+        </div>
+        <% } %>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3>Recent bookings</h3>
+                <p>Latest customer orders across bus and hotel services.</p>
+              </div>
+              <button class="btn" data-jump="bookings"><i class="fa-regular fa-eye"></i> View all</button>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Booking</th><th>Category</th><th>Customer</th><th>Partner</th><th>Status</th><th>Total</th><th></th></tr></thead>
+                <tbody id="recentBookings"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Quick actions</h3><p><%= dashboardCopy.quickSub %></p></div>
+            </div>
+            <div class="cardPad">
+              <div class="quickGrid">
+                <% if(isCompanyDashboard && companySupportsBus){ %>
+                <button class="quickCard" data-modal="create" data-type="bus service"><div class="quickIcon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><strong>Create bus service</strong><span>One screen: listing, vehicle, route, and first departure together. Recommended for new services.</span></button>
+                <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Add bus service profile before routes, vehicles, and schedules.</span></button>
+                <button class="quickCard" data-modal="create" data-type="route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Add route, stops, and operating details.</span></button>
+                <button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
+                <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create departure</strong><span>Publish departure, fare, vehicle, and seat inventory.</span></button>
+                <button class="quickCard" data-modal="create" data-type="schedule rule"><div class="quickIcon"><i class="fa-solid fa-repeat"></i></div><strong>Create recurring departure</strong><span>Set a standing schedule; it keeps generating new departures automatically.</span></button>
+                <a class="quickCard" href="/company/manifests"><div class="quickIcon"><i class="fa-solid fa-file-lines"></i></div><strong>Open manifest</strong><span>Review, print, and export passengers and boarding check-ins.</span></a>
+                <% } else if(isCompanyDashboard && companySupportsHotel){ %>
+                <button class="quickCard" data-modal="create" data-type="hotel property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Add hotel profile, location, amenities, and policies.</span></button>
+                <button class="quickCard" data-modal="create" data-type="room type"><div class="quickIcon"><i class="fa-solid fa-bed"></i></div><strong>Add room type</strong><span>Create a room type, then add room units and dated night inventory.</span></button>
+                <button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Hotel bookings</strong><span>Review stays, holds, guests, and payment status.</span></button>
+                <button class="quickCard" data-jump="checkins"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Guest check-ins</strong><span>Open arrival and in-house guest workflow.</span></button>
+                <% } else if(isEmployeeDashboard){ %>
+                <button class="quickCard" data-jump="checkin"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Check in ticket</strong><span>Open the shared check-in workspace for manual or QR validation.</span></button>
+                <button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Record a desk booking for the assigned company.</span></button>
+                <button class="quickCard" data-modal="create" data-type="support notice"><div class="quickIcon"><i class="fa-solid fa-headset"></i></div><strong>Support notice</strong><span>Create a customer-visible note or operational support task.</span></button>
+                <button class="quickCard" data-modal="create" data-type="handover"><div class="quickIcon"><i class="fa-solid fa-clipboard-list"></i></div><strong>Shift handover</strong><span>Leave clear notes for the next staff member.</span></button>
+                <% } else { %>
+                <button class="quickCard" data-modal="create" data-type="partner"><div class="quickIcon"><i class="fa-solid fa-check"></i></div><strong>Approve partner</strong><span>Review documents and activate their dashboard.</span></button>
+                <button class="quickCard" data-modal="edit" data-type="payment"><div class="quickIcon"><i class="fa-solid fa-ban"></i></div><strong>Freeze payout</strong><span>Hold suspicious payouts while finance reviews.</span></button>
+                <button class="quickCard" data-modal="create" data-type="ad"><div class="quickIcon"><i class="fa-solid fa-rectangle-ad"></i></div><strong>Create ad slot</strong><span>Open paid visibility for service listings.</span></button>
+                <button class="quickCard" data-modal="create" data-type="notice"><div class="quickIcon"><i class="fa-solid fa-paper-plane"></i></div><strong>Send notice</strong><span>Notify customers, partners, or promoters.</span></button>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <%- include('sections/analytics', sectionLocals) %>
+
+      <% if (isCompanyDashboard && companyCanShow('setup-guide')) { %>
+        <%- include('sections/setup-guide', sectionLocals) %>
+      <% } %>
+
+      <% if (!isCompanyDashboard && shellMenuPages.has('workflow-guide')) { %>
+        <%- include('sections/workflow-guide', sectionLocals) %>
+      <% } %>
+
+      <%- include('sections/bookings', sectionLocals) %>
+
+      <%- include('sections/partners', sectionLocals) %>
+
+      <%- include('sections/listings', sectionLocals) %>
+
+
+
+      <% if(companyCanShow('routes')){ %><%- include('sections/routes', sectionLocals) %><% } %>
+
+      <% if(companyCanShow('vehicles')){ %><%- include('sections/vehicles', sectionLocals) %><% } %>
+
+      <% if(companyCanShow('schedules')){ %><%- include('sections/schedules', sectionLocals) %><% } %>
+
+      <% const featureServices = Array.isArray(dashboardData?.dashboardFeatures?.services) ? dashboardData.dashboardFeatures.services : []; %>
+      <% featureServices.forEach(function(service){ %>
+      <%- include('sections/dynamic-service', Object.assign({}, sectionLocals, { service })) %>
+      <% }) %>
+
+      <%- include('sections/company-profile', sectionLocals) %>
+      <%- include('sections/staff', sectionLocals) %>
+      <% if(companyCanShow('seat-maps')){ %>
+      <%- include('sections/seat-maps', sectionLocals) %>
+      <% } %>
+      <% if(companyCanShow('hotel-rooms')){ %>
+      <%- include('sections/hotel-rooms', sectionLocals) %>
+      <% } %>
+      <%- include('sections/manifests', sectionLocals) %>
+      <%- include('sections/checkins', sectionLocals) %>
+      <%- include('sections/reviews', sectionLocals) %>
+      <%- include('sections/revenue', sectionLocals) %>
+      <%- include('sections/settlement', sectionLocals) %>
+
+
+      <%- include('sections/payments', sectionLocals) %>
+
+      <%- include('sections/promoters', sectionLocals) %>
+
+      <%- include('sections/customers', sectionLocals) %>
+
+      <%- include('sections/support', sectionLocals) %>
+
+      <%- include('sections/ads', sectionLocals) %>
+
+      <%- include('sections/reports', sectionLocals) %>
+
+
+      <%- include('sections/audit', sectionLocals) %>
+
+      <%- include('sections/admins', sectionLocals) %>
+
+      <%- include('sections/kyc', sectionLocals) %>
+
+      <%- include('sections/refunds', sectionLocals) %>
+
+      <%- include('sections/notifications', sectionLocals) %>
+
+      <%- include('sections/system', sectionLocals) %>
+
+      <%- include('sections/settings', sectionLocals) %>
+
+      <% if(isCustomerDashboard){ %>
+      <%- include('sections/ticket', sectionLocals) %>
+
+      <%- include('sections/saved', sectionLocals) %>
+
+      <%- include('sections/passengers', sectionLocals) %>
+
+      <%- include('sections/receipts', sectionLocals) %>
+
+      <%- include('sections/wallet', sectionLocals) %>
+
+      <%- include('sections/security', sectionLocals) %>
+
+      <%- include('sections/customer-refunds', sectionLocals) %>
+
+      <%- include('sections/customer-support', sectionLocals) %>
+
+      <%- include('sections/customer-reviews', sectionLocals) %>
+
+      <%- include('sections/customer-notifications', sectionLocals) %>
+
+      <%- include('sections/customer-profile', sectionLocals) %>
+      <% } %>
+
+      <% if(isPromoterDashboard){ %>
+      <%- include('sections/links', sectionLocals) %>
+      <%- include('sections/share', sectionLocals) %>
+      <%- include('sections/campaigns', sectionLocals) %>
+      <%- include('sections/performance', sectionLocals) %>
+      <%- include('sections/offline-sales', sectionLocals) %>
+      <%- include('sections/fraud', sectionLocals) %>
+      <%- include('sections/commissions', sectionLocals) %>
+      <%- include('sections/withdrawals', sectionLocals) %>
+      <%- include('sections/payouts', sectionLocals) %>
+      <%- include('sections/promoter-support', sectionLocals) %>
+      <%- include('sections/promoter-profile', sectionLocals) %>
+      <% } %>
+
+      <% if(hasDriverOpsDashboardPage){ %>
+      <%- include('sections/driver-ops', sectionLocals) %>
+      <%- include('sections/driver-manifest', sectionLocals) %>
+      <%- include('sections/driver-incidents', sectionLocals) %>
+      <% } %>
+
+      <% if(hasHandoverDashboardPage){ %>
+      <%- include('sections/handover', sectionLocals) %>
+      <% } %>
+
+      <% if(hasGenericProfileDashboardPage){ %>
+      <%- include('sections/profile', sectionLocals) %>
+      <% } %>
+    </main>
+  </div>
+
+  <div class="modal" id="crudModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3 id="crudTitle">Create item</h3><p id="crudSub">Manage platform data cleanly.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody" id="crudBody"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="deleteModal">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div><h3>Delete record</h3><p>This confirms the delete workflow before any record is changed.</p></div>
+        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modalBody">
+        <div class="deleteBox">
+          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
+          <strong id="deleteText">Are you sure you want to delete this record?</strong>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Soft delete keeps the record recoverable and writes the action to audit logs.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" data-close-modal>Cancel</button>
+            <form id="deleteForm" method="POST" action="" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnDanger" id="confirmDelete" type="submit"><i class="fa-solid fa-trash"></i> Delete</button></form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastText">Done</span></div>
+
+
+      <%
+        const staticDashboardSectionIds = new Set([
+          'overview','analytics','bookings','partners','listings','routes','vehicles','schedules',
+          'company-profile','staff','seat-maps','hotel-rooms','manifests','checkins','reviews',
+          'revenue','settlement','payments','promoters','customers','support','ads','reports',
+          'audit','admins','kyc','refunds','handover','profile','notifications','system','settings',
+          'ticket','saved','passengers','receipts','wallet','security',
+          'links','share','campaigns','performance','offline-sales','fraud','commissions','withdrawals','payouts',
+          'driver-ops','driver-manifest','driver-incidents',
+          'bus-dashboard','hotel-dashboard'
+        ]);
+        const seenDynamicDashboardPages = new Set();
+        const dynamicDashboardItems = [];
+        (shellGroups || []).forEach(function(group){
+          (group.items || []).forEach(function(item){
+            if (!item || !item.page || staticDashboardSectionIds.has(item.page) || seenDynamicDashboardPages.has(item.page)) return;
+            seenDynamicDashboardPages.add(item.page);
+            dynamicDashboardItems.push({
+              page: item.page,
+              label: item.label || item.page,
+              icon: item.icon || 'fa-circle',
+              group: group.label || 'Dashboard'
+            });
+          });
+        });
+        function dynamicActionHref(page){
+          const role = dashboardRoleKey || 'admin';
+          if (role === 'customer') {
+            if (page === 'ticket') return '/account/bookings';
+            if (page === 'saved') return '/search';
+            if (page === 'passengers') return '/account/passengers';
+            if (page === 'receipts') return '/account/reports/receipts.csv';
+            if (page === 'refunds') return '/account/refunds';
+            if (page === 'support') return '/account/support';
+            return '/account/' + page;
+          }
+          if (role === 'promoter') {
+            if (page === 'links') return '/promoter/links';
+            if (page === 'commissions') return '/promoter/commissions';
+            if (page === 'withdrawals') return '/promoter/withdrawals';
+            if (page === 'offline-sales') return '/promoter/offline-sales';
+            return '/promoter/' + page;
+          }
+          if (role === 'employee') return '/employee/dashboard/' + page;
+          if (role === 'driver') return '/driver/dashboard/' + page;
+          if (role === 'support') return '/support/dashboard/' + page;
+          if (role === 'finance') return '/finance/dashboard/' + page;
+          if (role === 'operations') return '/operations/dashboard/' + page;
+          return '#'+page;
+        }
+      %>
+      <% dynamicDashboardItems.forEach(function(item){ const employeeDynamicActions = { bookings:'booking', schedule:'delay notice', inventory:'inventory', payments:'payment', refunds:'refund', support:'support notice', handover:'handover', profile:'profile' }; const employeeDynamicAction = isEmployeeDashboard ? employeeDynamicActions[item.page] : ''; const employeeDynamicLabel = item.page === 'profile' ? 'Save profile' : item.page === 'handover' ? 'Create handover' : item.page === 'schedule' ? 'Send delay notice' : item.page === 'inventory' ? 'Update inventory' : item.page === 'payments' ? 'Record payment' : item.page === 'refunds' ? 'Request refund' : item.page === 'support' ? 'Create support notice' : 'Create booking'; %>
+        <%- include('sections/dynamic-page', Object.assign({}, sectionLocals, { item, employeeDynamicAction, employeeDynamicLabel, dynamicActionHref })) %>
+      <% }) %>
+
+  <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {} }) %></script>
+<script src="/js/dashboard-workspace.js?v=20260724-hotel-ui-final-1" defer></script>
+</body>
+</html>
+

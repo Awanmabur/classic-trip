@@ -1,114 +1,67 @@
-const store = require('../data/persistentStore');
-const { addMinutes } = require('../../utils/dates');
+'use strict';
+
 const inventoryHoldService = require('./inventoryHoldService');
-const repositories = require('../../repositories');
+const hotelInventoryService = require('../hotel/hotelInventoryService');
+const hotelRepository = require('../../repositories/domain/hotelRepository');
 
-const reservations = [];
+function nowDate(value = new Date()) {
+  return value instanceof Date ? value : new Date(value);
+}
 
-function findActiveReservation(reservationId, roomId) {
+async function findActiveReservation(reservationId, roomUnitId = '') {
   const now = new Date();
-  return reservations.find((item) => (
-    item.id === reservationId
-    && (!roomId || item.roomId === roomId)
-    && new Date(item.expiresAt) > now
-  )) || (store.state.inventoryHolds || []).find((item) => (
-    item.id === reservationId
-    && item.holdType === 'room'
-    && item.status === 'active'
-    && (!roomId || item.roomId === roomId)
-    && new Date(item.expiresAt || item.lockedUntil) > now
-  ));
-}
-
-function roomActiveHoldCount(roomId, now = new Date()) {
-  const memoryReservations = reservations.filter((item) => item.roomId === roomId && new Date(item.expiresAt) > now).length;
-  const memoryHolds = (store.state.inventoryHolds || []).filter((item) => (
-    item.holdType === 'room'
-    && item.roomId === roomId
-    && item.status === 'active'
-    && new Date(item.expiresAt || item.lockedUntil) > now
-  )).length;
-  return Math.max(memoryReservations, memoryHolds);
-}
-
-function reserveRoom(roomId, guest = {}, minutes = 10) {
-  const room = store.state.rooms.find((item) => item.id === roomId);
-  if (!room) throw new Error('Room not found');
-  const activeReservations = roomActiveHoldCount(roomId);
-  if (activeReservations >= Number(room.inventory || 0)) throw new Error('No room inventory available');
-  const reservation = { id: `room-res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, roomId, guest, expiresAt: addMinutes(new Date(), minutes).toISOString(), createdAt: new Date().toISOString() };
-  reservations.push(reservation);
-  return reservation;
-}
-
-function isDuplicateKeyError(error) {
-  return Boolean(error) && (error.code === 11000 || /E11000/.test(String(error.message || '')));
-}
-
-async function reserveRoomPersistent(roomId, guest = {}, minutes = 10, context = {}) {
-  const now = new Date();
-  const room = store.state.rooms.find((item) => item.id === roomId);
-  if (!room) throw new Error('Room not found');
-  if (repositories.mongoReady()) {
-    // This count is only an advisory fast-path check: two concurrent requests can both
-    // pass it before either hold is persisted. The InventoryHold model's unique partial
-    // index on (roomId, holdType:'room', status:'active') is what actually makes the
-    // reservation below atomic and closes that race - the try/catch handles the loser.
-    const activeDbHolds = await repositories.inventoryHolds.count({ holdType: 'room', roomId, status: 'active', expiresAt: { $gt: now } });
-    if (activeDbHolds >= Number(room.inventory || 0)) {
-      const error = new Error('No room inventory available');
-      error.status = 409;
-      throw error;
-    }
-  }
-  const reservation = reserveRoom(roomId, guest, minutes);
-  try {
-    await inventoryHoldService.recordRoomHold(reservation, context);
-  } catch (error) {
-    const index = reservations.indexOf(reservation);
-    if (index >= 0) reservations.splice(index, 1);
-    if (isDuplicateKeyError(error)) {
-      const conflictError = new Error('Room is temporarily held by another checkout');
-      conflictError.status = 409;
-      throw conflictError;
-    }
-    throw error;
-  }
-  return reservation;
-}
-
-function releaseExpiredReservations(now = new Date()) {
-  const before = reservations.length;
-  for (let i = reservations.length - 1; i >= 0; i -= 1) {
-    if (new Date(reservations[i].expiresAt) <= now) reservations.splice(i, 1);
-  }
-  (store.state.inventoryHolds || []).forEach((hold) => {
-    if (hold.holdType === 'room' && hold.status === 'active' && new Date(hold.expiresAt || hold.lockedUntil) <= now) {
-      hold.status = 'expired';
-      hold.releasedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
-      hold.releaseReason = 'expired';
-    }
+  return hotelRepository.inventoryHolds.findOne({
+    id: reservationId,
+    holdType: 'room',
+    status: 'active',
+    expiresAt: { $gt: now },
+    ...(roomUnitId ? { roomUnitIds: roomUnitId } : {}),
   });
-  return before - reservations.length;
 }
 
-function consumeReservation(reservationId, roomId) {
-  const reservation = findActiveReservation(reservationId, roomId);
+async function roomActiveHoldCount(selectionId, now = new Date()) {
+  const at = nowDate(now);
+  const unit = await hotelRepository.roomUnits.findOne({ id: selectionId });
+  const roomTypeId = unit?.roomTypeId || selectionId;
+  const units = unit ? [unit] : await hotelRepository.roomUnits.list({ roomTypeId, status: { $ne: 'archived' } });
+  if (!units.length) return 0;
+  const unitIds = units.map((row) => row.id);
+  const items = await hotelRepository.inventoryHoldItems.list({
+    resourceType: 'room_unit_night',
+    roomUnitId: { $in: unitIds },
+    status: 'active',
+    expiresAt: { $gt: at },
+  });
+  return new Set(items.map((row) => row.holdId)).size;
+}
+
+async function reserveRoom() {
+  const error = new Error('Hotel room holds are created only by the canonical hotel booking engine');
+  error.status = 409;
+  error.code = 'CANONICAL_HOTEL_ENGINE_REQUIRED';
+  throw error;
+}
+
+async function releaseExpiredReservations(now = new Date()) {
+  const at = nowDate(now);
+  const [holds, pendingBookings] = await Promise.all([
+    inventoryHoldService.expireActiveHolds(at),
+    hotelInventoryService.releaseExpiredPendingBookings(at),
+  ]);
+  return { holds, pendingBookings };
+}
+
+async function consumeReservation(reservationId, roomUnitId = '') {
+  const reservation = await findActiveReservation(reservationId, roomUnitId);
   if (!reservation) return null;
-  const index = reservations.indexOf(reservation);
-  if (index >= 0) reservations.splice(index, 1);
-  if (reservation.holdType === 'room') {
-    reservation.status = 'consumed';
-    reservation.consumedAt = new Date().toISOString();
-  }
-  return reservation;
+  await inventoryHoldService.consumeHold(reservationId, {}, { userId: 'room-reservation' });
+  return { ...reservation, status: 'consumed', consumedAt: new Date().toISOString() };
 }
 
 module.exports = {
   reserveRoom,
-  reserveRoomPersistent,
   releaseExpiredReservations,
   findActiveReservation,
   consumeReservation,
-  reservations,
+  roomActiveHoldCount,
 };

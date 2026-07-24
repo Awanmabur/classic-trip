@@ -10,7 +10,7 @@ const roomSchema = new Schema({
   inventory: Number,
   amenities: [String],
   media: [mediaSchema],
-  status: { type: String, default: 'active', index: true },
+  status: { type: String, default: 'active', index: true, enum: ['active', 'archived'] },
 }, { timestamps: true });
 
 module.exports = model('Room', roomSchema);

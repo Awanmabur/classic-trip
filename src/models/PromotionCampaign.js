@@ -6,11 +6,11 @@ const promotionCampaignSchema = new Schema({
   promoterId: { type: String, index: true },
   listingId: { type: String, index: true },
   name: String,
-  placement: { type: String, index: true },
+  placement: { type: String, index: true, enum: ['marketplace_top', 'route_card', 'hotel_card', 'banner', 'promoter_share', 'route_boost', 'homepage_feature'] },
   budget: Number,
   clicks: { type: Number, default: 0 },
   bookings: { type: Number, default: 0 },
-  status: { type: String, default: 'draft', index: true },
+  status: { type: String, default: 'draft', index: true, enum: ['draft', 'active', 'expired'] },
   startsAt: Date,
   endsAt: Date,
 }, { timestamps: true });

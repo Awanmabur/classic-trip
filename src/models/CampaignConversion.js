@@ -1,4 +1,5 @@
 const { Schema, model } = require('./_helpers');
+const { BOOKING_STATUSES } = require('../domain/statuses');
 
 const campaignConversionSchema = new Schema({
   id: { type: String, index: true },
@@ -13,9 +14,9 @@ const campaignConversionSchema = new Schema({
   customerUserId: String,
   amount: Number,
   commissionAmount: Number,
-  currency: { type: String, default: 'UGX' },
+  currency: { type: String, required: true, uppercase: true, trim: true },
   attributionSource: String,
-  status: { type: String, default: 'pending', index: true },
+  status: { type: String, default: 'pending', index: true, enum: BOOKING_STATUSES },
   convertedAt: Date,
 }, { timestamps: true });
 

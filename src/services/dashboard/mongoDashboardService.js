@@ -1,5 +1,6 @@
 const repositories = require('../../repositories');
-const store = require('../data/persistentStore');
+const snapshotService = require('./dashboardSnapshotService');
+const { createDashboardProjection } = require('./dashboardProjectionEngine');
 
 function cleanLimit(value, fallback = 50, max = 500) {
   const number = Number(value);
@@ -8,67 +9,132 @@ function cleanLimit(value, fallback = 50, max = 500) {
 }
 
 async function listEntity(entity, filter = {}, options = {}) {
-  const repo = repositories[entity];
-  if (repo?.isReady?.()) {
-    return repo.list(filter, { sort: options.sort || { createdAt: -1 }, limit: cleanLimit(options.limit, 100), skip: Number(options.skip || 0) });
-  }
-  const rows = Array.isArray(store.state[entity]) ? store.state[entity] : [];
-  return rows.slice(Number(options.skip || 0), Number(options.skip || 0) + cleanLimit(options.limit, 100));
+  const repo = repositories.readyRepository(entity);
+  return repo.list(filter, { sort: options.sort || { createdAt: -1 }, limit: cleanLimit(options.limit, 100), skip: Number(options.skip || 0) });
 }
 
 async function countEntity(entity, filter = {}) {
-  const repo = repositories[entity];
-  if (repo?.isReady?.()) return repo.count(filter);
-  const rows = Array.isArray(store.state[entity]) ? store.state[entity] : [];
-  return rows.filter((row) => Object.entries(filter).every(([key, value]) => row[key] === value)).length;
+  const repo = repositories.readyRepository(entity);
+  return repo.count(filter);
 }
 
+const ROLE_DATA_KEYS = Object.freeze({
+  support: [
+    'bookings', 'customers', 'refunds', 'support', 'correspondence', 'deliveryAttempts',
+    'timeline', 'reschedules', 'notifications', 'ticketLegs', 'ticketScans', 'recentActivity',
+    'recentBookings', 'overviewStats',
+  ],
+  finance: [
+    'bookings', 'payments', 'refunds', 'financeAudit', 'financeRisk', 'financeStatements',
+    'ledger', 'settlements', 'reconciliation', 'paymentIntents', 'receiptInvoices', 'taxFees',
+    'payoutRequests', 'payoutBatches', 'partners', 'promoters', 'notifications', 'recentActivity',
+    'overviewStats',
+  ],
+  operations: [
+    'bookings', 'listings', 'routes', 'schedules', 'vehicles', 'routeInventory', 'stayInventory',
+    'reviewInventory', 'carts', 'cartCheckouts', 'ticketLegs', 'ticketScans', 'customers',
+    'partners', 'notifications', 'recentActivity', 'recentBookings', 'overviewStats', 'systemHealth',
+  ],
+  content: [
+    'listings', 'ads', 'partners', 'promoters', 'reviewInventory', 'notifications', 'recentActivity',
+    'overviewStats',
+  ],
+});
 
-function hasRows(value) {
-  return Array.isArray(value) && value.length > 0;
+
+const EMPLOYEE_DATA_PERMISSIONS = Object.freeze({
+  bookings: ['booking.view', 'booking.create_manual', 'checkin.scan', 'checkin.manage', 'checkin.no_show', 'payment.record', 'refund.request', 'customer.note', 'support.manage', 'support.note'],
+  checkins: ['checkin.scan', 'checkin.manage', 'checkin.no_show', 'manifest.view'],
+  schedules: ['schedule.update', 'schedule.delay_notice', 'manifest.view', 'inventory.update'],
+  driverOps: ['schedule.update', 'schedule.delay_notice', 'manifest.view'],
+  driverIncidents: ['manifest.view'],
+  tripStatusUpdates: ['schedule.update', 'schedule.delay_notice', 'manifest.view'],
+  routes: ['schedule.update', 'schedule.delay_notice', 'manifest.view', 'inventory.update'],
+  vehicles: ['schedule.update', 'manifest.view', 'inventory.update'],
+  inventory: ['inventory.update', 'manifest.view'],
+  customers: ['customer.note', 'booking.view', 'support.manage', 'support.note'],
+  payments: ['payment.record'],
+  refunds: ['refund.request'],
+  tasks: ['support.manage', 'support.note'],
+  support: ['support.manage', 'support.note'],
+  handovers: ['handover.create'],
+  reports: ['reports.view'],
+});
+
+function hasAnyPermission(granted, required = []) {
+  return granted.has('*') || required.some((permission) => granted.has(permission));
 }
 
-function hasUsefulObject(value) {
-  return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
+function restrictEmployeeStats(stats = {}, granted) {
+  const visible = { shiftEnds: stats.shiftEnds };
+  if (hasAnyPermission(granted, ['checkin.scan', 'checkin.manage', 'checkin.no_show', 'manifest.view'])) visible.checkedIn = stats.checkedIn;
+  if (hasAnyPermission(granted, ['booking.view', 'booking.create_manual'])) visible.manualBookings = stats.manualBookings;
+  if (hasAnyPermission(granted, ['support.manage', 'support.note'])) visible.openTasks = stats.openTasks;
+  if (hasAnyPermission(granted, ['payment.record', 'reports.view'])) {
+    visible.deskSales = stats.deskSales;
+    visible.paymentsRecorded = stats.paymentsRecorded;
+  }
+  if (hasAnyPermission(granted, ['customer.note', 'support.manage', 'support.note'])) visible.notesAdded = stats.notesAdded;
+  if (hasAnyPermission(granted, ['refund.request', 'reports.view'])) visible.refundRequestsHandled = stats.refundRequestsHandled;
+  return Object.fromEntries(Object.entries(visible).filter(([, value]) => value !== undefined));
 }
 
-function mergeDashboardPayload(base = {}, overrides = {}) {
-  const merged = { ...(base || {}) };
-  Object.entries(overrides || {}).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      if (value.length > 0) merged[key] = value;
-      return;
-    }
-    if (hasUsefulObject(value)) {
-      const current = merged[key];
-      merged[key] = hasUsefulObject(current) ? { ...current, ...value } : value;
-      return;
-    }
-    if (value !== undefined && value !== null && value !== '') merged[key] = value;
-  });
-  return merged;
+function restrictEmployeeOptions(options = {}, granted) {
+  const restricted = {};
+  if (hasAnyPermission(granted, ['booking.create_manual', 'schedule.update', 'inventory.update'])) restricted.listings = options.listings || [];
+  if (hasAnyPermission(granted, ['booking.view', 'booking.create_manual', 'checkin.scan', 'checkin.manage', 'checkin.no_show', 'schedule.update', 'schedule.delay_notice', 'manifest.view', 'inventory.update'])) restricted.schedules = options.schedules || [];
+  if (hasAnyPermission(granted, ['schedule.update', 'manifest.view', 'inventory.update'])) restricted.vehicles = options.vehicles || [];
+  if (hasAnyPermission(granted, ['booking.view', 'booking.create_manual', 'checkin.manage', 'inventory.update'])) restricted.rooms = options.rooms || [];
+  return restricted;
 }
 
-function ensureLocalReadModelFallback() {
-  const hasCoreRows = ['companies', 'users', 'listings'].some((key) => Array.isArray(store.state[key]) && store.state[key].length > 0);
-  if (hasCoreRows) return;
-  const isProduction = process.env.NODE_ENV === 'production';
-  const allowSeedFallback = !isProduction || ['true', '1', 'yes'].includes(String(process.env.SEED_READ_MODEL || '').toLowerCase());
-  if (!allowSeedFallback) return;
-  try { store.loadSeedReadModel({ force: true }); } catch (error) { /* dashboard fallback is best-effort */ }
+function restrictEmployeeDashboard(data = {}, permissions = []) {
+  const granted = new Set(permissions || []);
+  const restricted = {};
+  for (const key of ['mode', 'company', 'profile', 'serviceProfile']) {
+    if (data[key] !== undefined) restricted[key] = data[key];
+  }
+  restricted.stats = restrictEmployeeStats(data.stats || {}, granted);
+  restricted.options = restrictEmployeeOptions(data.options || {}, granted);
+  for (const [key, required] of Object.entries(EMPLOYEE_DATA_PERMISSIONS)) {
+    if (hasAnyPermission(granted, required) && data[key] !== undefined) restricted[key] = data[key];
+  }
+  return restricted;
+}
+
+const ROLE_STAT_LABELS = Object.freeze({
+  support: new Set(['Customers', 'Total bookings', 'Cancelled / refunded', 'Support cases']),
+  finance: new Set(['Total bookings', 'Cancelled / refunded', 'Gross revenue', 'Platform commission', 'Partner earnings', 'Promoter commission', 'Pending settlements', 'Wallet withdrawals']),
+  operations: new Set(['Partner companies', 'Listings / routes / trips', 'Total bookings', 'Cancelled / refunded', 'Guest / referred bookings']),
+  content: new Set(['Total users', 'Customers', 'Promoters', 'Partner companies', 'Listings / routes / trips']),
+});
+
+function restrictRoleDashboard(role, data = {}) {
+  const keys = ROLE_DATA_KEYS[role];
+  if (!keys) return data;
+  const allowed = new Set(keys);
+  const restricted = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.has(key)));
+  if (Array.isArray(restricted.overviewStats)) {
+    restricted.overviewStats = restricted.overviewStats.filter((item) => ROLE_STAT_LABELS[role]?.has(item.label));
+  }
+  return restricted;
 }
 
 async function roleDashboard(role, context = {}) {
-  ensureLocalReadModelFallback();
-
-  // The dashboard EJS/JS renderers expect formatted table-row arrays from
-  // persistentStore.dashboardData(). Returning raw Mongo documents here caused
-  // blank tables and repeated fallback text because the client renderer could
-  // not treat objects as table rows. MongoDB is still hydrated into the read
-  // model by app.js/server.js; this function should return the formatted read
-  // model only.
-  const dataRole = ['support', 'finance', 'operations'].includes(role) ? 'admin' : role;
-  return store.dashboardData(dataRole, context);
+  const dataRole = ['support', 'finance', 'operations', 'content'].includes(role) ? 'admin' : role;
+  const snapshot = await snapshotService.load(dataRole, context);
+  const projection = createDashboardProjection(snapshot);
+  const data = projection.dashboardData(dataRole, context);
+  if (role === 'employee') return restrictEmployeeDashboard(data, context.permissions || []);
+  return restrictRoleDashboard(role, data);
 }
 
-module.exports = { listEntity, countEntity, roleDashboard };
+module.exports = {
+  listEntity,
+  countEntity,
+  roleDashboard,
+  restrictRoleDashboard,
+  restrictEmployeeDashboard,
+  ROLE_DATA_KEYS,
+  EMPLOYEE_DATA_PERMISSIONS,
+};

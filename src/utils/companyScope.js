@@ -1,6 +1,6 @@
 // Resolves which company a request should act on. Every company/employee controller used to
 // have its own local copy of `req.session?.user?.companyId || req.body.companyId || 'company-01'`
-// (30+ call sites). Falling back to a hardcoded seeded company ID whenever the session's
+// (30+ call sites). Falling back to a hardcoded company ID whenever the session's
 // companyId was unset meant any authenticated company_admin/employee with a missing companyId
 // silently got full read/write access to that other company's data instead of an error -
 // a cross-tenant data leak, not a convenience default.

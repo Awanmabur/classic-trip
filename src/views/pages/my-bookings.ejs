@@ -8,7 +8,7 @@
       <div>
         <span class="badge badgeOk" style="width:max-content;margin-bottom:10px"><i class="fa-solid fa-envelope-circle-check"></i> My bookings</span>
         <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">All your bookings</h1>
-        <p class="heroSub">Your full Classic Trip booking history &mdash; buses, hotels, flights and more. Tickets delivered by Gmail and WhatsApp.</p>
+        <p class="heroSub">Your full Classic Trip booking history &mdash; buses and hotels. Tickets delivered by Gmail and WhatsApp.</p>
         <div class="actions" style="margin-top:14px">
           <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Lookup a ticket</a>
           <a class="btn btnGhost" href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
@@ -37,7 +37,7 @@
       <div>
         <div style="font-weight:950;font-size:14px;letter-spacing:-.2px;line-height:1.35;margin-bottom:6px"><%= b.title %></div>
         <div class="meta">
-          <% var typeIcon = /hotel|room|house/i.test(b.type) ? 'fa-hotel' : /flight|air/i.test(b.type) ? 'fa-plane' : /train|rail/i.test(b.type) ? 'fa-train' : /ferry|ship|boat/i.test(b.type) ? 'fa-ship' : /tour/i.test(b.type) ? 'fa-map-location-dot' : /car|rent/i.test(b.type) ? 'fa-car' : 'fa-bus'; %>
+          <% var typeIcon = /hotel|room|house/i.test(b.type) ? 'fa-hotel' : 'fa-bus'; %>
           <% if (b.type) { %><span><i class="fa-solid <%= typeIcon %>"></i> <%= b.type %></span><% } %>
           <% if (b.selected && b.selected !== 'Selected inventory') { %><span><i class="fa-solid fa-chair"></i> <%= b.selected %></span><% } %>
         </div>

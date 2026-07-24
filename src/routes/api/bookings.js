@@ -1,16 +1,9 @@
 const express = require('express');
 const bookingController = require('../../controllers/api/bookingController');
-const cartController = require('../../controllers/public/cartController');
 const { bookingRules } = require('../../validators/bookingValidator');
 const { validateRequest } = require('../../middlewares/validate');
-const { paymentLimiter } = require('../../middlewares/rateLimit');
+const { paymentLimiter, ticketLimiter } = require('../../middlewares/rateLimit');
 const router = express.Router();
-router.post('/cart', paymentLimiter, cartController.create);
-router.get('/cart/:cartRef', cartController.show);
-router.post('/cart/:cartRef/items', paymentLimiter, cartController.addItem);
-router.post('/cart/:cartRef/validate', paymentLimiter, cartController.validate);
-router.post('/cart/:cartRef/checkout', paymentLimiter, cartController.checkout);
-router.post('/cart/:cartRef/recover', paymentLimiter, cartController.recover);
 router.post('/', paymentLimiter, bookingRules, validateRequest, bookingController.create);
-router.get('/:bookingRef', bookingController.show);
+router.get('/:bookingRef', ticketLimiter, bookingController.show);
 module.exports = router;

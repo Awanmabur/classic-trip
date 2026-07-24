@@ -1,0 +1,49 @@
+<section class="section" id="<%= service.key %>">
+        <div class="hero">
+          <div class="heroGrid">
+            <div class="welcome">
+              <div>
+                <span class="badge <%= service.status === 'production' ? 'ok' : 'warn' %>"><i class="fa-solid <%= service.icon || 'fa-layer-group' %>"></i> <%= service.status || 'service dashboard' %></span>
+                <h2><%= service.label %></h2>
+                <p><%= service.overview %></p>
+              </div>
+              <div class="heroActions">
+                <button class="btn btnPrimary" data-modal="create" data-type="<%= service.serviceType %> listing" data-label="<%= service.label %>"><i class="fa-solid fa-plus"></i> Add <%= service.label %> inventory</button>
+                <button class="btn" data-jump="bookings"><i class="fa-solid fa-ticket"></i> View bookings</button>
+                <button class="btn" data-jump="reports"><i class="fa-solid fa-file-lines"></i> Reports</button>
+              </div>
+            </div>
+            <div class="livePanel">
+              <div class="liveHeader"><strong>Service modules</strong><span class="badge info"><%= service.serviceType %></span></div>
+              <div class="liveList">
+                <% (service.modules || []).slice(0, 8).forEach(function(moduleName){ %>
+                  <div class="liveItem"><span><%= moduleName %></span><strong>Database-backed</strong></div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3><%= service.label %> features</h3><p>Production capabilities backed by the database and the same authorization rules used by the operational forms.</p></div></div>
+            <div class="splitGrid">
+              <% (service.features || []).forEach(function(feature){ %>
+                <div class="splitItem"><div class="splitTop"><span><%= feature %></span><span class="badge ok">Production</span></div></div>
+              <% }) %>
+            </div>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Operational flow</h3><p>Every category follows the same controlled marketplace path.</p></div></div>
+            <div class="metricList">
+              <div class="metricRow"><div><strong>1. Provider admission</strong><span>Lead/session/agreement/invitation/verification before publishing.</span></div><b class="badge info">Gate</b></div>
+              <div class="metricRow"><div><strong>2. Inventory setup</strong><span>Listings, capacity, pricing, policies, documents, and publish checks.</span></div><b class="badge warn">Setup</b></div>
+              <div class="metricRow"><div><strong>3. Customer booking</strong><span>Search, hold, details, payment, ticket/voucher, receipt, notification.</span></div><b class="badge ok">Booking</b></div>
+              <div class="metricRow"><div><strong>4. Operations</strong><span>Manifest, check-in/completion, support, refund, settlement, reports.</span></div><b class="badge ok">Complete</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="cardHead"><div class="cardTitle"><h3><%= service.label %> records</h3><p>Only database records belonging to this production service are shown.</p></div></div>
+          <div class="tableWrap"><table><thead><tr><th>Record</th><th>Type</th><th>Partner</th><th>Inventory</th><th>Status</th><th>Rule</th><th></th></tr></thead><tbody id="<%= service.key.replace(/-/g, '') %>Table"></tbody></table></div>
+        </div>
+      </section>

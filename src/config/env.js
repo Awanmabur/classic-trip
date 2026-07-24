@@ -26,18 +26,19 @@ const csvList = (key, fallback = []) => {
   return String(raw).split(',').map((item) => item.trim()).filter(Boolean);
 };
 
-const isTestEnv = process.env.NODE_ENV === 'test';
-
 const env = {
   appName: process.env.APP_NAME || 'Classic Trip',
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
-  demoMode: ['true', '1', 'yes'].includes(String(process.env.DEMO_MODE || '').toLowerCase()) || process.env.NODE_ENV === 'test',
   port: number('PORT', 5000),
   appUrl: process.env.APP_URL || 'http://localhost:5000',
   mongoUri: process.env.MONGO_URI || '',
+  mongoDbName: configuredValue('MONGO_DB_NAME'),
   mongoTransactions: ['true', '1', 'yes'].includes(String(process.env.MONGO_TRANSACTIONS || '').toLowerCase()),
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
+  mfaEncryptionKey: configuredValue('MFA_ENCRYPTION_KEY') || (process.env.NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_mfa_key')),
+  platformMfaEnabled: booleanFlag('PLATFORM_MFA_ENABLED', false),
+  mfaSessionMaxAgeMinutes: number('MFA_SESSION_MAX_AGE_MINUTES', 720),
   cloudinary: {
     cloudName: configuredValue('CLOUDINARY_CLOUD_NAME'),
     apiKey: configuredValue('CLOUDINARY_API_KEY'),
@@ -50,11 +51,9 @@ const env = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/auth/google/callback',
   },
-  paymentProvider: process.env.NODE_ENV === 'test' ? 'mock' : (process.env.PAYMENT_PROVIDER || 'mock'),
-  paymentWebhookSecret: process.env.PAYMENT_WEBHOOK_SECRET || 'dev_webhook_secret',
-  allowMockPayments: isTestEnv ? true : booleanFlag('ALLOW_MOCK_PAYMENTS', process.env.NODE_ENV !== 'production'),
+  paymentProvider: (process.env.PAYMENT_PROVIDER || 'pesapal').trim().toLowerCase().replace(/-/g, '_'),
+  paymentWebhookSecret: configuredValue('PAYMENT_WEBHOOK_SECRET'),
   paymentProviders: {
-    mock: { enabled: true },
     pesapal: {
       apiUrl: process.env.PESAPAL_API_URL || process.env.PAYMENT_API_URL || 'https://pay.pesapal.com/v3/api',
       consumerKey: process.env.PESAPAL_CONSUMER_KEY || process.env.PAYMENT_API_KEY || '',
@@ -96,12 +95,6 @@ const env = {
       webhookSecret: process.env.DPO_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
     },
   },
-  commission: {
-    platform: number('PLATFORM_COMMISSION', 10),
-    promoter: number('PROMOTER_COMMISSION', 3),
-    platformWithPromoter: number('PLATFORM_WITH_PROMOTER_COMMISSION', 7),
-    company: number('COMPANY_COMMISSION', 90),
-  },
   email: {
     from: process.env.EMAIL_FROM || 'no-reply@classictrip.com',
     host: process.env.SMTP_HOST || '',
@@ -142,14 +135,15 @@ const env = {
     publicSitemapExtraUrls: csvList('SEO_EXTRA_URLS'),
   },
   superAdmin: {
-    email: process.env.SUPER_ADMIN_EMAIL || 'admin@classictrip.test',
-    password: process.env.SUPER_ADMIN_PASSWORD || process.env.DEMO_PASSWORD || 'Password123',
-    fullName: process.env.SUPER_ADMIN_NAME || 'Classic Trip Admin',
-    phone: process.env.SUPER_ADMIN_PHONE || '+256700000001',
+    email: configuredValue('SUPER_ADMIN_EMAIL'),
+    password: configuredValue('SUPER_ADMIN_PASSWORD'),
+    fullName: process.env.SUPER_ADMIN_NAME || 'Classic Trip Super Admin',
+    phone: configuredValue('SUPER_ADMIN_PHONE'),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', process.env.NODE_ENV === 'production'),
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
+    processOutbox: process.env.JOB_PROCESS_OUTBOX || '* * * * *',
     expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
     releaseCommission: process.env.JOB_RELEASE_COMMISSION || '*/10 * * * *',
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
@@ -157,16 +151,15 @@ const env = {
     payoutReports: process.env.JOB_PAYOUT_REPORTS || '0 6 * * *',
     materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '0 3 * * *',
   },
-  demoPassword: isTestEnv ? 'Password123' : (process.env.DEMO_PASSWORD || 'Password123'),
-  // Require explicit opt-in everywhere (not just literal NODE_ENV=production) so a staging
-  // box, or a dev box with a typo'd/unset NODE_ENV, doesn't fail open into a universal
-  // demo-password login bypass.
-  allowDemoLogin: isTestEnv ? true : booleanFlag('ALLOW_DEMO_LOGIN', false),
 };
 
 function validateEnv() {
+  const requiredAlways = ['MONGO_URI', 'SESSION_SECRET'];
+  const missingAlways = requiredAlways.filter((key) => !configuredValue(key));
+  if (missingAlways.length) throw new Error(`Missing required environment variables: ${missingAlways.join(', ')}`);
   const requiredInProduction = [
     'SESSION_SECRET',
+    ...(env.platformMfaEnabled ? ['MFA_ENCRYPTION_KEY'] : []),
     'MONGO_URI',
     'CLOUDINARY_CLOUD_NAME',
     'CLOUDINARY_API_KEY',
@@ -183,23 +176,19 @@ function validateEnv() {
   if (env.isProduction && missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
+  if (env.isProduction) {
+    let appUrl;
+    try { appUrl = new URL(env.appUrl); } catch (error) { throw new Error('APP_URL must be a valid absolute URL'); }
+    if (appUrl.protocol !== 'https:') throw new Error('APP_URL must use HTTPS in production');
+    let siteUrl;
+    try { siteUrl = new URL(env.seo.siteUrl); } catch (error) { throw new Error('SITE_URL must be a valid absolute URL'); }
+    if (siteUrl.protocol !== 'https:') throw new Error('SITE_URL must use HTTPS in production');
+  }
+  if (env.isProduction && !env.mongoTransactions) {
+    throw new Error('MONGO_TRANSACTIONS=true is required in production');
+  }
   if (env.isProduction && env.sessionSecret === 'dev_classic_trip_secret') {
     throw new Error('SESSION_SECRET must be set to a production value');
-  }
-  if (env.isProduction && env.demoMode) {
-    throw new Error('DEMO_MODE must be disabled in production');
-  }
-  if (env.isProduction && env.allowDemoLogin) {
-    throw new Error('ALLOW_DEMO_LOGIN must be disabled in production');
-  }
-  if (env.isProduction && env.demoPassword === 'Password123') {
-    throw new Error('DEMO_PASSWORD must be changed from the default production value');
-  }
-  if (env.isProduction && env.superAdmin.email === 'admin@classictrip.test') {
-    throw new Error('SUPER_ADMIN_EMAIL must be set to a real production admin email');
-  }
-  if (env.isProduction && ['Password123', 'change_this_demo_password'].includes(env.superAdmin.password)) {
-    throw new Error('SUPER_ADMIN_PASSWORD must be set to a strong production password');
   }
   if (env.isProduction && env.push.enabled && (!env.push.vapidPublicKey || !env.push.vapidPrivateKey)) {
     throw new Error('PUSH_VAPID_PUBLIC_KEY and PUSH_VAPID_PRIVATE_KEY are required when PUSH_ENABLED=true');
@@ -209,15 +198,6 @@ function validateEnv() {
   }
   if (env.isProduction && (!env.whatsapp.apiToken || (!env.whatsapp.apiUrl && !env.whatsapp.phoneNumberId))) {
     throw new Error('WhatsApp production delivery requires WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_API_URL');
-  }
-  if (env.isProduction && (env.paymentProvider === 'mock' || env.allowMockPayments)) {
-    throw new Error('Mock payments are not allowed in production. Set PAYMENT_PROVIDER=pesapal or another live provider.');
-  }
-  if (env.isProduction && booleanFlag('AUTO_SEED_MONGO', false)) {
-    throw new Error('AUTO_SEED_MONGO must be disabled in production');
-  }
-  if (env.isProduction && booleanFlag('SEED_READ_MODEL', false)) {
-    throw new Error('SEED_READ_MODEL must be disabled in production');
   }
   const activeProvider = env.paymentProviders[env.paymentProvider];
   if (env.isProduction && !activeProvider) {
@@ -230,7 +210,7 @@ function validateEnv() {
     if (!activeProvider.callbackUrl) missingPesapal.push('PESAPAL_CALLBACK_URL');
     if (!activeProvider.ipnId && !activeProvider.ipnUrl) missingPesapal.push('PESAPAL_IPN_ID or PESAPAL_IPN_URL');
     if (missingPesapal.length) throw new Error(`Missing Pesapal configuration: ${missingPesapal.join(', ')}`);
-  } else if (env.isProduction && env.paymentProvider !== 'mock') {
+  } else if (env.isProduction) {
     const missingProvider = [];
     if (!activeProvider.apiUrl) missingProvider.push(`${env.paymentProvider.toUpperCase()}_API_URL`);
     if (!activeProvider.apiKey) missingProvider.push(`${env.paymentProvider.toUpperCase()}_API_KEY`);

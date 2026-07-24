@@ -1,12 +1,11 @@
-const mockProvider = require('./mockPaymentProvider');
 const { createProvider } = require('./httpPaymentProvider');
 const pesapalProvider = require('./pesapalPaymentProvider');
 const { env } = require('../../config/env');
 
-const supportedProviders = ['mock', 'pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'];
+const supportedProviders = ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'];
 
 function normalizeProviderName(name = env.paymentProvider) {
-  return String(name || env.paymentProvider || 'mock').trim().toLowerCase().replace(/-/g, '_');
+  return String(name || env.paymentProvider || 'pesapal').trim().toLowerCase().replace(/-/g, '_');
 }
 
 function providerConfig(provider) {
@@ -14,7 +13,6 @@ function providerConfig(provider) {
 }
 
 function providerIsConfigured(provider) {
-  if (provider === 'mock') return Boolean(env.allowMockPayments);
   const config = providerConfig(provider);
   if (provider === 'pesapal') return pesapalProvider.configured(config);
   return Boolean(config.apiUrl && config.apiKey);
@@ -27,12 +25,7 @@ function assertProviderAllowed(name, options = {}) {
     error.status = 422;
     throw error;
   }
-  if (provider === 'mock' && !env.allowMockPayments) {
-    const error = new Error('Mock payments are disabled for this environment');
-    error.status = 403;
-    throw error;
-  }
-  if (!options.allowUnconfigured && provider !== 'mock' && !providerIsConfigured(provider)) {
+  if (!options.allowUnconfigured && !providerIsConfigured(provider)) {
     const error = new Error(`${provider} payment provider is not configured`);
     error.status = 503;
     throw error;
@@ -42,7 +35,6 @@ function assertProviderAllowed(name, options = {}) {
 
 function providerFor(name = env.paymentProvider, options = {}) {
   const provider = assertProviderAllowed(name, options);
-  if (provider === 'mock') return mockProvider;
   if (provider === 'pesapal') {
     const config = providerConfig(provider);
     return {
@@ -80,8 +72,7 @@ function providerSummary() {
     provider,
     active: provider === normalizeProviderName(env.paymentProvider),
     configured: providerIsConfigured(provider),
-    mockOnly: provider === 'mock',
-    enabled: provider !== 'mock' || Boolean(env.allowMockPayments),
+    enabled: true,
   }));
 }
 

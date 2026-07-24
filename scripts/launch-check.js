@@ -100,6 +100,7 @@ function runEnvChecks() {
   if (!isHttpsUrl(env.appUrl) || isLocalUrl(env.appUrl)) addError('APP_URL must be a public HTTPS URL');
   if (!isHttpsUrl(env.seo.siteUrl) || isLocalUrl(env.seo.siteUrl)) addError('SITE_URL must be a public HTTPS URL');
   if (/localhost|127\.0\.0\.1/i.test(env.mongoUri)) addError('MONGO_URI must not point to localhost for launch');
+  if (!env.mongoTransactions) addError('MONGO_TRANSACTIONS must be true for production launch');
 
   strongSecret('SESSION_SECRET');
   strongSecret('PAYMENT_WEBHOOK_SECRET');

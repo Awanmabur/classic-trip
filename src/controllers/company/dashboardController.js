@@ -1,5 +1,3 @@
-const store = require('../../services/data/persistentStore');
-const billingService = require('../../services/billing/billingService');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const notificationService = require('../../services/notification/notificationService');
@@ -22,6 +20,7 @@ function requestedPageFromRequest(req) {
     '/company/hotel-rooms': 'hotel-rooms',
     '/company/hotel-properties': 'hotel-rooms',
     '/company/room-types': 'hotel-rooms',
+    '/company/rate-plans': 'hotel-rooms',
     '/company/room-units': 'hotel-rooms',
     '/company/room-calendar': 'hotel-rooms',
     '/company/arrivals': 'manifests',
@@ -48,6 +47,31 @@ function requestedPageFromRequest(req) {
   return raw || aliases[path] || 'overview';
 }
 
+
+function requestedSubviewFromRequest(req) {
+  const path = String(req.path || '');
+  const hotel = {
+    '/company/hotel-properties': 'properties',
+    '/company/room-types': 'room-types',
+    '/company/rate-plans': 'rate-plans',
+    '/company/room-units': 'room-units',
+    '/company/room-calendar': 'room-calendar',
+    '/company/housekeeping': 'housekeeping',
+  };
+  const manifest = {
+    '/company/arrivals': 'arrivals',
+    '/company/departures': 'departures',
+    '/company/in-house-guests': 'in-house',
+    '/company/manifests-dashboard': 'all',
+    '/company/passenger-manifests': 'all',
+  };
+  return {
+    hotelSubview: hotel[path] || 'properties',
+    manifestSubview: manifest[path] || 'all',
+    requestedPath: path,
+  };
+}
+
 function allowedCompanyPage(page, serviceProfile = {}) {
   const serviceDashboardPages = new Set(SERVICE_DASHBOARDS.map((service) => service.key));
   if (serviceDashboardPages.has(page)) return 'overview';
@@ -64,28 +88,32 @@ function companyServiceDashboards(serviceProfile = {}) {
 async function index(req, res, next) {
   try {
     const companyId = resolveCompanyId(req);
-    const baseDashboardData = await mongoDashboardService.roleDashboard('company', { companyId });
+    const requestedPage = requestedPageFromRequest(req);
+    const requestedSubview = requestedSubviewFromRequest(req);
+    const requestedManifestDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.date || '')) ? String(req.query.date) : '';
+    const requestedHotelListingId = String(req.query?.listingId || '').trim();
+    let baseDashboardData = await mongoDashboardService.roleDashboard('company', { companyId, hotelManifestDate: requestedManifestDate, hotelManifestListingId: requestedHotelListingId });
     const dashboardData = {
       ...baseDashboardData,
       dashboardFeatures: { services: companyServiceDashboards(baseDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
-      billing: billingService.companyBillingSummary(companyId),
+      ...requestedSubview,
     };
-    const companies = store.state.companies;
+    const companies = await mongoDashboardService.listEntity('companies', {}, { limit: 250 });
     const notificationContext = { companyId };
-    const notificationRows = notificationService.dashboardRows('company', notificationContext);
+    const [notificationRows, notificationCount] = await Promise.all([notificationService.dashboardRowsLive('company', notificationContext), notificationService.unreadCountLive('company', notificationContext)]);
     dashboardData.notifications = notificationRows;
-    res.render('dashboards/admin/index', {
+    res.render('dashboards/company/index', {
       seo: { title: `${dashboardData.serviceProfile?.dashboardLabel || 'Company'} dashboard | Classic Trip` },
       dashboardData,
       dashboardShell: buildDashboardShell('company', {
         user: req.session?.user,
-        activePage: allowedCompanyPage(requestedPageFromRequest(req), dashboardData.serviceProfile),
+        activePage: allowedCompanyPage(requestedPage, dashboardData.serviceProfile),
         companyId,
         company: dashboardData.company,
         serviceProfile: dashboardData.serviceProfile,
-        companies: companies.length ? companies : store.state.companies,
+        companies,
         notifications: notificationRows,
-        notificationCount: notificationService.unreadCount('company', notificationContext),
+        notificationCount,
       }),
     });
   } catch (error) {

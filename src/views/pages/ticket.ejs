@@ -4,18 +4,28 @@
   const safeListing = listing || { title: booking.serviceType || 'Classic Trip service' };
   const guest = booking.guestSnapshot || {};
   const passenger = (booking.passengers || [])[0] || {};
-  const pricing = booking.pricing || { total: 0, currency: 'UGX' };
+  const pricing = booking.pricing || { total: 0, currency: platformConfig.defaultCurrency };
+  const bookingAddons = (Array.isArray(booking.addons) && booking.addons.length)
+    ? booking.addons
+    : (Array.isArray(pricing.addons) ? pricing.addons : []);
+  const addonTotal = Number(pricing.addonTotal || bookingAddons.reduce((sum, addon) => sum + Number(addon.total || addon.lineTotal || 0), 0));
+  const tripTypeLabel = booking.tripType === 'round_trip' || (booking.bookingLegs || []).length > 1 ? 'Return ticket' : 'One-way ticket';
   const ticketLegRows = typeof ticketLegs !== 'undefined' ? ticketLegs : [];
   const legs = (ticketLegRows && ticketLegRows.length ? ticketLegRows : []).map(function(leg, index) {
     return Object.assign({ passenger: (booking.passengers || [])[Number(leg.passengerIndex || index)] || {} }, leg);
   });
   const isBusTicket = (booking.serviceType || safeListing.serviceType) === 'bus';
+  const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful';
+  const documentLabel = isBusTicket ? 'ticket' : 'hotel voucher';
+  const hotelStay = booking.hotelStay || {};
+  const roomLabels = (booking.passengers || []).map(row => row.roomNumber || row.seatOrRoom || row.roomType).filter(Boolean);
+  const guestCount = Number(hotelStay.adults || 0) + Number(hotelStay.children || 0);
   const formatInventoryLabel = (value) => {
     const raw = String(value || '').trim();
     if (!raw) return 'Selected inventory';
     if (!isBusTicket) return raw;
-    const legacy = raw.match(/^[A-Za-z](\d+)$/);
-    const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
+    const prefixed = raw.match(/^[A-Za-z](\d+)$/);
+    const clean = prefixed ? prefixed[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
     return `Seat No ${clean || raw}`;
   };
   const statusBadge = {
@@ -28,7 +38,7 @@
   <section class="card heroCard" style="margin-bottom:16px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div>
-        <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> Classic Trip ticket</span>
+        <span class="badge <%= ready ? 'badgeInfo' : 'badgeWarn' %>"><i class="fa-solid <%= ready ? 'fa-ticket' : 'fa-clock' %>"></i> Classic Trip <%= ready ? documentLabel : 'booking status' %></span>
         <h1 class="heroTitle" style="margin:10px 0 6px;font-size:clamp(22px,3vw,32px)"><%= booking.bookingRef %></h1>
         <p class="heroSub" style="margin:0"><%= safeListing.title %><% if (safeListing.origin && safeListing.destination) { %> &nbsp;&bull;&nbsp; <%= safeListing.origin %> &rarr; <%= safeListing.destination %><% } %></p>
       </div>
@@ -38,7 +48,7 @@
       </div>
     </div>
     <div class="actions" style="margin-top:14px">
-      <a class="btn btnPrimary" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+      <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnPrimary" href="<%= booking.publicTicketPdfUrl %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><% } %>
       <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Find another ticket</a>
       <% if (currentUser) { %><a class="btn btnGhost" href="/account/bookings"><i class="fa-solid fa-list"></i> My bookings</a><% } %>
     </div>
@@ -47,43 +57,54 @@
   <div class="ticketSplit" style="gap:16px;align-items:start">
 
     <section class="card" style="padding:20px;display:grid;gap:14px">
-      <div class="badge badgeInfo" style="width:max-content"><i class="fa-regular fa-user"></i> Passenger details</div>
+      <div class="badge badgeInfo" style="width:max-content"><i class="fa-regular fa-user"></i> <%= isBusTicket ? 'Passenger details' : 'Guest and stay details' %></div>
       <div class="kv">
         <div><span>Passenger</span><b><%= guest.fullName || passenger.fullName || 'Guest' %></b></div>
         <div><span>Email</span><b><%= guest.email || 'Not provided' %></b></div>
         <div><span>Phone</span><b><%= guest.phone || 'Not provided' %></b></div>
         <div><span><%= isBusTicket ? 'Seat' : 'Room / inventory' %></span><b><%= formatInventoryLabel(passenger.seatOrRoom) %></b></div>
         <div><span>Service type</span><b><%= booking.serviceType || safeListing.serviceType || 'Travel service' %></b></div>
+        <% if (isBusTicket) { %><div><span>Trip type</span><b><%= tripTypeLabel %></b></div><% } else { %>
+          <div><span>Check-in</span><b><%= hotelStay.checkIn ? new Date(hotelStay.checkIn + 'T00:00:00Z').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }) : 'Not set' %></b></div>
+          <div><span>Check-out</span><b><%= hotelStay.checkOut ? new Date(hotelStay.checkOut + 'T00:00:00Z').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }) : 'Not set' %></b></div>
+          <div><span>Rooms</span><b><%= Number(hotelStay.roomCount || roomLabels.length || 1) %><%= roomLabels.length ? ' · ' + roomLabels.join(', ') : '' %></b></div>
+          <div><span>Guests</span><b><%= guestCount || (booking.passengers || []).length || 1 %><% if (hotelStay.adults || hotelStay.children) { %> (<%= Number(hotelStay.adults || 0) %> adult<%= Number(hotelStay.adults || 0) === 1 ? '' : 's' %>, <%= Number(hotelStay.children || 0) %> child<%= Number(hotelStay.children || 0) === 1 ? '' : 'ren' %>)<% } %></b></div>
+          <% if (hotelStay.specialRequests) { %><div><span>Stay requests</span><b><%= hotelStay.specialRequests %></b></div><% } %>
+        <% } %>
         <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
-        <div><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || 'UGX') %></b></div>
+        <% if (bookingAddons.length) { %>
+          <div><span>Optional extras</span><b><%= bookingAddons.map(addon => `${addon.name || 'Add-on'}${Number(addon.quantity || 1) > 1 ? ` × ${addon.quantity}` : ''}`).join(', ') %></b></div>
+          <div><span>Add-ons total</span><b><%= money(addonTotal, pricing.currency || platformConfig.defaultCurrency) %></b></div>
+        <% } %>
+        <div><span>Total</span><b><%= money(pricing.total || 0, pricing.currency || platformConfig.defaultCurrency) %></b></div>
         <% if (booking.scheduleId) { %><div><span>Schedule</span><b><%= booking.scheduleId %></b></div><% } %>
         <% if (booking.bookedAt || booking.createdAt) { %><div><span>Booked</span><b><%= new Date(booking.bookedAt || booking.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) %></b></div><% } %>
       </div>
-      <p class="muted" style="margin:4px 0 0;font-size:12px;font-weight:780;line-height:1.6">Show this ticket to authorised staff at boarding. Staff check-in uses the protected scanner.</p>
+      <p class="muted" style="margin:4px 0 0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'Show this ticket to authorised staff at boarding. Staff check-in uses the protected scanner.' : 'Show this confirmed voucher at hotel reception. The hotel verifies it against the protected booking record.') : 'Payment has not been confirmed. Inventory may be temporarily reserved internally, but no valid ticket or hotel voucher is issued until the payment provider confirms success.' %></p>
     </section>
 
     <section class="card" style="padding:20px;display:grid;gap:14px;text-align:center">
-      <div class="badge badgeOk" style="margin:0 auto;width:max-content"><i class="fa-solid fa-qrcode"></i> QR ticket</div>
-      <% if (qrDataUrl) { %>
+      <div class="badge <%= ready ? 'badgeOk' : 'badgeWarn' %>" style="margin:0 auto;width:max-content"><i class="fa-solid <%= ready ? 'fa-qrcode' : 'fa-clock' %>"></i> <%= ready ? (isBusTicket ? 'QR ticket' : 'Hotel voucher QR') : 'Awaiting payment confirmation' %></div>
+      <% if (ready && qrDataUrl) { %>
         <div style="display:flex;justify-content:center;padding:16px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,183,3,.3);border-radius:18px">
-          <img src="<%= qrDataUrl %>" alt="Ticket QR code" style="width:180px;height:180px;border-radius:12px">
+          <img src="<%= qrDataUrl %>" alt="Confirmed booking QR code" style="width:180px;height:180px;border-radius:12px">
         </div>
       <% } else { %>
-        <div class="qrBox" style="min-height:180px"><span class="muted" style="font-size:12px"><%= booking.qrCodeValue || booking.bookingRef %></span></div>
+        <div class="qrBox" style="min-height:180px"><span class="muted" style="font-size:12px"><%= ready ? 'QR unavailable. Contact support with ' + booking.bookingRef : 'Your QR and PDF will appear automatically after successful payment confirmation.' %></span></div>
       <% } %>
-      <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6">One-time QR code. Valid for boarding. Do not share this screen capture with others.</p>
-      <a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl || ('/tickets/' + booking.bookingRef + '.pdf') %>" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a>
+      <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'One-time QR code. Valid for boarding. Do not share this screen capture with others.' : 'Confirmed hotel voucher. Reception validates it against the live booking record.') : 'A browser redirect is not accepted as proof of payment. Classic Trip waits for the payment provider’s verified server callback.' %></p>
+      <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl %>" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a><% } %>
     </section>
 
   </div>
 
-  <% if (legs.length) { %>
+  <% if (ready && legs.length) { %>
   <section class="card" style="padding:20px;margin-top:16px;display:grid;gap:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div>
-        <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> Ticket legs and QR check-in state</span>
-        <h2 style="margin:10px 0 4px;font-size:17px">Issued tickets</h2>
-        <p class="muted" style="margin:0;font-size:13px;font-weight:780">Each leg below has its own one-time QR token, passenger, seat or room, payment state, and check-in state.</p>
+        <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> <%= isBusTicket ? 'Ticket legs and QR check-in state' : 'Room vouchers and reception verification' %></span>
+        <h2 style="margin:10px 0 4px;font-size:17px"><%= isBusTicket ? 'Issued tickets' : 'Issued room vouchers' %></h2>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780"><%= isBusTicket ? 'Each leg below has its own one-time QR token, passenger, seat, payment state, and check-in state.' : 'Each reserved room below belongs to this paid stay and is verified against the live hotel booking.' %></p>
       </div>
       <span class="ticketCode"><%= legs.length %> ticket<%= legs.length === 1 ? '' : 's' %></span>
     </div>

@@ -1,0 +1,196 @@
+/*
+ * Classic Trip contrast and mobile touch-target layer.
+ * This file must not replace page backgrounds, spacing, grids, widths, or
+ * responsive layouts. Page-specific design remains authoritative.
+ */
+
+:root {
+  --ct-mobile-font: 16px;
+  --ct-mobile-control: 50px;
+  --ct-mobile-button: 48px;
+  --ct-focus: rgba(96, 165, 250, .72);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --text: #f8fafc;
+  --muted: #cbd5e1;
+  --muted2: #a8b4c8;
+}
+
+/* Contrast only: never change a page background, border, radius, gap, size, or layout. */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] :is(main,section,article,aside,header,footer,nav,.page,.app,.main,.content,.section,.sectionBody,.cardBody,.modalBody,.sheetBody) {
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] :is(
+  h1,h2,h3,h4,h5,h6,
+  .title,.subtitle,.cardTitle,.modalTitle,.sheetTitle,.drawerFilterTitle,
+  .routeTitle,.bookingTitle,.pageTitle,.statNumber,.value,.price,
+  .detailItem b,.splitItem strong,.row b,.metricValue,.summaryValue,
+  .listingTitle,.sectionTitle,.brandText strong,.profileMeta strong
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(
+  p,.muted,.muted2,.sub,.hint,.help,.helper,.description,.desc,.meta,.caption,
+  .eyebrow,.kicker,.note,.notes,.tableHint,.fieldHelp,.controlLabel,
+  .statLabel,.sheetSub,.modalSub,.empty,.emptyState,.authFooter,
+  .brandText span,.drawerProfileText span,.profileMeta span,.miniStat span,
+  .detailItem span,.splitItem span,.row span,.card p,.panel p,small,.small
+) {
+  color: var(--muted) !important;
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(label,legend,th,td,li,dt,dd) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,textarea,.selectLike,.control input,.control select,.control textarea,
+  .searchBox input,.topSearch input
+) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+  caret-color: #f8fafc;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(input,textarea)::placeholder {
+  color: #a8b4c8 !important;
+  -webkit-text-fill-color: #a8b4c8;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(select option,option) {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] :is(
+  .btnPrimary,.primary,.btnBlue,.btnDanger,.danger,
+  .btnGhost,.tinyBtn,.iconBtn,.iconbtn,.tab,.tabBtn,.navBtn
+) {
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(.btnGhost,.tinyBtn,.iconBtn,.iconbtn,.tab,.tabBtn,.navBtn:not(.is-active)) {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc;
+}
+
+html[data-theme="dark"] :is(.btnPrimary,.primary,.btnBlue,.btnDanger,.danger) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
+}
+
+html[data-theme="dark"] a:not(.btn):not(.navBtn):not(.tab):not(.chip) {
+  color: inherit;
+}
+
+/* Status/badge palettes remain page-owned; only prevent accidental fading. */
+html[data-theme="dark"] :is(.notice,.badge,.status,.pill,.chip) {
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] :is(input,select,textarea,button):disabled,
+html[data-theme="dark"] [aria-disabled="true"] {
+  opacity: .72 !important;
+}
+
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="time"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] ::selection {
+  background: rgba(79, 140, 255, .48);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ct-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* Restore the previously accepted mobile sizes without altering page responsiveness. */
+@media (max-width: 840px) {
+  html {
+    font-size: var(--ct-mobile-font);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+  }
+
+  :is(p,li,td,dd,.muted,.sub,.hint,.help,.helper,.description,.desc,.empty,.emptyState) {
+    font-size: 14.5px !important;
+    line-height: 1.55 !important;
+  }
+
+  :is(label,legend,.fieldLabel,.controlLabel) {
+    font-size: 14.5px !important;
+    line-height: 1.4 !important;
+  }
+
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea,.selectLike,.control input,.control select,.control textarea,.searchBox input,.topSearch input) {
+    min-height: var(--ct-mobile-control) !important;
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+
+  textarea,.control textarea { min-height: 116px !important; }
+
+  :is(input[type="checkbox"],input[type="radio"]) {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    flex: 0 0 20px;
+  }
+
+  :is(button,.btn,.tinyBtn,.iconBtn,.iconbtn,.tab,.tabBtn,.chip,.navBtn) {
+    min-height: var(--ct-mobile-button) !important;
+    font-size: 15.5px !important;
+    line-height: 1.25 !important;
+  }
+
+  :is(.iconBtn,.iconbtn,.tinyBtn) { min-width: var(--ct-mobile-button) !important; }
+
+  h1,.heroTitle { font-size: clamp(29px, 8vw, 37px) !important; line-height: 1.12 !important; }
+  h2,.sectionTitle { font-size: clamp(23px, 6.4vw, 29px) !important; line-height: 1.2 !important; }
+  h3,.cardTitle,.modalTitle { font-size: 18.5px !important; line-height: 1.28 !important; }
+  table { font-size: 14px !important; }
+  .badge,.status,.pill { font-size: 12.5px !important; min-height: 31px; }
+}
+
+@media print {
+  :root,html[data-theme="dark"] { color-scheme: light; }
+  :focus-visible { outline: 0 !important; }
+}
+
+
+/* Form fields keep their normal surface when clicked; keyboard focus remains on actionable links and buttons. */
+:is(input,select,textarea):focus,:is(input,select,textarea):focus-visible{
+  outline:none!important;
+  box-shadow:none!important;
+}
+@media (max-width:840px){
+  .paymentPage .directPassengerForm :is(input:not([type="checkbox"]):not([type="radio"]),select){
+    height:44px!important;
+    min-height:44px!important;
+  }
+}

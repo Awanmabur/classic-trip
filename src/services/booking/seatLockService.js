@@ -1,150 +1,93 @@
-const store = require('../data/persistentStore');
+'use strict';
+
 const { addMinutes } = require('../../utils/dates');
-const { mongoose } = require('../../config/db');
 const repositories = require('../../repositories');
 const inventoryHoldService = require('./inventoryHoldService');
-
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
-}
+const { getCachedPlatformConfig } = require('../platform/platformConfigService');
 
 function holdId() {
   return `seat-hold-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function assertSeatCanBeHeld(scheduleId, seatNumber, now = new Date()) {
-  const existingActiveHold = (store.state.inventoryHolds || []).find((hold) => hold.holdType === 'seat'
-    && hold.scheduleId === scheduleId
-    && String(hold.seatNumber) === String(seatNumber)
-    && hold.status === 'active'
-    && new Date(hold.expiresAt || hold.lockedUntil || 0) > now);
-  if (existingActiveHold) {
-    const error = new Error('Seat is temporarily held by another checkout');
-    error.status = 409;
-    throw error;
-  }
-  const paidBooking = (store.state.bookings || []).find((booking) => booking.scheduleId === scheduleId
-    && String(booking.seatNumber || booking.selectedSeat || booking.seat) === String(seatNumber)
-    && !['cancelled', 'refunded', 'failed'].includes(String(booking.bookingStatus || booking.status || '').toLowerCase())
-    && !['failed', 'cancelled', 'refunded'].includes(String(booking.paymentStatus || '').toLowerCase()));
-  if (paidBooking) {
-    const error = new Error('Seat is already booked');
-    error.status = 409;
-    throw error;
-  }
+async function existingActiveHold(resourceKey, now = new Date()) {
+  return repositories.inventoryHoldItems.findOne({ resourceKey, status: 'active', expiresAt: { $gt: now } });
 }
 
-function lockSeat(scheduleId, seatNumber, minutes = 10) {
-  const now = new Date();
-  const seat = store.state.seats.find((item) => item.scheduleId === scheduleId && item.seatNumber === seatNumber);
-  if (!seat) throw new Error('Seat not found');
-  assertSeatCanBeHeld(scheduleId, seatNumber, now);
-  if (['taken', 'booked', 'checked-in', 'checked_in', 'cancelled', 'refunded', 'disabled', 'maintenance', 'blocked'].includes(String(seat.status || '').toLowerCase())) throw new Error('Seat is not available');
-  if (seat.lockedUntil && new Date(seat.lockedUntil) > now) throw new Error('Seat is temporarily locked');
-  const nextHoldId = holdId();
-  seat.status = 'locked';
-  seat.lockedUntil = addMinutes(now, minutes).toISOString();
-  seat.lockId = nextHoldId;
-  return { id: nextHoldId, type: 'seat', scheduleId, seatNumber, lockedUntil: seat.lockedUntil, seat };
+async function assertSeatCanBeHeld(scheduleId, seatNumber, resourceKey, now = new Date()) {
+  const [activeHold, seat] = await Promise.all([
+    existingActiveHold(resourceKey, now),
+    repositories.seats.findOne({ scheduleId, seatNumber }),
+  ]);
+  if (activeHold) throw Object.assign(new Error('Seat is temporarily held by another checkout'), { status: 409 });
+  if (!seat) throw Object.assign(new Error('Seat does not exist for this departure'), { status: 404 });
+  if (['taken', 'booked', 'checked_in'].includes(String(seat.status || '').toLowerCase())) {
+    throw Object.assign(new Error('Seat is already booked'), { status: 409 });
+  }
+  if (['disabled', 'maintenance', 'blocked'].includes(String(seat.status || '').toLowerCase())) {
+    throw Object.assign(new Error('Seat is not available for sale'), { status: 409 });
+  }
+  if (seat.status === 'locked' && seat.lockedUntil && new Date(seat.lockedUntil) > now) {
+    throw Object.assign(new Error('Seat is temporarily held by another checkout'), { status: 409 });
+  }
+  return seat;
 }
 
-function releaseSeatHold(hold = {}) {
-  const seat = store.state.seats.find((item) => item.scheduleId === hold.scheduleId && item.seatNumber === hold.seatNumber);
-  if (seat && seat.status === 'locked' && (!hold.id || seat.lockId === hold.id || seat.lockId === hold.groupId)) {
-    seat.status = 'available';
-    seat.lockedUntil = null;
-    seat.lockId = null;
-    return true;
-  }
-  return false;
-}
-
-async function lockSeatPersistent(scheduleId, seatNumber, minutes = 10, context = {}) {
-  if (!mongoReady()) {
-    const hold = lockSeat(scheduleId, seatNumber, minutes);
-    await inventoryHoldService.recordSeatHold(hold, context);
-    return hold;
-  }
+async function lockSeat(scheduleId, seatNumber, minutes = null, context = {}) {
 
   const now = new Date();
-
-  // Expire stale holds and release expired seat locks in MongoDB so they don't block new ones.
+  const resourceKey = inventoryHoldService.seatResourceKey(scheduleId, seatNumber);
   await Promise.all([
     repositories.inventoryHolds.updateMany(
       { scheduleId, seatNumber, holdType: 'seat', status: 'active', expiresAt: { $lte: now } },
-      { $set: { status: 'expired', releasedAt: now, releaseReason: 'expired' } }
+      { $set: { status: 'expired', releasedAt: now, releaseReason: 'expired' } },
+    ),
+    repositories.inventoryHoldItems.updateMany(
+      { resourceKey, status: 'active', expiresAt: { $lte: now } },
+      { $set: { status: 'expired', releasedAt: now, releaseReason: 'expired' } },
     ),
     repositories.seats.updateMany(
       { scheduleId, seatNumber, status: 'locked', lockedUntil: { $lte: now } },
-      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } }
+      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } },
     ),
   ]);
 
-  const lockedUntil = addMinutes(now, minutes);
+  const lockedUntil = addMinutes(now, Number(minutes) > 0 ? Number(minutes) : getCachedPlatformConfig().holdMinutes);
   const nextHoldId = holdId();
-  const activeHoldCount = await repositories.inventoryHolds.count({ holdType: 'seat', scheduleId, seatNumber, status: 'active', expiresAt: { $gt: now } });
-  if (activeHoldCount) {
-    const error = new Error('Seat is temporarily held by another checkout');
-    error.status = 409;
-    throw error;
-  }
+  await assertSeatCanBeHeld(scheduleId, seatNumber, resourceKey, now);
 
   const seat = await repositories.seats.findOneAndUpdate(
     {
       scheduleId,
       seatNumber,
-      status: { $nin: ['taken', 'booked', 'checked-in', 'checked_in', 'cancelled', 'refunded', 'disabled', 'maintenance', 'blocked'] },
-      $or: [
-        { status: 'available' },
-        { lockedUntil: null },
-        { lockedUntil: { $exists: false } },
-        { lockedUntil: { $lte: now } },
-      ],
+      status: { $nin: ['taken', 'booked', 'checked_in', 'no_show', 'cancelled', 'refunded', 'disabled', 'maintenance', 'blocked'] },
+      $or: [{ status: 'available' }, { lockedUntil: null }, { lockedUntil: { $exists: false } }, { lockedUntil: { $lte: now } }],
     },
     { $set: { status: 'locked', lockedUntil, lockId: nextHoldId } },
-    { new: true }
+    { new: true, runValidators: true },
   );
 
-  if (!seat) {
-    // Seat not in MongoDB (created in-memory only by ensureBookableInventory). Fall back to in-memory lock.
-    const memSeat = store.state.seats.find((item) => item.scheduleId === scheduleId && item.seatNumber === seatNumber);
-    if (memSeat && !['taken', 'booked', 'checked-in', 'checked_in', 'locked'].includes(String(memSeat.status || '').toLowerCase())) {
-      const hold = lockSeat(scheduleId, seatNumber, minutes);
-      await inventoryHoldService.recordSeatHold(hold, context);
-      return hold;
-    }
-    const error = new Error('Seat is temporarily locked');
-    error.status = 409;
-    throw error;
-  }
-
-  let stateSeat = store.state.seats.find((item) => item.scheduleId === scheduleId && item.seatNumber === seatNumber);
-  if (!stateSeat) {
-    stateSeat = { id: seat.id, scheduleId, seatNumber };
-    store.state.seats.push(stateSeat);
-  }
-  Object.assign(stateSeat, { ...seat, id: seat.id || stateSeat.id, status: 'locked', lockedUntil: lockedUntil.toISOString(), lockId: nextHoldId });
-
-  const hold = { id: nextHoldId, type: 'seat', scheduleId, seatNumber, lockedUntil: lockedUntil.toISOString(), seat: stateSeat };
-  await inventoryHoldService.recordSeatHold(hold, context);
+  if (!seat) throw Object.assign(new Error('Seat is temporarily locked or unavailable'), { status: 409 });
+  const hold = { id: nextHoldId, type: 'seat', scheduleId, seatNumber, lockedUntil: lockedUntil.toISOString(), seat };
+  if (!context.deferHoldPersistence) await inventoryHoldService.recordSeatHold(hold, context);
   return hold;
 }
 
-async function releaseSeatHoldPersistent(hold = {}) {
-  const released = releaseSeatHold(hold);
-  if (mongoReady() && hold.scheduleId && hold.seatNumber) {
-    await repositories.seats.updateMany(
-      { scheduleId: hold.scheduleId, seatNumber: hold.seatNumber, lockId: hold.id },
-      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } }
-    );
-  }
-  return released;
+async function releaseSeatHold(hold = {}) {
+  if (!hold.scheduleId || !hold.seatNumber) return false;
+  const lockIds = [hold.id, hold.groupId].filter(Boolean);
+  if (!lockIds.length) return false;
+  const result = await repositories.seats.updateMany(
+    { scheduleId: hold.scheduleId, seatNumber: hold.seatNumber, lockId: { $in: lockIds } },
+    { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } },
+  );
+  return Boolean(result?.modifiedCount || 0);
 }
 
-async function lockSeatsPersistent(scheduleId, seatNumbers = [], minutes = 10, context = {}) {
+async function lockSeats(scheduleId, seatNumbers = [], minutes = null, context = {}) {
   const requestedSeats = [...new Set([].concat(seatNumbers).map((seat) => String(seat || '').trim()).filter(Boolean))];
-  if (requestedSeats.length <= 1) {
-    const hold = await lockSeatPersistent(scheduleId, requestedSeats[0], minutes, context);
+  if (!requestedSeats.length) throw Object.assign(new Error('At least one seat is required'), { status: 422 });
+  if (requestedSeats.length === 1) {
+    const hold = await lockSeat(scheduleId, requestedSeats[0], minutes, context);
     return { ...hold, seatNumbers: [hold.seatNumber], holds: [hold] };
   }
 
@@ -152,60 +95,31 @@ async function lockSeatsPersistent(scheduleId, seatNumbers = [], minutes = 10, c
   const holds = [];
   try {
     for (const seatNumber of requestedSeats) {
-      const hold = await lockSeatPersistent(scheduleId, seatNumber, minutes, { ...context, groupedHoldId: groupId });
+      const hold = await lockSeat(scheduleId, seatNumber, minutes, { ...context, groupedHoldId: groupId, deferHoldPersistence: true });
       holds.push({ ...hold, groupId });
     }
-    holds.forEach((hold) => {
-      if (hold.seat) hold.seat.lockId = groupId;
-      hold.id = groupId;
-    });
-    if (mongoReady()) {
-      await repositories.seats.updateMany(
-        { scheduleId, seatNumber: { $in: requestedSeats }, status: 'locked' },
-        { $set: { lockId: groupId } }
-      );
-    }
-    const groupedHold = {
-      id: groupId,
-      type: 'seats',
-      scheduleId,
-      seatNumber: requestedSeats[0],
-      seatNumbers: requestedSeats,
-      lockedUntil: holds[0]?.lockedUntil,
-      holds,
-      seat: holds[0]?.seat,
-    };
+    await repositories.seats.updateMany(
+      { scheduleId, seatNumber: { $in: requestedSeats }, status: 'locked' },
+      { $set: { lockId: groupId } },
+    );
+    const groupedHold = { id: groupId, type: 'seats', scheduleId, seatNumber: requestedSeats[0], seatNumbers: requestedSeats, lockedUntil: holds[0]?.lockedUntil, holds, seat: holds[0]?.seat };
     await inventoryHoldService.recordGroupedSeatHold(groupedHold, context);
     return groupedHold;
   } catch (error) {
-    await Promise.all(holds.map((hold) => releaseSeatHoldPersistent(hold)));
+    await Promise.allSettled([
+      ...holds.map((hold) => releaseSeatHold(hold)),
+      inventoryHoldService.releaseHold(groupId, 'group_lock_failed'),
+    ]);
     throw error;
   }
 }
 
-function releaseExpiredLocks(now = new Date()) {
-  let released = 0;
-  for (const seat of store.state.seats) {
-    if (seat.status === 'locked' && seat.lockedUntil && new Date(seat.lockedUntil) <= now) {
-      seat.status = 'available';
-      seat.lockedUntil = null;
-      seat.lockId = null;
-      released += 1;
-    }
-  }
-  return released;
+async function releaseExpiredLocks(now = new Date()) {
+  const result = await repositories.seats.updateMany(
+    { status: 'locked', lockedUntil: { $lte: now } },
+    { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } },
+  );
+  return result?.modifiedCount || 0;
 }
 
-async function releaseExpiredLocksPersistent(now = new Date()) {
-  const released = releaseExpiredLocks(now);
-  if (mongoReady()) {
-    const result = await repositories.seats.updateMany(
-      { status: 'locked', lockedUntil: { $lte: now } },
-      { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } }
-    );
-    return Math.max(released, result.modifiedCount || 0);
-  }
-  return released;
-}
-
-module.exports = { lockSeat, lockSeatPersistent, lockSeatsPersistent, releaseExpiredLocks, releaseExpiredLocksPersistent };
+module.exports = { lockSeat, lockSeats, releaseSeatHold, releaseExpiredLocks, assertSeatCanBeHeld, existingActiveHold };

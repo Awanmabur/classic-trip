@@ -2,7 +2,7 @@ const { Schema, model } = require('./_helpers');
 
 const supportTicketSchema = new Schema({
   id: { type: String, index: true },
-  ownerType: { type: String, index: true },
+  ownerType: { type: String, index: true, enum: ['company', 'customer', 'promoter', 'guest', 'partner_lead', 'platform'] },
   ownerId: { type: String, index: true },
   userId: { type: String, index: true },
   companyId: { type: String, index: true },
@@ -10,11 +10,11 @@ const supportTicketSchema = new Schema({
   bookingRef: { type: String, index: true },
   paymentId: { type: String, index: true },
   subject: String,
-  category: { type: String, index: true },
-  audience: { type: String, index: true },
+  category: { type: String, index: true, enum: ['Partner onboarding', 'Fraud review', 'Payout report', 'platform_notice', 'customer_note', 'verification', 'driver_invitation_request', 'Booking issue', 'Refund request', 'Ticket not received', 'Payment issue', 'Partner inquiry', 'Promoter inquiry', 'Other', 'Public support', 'Customer support', 'Promoter support'] },
+  audience: String,
   message: String,
-  priority: { type: String, default: 'medium', index: true },
-  status: { type: String, default: 'open', index: true },
+  priority: { type: String, default: 'medium', index: true, enum: ['low', 'medium', 'normal', 'high', 'urgent'] },
+  status: { type: String, default: 'open', index: true, enum: ['open', 'pending', 'resolved', 'closed', 'pending_super_admin_approval'] },
   assignedTo: { type: String, index: true },
   assignedBy: String,
   assignedAt: Date,
@@ -25,6 +25,7 @@ const supportTicketSchema = new Schema({
   reopenedBy: String,
   reopenedAt: Date,
   replies: [Schema.Types.Mixed],
+  requestedDriver: Schema.Types.Mixed,
   metadata: Schema.Types.Mixed,
 }, { timestamps: true });
 

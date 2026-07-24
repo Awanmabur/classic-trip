@@ -1,13 +1,16 @@
-const store = require('../data/persistentStore');
+const { platformCurrency } = require('../../utils/currency');
+const commerceRepository = require('../../repositories/domain/commerceRepository');
+const { buildBooking } = require('./bookingBuilderService');
+const paymentSettlementService = require('./paymentSettlementService');
 const { env } = require('../../config/env');
 const inventoryHoldService = require('./inventoryHoldService');
 const ticketAccessService = require('./ticketAccessService');
 const ticketScanService = require('../qr/ticketScanService');
 const timelineService = require('../support/timelineService');
-const { mongoReady, runMongoUnitOfWork, sessionOptions } = require('../shared/mongoUnitOfWork');
+const { runMongoUnitOfWork, sessionOptions } = require('../shared/mongoUnitOfWork');
+const hotelInventoryService = require('../hotel/hotelInventoryService');
 
 async function persistPaymentIntent(intent = {}) {
-  if (!mongoReady()) return;
   const PaymentIntent = require('../../models/PaymentIntent');
   await PaymentIntent.updateOne(
     { idempotencyKey: intent.idempotencyKey || intent.id },
@@ -82,7 +85,7 @@ function reusableSeatFilter(scheduleId, seatNumber, holdId = '', now = new Date(
 }
 
 async function refreshScheduleAvailability(scheduleId, session = null) {
-  if (!scheduleId || !mongoReady()) return;
+  if (!scheduleId) return;
   const Seat = require('../../models/Seat');
   const TripSchedule = require('../../models/TripSchedule');
   const availableSeats = await Seat.countDocuments({ scheduleId, status: 'available' }).session(session || null);
@@ -93,7 +96,7 @@ async function claimBusSeatsAtomically(booking = {}, payload = {}, session = nul
   const seatClaims = (booking.bookingItems || [])
     .filter((item) => item.scheduleId && item.seatNumber)
     .map((item) => ({ scheduleId: item.scheduleId, seatNumber: item.seatNumber, legType: item.legType, passenger: item.passenger || item }));
-  if (!mongoReady() || !seatClaims.length) return;
+  if (!seatClaims.length) return;
   const Seat = require('../../models/Seat');
   const now = new Date();
   const holdId = payload.holdId || booking.holdId || '';
@@ -117,51 +120,6 @@ async function claimBusSeatsAtomically(booking = {}, payload = {}, session = nul
     ).lean();
     if (!updated) failures.push(`${claim.scheduleId}:${claim.seatNumber}`);
   }
-  // In local/demo mode, avoid blocking checkout when a stale selected seat is already
-  // taken from a previous manual/test booking. Substitute the next open seat for the
-  // same schedule. Production still returns a conflict for genuinely unavailable seats.
-  if (failures.length && !env.isProduction) {
-    const unresolved = [];
-    for (const failed of failures) {
-      const [scheduleId, seatNumber] = String(failed).split(':');
-      const replacement = await Seat.findOneAndUpdate(
-        { scheduleId, status: 'available' },
-        {
-          $set: {
-            status: 'taken',
-            bookingRef: booking.bookingRef,
-            bookingId: booking.id || '',
-            passengerName: booking.guestSnapshot?.fullName || '',
-            passengerPhone: booking.guestSnapshot?.phone || '',
-            passengerEmail: booking.guestSnapshot?.email || '',
-          },
-          $unset: { lockedUntil: '', lockId: '' },
-        },
-        sessionOptions(session, { new: true, sort: { seatNumber: 1 } })
-      ).lean();
-      if (!replacement) {
-        unresolved.push(failed);
-        continue;
-      }
-      (booking.bookingItems || []).forEach((item) => {
-        if (item.scheduleId === scheduleId && item.seatNumber === seatNumber) {
-          item.originalSeatNumber = seatNumber;
-          item.seatNumber = replacement.seatNumber;
-          item.seatOrRoom = replacement.seatNumber;
-          item.autoReassigned = true;
-        }
-      });
-      (booking.passengers || []).forEach((passenger) => {
-        if (passenger.scheduleId === scheduleId && (passenger.seatNumber === seatNumber || passenger.seatOrRoom === seatNumber)) {
-          passenger.originalSeatNumber = seatNumber;
-          passenger.seatNumber = replacement.seatNumber;
-          passenger.seatOrRoom = replacement.seatNumber;
-          passenger.autoReassigned = true;
-        }
-      });
-    }
-    failures.splice(0, failures.length, ...unresolved);
-  }
 
   const touchedSchedules = [...new Set(seatClaims.map((claim) => claim.scheduleId).filter(Boolean))];
   for (const id of touchedSchedules) await refreshScheduleAvailability(id, session);
@@ -174,252 +132,159 @@ async function claimBusSeatsAtomically(booking = {}, payload = {}, session = nul
 }
 
 async function claimHotelRoomAtomically(booking = {}, payload = {}, session = null) {
-  if (!mongoReady() || booking.serviceType !== 'hotel') return;
-  const Room = require('../../models/Room');
-  const RoomNightInventory = require('../../models/RoomNightInventory');
-  const roomId = payload.roomId || booking.bookingItems?.[0]?.roomId || booking.bookingItems?.[0]?.roomUnitId || booking.hotelStay?.roomUnitIds?.[0];
-  if (!roomId) {
-    const error = new Error('Room selection is required');
-    error.status = 422;
-    throw error;
-  }
-
-  const { checkIn, checkOut, nights } = hotelNightRange(payload, booking);
-  const roomNightQuery = {
-    listingId: booking.listingId,
-    date: { $in: nights },
-    $or: [{ roomId }, { roomUnitId: roomId }, { id: { $in: booking.bookingItems?.[0]?.nightIds || [] } }],
-    $and: [{ status: { $in: ['available', 'reserved', 'held', 'open'] } }, { $or: [{ availableInventory: { $exists: false } }, { availableInventory: { $gt: 0 } }] }],
-  };
-  const matchedNights = await RoomNightInventory.find(roomNightQuery, null, sessionOptions(session)).lean();
-  if (matchedNights.length >= nights.length) {
-    const ids = matchedNights.slice(0, nights.length).map((night) => night.id);
-    const result = await RoomNightInventory.updateMany(
-      { id: { $in: ids }, status: { $in: ['available', 'reserved', 'held', 'open'] }, $or: [{ availableInventory: { $exists: false } }, { availableInventory: { $gt: 0 } }] },
-      {
-        $inc: { availableInventory: -1 },
-        $set: {
-          status: 'booked',
-          bookingRef: booking.bookingRef,
-          guestName: booking.guestSnapshot?.fullName || 'Guest',
-          checkInStatus: 'not_checked',
-          notes: booking.notes || '',
-        },
-      },
-      sessionOptions(session)
-    );
-    const modified = Number(result.modifiedCount || result.nModified || 0);
-    if (modified < nights.length) {
-      const error = new Error('Selected room nights are no longer available');
-      error.status = 409;
-      error.code = 'ROOM_NIGHT_CLAIM_FAILED';
-      throw error;
-    }
-    booking.hotelStay = {
-      ...(booking.hotelStay || {}),
-      checkIn,
-      checkOut,
-      nights,
-      roomCount: booking.hotelStay?.roomCount || 1,
-      roomUnitIds: [...new Set(matchedNights.map((night) => night.roomUnitId || night.roomId).filter(Boolean))],
-      roomTypeIds: [...new Set(matchedNights.map((night) => night.roomTypeId).filter(Boolean))],
-      nightIds: ids,
-      status: 'booked',
-    };
-    booking.bookingItems = (booking.bookingItems?.length ? booking.bookingItems : [{ id: `${booking.bookingRef}-hotel-room-1`, serviceType: 'hotel' }]).map((item, index) => index === 0 ? {
-      ...item,
-      serviceType: 'hotel',
-      roomId,
-      roomUnitId: matchedNights[0]?.roomUnitId || item.roomUnitId || roomId,
-      roomTypeId: matchedNights[0]?.roomTypeId || item.roomTypeId || '',
-      checkIn,
-      checkOut,
-      nights,
-      nightIds: ids,
-      status: 'confirmed',
-    } : item);
-    return;
-  }
-
-  const updated = await Room.findOneAndUpdate(
-    { id: roomId, status: 'active', inventory: { $gt: 0 } },
-    { $inc: { inventory: -1 } },
-    sessionOptions(session, { new: true })
-  ).lean();
-  if (!updated) {
-    const error = new Error('Selected room is no longer available');
-    error.status = 409;
-    error.code = 'ROOM_CLAIM_FAILED';
-    throw error;
-  }
+  if (booking.serviceType !== 'hotel') return;
+  await hotelInventoryService.claimSelectedRoom(booking, payload, session);
 }
 
 async function releaseFailedBookingInventory(booking = {}, payload = {}) {
   if (!booking) return;
-  const now = new Date().toISOString();
-  booking.cancelledAt = booking.cancelledAt || now;
+  booking.cancelledAt = booking.cancelledAt || new Date().toISOString();
   booking.cancelReason = booking.cancelReason || 'Payment initiation failed';
   if (booking.serviceType === 'bus') {
-    const seatClaims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
-    for (const claim of seatClaims) {
-      const seat = store.state.seats.find((item) => item.scheduleId === claim.scheduleId && item.seatNumber === claim.seatNumber);
-      if (seat && seat.status === 'taken') {
-        seat.status = 'available';
-        seat.lockedUntil = null;
-        seat.lockId = null;
+    const claims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
+    for (const claim of claims) {
+      const seat = await commerceRepository.seats.findOne({ scheduleId: claim.scheduleId, seatNumber: claim.seatNumber });
+      if (seat && seat.bookingRef === booking.bookingRef) {
+        Object.assign(seat, { status: 'available', bookingRef: '', bookingId: '', passengerName: '', passengerPhone: '', passengerEmail: '' });
+        delete seat.lockedUntil; delete seat.lockId;
+        await commerceRepository.seats.save(seat, { id: seat.id });
       }
-      const schedule = store.state.schedules.find((item) => item.id === claim.scheduleId);
-      if (schedule) schedule.availableSeats = Number(schedule.availableSeats || 0) + 1;
     }
-    if (mongoReady() && seatClaims.length) {
-      const Seat = require('../../models/Seat');
-      const TripSchedule = require('../../models/TripSchedule');
-      await Seat.bulkWrite(seatClaims.map((claim) => ({
-        updateOne: {
-          filter: { scheduleId: claim.scheduleId, seatNumber: claim.seatNumber, status: 'taken' },
-          update: { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '', bookingRef: '', bookingId: '', passengerName: '', passengerPhone: '', passengerEmail: '' } },
-        },
-      })), { ordered: false });
-      const scheduleCounts = seatClaims.reduce((acc, claim) => { acc[claim.scheduleId] = (acc[claim.scheduleId] || 0) + 1; return acc; }, {});
-      await TripSchedule.bulkWrite(Object.entries(scheduleCounts).map(([id, count]) => ({ updateOne: { filter: { id }, update: { $inc: { availableSeats: count } } } })), { ordered: false });
+    for (const scheduleId of [...new Set(claims.map((row) => row.scheduleId))]) {
+      await refreshScheduleAvailability(scheduleId);
     }
   }
-  if (booking.serviceType === 'hotel') {
-    const roomId = payload.roomId || booking.bookingItems?.[0]?.roomId || booking.bookingItems?.[0]?.roomUnitId || booking.hotelStay?.roomUnitIds?.[0];
-    const nightIds = booking.hotelStay?.nightIds || booking.bookingItems?.flatMap((item) => item.nightIds || []) || [];
-    const room = store.state.rooms.find((item) => item.id === roomId);
-    if (room) room.inventory = Number(room.inventory || 0) + 1;
-    (store.state.roomNightInventories || []).forEach((night) => {
-      if ((nightIds.length && nightIds.includes(night.id)) || (night.bookingRef === booking.bookingRef)) {
-        night.status = 'available';
-        night.bookingRef = '';
-        night.guestName = '';
-        night.checkInStatus = '';
-        night.updatedAt = new Date().toISOString();
-      }
-    });
-    if (mongoReady()) {
-      const Room = require('../../models/Room');
-      const RoomNightInventory = require('../../models/RoomNightInventory');
-      if (roomId) await Room.updateOne({ id: roomId }, { $inc: { inventory: 1 } });
-      await RoomNightInventory.updateMany(
-        nightIds.length ? { id: { $in: nightIds }, bookingRef: booking.bookingRef } : { bookingRef: booking.bookingRef },
-        { $inc: { availableInventory: 1 }, $set: { status: 'open', bookingRef: '', guestName: '', checkInStatus: '' }, $unset: { holdId: '' } }
-      );
-    }
-  }
+  if (booking.serviceType === 'hotel') await hotelInventoryService.releaseBookedNights(booking.bookingRef);
   if (payload.holdId) await inventoryHoldService.releaseHold(payload.holdId, 'payment_failed');
 }
 
-async function persistBooking(booking, payload, transactionStartIndex, options = {}) {
-  if (payload.holdId && !options.skipHoldConsume) {
-    await inventoryHoldService.consumeHold(payload.holdId, booking, { userId: booking.customerUserId || 'guest-checkout' });
+async function purgeFailedBookingArtifacts(booking = {}, payload = {}, reason = 'Payment failed') {
+  if (!booking?.bookingRef) return { purged: false };
+  if (String(booking.paymentStatus || '').toLowerCase() === 'successful' || String(booking.bookingStatus || '').toLowerCase() === 'confirmed') {
+    const error = new Error('Successful bookings require the refund workflow and cannot be removed as failed payments');
+    error.status = 409;
+    throw error;
   }
-
-  if (!mongoReady()) return;
-
+  await releaseFailedBookingInventory(booking, payload);
   await runMongoUnitOfWork(async (session) => {
+    const filters = { $or: [{ bookingId: booking.id }, { bookingRef: booking.bookingRef }] };
+    await commerceRepository.payments.deleteMany(filters, { session });
+    await commerceRepository.passengers.deleteMany(filters, { session });
+    await commerceRepository.timelineEvents.deleteMany(filters, { session });
+    await commerceRepository.commissions.deleteMany({ $or: [{ bookingId: booking.id }, { bookingRef: booking.bookingRef }, { referenceId: booking.id }] }, { session });
+    await commerceRepository.transactions.deleteMany({ $or: [{ referenceId: booking.id }, { referenceId: booking.bookingRef }] }, { session });
+    await commerceRepository.bookings.deleteMany({ $or: [{ id: booking.id }, { bookingRef: booking.bookingRef }] }, { session });
+    await commerceRepository.auditLogs.save({
+      id: `audit-payment-purge-${booking.bookingRef}-${Date.now()}`,
+      actorId: 'payment-cleanup', action: 'booking.failed_payment_purged', target: booking.bookingRef, targetId: booking.bookingRef,
+      status: 'success', meta: { reason: String(reason || 'Payment failed').slice(0, 500), retainedRecord: 'payment_intent_only' }, createdAt: new Date().toISOString(),
+    }, null, { session });
+  });
+  return { purged: true, bookingRef: booking.bookingRef };
+}
+
+async function consumeInventoryHoldInSession(holdId, booking, session) {
+  if (!holdId) return;
+  const InventoryHold = require('../../models/InventoryHold');
+  const InventoryHoldItem = require('../../models/InventoryHoldItem');
+  const update = {
+    status: 'consumed',
+    consumedAt: new Date(),
+    consumedBy: booking.customerUserId || 'guest-checkout',
+    bookingId: booking.id || '',
+    bookingRef: booking.bookingRef || '',
+  };
+  const parentResult = await InventoryHold.updateOne(
+    { id: holdId, status: 'active', expiresAt: { $gt: new Date() } },
+    { $set: update },
+    sessionOptions(session)
+  );
+  const itemResult = await InventoryHoldItem.updateMany(
+    { holdId, status: 'active', expiresAt: { $gt: new Date() } },
+    { $set: update },
+    sessionOptions(session)
+  );
+  if (parentResult.matchedCount !== 1 || itemResult.matchedCount < 1) {
+    throw Object.assign(new Error('Inventory hold is missing or expired'), { status: 409 });
+  }
+}
+
+async function persistBooking(booking, payload, _transactionStartIndex, options = {}) {
+  const shouldConsumeHold = Boolean(payload.holdId && !options.skipHoldConsume);
+  const execute = async (session = null) => {
     if (options.claimInventory) {
       if (booking.serviceType === 'bus') await claimBusSeatsAtomically(booking, payload, session);
       if (booking.serviceType === 'hotel') await claimHotelRoomAtomically(booking, payload, session);
     }
-    await persistBookingRows(booking, payload, transactionStartIndex, session);
-  });
+    if (shouldConsumeHold) await consumeInventoryHoldInSession(payload.holdId, booking, session);
+    await persistBookingRows(booking, payload, session);
+  };
+  await runMongoUnitOfWork(execute);
 }
 
-async function persistBookingRows(booking, payload, transactionStartIndex, session = null) {
-  const Booking = require('../../models/Booking');
-  const WalletTransaction = require('../../models/WalletTransaction');
-  const Wallet = require('../../models/Wallet');
-  const Commission = require('../../models/Commission');
-
-  await Booking.updateOne(
-    { bookingRef: booking.bookingRef },
-    { $set: booking },
-    sessionOptions(session, { upsert: true, runValidators: true })
-  );
-
-  const Passenger = require('../../models/Passenger');
-  if (booking.passengers?.length) {
-    await Passenger.bulkWrite(booking.passengers.map((passenger, index) => ({
-      updateOne: {
-        filter: { id: passenger.id || `${booking.id}-passenger-${index + 1}` },
-        update: { $set: { ...passenger, id: passenger.id || `${booking.id}-passenger-${index + 1}`, bookingId: booking.id, bookingRef: booking.bookingRef, companyId: booking.companyId, listingId: booking.listingId, scheduleId: booking.scheduleId, passengerIndex: index } },
-        upsert: true,
-      },
-    })), sessionOptions(session, { ordered: false }));
-  }
-
-  if (booking.paymentRef || booking.paymentProvider) {
-    const Payment = require('../../models/Payment');
-    await Payment.updateOne(
-      { providerReference: booking.paymentRef || `${booking.bookingRef}:pending`, bookingRef: booking.bookingRef },
-      {
-        $set: {
-          id: `payment-${booking.bookingRef}`,
-          bookingId: booking.id,
-          bookingRef: booking.bookingRef,
-          companyId: booking.companyId,
-          customerUserId: booking.customerUserId || '',
-          provider: booking.paymentProvider || payload.provider || 'mock',
-          providerReference: booking.paymentRef || '',
-          amount: booking.pricing?.total || 0,
-          currency: booking.pricing?.currency || 'UGX',
-          status: booking.paymentStatus || 'pending',
-          paidAt: booking.paymentStatus === 'successful' ? new Date() : null,
-          checkoutUrl: booking.checkoutUrl || '',
-          idempotencyKey: `${booking.paymentProvider || payload.provider || 'mock'}:${booking.bookingRef}:${booking.paymentRef || 'pending'}`,
-          metadata: { source: 'bookingService.persistBooking' },
-        },
-      },
-      sessionOptions(session, { upsert: true, runValidators: true })
-    );
-  }
-
-  const newTransactions = store.state.walletTransactions.slice(transactionStartIndex);
-  if (newTransactions.length) {
-    await WalletTransaction.bulkWrite(newTransactions.map((txn) => ({
-      updateOne: {
-        filter: { id: txn.id },
-        update: { $set: txn },
-        upsert: true,
-      },
-    })), sessionOptions(session, { ordered: false }));
-  }
-
-  const affectedWalletKeys = new Set(newTransactions.map((txn) => `${txn.ownerType}:${txn.ownerId}`));
-  const affectedWallets = store.state.wallets.filter((wallet) => affectedWalletKeys.has(`${wallet.ownerType}:${wallet.ownerId}`));
-  if (affectedWallets.length) {
-    await Wallet.bulkWrite(affectedWallets.map((wallet) => ({
-      updateOne: {
-        filter: { ownerType: wallet.ownerType, ownerId: wallet.ownerId },
-        update: { $set: wallet },
-        upsert: true,
-      },
-    })), sessionOptions(session));
-  }
-
-  const commissions = store.state.commissions.filter((commission) => commission.bookingId === booking.id);
-  if (commissions.length) {
-    await Commission.bulkWrite(commissions.map((commission) => ({
-      updateOne: {
-        filter: { id: commission.id },
-        update: { $set: commission },
-        upsert: true,
-      },
-    })), sessionOptions(session));
+async function persistBookingRows(booking, payload, session = null) {
+  await commerceRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session: session || undefined });
+  const passengers = (booking.passengers || []).map((passenger, index) => ({
+    ...passenger,
+    id: passenger.id || `${booking.id}-passenger-${index + 1}`,
+    bookingId: booking.id,
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId,
+    listingId: booking.listingId,
+    scheduleId: passenger.scheduleId || booking.scheduleId,
+    passengerIndex: index,
+  }));
+  if (passengers.length) await commerceRepository.passengers.saveMany(passengers, (row) => ({ id: row.id }), { session: session || undefined });
+  if ((booking.paymentRef || booking.paymentProvider) && String(booking.paymentStatus || '').toLowerCase() !== 'failed') {
+    const provider = booking.paymentProvider || payload.provider || env.paymentProvider;
+    const providerReference = booking.paymentRef || `${booking.bookingRef}:pending`;
+    const payment = {
+      id: `payment-${booking.bookingRef}`,
+      bookingId: booking.id,
+      bookingRef: booking.bookingRef,
+      companyId: booking.companyId,
+      customerUserId: booking.customerUserId || '',
+      provider,
+      providerReference,
+      paymentRef: booking.paymentRef || '',
+      amount: booking.pricing?.total || 0,
+      grossAmount: booking.pricing?.total || 0,
+      currency: booking.pricing?.currency || platformCurrency(),
+      status: booking.paymentStatus || 'pending',
+      settlementStatus: booking.settlementStatus === 'settled' ? 'settled' : 'pending',
+      paidAt: booking.paymentStatus === 'successful' ? new Date().toISOString() : null,
+      checkoutUrl: booking.checkoutUrl || '',
+      idempotencyKey: `${provider}:${booking.bookingRef}:${providerReference}`,
+      metadata: { source: 'bookingService.persistBooking' },
+    };
+    await commerceRepository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }, { session: session || undefined });
   }
 }
 
 
 async function createGuestBooking(payload, req) {
+  // Hotel bookings must always use the normalized hotel reservation engine.
+  // Keep this safeguard here even though public/API routes dispatch by service type,
+  // so future callers cannot accidentally fall back to legacy embedded room records.
+  const listingKey = String(payload?.listingId || payload?.slug || '').trim();
+  if (listingKey) {
+    const listing = await commerceRepository.listings.findOne({
+      $or: [{ id: listingKey }, { slug: listingKey }],
+    });
+    const serviceType = String(listing?.serviceType || '').toLowerCase();
+    if (serviceType === 'hotel') {
+      return require('../hotel/hotelService').createHotelBooking(payload, req);
+    }
+    if (serviceType === 'bus') {
+      const error = new Error('Bus bookings must use the canonical bus reservation service');
+      error.status = 409;
+      error.code = 'canonical_bus_booking_required';
+      throw error;
+    }
+  }
   const paymentService = require('../payment/paymentService');
   const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider || env.paymentProvider);
-  const transactionStartIndex = store.state.walletTransactions.length;
-  const booking = await store.createBooking({
-    ...payload,
-    deferPayment: provider !== 'mock',
-  }, req);
+  const { booking } = await buildBooking({ ...payload, deferPayment: true }, req);
   try {
     const intentBase = {
       id: `payment-intent-${booking.bookingRef}`,
@@ -438,7 +303,7 @@ async function createGuestBooking(payload, req) {
       metadata: { source: 'bookingService.createGuestBooking' },
     };
     await persistPaymentIntent(intentBase);
-    await persistBooking(booking, payload, transactionStartIndex, { claimInventory: true });
+    await persistBooking(booking, payload, 0, { claimInventory: true });
     await recordBookingTimeline(booking, 'booking.created', `Booking ${booking.bookingRef} created`, 'Inventory was selected and booking record was created.', { metadata: { source: payload.source || 'checkout', holdId: payload.holdId || '' } });
     await recordBookingTimeline(booking, 'inventory.claimed', `Inventory claimed for ${booking.bookingRef}`, booking.serviceType === 'bus' ? 'Selected seat inventory was connected to this booking.' : 'Selected room inventory was connected to this booking.', { entityType: 'inventory', entityId: payload.holdId || booking.scheduleId || booking.listingId });
     const payment = await paymentService.initiatePayment({
@@ -452,6 +317,12 @@ async function createGuestBooking(payload, req) {
       callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(booking.bookingRef)}`,
       description: `Classic Trip booking ${booking.bookingRef}`,
     });
+    if (String(payment.status || '').toLowerCase() === 'failed') {
+      const paymentError = new Error(payment.message || payment.failureReason || 'Payment could not be completed');
+      paymentError.status = 402;
+      paymentError.code = 'payment_failed';
+      throw paymentError;
+    }
     await persistPaymentIntent({
       ...intentBase,
       providerReference: payment.providerReference || '',
@@ -466,7 +337,7 @@ async function createGuestBooking(payload, req) {
     booking.paymentStatus = payment.status || booking.paymentStatus;
     if (booking.paymentStatus === 'successful') {
       booking.bookingStatus = 'confirmed';
-      await store.settleBookingPayment(booking.bookingRef);
+      Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking) || {});
       await recordBookingTimeline(booking, 'payment.succeeded', `Payment received for ${booking.bookingRef}`, 'Payment was confirmed and tickets are valid for operation.', { entityType: 'payment', entityId: payment.providerReference || booking.paymentRef || '', status: 'successful', metadata: { provider: payment.provider } });
       await recordBookingTimeline(booking, 'ticket.issued', `Ticket issued for ${booking.bookingRef}`, `${(booking.ticketLegs || []).length || 1} ticket leg(s) are available for QR validation.`, { entityType: 'ticket', entityId: booking.ticketLegs?.[0]?.id || booking.bookingRef, status: 'issued' });
     } else {
@@ -475,7 +346,6 @@ async function createGuestBooking(payload, req) {
   } catch (error) {
     booking.paymentStatus = 'failed';
     booking.bookingStatus = 'cancelled';
-    await releaseFailedBookingInventory(booking, payload);
     await persistPaymentIntent({
       id: `payment-intent-${booking.bookingRef}`,
       intentRef: `PI-${booking.bookingRef}`,
@@ -492,11 +362,10 @@ async function createGuestBooking(payload, req) {
       failureReason: error.message,
       metadata: { source: 'bookingService.createGuestBooking' },
     });
-    await persistBooking(booking, payload, transactionStartIndex, { skipHoldConsume: true });
-    await recordBookingTimeline(booking, 'payment.failed', `Payment failed for ${booking.bookingRef}`, error.message || 'Payment failed and inventory was released.', { entityType: 'payment', status: 'failed', visibility: 'shared' });
+    await purgeFailedBookingArtifacts(booking, payload, error.message);
     throw error;
   }
-  await persistBooking(booking, payload, transactionStartIndex, { skipHoldConsume: true });
+  await persistBooking(booking, payload, 0, { skipHoldConsume: true });
   const notificationService = require('../notification/notificationService');
   if (booking.bookingStatus === 'confirmed') {
     await notificationService.bookingConfirmed(booking);
@@ -517,154 +386,276 @@ async function createGuestBooking(payload, req) {
     });
   }
   const ticketPdfService = require('../pdf/ticketPdfService');
-  const listing = store.findListing(booking.listingId);
+  const listing = await commerceRepository.listings.findOne({ id: booking.listingId });
   booking.ticketPdf = await ticketPdfService.uploadTicketPdf(booking, listing);
-  await persistBooking(booking, payload, store.state.walletTransactions.length, { skipHoldConsume: true });
+  await persistBooking(booking, payload, 0, { skipHoldConsume: true });
   return booking;
 }
 
-async function persistCheckIn(booking) {
-  if (!mongoReady() || !booking) return;
-  const Booking = require('../../models/Booking');
-  await Booking.updateOne(
-    { bookingRef: booking.bookingRef },
-    {
-      $set: {
-        bookingStatus: booking.bookingStatus,
-        checkedInAt: booking.checkedInAt,
-        checkedInBy: booking.checkedInBy,
-        checkedInByUserId: booking.checkedInByUserId,
-        checkInStatus: booking.checkInStatus,
-        checkInNote: booking.checkInNote,
-        noShowAt: booking.noShowAt,
-        noShowBy: booking.noShowBy,
-        noShowByUserId: booking.noShowByUserId,
-        cancelledAt: booking.cancelledAt,
-        cancelReason: booking.cancelReason,
-        completedAt: booking.completedAt,
-        settlementStatus: booking.settlementStatus,
-        passengers: booking.passengers || [],
-        ticketLegs: booking.ticketLegs || [],
-        scanHistory: booking.scanHistory || [],
-      },
+
+
+async function createManualBooking(payload = {}, context = {}) {
+  const actorId = String(context.actorId || payload.createdByEmployeeId || payload.actorId || 'employee-system').trim();
+  const listingKey = String(payload.listingId || payload.slug || '').trim();
+  if (listingKey) {
+    const listing = await commerceRepository.listings.findOne({ $or: [{ id: listingKey }, { slug: listingKey }] });
+    const serviceType = String(listing?.serviceType || '').toLowerCase();
+    if (serviceType === 'hotel') {
+      if (context.companyId && String(listing.companyId) !== String(context.companyId)) {
+        const error = new Error('Hotel listing does not belong to this company');
+        error.status = 403;
+        throw error;
+      }
+      return require('../hotel/hotelService').createHotelBooking({
+        ...payload,
+        listingId: listing.id,
+        source: 'company_manual',
+        actorId,
+        createdByEmployeeId: actorId,
+        paymentStatus: 'pending',
+        bookingStatus: 'pending_payment',
+      }, { session: { user: { id: actorId } } }, { trustedManual: true, companyId: context.companyId || listing.companyId });
     }
-  );
+    if (serviceType === 'bus') {
+      const error = new Error('Manual bus bookings must use the canonical bus reservation service');
+      error.status = 409;
+      error.code = 'canonical_bus_booking_required';
+      throw error;
+    }
+  }
+  const { booking } = await buildBooking({
+    ...payload,
+    deferPayment: true,
+    paymentStatus: 'pending',
+    bookingChannel: 'company_manual',
+    source: 'employee_manual',
+  }, null);
+  booking.source = 'employee_manual';
+  booking.bookingChannel = 'company_manual';
+  booking.createdByEmployeeId = actorId;
+  booking.createdAtDesk = new Date().toISOString();
+  booking.paymentStatus = 'pending';
+  booking.bookingStatus = 'pending_payment';
+  booking.settlementStatus = 'pending';
+  const intent = {
+    id: `payment-intent-${booking.bookingRef}`,
+    intentRef: `PI-${booking.bookingRef}`,
+    bookingId: booking.id,
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId,
+    customerUserId: booking.customerUserId || '',
+    provider: 'cash',
+    idempotencyKey: `manual:${booking.bookingRef}:awaiting-payment`,
+    amount: booking.pricing?.total || 0,
+    currency: booking.pricing?.currency || platformCurrency(),
+    status: 'pending',
+    expiresAt: null,
+    attempts: [{ at: new Date().toISOString(), provider: 'cash', status: 'pending', actorId }],
+    metadata: { source: 'bookingService.createManualBooking', actorId },
+  };
+  await persistPaymentIntent(intent);
+  await persistBooking(booking, payload, 0, { claimInventory: true });
+  await recordBookingTimeline(booking, 'booking.created', `Manual booking ${booking.bookingRef} created`, 'Company staff created the booking and reserved inventory. Payment is still required.', {
+    actorType: 'employee', actorId, status: 'pending_payment', metadata: { source: 'employee_manual' },
+  });
+  await recordBookingTimeline(booking, 'payment.pending', `Payment pending for ${booking.bookingRef}`, 'The booking is waiting for an authorized payment record.', {
+    entityType: 'payment', actorType: 'employee', actorId, status: 'pending', metadata: { provider: 'cash' },
+  });
+  return booking;
 }
-
-async function persistFinancialRelease(booking, commissions = []) {
-  if (!mongoReady() || !booking) return;
-  const Wallet = require('../../models/Wallet');
-  const WalletTransaction = require('../../models/WalletTransaction');
-  const Commission = require('../../models/Commission');
-  const Booking = require('../../models/Booking');
-  const ownerKeys = new Set([
-    `company:${booking.companyId}`,
-    booking.promoterAttribution?.promoterId ? `promoter:${booking.promoterAttribution.promoterId}` : '',
-  ].filter(Boolean));
-  const wallets = store.state.wallets.filter((wallet) => ownerKeys.has(`${wallet.ownerType}:${wallet.ownerId}`));
-  if (wallets.length) {
-    await Wallet.bulkWrite(wallets.map((wallet) => ({
-      updateOne: {
-        filter: { ownerType: wallet.ownerType, ownerId: wallet.ownerId },
-        update: { $set: wallet },
-        upsert: true,
-      },
-    })));
-  }
-  const txns = store.state.walletTransactions.filter((txn) => txn.referenceType === 'booking' && txn.referenceId === booking.id);
-  if (txns.length) {
-    await WalletTransaction.bulkWrite(txns.map((txn) => ({
-      updateOne: {
-        filter: { id: txn.id },
-        update: { $set: txn },
-        upsert: true,
-      },
-    })));
-  }
-  if (commissions.length) {
-    await Commission.bulkWrite(commissions.map((commission) => ({
-      updateOne: {
-        filter: { id: commission.id },
-        update: { $set: commission },
-        upsert: true,
-      },
-    })));
-  }
-  await Booking.updateOne({ bookingRef: booking.bookingRef }, { $set: { earningsReleasedAt: booking.earningsReleasedAt } });
-}
-
-async function validateTicket(value, employeeId = 'employee-system', companyId = '', context = {}) {
-  const releaseService = require('../commission/releaseService');
-  const result = store.validateTicket(value, employeeId, companyId, context);
-  if (result.booking) result.listing = store.findListing(result.booking.listingId);
-  await ticketScanService.recordScan('validate', value, result, { ...context, userId: employeeId, companyId });
-  if (result.ok && result.booking?.bookingStatus === 'checked_in') {
-    const released = (await releaseService.releaseCompletedBooking(result.booking.bookingRef)) || [];
-    result.releasedCommissions = released;
-    await recordBookingTimeline(result.booking, 'ticket.checked_in', `Ticket checked in for ${result.booking.bookingRef}`, result.message || 'Passenger check-in was accepted.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: 'checked_in', metadata: { location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
-    await persistCheckIn(result.booking);
-    await persistFinancialRelease(result.booking, released);
-  } else if (result.booking) {
-    await recordBookingTimeline(result.booking, result.ok ? 'ticket.scan.updated' : 'ticket.scan.failed', result.ok ? `Ticket scan updated for ${result.booking.bookingRef}` : `Ticket scan failed for ${result.booking.bookingRef}`, result.message || 'Ticket scan was recorded.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: result.ok ? 'accepted' : 'failed', visibility: result.ok ? 'shared' : 'internal', metadata: { result: result.result || '', location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
-    await persistCheckIn(result.booking);
-  }
-  return result;
-}
-
 
 async function lookupTicket(value, companyId = '', context = {}) {
-  const result = store.lookupTicket(value, companyId, context);
+  const busOperationsService = require('../../modules/bus/services/busOperationsService');
+  const canonicalTicket = companyId ? await busOperationsService.findTicketForScan(companyId, value) : null;
+  if (canonicalTicket) return busOperationsService.lookupTicket({ companyId, scannedToken: value, scheduleId: context.scheduleId || '' });
+  const ticketOperationsService = require('./ticketOperationsService');
+  const result = await ticketOperationsService.lookup(value, companyId, context);
   await ticketScanService.recordScan('lookup', value, result, { ...context, companyId });
   return result;
 }
 
-async function markNoShow(value, employeeId = 'employee-system', companyId = '', note = '', context = {}) {
-  const result = store.markNoShow(value, employeeId, companyId, note, context);
-  await ticketScanService.recordScan('no_show', value, result, { ...context, userId: employeeId, companyId, note });
-  if (result.ok) {
-    await recordBookingTimeline(result.booking, 'ticket.no_show', `No-show marked for ${result.booking.bookingRef}`, note || result.message || 'Passenger was marked as no-show.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: 'no_show', metadata: { location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
-    await persistCheckIn(result.booking);
+async function validateTicket(value, employeeId = 'employee-system', companyId = '', context = {}) {
+  const busOperationsService = require('../../modules/bus/services/busOperationsService');
+  const canonicalTicket = companyId ? await busOperationsService.findTicketForScan(companyId, value) : null;
+  if (canonicalTicket) {
+    return busOperationsService.validateTicket({
+      companyId,
+      employeeId,
+      scannedToken: value,
+      scheduleId: context.scheduleId || canonicalTicket.scheduleId || '',
+      note: context.note || '',
+      location: context.location || '',
+      req: { ip: context.ip || '', headers: { 'user-agent': context.userAgent || '' } },
+    });
   }
+  const ticketOperationsService = require('./ticketOperationsService');
+  const result = await ticketOperationsService.validate(value, employeeId, companyId, context);
+  await ticketScanService.recordScan('validate', value, result, { ...context, userId: employeeId, companyId });
+  if (result.ok) await recordBookingTimeline(result.booking, 'ticket.checked_in', `Passenger checked in for ${result.booking.bookingRef}`, result.message || 'Passenger checked in.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: 'checked_in', metadata: { location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
   return result;
 }
 
-function lookupBooking(bookingRef, contact = '', accessCode = '') {
-  const booking = store.findBooking(bookingRef);
+async function markNoShow(value, employeeId = 'employee-system', companyId = '', note = '', context = {}) {
+  const busOperationsService = require('../../modules/bus/services/busOperationsService');
+  const canonicalTicket = companyId ? await busOperationsService.findTicketForScan(companyId, value) : null;
+  if (canonicalTicket) {
+    const result = await busOperationsService.markNoShow({
+      companyId,
+      employeeId,
+      ticketId: canonicalTicket.id,
+      scheduleId: context.scheduleId || canonicalTicket.scheduleId,
+      note,
+      req: { ip: context.ip || '', headers: { 'user-agent': context.userAgent || '' } },
+    });
+    return result;
+  }
+  const ticketOperationsService = require('./ticketOperationsService');
+  const result = await ticketOperationsService.markNoShow(value, employeeId, companyId, note, context);
+  await ticketScanService.recordScan('no_show', value, result, { ...context, userId: employeeId, companyId, note });
+  if (result.ok) await recordBookingTimeline(result.booking, 'ticket.no_show', `No-show marked for ${result.booking.bookingRef}`, note || result.message || 'Passenger was marked as no-show.', { entityType: 'ticket_scan', entityId: result.ticket?.id || result.ticket?.ticketNumber || result.booking.bookingRef, actorType: context.actorRole || 'employee', actorId: employeeId, actorName: context.actorName || '', status: 'no_show', metadata: { location: context.location || '', scheduleId: context.scheduleId || result.ticket?.scheduleId || '' } });
+  return result;
+}
+
+async function lookupBooking(bookingRef, contact = '', accessCode = '') {
+  const booking = await commerceRepository.bookings.findOne({ bookingRef });
   if (!booking) return null;
   if (ticketAccessService.accessCodeMatches(booking, accessCode)) return booking;
   if (!contact) return null;
   return ticketAccessService.contactMatches(booking, contact) ? booking : null;
 }
 
-function cancelBooking(bookingRef, reason = 'Customer requested cancellation') {
-  const booking = store.findBooking(bookingRef);
-  if (!booking) return null;
-  booking.bookingStatus = 'cancelled';
-  booking.cancelReason = reason;
-  booking.cancelledAt = new Date().toISOString();
-  booking.ticketLegs = (booking.ticketLegs || []).map((leg) => ({ ...leg, status: 'cancelled', checkInStatus: 'cancelled', cancelledAt: booking.cancelledAt }));
-  if (booking.serviceType === 'bus') {
-    const seatClaims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
-    seatClaims.forEach((claim) => {
-      const seat = store.state.seats.find((item) => item.scheduleId === claim.scheduleId && item.seatNumber === claim.seatNumber);
-      if (seat && seat.status === 'taken') {
-        seat.status = 'available';
-        seat.lockedUntil = null;
-        seat.lockId = null;
-      }
-      const schedule = store.state.schedules.find((item) => item.id === claim.scheduleId);
-      if (schedule) schedule.availableSeats = Number(schedule.availableSeats || 0) + 1;
-    });
-    if (mongoReady() && seatClaims.length) {
-      const Seat = require('../../models/Seat');
-      const TripSchedule = require('../../models/TripSchedule');
-      Seat.bulkWrite(seatClaims.map((claim) => ({ updateOne: { filter: { scheduleId: claim.scheduleId, seatNumber: claim.seatNumber, status: 'taken' }, update: { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '' } } } })), { ordered: false }).catch(() => {});
-      const scheduleCounts = seatClaims.reduce((acc, claim) => { acc[claim.scheduleId] = (acc[claim.scheduleId] || 0) + 1; return acc; }, {});
-      TripSchedule.bulkWrite(Object.entries(scheduleCounts).map(([id, count]) => ({ updateOne: { filter: { id }, update: { $inc: { availableSeats: count } } } })), { ordered: false }).catch(() => {});
+
+async function hotelCancellationRefundDecision(booking, hotelRepository, now = new Date()) {
+  const total = Math.max(0, Number(booking?.pricing?.total || 0));
+  const assignments = await hotelRepository.roomAssignments.list({
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId || '',
+  });
+  if (!assignments.length) {
+    return { amount: 0, reviewRequired: true, reason: 'Canonical room assignments or rate-policy snapshots are missing' };
+  }
+
+  for (const assignment of assignments) {
+    const plan = assignment.ratePlanSnapshot || {};
+    if (!Object.prototype.hasOwnProperty.call(plan, 'refundable')) {
+      return { amount: 0, reviewRequired: true, reason: 'A booked rate plan has no immutable refundable-policy snapshot' };
+    }
+    if (plan.refundable === false) {
+      return { amount: 0, reviewRequired: false, reason: 'The booked rate plan is non-refundable' };
+    }
+    const checkIn = String(assignment.checkInDate || booking?.hotelStay?.checkIn || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) {
+      return { amount: 0, reviewRequired: true, reason: 'The cancellation deadline cannot be evaluated without a valid check-in date' };
+    }
+    const deadlineHours = Math.max(0, Number(plan.cancellationDeadlineHours || 0));
+    const deadline = new Date(`${checkIn}T00:00:00.000Z`).getTime() - (deadlineHours * 60 * 60 * 1000);
+    if (now.getTime() <= deadline) continue;
+    const penaltyType = String(plan.cancellationPenaltyType || 'first_night').toLowerCase();
+    if (penaltyType !== 'none') {
+      return { amount: 0, reviewRequired: true, reason: `Cancellation is inside the penalty window (${penaltyType}); finance review is required` };
     }
   }
-  store.persistBookingGraph(booking);
+  return { amount: total, reviewRequired: false, reason: 'All booked rates remain fully refundable at cancellation time' };
+}
+
+async function cancelBooking(bookingRef, reason = 'Customer requested cancellation', context = {}) {
+  const customerRepository = require('../../repositories/domain/customerRepository');
+  const busOperationsRepository = require('../../repositories/domain/busOperationsRepository');
+  const hotelRepository = require('../../repositories/domain/hotelRepository');
+  const booking = await customerRepository.bookings.findOne({ bookingRef });
+  if (!booking) return null;
+  const hotelRefundDecision = String(booking.serviceType || '').toLowerCase() === 'hotel' && booking.paymentStatus === 'successful'
+    ? await hotelCancellationRefundDecision(booking, hotelRepository)
+    : null;
+  if (String(booking.serviceType || '').toLowerCase() === 'bus') {
+    const busBookingService = require('../../modules/bus/services/busBookingService');
+    return busBookingService.cancelBooking(bookingRef, reason, context);
+  }
+  if (['cancelled', 'refunded', 'voided'].includes(booking.bookingStatus)) return booking;
+  if (['completed', 'checked_in', 'checked-in', 'checked-out'].includes(booking.bookingStatus)) {
+    const error = new Error('This booking can no longer be cancelled online');
+    error.status = 409;
+    throw error;
+  }
+
+  const cancelledAt = new Date().toISOString();
+  booking.bookingStatus = 'cancelled';
+  booking.cancelReason = String(reason || 'Customer requested cancellation').trim().slice(0, 1000);
+  booking.cancelledAt = cancelledAt;
+  booking.ticketLegs = (booking.ticketLegs || []).map((leg) => ({ ...leg, status: 'cancelled', checkInStatus: 'cancelled', cancelledAt }));
+  if (booking.serviceType === 'hotel') {
+    booking.hotelStay = { ...(booking.hotelStay || {}), status: 'cancelled', cancelledAt };
+    booking.checkInStatus = 'cancelled';
+    booking.bookingItems = (booking.bookingItems || []).map((item) => ({ ...item, status: 'cancelled', cancelledAt }));
+    booking.settlementStatus = booking.paymentStatus === 'successful' ? 'reconciliation_required' : 'pending_payment';
+    booking.settlementError = booking.paymentStatus === 'successful'
+      ? (hotelRefundDecision?.reason || 'Paid hotel cancellation requires refund-policy reconciliation')
+      : '';
+  }
+
+  await runMongoUnitOfWork(async (session) => {
+    if (booking.serviceType === 'bus') {
+      const claims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
+      for (const claim of claims) {
+        await busOperationsRepository.seats.updateOne(
+          { scheduleId: claim.scheduleId, seatNumber: claim.seatNumber, bookingRef: booking.bookingRef },
+          { $set: { status: 'available' }, $unset: { lockedUntil: '', lockId: '', bookingRef: '', bookingId: '', passengerName: '', passengerPhone: '', passengerEmail: '' } },
+          { session }
+        );
+      }
+      for (const scheduleId of [...new Set(claims.map((item) => item.scheduleId))]) await refreshScheduleAvailability(scheduleId, session);
+    }
+    if (booking.serviceType === 'hotel') {
+      const canonicalCancellation = await hotelRepository.cancelReservation({
+        bookingRef: booking.bookingRef,
+        companyId: booking.companyId || '',
+        reason: booking.cancelReason,
+        actorId: context.actorId || booking.customerUserId || 'customer',
+        session,
+      });
+      if (!canonicalCancellation?.reservation) {
+        const nights = await hotelRepository.roomNightInventories.list({ bookingRef: booking.bookingRef }, { session });
+        for (const night of nights) {
+          if (['occupied', 'checked_in', 'checked_out', 'cleaning', 'maintenance'].includes(String(night.status || '').toLowerCase())) continue;
+          await hotelRepository.roomNightInventories.updateOne(
+            { id: night.id, bookingRef: booking.bookingRef },
+            { $set: { status: 'available', bookingRef: '', reservationId: '', assignmentId: '', guestName: '', checkInStatus: '', availableInventory: 1 }, $unset: { holdId: '' } },
+            { session }
+          );
+        }
+      }
+    }
+    await customerRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session });
+  });
+
+  await recordBookingTimeline(booking, 'booking.cancelled', `Booking ${booking.bookingRef} cancelled`, booking.cancelReason, {
+    actorType: context.actorRole || 'customer', actorId: context.actorId || booking.customerUserId || 'customer',
+    actorName: context.actorName || '', status: 'cancelled', metadata: { source: 'customer_cancellation' },
+  });
+
+  if (booking.paymentStatus === 'successful') {
+    if (booking.serviceType === 'hotel' && (!hotelRefundDecision || hotelRefundDecision.reviewRequired || hotelRefundDecision.amount <= 0)) {
+      booking.refundStatus = hotelRefundDecision?.reviewRequired ? 'review_required' : 'not_refundable';
+      booking.settlementStatus = 'reconciliation_required';
+      booking.settlementError = hotelRefundDecision?.reason || 'Paid hotel cancellation requires finance review';
+      await customerRepository.bookings.save(booking, { bookingRef: booking.bookingRef });
+    } else {
+      try {
+        const workflowService = require('../support/workflowService');
+        await Promise.resolve(workflowService.requestRefund({
+          bookingRef: booking.bookingRef,
+          requesterId: context.actorId || booking.customerUserId || 'customer',
+          amount: booking.serviceType === 'hotel' ? hotelRefundDecision.amount : Number(booking.pricing?.total || 0),
+          reason: `Cancellation: ${booking.cancelReason}`,
+        }));
+      } catch (error) {
+        booking.settlementStatus = 'reconciliation_required';
+        booking.settlementError = `Cancellation refund request failed: ${error.message}`;
+        await customerRepository.bookings.save(booking, { bookingRef: booking.bookingRef });
+      }
+    }
+  }
   return booking;
 }
 
-module.exports = { createGuestBooking, lookupTicket, validateTicket, markNoShow, lookupBooking, cancelBooking };
+module.exports = { purgeFailedBookingArtifacts, createGuestBooking, createManualBooking, lookupTicket, validateTicket, markNoShow, lookupBooking, cancelBooking };

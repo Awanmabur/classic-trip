@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
-  <title>Classic Trip | Login, Signup, Partner & Support</title>
-  <meta name="description" content="Classic Trip login, signup, partner onboarding and support pages for customers, promoters, partners and company admins." />
+  <title>Classic Trip | Login, Signup & Partner Onboarding</title>
+  <meta name="description" content="Login, create a traveler or promoter account, or onboard a verified bus or hotel company from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="/js/csrf.js" defer></script>
+  <script src="/js/csrf.js?v=20260722-3" defer></script>
   <style>
     :root{
       --container:min(1160px,92%);
@@ -77,23 +77,31 @@
     .authShell{padding:16px;display:grid;align-content:start;gap:14px;min-height:calc(100vh - 126px)}
     .authTop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.authTop h2{margin:0;font-size:24px;letter-spacing:-.5px}.authTop p{margin:4px 0 0;color:var(--muted);font-size:13px;font-weight:750}.toggle{display:flex;gap:6px;padding:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line)}.toggle button{height:36px;border:none;border-radius:999px;padding:0 14px;background:transparent;color:var(--muted);font-size:13px;font-weight:950}.toggle button.active{background:rgba(79,140,255,.15);color:var(--text)}
     .formCard{padding:15px;border-radius:22px;border:1px solid var(--line);background:rgba(255,255,255,.035)}
-    .roleGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.role{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);border-radius:18px;padding:10px 8px;display:grid;gap:6px;justify-items:center;font-size:12px;font-weight:900}.role i{font-size:16px}.role.active{background:rgba(255,183,3,.12);border-color:rgba(255,183,3,.28);color:var(--accent)}
-    .form{display:none}.form.active{display:grid;gap:11px}.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:flex;justify-content:space-between;gap:8px;margin:0 0 6px;font-size:12px;font-weight:900;color:var(--muted)}.control{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--input);height:46px;border-radius:999px;padding:0 14px;transition:.14s ease}.control:hover,.control:focus-within{background:var(--inputHover);border-color:var(--line2)}.control input,.control select{width:100%;border:none;background:transparent;color:var(--text);font-weight:850;min-width:0}.control input::placeholder{color:var(--muted)}.control select option{color:var(--text)}.control select{-webkit-appearance:none;appearance:none}.passwordToggle{border:none;background:transparent;color:var(--muted);width:28px;height:28px;border-radius:999px;display:grid;place-items:center}.checkLine{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;font-weight:800}.checkLine label{display:flex;align-items:flex-start;gap:8px}.checkLine input{accent-color:var(--primary);margin-top:2px}.link{color:var(--accent);font-weight:950}.submit{width:100%;height:48px;border-radius:999px;border:none;font-weight:950;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,var(--accent),var(--hot));color:#061027;margin-top:2px}.divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-weight:900}.divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}.socialGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.social{height:44px;border-radius:999px;border:1px solid var(--line);background:var(--input);color:var(--text);display:flex;align-items:center;justify-content:center;gap:9px;font-weight:900}.notice{padding:12px 14px;border:1px solid rgba(79,140,255,.22);background:rgba(79,140,255,.09);border-radius:20px;color:var(--muted);font-size:12px;font-weight:800}.notice strong{color:var(--text)}
+    .roleGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}.role{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--text);border-radius:18px;padding:10px 8px;display:grid;gap:6px;justify-items:center;font-size:12px;font-weight:900}.role i{font-size:16px}.role.active{background:rgba(255,183,3,.12);border-color:rgba(255,183,3,.28);color:var(--accent)}
+    .form{display:none}.form.active{display:grid;gap:11px}.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:flex;justify-content:space-between;gap:8px;margin:0 0 6px;font-size:12px;font-weight:900;color:var(--muted)}.control{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--input);height:46px;border-radius:999px;padding:0 14px;transition:.14s ease}.control:hover,.control:focus-within{background:var(--inputHover);border-color:var(--line2)}.control input,.control select{width:100%;border:none;background:transparent;color:var(--text);font-weight:850;min-width:0}.control input::placeholder{color:var(--muted)}.control select option{color:var(--text)}.control select{-webkit-appearance:none;appearance:none}.passwordToggle{border:none;background:transparent;color:var(--muted);width:28px;height:28px;border-radius:999px;display:grid;place-items:center}.checkLine{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;font-weight:800}.checkLine label{display:flex;align-items:flex-start;gap:8px}.checkLine input{accent-color:var(--primary);margin-top:2px}.link{color:var(--accent);font-weight:950}.submit{width:100%;height:48px;border-radius:999px;border:none;font-weight:950;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,var(--accent),var(--hot));color:#061027;margin-top:2px}.divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-weight:900}.divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}.socialGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.social{height:44px;border-radius:999px;border:1px solid var(--line);background:var(--input);color:var(--text);display:flex;align-items:center;justify-content:center;gap:9px;font-weight:900}.notice{padding:12px 14px;border:1px solid rgba(79,140,255,.22);background:rgba(79,140,255,.09);border-radius:20px;color:var(--muted);font-size:12px;font-weight:800}.notice strong{color:var(--text)}.partnerOnboardingLink{margin-top:12px;display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid rgba(255,183,3,.30);background:rgba(255,183,3,.09);border-radius:20px;color:var(--text);font-weight:900}.partnerOnboardingLink>i:first-child{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border-radius:14px;background:rgba(255,183,3,.16);color:var(--accent)}.partnerOnboardingLink span{display:grid;gap:2px;min-width:0;flex:1}.partnerOnboardingLink small{color:var(--muted);font-size:11px;font-weight:800}.partnerOnboardingLink>i:last-child{color:var(--accent)}.partnerOnboardingLink:hover{border-color:rgba(255,183,3,.52);background:rgba(255,183,3,.14)}
     .miniDash{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{padding:12px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.035)}.stat strong{display:block;font-size:18px}.stat span{display:block;font-size:11px;font-weight:850;color:var(--muted)}
 
     .pageGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.infoCard{padding:13px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.035)}.infoCard i{color:var(--accent);font-size:17px;margin-bottom:8px}.infoCard strong{display:block;font-size:13px;font-weight:950}.infoCard span{display:block;margin-top:3px;color:var(--muted);font-size:12px;font-weight:760}.stepList{display:grid;gap:8px;margin-top:12px}.step{display:flex;gap:10px;align-items:flex-start;padding:11px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:12px;font-weight:820;color:var(--muted)}.step b{min-width:26px;height:26px;border-radius:999px;background:rgba(79,140,255,.14);border:1px solid rgba(79,140,255,.24);display:grid;place-items:center;color:var(--text)}.supportOptions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.supportTile{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:20px;padding:12px;text-align:left;color:var(--text);font-weight:900}.supportTile i{display:block;color:var(--accent);font-size:18px;margin-bottom:8px}.supportTile span{display:block;color:var(--muted);font-size:11px;font-weight:750;margin-top:2px}.faqList{display:grid;gap:8px;margin-top:12px}.faqItem{border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:18px;padding:11px}.faqItem strong{display:block;font-size:13px}.faqItem p{margin:4px 0 0;color:var(--muted);font-size:12px;font-weight:760}
-    .panel{display:none}.panel.active{display:block}.successBox{display:none;padding:12px 14px;border-radius:20px;border:1px solid rgba(34,197,94,.24);background:rgba(34,197,94,.10);color:#22c55e;font-weight:900;font-size:13px}.successBox.show{display:block}
+    .panel{display:none}.panel.active{display:block}.flashStack{display:grid;gap:8px}.flashMessage{padding:12px 14px;border-radius:18px;border:1px solid var(--line);font-size:13px;font-weight:850}.flashMessage.success{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.24);color:#22c55e}.flashMessage.error{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.25);color:#ef4444}.flashMessage.warning{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.24);color:#f59e0b}.flashMessage.info{background:rgba(79,140,255,.10);border-color:rgba(79,140,255,.24);color:#77a8ff}.successBox{display:none;padding:12px 14px;border-radius:20px;border:1px solid rgba(34,197,94,.24);background:rgba(34,197,94,.10);color:#22c55e;font-weight:900;font-size:13px}.successBox.show{display:block}
     .drawer{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:none;padding:92px 14px 14px}.drawer.open{display:grid;place-items:start center}.drawerPanel{width:min(520px,100%);border:1px solid var(--line);border-radius:26px;background:linear-gradient(180deg,var(--cardA),var(--cardB));box-shadow:var(--shadow);backdrop-filter:blur(16px);padding:14px}.drawerTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.drawerLinks{display:grid;gap:8px}.drawerLinks a{padding:12px 14px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.035);font-weight:900;color:var(--text);display:flex;gap:10px;align-items:center}
     .authFooter{width:var(--container);margin:0 auto 24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,var(--cardA),var(--cardB));padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:820;box-shadow:var(--shadow2)}
     .authFooter strong{color:var(--text)}.footerLinks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.footerLinks a{height:34px;padding:0 11px;border:1px solid var(--line);border-radius:999px;background:var(--input);display:inline-flex;align-items:center;gap:7px;color:var(--text);font-weight:900}
     .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(7,10,18,.92);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:12px 16px;box-shadow:var(--shadow2);font-size:13px;font-weight:900;z-index:100;transition:.18s ease}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    .partnerFormCard{padding:18px}.partnerAuthTop{margin-bottom:14px}.partnerAuthTop h2{font-size:22px;margin:0;letter-spacing:-.45px}.partnerAuthTop p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.5}
+    .partnerPlanGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.partnerPlan{position:relative;display:grid;gap:5px;border:1px solid var(--line);background:var(--input);border-radius:20px;padding:12px;cursor:pointer;min-height:126px}.partnerPlan:hover,.partnerPlan:has(input:checked){border-color:rgba(255,183,3,.58);background:rgba(255,183,3,.09)}.partnerPlan input{position:absolute;top:12px;right:12px;accent-color:var(--accent)}.partnerPlan strong{font-size:14px}.partnerPlan small{color:var(--muted);font-size:11px;font-weight:750;line-height:1.4}.partnerPlan b{font-size:12px;color:var(--accent);margin-top:auto}.partnerPlan .badge{justify-self:start}
+    .partnerSectionTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:13px;margin-top:3px}.partnerSectionTitle span{font-weight:950}.partnerSectionTitle small{color:var(--muted);font-weight:750;text-align:right}.partnerTextarea{height:auto;min-height:92px;border-radius:22px;align-items:flex-start;padding:12px 14px}.partnerTextarea i{margin-top:4px}.partnerTextarea textarea{width:100%;min-height:66px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750}.partnerSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.partnerSteps .stat{min-height:72px}.partnerSteps .stat strong{font-size:18px;color:var(--accent)}
     @media(max-width:980px){.navLinks{display:none}.grid{grid-template-columns:1fr}.leftHero{min-height:auto}.authShell{min-height:auto}.heroText h1{font-size:30px}.roleGrid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:640px){:root{--container:min(100% - 24px,520px);--navH:58px}.navWrap{top:8px}.nav{padding:8px 10px}.brand span:last-child{display:none}.mark{width:38px;height:38px;border-radius:14px}.navActions .btn{display:none}.main{padding-top:8px}.leftHero{padding:15px;border-radius:22px}.badgeRow{display:none}.heroText h1{font-size:24px;line-height:1.12;letter-spacing:-.6px}.heroText p{font-size:12px}.benefits{display:none}.authShell{padding:12px;border-radius:22px}.authTop h2{font-size:20px}.toggle{width:100%;display:grid;grid-template-columns:1fr 1fr}.row2,.socialGrid,.miniDash,.pageGrid,.supportOptions{grid-template-columns:1fr}.roleGrid{grid-template-columns:repeat(2,1fr)}.control{height:44px}.checkLine{display:grid}.drawer{padding-top:78px}}
     /* No glassmorphism in light mode - flat white surfaces, no tinted background decoration. */
     html[data-theme="light"] body::before{display:none}
     html[data-theme="light"] .nav,html[data-theme="light"] .card,html[data-theme="light"] .drawerPanel{backdrop-filter:none;-webkit-backdrop-filter:none}
     html[data-theme="light"] .leftHero::after{display:none}
-  </style>
+  
+    @media(max-width:760px){.partnerPlanGrid{grid-template-columns:1fr}.partnerSteps{grid-template-columns:1fr 1fr}.partnerSectionTitle{align-items:flex-start;flex-direction:column}.partnerSectionTitle small{text-align:left}}
+    @media(max-width:460px){.partnerSteps{grid-template-columns:1fr}}
+</style>
+  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
 </head>
 <body>
   <div class="navWrap">
@@ -121,13 +129,13 @@
         <div class="heroText">
           <div class="eyebrow">Classic Trip account access</div>
           <h1>Login or create your travel account.</h1>
-          <p>Customers can manage tickets, promoters can track commission, and partners can list buses, hotels, flights, trains and more from one clean account system.</p>
+          <p>Customers manage trips, promoters track referral commission, and verified bus or hotel partners onboard from the same secure account page.</p>
         </div>
         <div class="benefits">
           <div class="benefit"><i class="fa-solid fa-receipt"></i><strong>Receipts saved</strong><span>Access tickets from Gmail, WhatsApp, or My Bookings.</span></div>
           <div class="benefit"><i class="fa-solid fa-link"></i><strong>Promoter links</strong><span>Share services and track commission referrals.</span></div>
           <div class="benefit"><i class="fa-solid fa-bus"></i><strong>Partner access</strong><span>Manage routes, rooms, schedules, pricing and ads.</span></div>
-          <div class="benefit"><i class="fa-solid fa-lock"></i><strong>Secure checkout</strong><span>Clean login flow ready for backend authentication.</span></div>
+          <div class="benefit"><i class="fa-solid fa-lock"></i><strong>Secure checkout</strong><span>Protected sessions, account-state checks, and role permissions.</span></div>
         </div>
       </aside>
 
@@ -137,17 +145,25 @@
             <h2 id="panelTitle">Welcome back</h2>
             <p id="panelSub">Login to manage bookings, saved trips, tickets and payments.</p>
           </div>
-          <div class="toggle" aria-label="Login or signup switch">
+          <div class="toggle" aria-label="Account access switch">
             <button class="active" data-open-panel="login">Login</button>
             <button data-open-panel="signup">Signup</button>
+            <button data-open-panel="partner">Partner</button>
           </div>
         </div>
 
+        <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
+          <div class="flashStack" role="status" aria-live="polite">
+            <% flashMessages.forEach(function(message){ %>
+              <div class="flashMessage <%= message.type || 'info' %>"><i class="fa-solid <%= message.type === 'error' ? 'fa-circle-exclamation' : message.type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i> <%= message.text %></div>
+            <% }); %>
+          </div>
+        <% } %>
         <div id="successBox" class="successBox"><i class="fa-solid fa-circle-check"></i> Request sent.</div>
 
         <div class="panel active" id="loginPanel">
           <div class="formCard">
-            <form class="form active" id="loginForm" action="/login" method="post">
+            <form class="form active" id="loginForm" action="/login" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="field">
                 <label>Email or phone number <a class="link" href="#" data-open-panel="forgot">Forgot?</a></label>
                 <div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone" autocomplete="username" required></div>
@@ -176,10 +192,8 @@
             <div class="roleGrid" aria-label="Account type">
               <button class="role active" type="button" data-role="customer"><i class="fa-regular fa-user"></i>Customer</button>
               <button class="role" type="button" data-role="promoter"><i class="fa-solid fa-share-nodes"></i>Promoter</button>
-              <button class="role" type="button" data-role="partner"><i class="fa-solid fa-building"></i>Partner</button>
-              <button class="role" type="button" data-role="employee"><i class="fa-solid fa-user-tie"></i>Employee</button>
             </div>
-            <form class="form active" id="signupForm" action="/register" method="post"><input type="hidden" name="role" id="roleInput" value="customer">
+            <form class="form active" id="signupForm" action="/register" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="role" id="roleInput" value="customer">
               <div class="row2">
                 <div class="field"><label>First name</label><div class="control"><i class="fa-regular fa-user"></i><input name="firstName" placeholder="First name" autocomplete="given-name" required></div></div>
                 <div class="field"><label>Last name</label><div class="control"><i class="fa-regular fa-user"></i><input name="lastName" placeholder="Last name" autocomplete="family-name" required></div></div>
@@ -188,66 +202,22 @@
                 <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" name="email" placeholder="Email address" autocomplete="email" required></div></div>
                 <div class="field"><label>Phone</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" placeholder="WhatsApp phone" autocomplete="tel" required></div></div>
               </div>
-              <div class="field partnerOnly" style="display:none"><label>Company / brand name</label><div class="control"><i class="fa-solid fa-building"></i><input id="companyInput" name="company" placeholder="Bus, hotel, airline, train company"></div></div>
-              <div class="row2 partnerOnly" style="display:none">
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select id="businessTypeInput" name="businessType"><option value="bus">Bus company</option><option value="hotel">Hotel / apartments</option><option value="flight">Airline</option><option value="train">Train operator</option><option value="tour">Tour company</option><option value="car_rental">Car rental</option></select></div></div>
-                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select id="countryInput" name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
-              </div>
-              <div class="field partnerOnly" style="display:none"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><select name="operatingCurrency"><option value="UGX">UGX</option><option value="KES">KES</option><option value="RWF">RWF</option><option value="TZS">TZS</option><option value="USD">USD</option></select></div></div>
               <div class="row2">
-                <div class="field"><label>Password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="password" placeholder="Create password" autocomplete="new-password" required><button type="button" class="passwordToggle" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
-                <div class="field"><label>Confirm password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="confirmPassword" placeholder="Repeat password" autocomplete="new-password" required></div></div>
+                <div class="field"><label>Password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="password" placeholder="Create password" autocomplete="new-password" minlength="8" maxlength="72" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,72}" title="Use 8–72 characters with at least one letter and one number" required><button type="button" class="passwordToggle" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
+                <div class="field"><label>Confirm password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="confirmPassword" placeholder="Repeat password" autocomplete="new-password" minlength="8" maxlength="72" required></div></div>
               </div>
-              <div class="checkLine"><label><input type="checkbox" required> I agree to Terms, Privacy Policy, Refund Policy and partner rules.</label></div>
+              <div class="checkLine"><label><input type="checkbox" name="termsAccepted" required> I agree to the Terms, Privacy Policy and Refund Policy.</label></div>
               <button class="submit" type="submit"><i class="fa-solid fa-user-plus"></i>Create account</button>
               <div class="divider">or signup with</div>
               <div class="socialGrid"><a class="social" id="googleSignupLink" href="/auth/google?role=customer"><i class="fa-brands fa-google"></i>Google</a><button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button></div>
             </form>
+            <div class="notice" style="margin-top:12px"><strong>Staff and drivers:</strong> employee, agent, finance, check-in, support, and driver accounts are created only through a secure company invitation.</div>
+            <a class="partnerOnboardingLink" href="#partner" data-open-panel="partner"><i class="fa-solid fa-building-circle-check"></i><span><strong>Register a bus or hotel company</strong><small>Continue in this same secure account and onboarding page.</small></span><i class="fa-solid fa-arrow-right"></i></a>
           </div>
           <div class="miniDash">
-            <div class="stat"><strong>3%</strong><span>promoter commission ready</span></div>
-            <div class="stat"><strong>7%</strong><span>platform fee ready</span></div>
-            <div class="stat"><strong>10 min</strong><span>seat / room hold flow</span></div>
-          </div>
-        </div>
-
-        <div class="panel" id="partnerPanel">
-          <div class="formCard">
-            <div class="authTop" style="margin-bottom:12px">
-              <div>
-                <h2 style="font-size:22px;margin:0;letter-spacing:-.45px">Partner with Classic Trip</h2>
-                <p>For bus companies, hotels, airlines, train operators, tours, car rentals and experience providers.</p>
-              </div>
-              <span class="badge info"><i class="fa-solid fa-building"></i>Company onboarding</span>
-            </div>
-            <div class="pageGrid">
-              <div class="infoCard"><i class="fa-solid fa-route"></i><strong>List services</strong><span>Create buses, hotel rooms, flights, train coaches, tours and rental listings.</span></div>
-              <div class="infoCard"><i class="fa-solid fa-chart-line"></i><strong>Promote listings</strong><span>Boost routes, rooms and deals so they appear higher in search.</span></div>
-              <div class="infoCard"><i class="fa-solid fa-wallet"></i><strong>Split revenue</strong><span>Platform fee, partner balance and promoter commission are ready for backend logic.</span></div>
-              <div class="infoCard"><i class="fa-solid fa-users-gear"></i><strong>Staff accounts</strong><span>Add managers, agents, check-in staff, finance users and support employees.</span></div>
-            </div>
-            <div class="stepList">
-              <div class="step"><b>1</b><span>Create a partner/company account and verify your business details.</span></div>
-              <div class="step"><b>2</b><span>Add services, schedules, seat/room structures, prices, policies and images.</span></div>
-              <div class="step"><b>3</b><span>Receive bookings, manage tickets, confirm check-ins and track earnings.</span></div>
-            </div>
-          </div>
-          <div class="formCard" style="margin-top:12px">
-            <form class="form active" id="partnerForm" action="/partner-requests" method="post">
-              <div class="row2">
-                <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Company / brand name" required></div></div>
-                <div class="field"><label>Business type</label><div class="control"><i class="fa-solid fa-list"></i><select name="companyType" required><option value="bus">Bus company</option><option value="hotel">Hotel / apartment</option><option value="flight">Airline</option><option value="train">Train operator</option><option value="tour">Tour company</option><option value="car_rental">Car rental</option><option value="ferry">Ferry / boat</option></select></div></div>
-              </div>
-              <div class="row2">
-                <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-globe"></i><select name="country"><option>Uganda</option><option>Kenya</option><option>Tanzania</option><option>Rwanda</option><option>Burundi</option><option>South Sudan</option><option>Ethiopia</option><option>Somalia</option><option>DR Congo</option></select></div></div>
-                <div class="field"><label>Contact person</label><div class="control"><i class="fa-regular fa-user"></i><input name="contactName" placeholder="Manager name" required></div></div>
-              </div>
-              <div class="row2">
-                <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input name="email" type="email" placeholder="Business email" required></div></div>
-                <div class="field"><label>WhatsApp phone</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" placeholder="WhatsApp number" required></div></div>
-              </div>
-              <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Request partner access</button>
-            </form>
+            <div class="stat"><strong><%= platformConfig.supportedCurrencies.length %></strong><span>supported currencies</span></div>
+            <div class="stat"><strong><%= platformConfig.holdMinutes %> min</strong><span>inventory hold rule</span></div>
+            <div class="stat"><strong>1 source</strong><span>database-backed records</span></div>
           </div>
         </div>
 
@@ -256,7 +226,7 @@
             <div class="authTop" style="margin-bottom:12px">
               <div>
                 <h2 style="font-size:22px;margin:0;letter-spacing:-.45px">How can we help?</h2>
-                <p>Support for bookings, payments, receipts, partner accounts and promoter commission.</p>
+                <p>Support for bookings, payments, receipts, partner accounts and referral earnings.</p>
               </div>
               <span class="badge ok"><i class="fa-solid fa-headset"></i>24/7 support</span>
             </div>
@@ -265,7 +235,7 @@
               <button class="supportTile" type="button"><i class="fa-solid fa-receipt"></i>Payment issue<span>Receipts, refunds and failed payments</span></button>
               <button class="supportTile" type="button"><i class="fa-solid fa-building"></i>Partner help<span>Listings, staff and dashboards</span></button>
             </div>
-            <form class="form active" id="supportForm" action="/support" method="post">
+            <form class="form active" id="supportForm" action="/support" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="row2">
                 <div class="field"><label>Name</label><div class="control"><i class="fa-regular fa-user"></i><input name="name" placeholder="Your name" required></div></div>
                 <div class="field"><label>Email or phone</label><div class="control"><i class="fa-regular fa-envelope"></i><input name="contact" placeholder="Email / WhatsApp" required></div></div>
@@ -287,13 +257,17 @@
 
         <div class="panel" id="forgotPanel">
           <div class="formCard">
-            <form class="form active" id="forgotForm" action="/forgot-password" method="post">
+            <form class="form active" id="forgotForm" action="/forgot-password" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="field"><label>Recover your account</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone number" required></div></div>
               <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Send reset link</button>
               <button class="social" type="button" data-open-panel="login"><i class="fa-solid fa-arrow-left"></i>Back to login</button>
             </form>
           </div>
-          <div class="notice"><strong>Backend note:</strong> connect this to email OTP, SMS OTP, or WhatsApp OTP verification.</div>
+          <div class="notice"><strong>Recovery:</strong> verified reset delivery is handled through the configured email or SMS channel.</div>
+        </div>
+
+        <div class="panel" id="partnerPanel">
+          <%- include('./_partner-signup') %>
         </div>
       </section>
     </section>
@@ -305,10 +279,11 @@
       <div class="drawerTop"><div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div><button class="iconBtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="drawerLinks">
         <a href="#login" data-open-panel="login"><i class="fa-solid fa-right-to-bracket"></i>Login</a>
-        <a href="#signup" data-open-panel="signup"><i class="fa-solid fa-user-plus"></i>Signup</a>
+        <a href="#signup" data-open-panel="signup"><i class="fa-solid fa-user-plus"></i>Customer / promoter signup</a>
         <a href="#partner" data-open-panel="partner"><i class="fa-solid fa-building"></i>Become a partner</a>
         <a href="#forgot" data-open-panel="forgot"><i class="fa-solid fa-key"></i>Forgot password</a>
         <a href="#support" data-open-panel="support"><i class="fa-solid fa-headset"></i>Support</a>
+        <a href="/partner-commission"><i class="fa-solid fa-percent"></i>View partner commission</a>
         <a href="/"><i class="fa-solid fa-house"></i>Back to home</a>
         <a href="/search"><i class="fa-solid fa-magnifying-glass"></i>Search trips</a>
         <a href="/tickets"><i class="fa-solid fa-ticket"></i>Find my ticket</a>
@@ -318,7 +293,7 @@
 
   <div class="toast" id="toast">Action completed</div>
 
-  <script>
+  <script nonce="<%= cspNonce %>">
     const html = document.documentElement;
     const themeBtn = document.getElementById('themeBtn');
     const themeIcon = document.getElementById('themeIcon');
@@ -330,54 +305,46 @@
     const toast = document.getElementById('toast');
     const roleInput = document.getElementById('roleInput');
     const googleSignupLink = document.getElementById('googleSignupLink');
-    const companyInput = document.getElementById('companyInput');
-    const businessTypeInput = document.getElementById('businessTypeInput');
-    const countryInput = document.getElementById('countryInput');
 
     function showToast(message){ toast.textContent = message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 2200); }
-    function setTheme(mode){ html.setAttribute('data-theme', mode); localStorage.setItem('ct_auth_theme', mode); themeIcon.className = mode === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
-    setTheme(localStorage.getItem('ct_auth_theme') || 'dark');
+    function setTheme(mode){ html.setAttribute('data-theme', mode); try { localStorage.setItem('classicTripTheme', mode); localStorage.removeItem('ct-theme'); localStorage.removeItem('ct_auth_theme'); } catch (_) {} themeIcon.className = mode === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
+    let savedTheme = 'dark'; try { savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'dark'; } catch (_) {} setTheme(savedTheme);
     themeBtn.addEventListener('click', ()=> setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 
     function openPanel(name){
-      Object.entries(panels).forEach(([key,p]) => p.classList.toggle('active', key === name));
+      if (!panels[name]) name = 'login';
+      Object.entries(panels).forEach(([key,p]) => { if (p) p.classList.toggle('active', key === name); });
       document.querySelectorAll('[data-open-panel]').forEach(btn => btn.classList.toggle('active', btn.dataset.openPanel === name));
       successBox.classList.remove('show');
       const copy = {
         login:['Welcome back','Login to manage bookings, saved trips, tickets and payments.'],
-        signup:['Create your account','Choose customer, promoter, partner, or employee access.'],
-        partner:['Partner access','Register a company, promote services and prepare your partner dashboard.'],
+        signup:['Create your account','Choose customer or promoter access. Staff and drivers use secure invitations.'],
+        partner:['Partner onboarding','Create one verified owner account for a bus or hotel company.'],
         support:['Support center','Get help with bookings, payments, refunds, receipts and partner accounts.'],
         forgot:['Recover account','Get a reset link or OTP for your Classic Trip account.']
       };
-      panelTitle.textContent = copy[name][0]; panelSub.textContent = copy[name][1];
+      if (panelTitle && copy[name]) panelTitle.textContent = copy[name][0];
+      if (panelSub && copy[name]) panelSub.textContent = copy[name][1];
       history.replaceState(null,'','#' + name);
-      drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true');
+      if (drawer) { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
     }
     document.querySelectorAll('[data-open-panel]').forEach(btn => btn.addEventListener('click', (e)=>{ e.preventDefault(); openPanel(btn.dataset.openPanel); if(btn.dataset.roleLink) setRole(btn.dataset.roleLink); }));
 
     function setRole(role){
       document.querySelectorAll('.role').forEach(btn => btn.classList.toggle('active', btn.dataset.role === role));
-      const isPartner = role === 'partner' || role === 'employee';
-      document.querySelectorAll('.partnerOnly').forEach(el => el.style.display = isPartner ? '' : 'none');
-      roleInput.value = role;
-      document.querySelectorAll('.partnerOnly input, .partnerOnly select').forEach(field => { field.required = isPartner; });
-      const submitText = {customer:'Create customer account', promoter:'Create promoter account', partner:'Create partner account', employee:'Create employee account'}[role];
-      document.querySelector('#signupForm .submit').innerHTML = '<i class="fa-solid fa-user-plus"></i>' + submitText;
+      if (!roleInput) return;
+      roleInput.value = ['customer','promoter'].includes(role) ? role : 'customer';
+      const submitText = {customer:'Create customer account', promoter:'Create promoter account'}[roleInput.value] || 'Create account';
+      const signupSubmit = document.querySelector('#signupForm .submit');
+      if (signupSubmit) signupSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i>' + submitText;
       updateGoogleSignupLink();
     }
     document.querySelectorAll('.role').forEach(btn => btn.addEventListener('click', ()=> setRole(btn.dataset.role)));
     function updateGoogleSignupLink(){
-      const params = new URLSearchParams({ role: roleInput.value || 'customer' });
-      if(roleInput.value === 'partner' || roleInput.value === 'employee'){
-        if(companyInput.value.trim()) params.set('companyName', companyInput.value.trim());
-        if(businessTypeInput.value) params.set('companyType', businessTypeInput.value);
-        if(countryInput.value) params.set('country', countryInput.value);
-      }
+      if (!roleInput || !googleSignupLink) return;
+      const params = new URLSearchParams({ role: ['customer','promoter'].includes(roleInput.value) ? roleInput.value : 'customer' });
       googleSignupLink.href = '/auth/google?' + params.toString();
     }
-    [companyInput,businessTypeInput,countryInput].forEach(el => el.addEventListener('input', updateGoogleSignupLink));
-    [businessTypeInput,countryInput].forEach(el => el.addEventListener('change', updateGoogleSignupLink));
     updateGoogleSignupLink();
 
     document.querySelectorAll('.passwordToggle').forEach(btn => btn.addEventListener('click', ()=>{
@@ -387,10 +354,16 @@
     }));
 
     document.querySelectorAll('form').forEach(form => form.addEventListener('submit', ()=>{
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.setAttribute('aria-disabled', 'true');
+      }
       const copy = {
-        partnerForm: 'Sending your partner request...',
+        signupForm: 'Creating your account...',
         supportForm: 'Sending your support request...',
-        forgotForm: 'Sending your reset link...'
+        forgotForm: 'Sending your reset link...',
+        partnerOnboardingForm: 'Creating your partner account...'
       };
       if (!copy[form.id]) return;
       successBox.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + copy[form.id];
@@ -398,12 +371,14 @@
       showToast(copy[form.id]);
     }));
 
-    document.getElementById('menuBtn').addEventListener('click', ()=>{ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); });
-    document.getElementById('closeDrawer').addEventListener('click', ()=>{ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); });
-    drawer.addEventListener('click', e => { if(e.target === drawer){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }});
+    document.getElementById('menuBtn')?.addEventListener('click', ()=>{ drawer?.classList.add('open'); drawer?.setAttribute('aria-hidden','false'); });
+    document.getElementById('closeDrawer')?.addEventListener('click', ()=>{ drawer?.classList.remove('open'); drawer?.setAttribute('aria-hidden','true'); });
+    drawer?.addEventListener('click', e => { if(e.target === drawer){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }});
 
+    const requestedRole = new URLSearchParams(location.search).get('role');
     const start = location.hash.replace('#','');
-    if(['login','signup','partner','support','forgot'].includes(start)) openPanel(start);
+    if (['partner','company','company_admin'].includes(String(requestedRole || '').toLowerCase())) openPanel('partner');
+    else if (['login','signup','partner','support','forgot'].includes(start)) openPanel(start);
   </script>
 </body>
 </html>

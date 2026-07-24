@@ -14,7 +14,8 @@ const ticketScanSchema = new Schema({
   qrCodeValue: { type: String, index: true },
   employeeId: { type: String, index: true },
   companyId: { type: String, index: true },
-  result: { type: String, required: true, index: true },
+  // Canonical scanner outcomes shared by lookup, validation, no-show, and audit workflows.
+  result: { type: String, required: true, index: true, enum: ['not_authorized_for_ticket', 'not_found', 'blocked', 'ready', 'not_valid_for_checkin', 'payment_not_successful', 'already_used', 'validated', 'not_valid_for_no_show', 'no_show'] },
   ok: { type: Boolean, default: false, index: true },
   message: String,
   scannedAt: { type: Date, default: Date.now, index: true },

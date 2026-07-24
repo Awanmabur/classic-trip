@@ -1,0 +1,127 @@
+<%
+  const roleWorkflowGuides = {
+    customer: {
+      title: 'Customer Booking & Support Guide',
+      badge: 'Customer journey',
+      rule: 'Select one of your existing bookings whenever you request support, a refund, a reschedule, a review, or a receipt. Only public ticket lookup requires typing a booking or ticket code.',
+      steps: [
+        ['1. Discover', 'Search a live listing and review the company, route or property, dates, price, rules, and availability.'],
+        ['2. Select inventory', 'Bus customers select a departure and available seat. Hotel customers select check-in/out dates and an available room type.'],
+        ['3. Cart and hold', 'The platform temporarily locks the selected seat or room nights and calculates the authoritative total.'],
+        ['4. Pay and receive ticket', 'Successful payment creates the booking, passenger or guest snapshot, ticket/QR, receipt, notifications, and company settlement entries.'],
+        ['5. Travel or stay', 'Use the ticket for boarding/check-in. Operational status, schedule changes, and support updates appear against the same booking.'],
+        ['6. After service', 'Select the completed booking for a review, refund request, support case, or receipt.'],
+      ],
+    },
+    employee: {
+      title: 'Staff Assignment & Daily Work Guide', badge: 'Permission-scoped',
+      rule: 'Your company administrator selects your branch, listings, schedules, and permissions. You can only work with records assigned to your company and allowed by your permission set.',
+      steps: [
+        ['1. Staff membership', 'Your user account connects to one company employee record, role title, active branch, service categories, and permissions.'],
+        ['2. Assigned scope', 'Listings and schedules are selected from the company records. Never type schedule, listing, vehicle, room, or booking IDs.'],
+        ['3. Daily work', 'Depending on permission, create desk bookings, record exact payments, update inventory, check in tickets, manage support, or prepare manifests.'],
+        ['4. Handover', 'Record unresolved tasks, incidents, cash, and schedule notes for the next shift.'],
+        ['5. Audit', 'Every sensitive action records the employee, company, record, time, and result.'],
+      ],
+    },
+    driver: {
+      title: 'Driver Assignment & Trip Guide', badge: 'Assigned trips only',
+      rule: 'A driver becomes operational only after account activation, company membership, licence/safety approval, and selection on a vehicle or schedule.',
+      steps: [
+        ['1. Approval', 'Company administration verifies the driver account, licence, documents, safety status, and permissions.'],
+        ['2. Assignment', 'The company selects an existing vehicle and/or schedule. The assignment links driver, vehicle, route, listing, and departure.'],
+        ['3. Before departure', 'Review the schedule, route/stops, vehicle seat map, passenger manifest, special notes, and boarding status.'],
+        ['4. During trip', 'Update trip status, delays, location, passenger counts, check-in assistance, and incidents only for assigned trips.'],
+        ['5. Completion', 'Complete the trip and handover; booking and settlement workflows consume the final operational state.'],
+      ],
+    },
+    promoter: {
+      title: 'Promoter Attribution & Earnings Guide', badge: 'Referral lifecycle',
+      rule: 'Promoters select live listings to share. Attribution, conversion, commission, fraud review, and payout are generated from the same tracked referral session and paid booking.',
+      steps: [
+        ['1. Verification', 'Complete promoter identity, payout details, status, and fraud/risk checks.'],
+        ['2. Select listing', 'Create a referral link or campaign by selecting an active listing; do not type company or listing IDs.'],
+        ['3. Share', 'The tracked link records clicks and the browser referral session without exposing internal identifiers.'],
+        ['4. Conversion', 'A successful, non-self-referred booking creates attribution and an idempotent commission entry.'],
+        ['5. Release and payout', 'Eligible commission moves from pending to available after service completion and finance checks, then into a withdrawal/payout batch.'],
+      ],
+    },
+    support: {
+      title: 'Support Case & Booking Timeline Guide', badge: 'Customer operations',
+      rule: 'Select an existing support case or exact booking. Replies, internal notes, reschedules, refunds, notifications, and escalations stay on one authoritative timeline.',
+      steps: [
+        ['1. Intake', 'Cases arrive from an authenticated customer booking, verified public booking contact/access code, company operation, or internal escalation.'],
+        ['2. Verify context', 'Review booking, customer, company, payment, schedule/room, ticket, and correspondence history.'],
+        ['3. Act safely', 'Reply, add an internal note, request finance action, or reschedule using eligible live records.'],
+        ['4. Escalate', 'Refunds and payment disputes go to finance; safety and trip issues go to operations.'],
+        ['5. Resolve', 'Record resolution and customer notification without deleting the immutable timeline.'],
+      ],
+    },
+    finance: {
+      title: 'Payment, Ledger & Settlement Guide', badge: 'Money controls',
+      rule: 'Payments, wallet transactions, commissions, refunds, payouts, and reconciliation must always reference existing bookings, companies, promoters, and ledger entries.',
+      steps: [
+        ['1. Payment capture', 'Signed provider webhooks verify amount, currency, reference, and idempotency before a payment becomes successful.'],
+        ['2. Ledger split', 'The paid booking generates platform, company, and eligible promoter entries; totals must balance.'],
+        ['3. Reconciliation', 'Compare provider records, internal payments, booking totals, wallet entries, and exceptions.'],
+        ['4. Refund or hold', 'Select the exact payment/refund/payout record; approval, rejection, freezing, and compensation are audited.'],
+        ['5. Settlement', 'Only available, non-frozen, non-refunded earnings enter a payout batch and finance statement.'],
+      ],
+    },
+    operations: {
+      title: 'Platform Operations Guide', badge: 'Live service control',
+      rule: 'Operations connects published listings, routes/properties, schedules/inventory, manifests, check-ins, incidents, and service completion. It does not create unrelated finance or support records directly.',
+      steps: [
+        ['1. Readiness', 'Review verified company, active listing, valid dependencies, inventory, operator/driver assignment, fare, policy, and future date.'],
+        ['2. Live monitoring', 'Monitor departures/stays, capacity, holds, manifests, check-ins, delays, incidents, and no-shows.'],
+        ['3. Controlled action', 'Update only selected eligible schedules, seats, room units, or operational cases.'],
+        ['4. Escalation', 'Customer cases go to support; payment/refund issues go to finance; partner compliance goes to Super Admin.'],
+        ['5. Completion', 'Final service state unlocks downstream settlement and reporting.'],
+      ],
+    },
+    content: {
+      title: 'Content & Marketplace Publishing Guide', badge: 'Content boundary',
+      rule: 'Content administrators manage approved public presentation and campaigns, not partner verification, inventory ownership, payments, or operational status.',
+      steps: [
+        ['1. Select source', 'Choose an existing verified company, active listing, destination, article, promotion, or ad campaign.'],
+        ['2. Review content', 'Validate title, media, description, dates, audience, legal text, and publication status.'],
+        ['3. Publish', 'Publishing changes marketplace visibility only; it does not bypass company or inventory readiness.'],
+        ['4. Monitor', 'Track reach, clicks, moderation, expiry, and campaign performance.'],
+      ],
+    },
+    admin: {
+      title: 'Super Admin Platform Lifecycle Guide', badge: 'Platform governance',
+      rule: 'Super Admin governs onboarding, roles, platform configuration, compliance, and cross-domain escalation. Domain specialists retain their own support, finance, operations, and content actions.',
+      steps: [
+        ['1. Partner onboarding', 'Review legal identity, registration, tax, address, service type, documents, payout details, and risk signals.'],
+        ['2. Verify and activate', 'Approve the company and its primary service type, then the partner creates branches/properties, listings, inventory, staff, and schedules.'],
+        ['3. Govern roles', 'Assign only required role and company/branch/listing/schedule scope; never grant access through menu visibility alone.'],
+        ['4. Monitor platform', 'Review audit, security, fraud, system health, unresolved escalations, and configuration changes.'],
+        ['5. Suspend safely', 'Suspension pauses publishing/booking access while preserving bookings, ledger records, tickets, and audit history.'],
+      ],
+    },
+  };
+  const workflowGuide = roleWorkflowGuides[dashboardRoleKey] || roleWorkflowGuides.admin;
+%>
+<section class="section" id="workflow-guide" aria-labelledby="workflowGuideHeading">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3 id="workflowGuideHeading"><i class="fa-solid fa-circle-question"></i> <%= workflowGuide.title %></h3>
+        <p><%= workflowGuide.rule %></p>
+      </div>
+      <span class="badge info"><%= workflowGuide.badge %></span>
+    </div>
+    <div class="splitGrid">
+      <% workflowGuide.steps.forEach(function(step){ %>
+        <div class="splitItem">
+          <div class="splitTop"><strong><%= step[0] %></strong><span class="badge ok">Connected</span></div>
+          <p><%= step[1] %></p>
+        </div>
+      <% }) %>
+    </div>
+    <div class="notice">
+      <strong>Selection rule:</strong> Choose relationships from lists filtered to records you own or are assigned. Type only public information such as names, notes, descriptions, addresses, external references, and customer contact details.
+    </div>
+  </div>
+</section>

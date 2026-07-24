@@ -1,265 +1,208 @@
-const store = require('../data/persistentStore');
+const { platformCurrency } = require('../../utils/currency');
+const promoterRepository = require('../../repositories/domain/promoterRepository');
 const promoterService = require('./promoterService');
 const walletService = require('../wallet/walletService');
+const { nextId } = require('../data/idService');
 
-function clean(value, limit = 500) {
-  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, limit);
-}
-
-function normalize(value) { return clean(value).toLowerCase(); }
-
+function clean(value, limit = 500) { return String(value || '').trim().replace(/\s+/g, ' ').slice(0, limit); }
 function now() { return new Date().toISOString(); }
 
-function ensureCollections() {
-  ['agentProfiles', 'attributionSessions', 'campaignConversions', 'fraudSignals', 'referralClicks', 'promoterLinks', 'promotionCampaigns'].forEach((key) => {
-    if (!Array.isArray(store.state[key])) store.state[key] = [];
-  });
-}
-
-function nextId(prefix, rows) { return `${prefix}-${String((rows || []).length + 1).padStart(5, '0')}`; }
-
-function requirePromoter(promoterId) {
-  const promoter = store.state.users.find((user) => user.id === promoterId && user.role === 'promoter');
-  if (!promoter) {
-    const error = new Error('Promoter or agent account not found');
-    error.status = 404;
-    throw error;
+async function requirePromoter(promoterId) {
+  const promoter = await promoterRepository.users.findOne({ id: promoterId, role: 'promoter' });
+  if (!promoter || promoter.status !== 'active') {
+    const error = new Error('Active promoter or agent account not found'); error.status = 404; throw error;
   }
   return promoter;
 }
 
 async function ensureAgentProfile(promoterId, payload = {}, actorId = promoterId) {
-  ensureCollections();
-  const promoter = requirePromoter(promoterId);
-  let profile = store.state.agentProfiles.find((row) => row.userId === promoterId || row.promoterId === promoterId);
+  const promoter = await requirePromoter(promoterId);
+  let profile = await promoterRepository.profiles.findOne({ $or: [{ userId: promoterId }, { promoterId }] });
   const permissions = Array.isArray(payload.permissions)
-    ? payload.permissions
-    : clean(payload.permissions || 'offline_sales,referral_links').split(',').map((item) => clean(item)).filter(Boolean);
+    ? payload.permissions.map(clean).filter(Boolean)
+    : clean(payload.permissions || 'offline_sales,referral_links').split(',').map(clean).filter(Boolean);
   if (!profile) {
     profile = {
-      id: nextId('agent-profile', store.state.agentProfiles),
-      userId: promoterId,
-      promoterId,
-      agentCode: payload.agentCode || promoter.referralCode || `AGENT-${store.state.agentProfiles.length + 1}`,
-      createdAt: now(),
-      createdBy: actorId,
+      id: await nextId('agent-profile'), userId: promoterId, promoterId,
+      agentCode: payload.agentCode || promoter.referralCode || `AGENT-${cryptoSafeSuffix()}`,
+      createdAt: now(), createdBy: actorId,
     };
-    store.state.agentProfiles.unshift(profile);
   }
   Object.assign(profile, {
     officeName: clean(payload.officeName || payload.name || profile.officeName || `${promoter.fullName} desk`),
-    terminalId: clean(payload.terminalId || profile.terminalId || ''),
-    branchId: clean(payload.branchId || profile.branchId || ''),
-    location: clean(payload.location || profile.location || ''),
-    payoutMethod: clean(payload.payoutMethod || profile.payoutMethod || promoter.payoutAccount?.method || 'mobile_money'),
+    terminalId: clean(payload.terminalId || profile.terminalId || ''), branchId: clean(payload.branchId || profile.branchId || ''),
+    location: clean(payload.location || profile.location || ''), payoutMethod: 'mobile_money',
     payoutAccount: clean(payload.payoutAccount || profile.payoutAccount || promoter.phone || ''),
-    offlineSalesEnabled: payload.offlineSalesEnabled === false || payload.offlineSalesEnabled === 'false' ? false : true,
+    offlineSalesEnabled: !(payload.offlineSalesEnabled === false || payload.offlineSalesEnabled === 'false'),
     permissions: permissions.length ? permissions : (profile.permissions || ['offline_sales', 'referral_links']),
-    dailyLimit: Number(payload.dailyLimit || profile.dailyLimit || 0),
-    status: clean(payload.status || profile.status || 'active'),
-    verifiedAt: profile.verifiedAt || now(),
-    updatedAt: now(),
-    updatedBy: actorId,
+    dailyLimit: Math.max(0, Number(payload.dailyLimit || profile.dailyLimit || 0)), status: 'active',
+    verifiedAt: profile.verifiedAt || now(), updatedAt: now(), updatedBy: actorId,
   });
-  promoter.agentProfile = {
-    id: profile.id,
-    agentCode: profile.agentCode,
-    offlineSalesEnabled: profile.offlineSalesEnabled,
-    permissions: profile.permissions,
-    location: profile.location,
-    dailyLimit: profile.dailyLimit,
-  };
-  promoter.promoterProfile = {
-    ...(promoter.promoterProfile || {}),
-    offlineSalesEnabled: profile.offlineSalesEnabled,
-    agentPermissions: profile.permissions,
-  };
-  await walletService.getOrCreateWallet('promoter', promoterId, payload.currency || 'UGX');
+  promoter.agentProfile = { id: profile.id, agentCode: profile.agentCode, offlineSalesEnabled: profile.offlineSalesEnabled, permissions: profile.permissions, location: profile.location, dailyLimit: profile.dailyLimit };
+  promoter.promoterProfile = { ...(promoter.promoterProfile || {}), offlineSalesEnabled: profile.offlineSalesEnabled, agentPermissions: profile.permissions };
+  await promoterRepository.withTransaction(async (session) => {
+    await promoterRepository.profiles.save(profile, { userId: promoterId }, { session });
+    await promoterRepository.users.save(promoter, { id: promoter.id }, { session });
+  });
+  await walletService.getOrCreateWallet('promoter', promoterId, payload.currency || platformCurrency());
   return profile;
 }
 
-function createReferralLink(payload = {}, actorId = payload.promoterId) {
-  ensureCollections();
-  const promoterId = payload.promoterId || actorId || 'user-promoter-001';
-  requirePromoter(promoterId);
-  const link = promoterService.createLink({ promoterId, listingId: payload.listingId, code: payload.code });
+function cryptoSafeSuffix() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase(); }
+
+async function createReferralLink(payload = {}, actorId = payload.promoterId) {
+  const promoterId = payload.promoterId || actorId;
+  await requirePromoter(promoterId);
+  const link = await promoterService.createLink({ promoterId, listingId: payload.listingId, code: payload.code });
   Object.assign(link, {
-    campaignId: clean(payload.campaignId),
-    sourceChannel: clean(payload.sourceChannel || payload.channel || 'direct'),
-    audience: clean(payload.audience || ''),
-    expiresAt: payload.expiresAt || '',
+    campaignId: clean(payload.campaignId), sourceChannel: clean(payload.sourceChannel || payload.channel || 'direct'),
+    audience: clean(payload.audience || ''), expiresAt: payload.expiresAt || null,
     qrCardUrl: `/promoter/links/${encodeURIComponent(link.id)}/qr-card`,
     shareTitle: clean(payload.shareTitle || 'Book on Classic Trip'),
-    shareText: clean(payload.shareText || 'Use my Classic Trip link to book securely.'),
-    updatedAt: now(),
+    shareText: clean(payload.shareText || 'Use my Classic Trip link to book securely.'), updatedAt: now(),
   });
+  await promoterRepository.links.save(link, { id: link.id });
   return link;
 }
 
-function createQrReferralCard(promoterId, linkId) {
-  ensureCollections();
-  const link = store.state.promoterLinks.find((row) => row.promoterId === promoterId && (row.id === linkId || row.code === linkId));
-  if (!link) {
-    const error = new Error('Referral link not found');
-    error.status = 404;
-    throw error;
-  }
-  const listing = store.findListing(link.listingId) || {};
-  const promoter = requirePromoter(promoterId);
+async function createQrReferralCard(promoterId, linkId) {
+  const link = await promoterRepository.links.findOne({ promoterId, $or: [{ id: linkId }, { code: linkId }] });
+  if (!link) { const error = new Error('Referral link not found'); error.status = 404; throw error; }
+  const [listing, promoter] = await Promise.all([
+    promoterRepository.listings.findOne({ id: link.listingId }), requirePromoter(promoterId),
+  ]);
   const card = {
-    id: `qr-card-${link.id}`,
-    promoterId,
-    linkId: link.id,
-    code: link.code,
-    title: `${listing.title || 'Classic Trip'} referral card`,
-    qrPayload: link.url,
+    id: `qr-card-${link.id}`, promoterId, linkId: link.id, code: link.code,
+    title: `${listing?.title || 'Classic Trip'} referral card`, qrPayload: link.url,
     printableUrl: `/promoter/links/${encodeURIComponent(link.id)}/qr-card`,
-    promoterName: promoter.fullName,
-    listingTitle: listing.title || '',
-    createdAt: now(),
+    promoterName: promoter.fullName, listingTitle: listing?.title || '', createdAt: now(),
   };
-  link.qrCard = card;
-  link.qrCardUrl = card.printableUrl;
+  Object.assign(link, { qrCard: card, qrCardUrl: card.printableUrl, updatedAt: now() });
+  await promoterRepository.links.save(link, { id: link.id });
   return card;
 }
 
-function recordClick({ code, listingId, req, source = 'web', medium = 'referral' } = {}) {
-  ensureCollections();
-  const click = store.recordReferralClick(code, listingId, req);
-  if (!click) return null;
-  const link = store.state.promoterLinks.find((row) => row.id === click.linkId);
-  const activeCampaign = link?.campaignId
-    ? store.state.promotionCampaigns.find((campaign) => campaign.id === link.campaignId)
-    : store.state.promotionCampaigns.find((campaign) => campaign.listingId === (listingId || link?.listingId) && campaign.status === 'active');
-  if (activeCampaign) {
-    activeCampaign.clicks = Number(activeCampaign.clicks || 0) + 1;
-    click.campaignId = activeCampaign.id;
-  }
-  const session = {
-    id: nextId('attr-session', store.state.attributionSessions),
-    sessionKey: req?.sessionID || `session-${Date.now()}-${store.state.attributionSessions.length + 1}`,
-    clickId: click.id,
-    linkId: click.linkId,
-    promoterId: click.promoterId,
-    listingId: click.listingId,
-    campaignId: activeCampaign?.id || '',
-    referralCode: code,
-    source,
-    medium,
-    landingPath: req?.originalUrl || req?.url || '',
-    ip: click.ip,
-    userAgent: click.userAgent,
-    status: 'active',
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: now(),
+async function recordClick({ code, listingId, req, source = 'web', medium = 'referral' } = {}) {
+  const link = await promoterRepository.links.findOne({
+    status: { $ne: 'archived' }, $or: [{ code }, { referralCode: code }], ...(listingId ? { listingId } : {}),
+  });
+  if (!link) return null;
+  const activeCampaign = link.campaignId
+    ? await promoterRepository.campaigns.findOne({ id: link.campaignId, status: 'active' })
+    : await promoterRepository.campaigns.findOne({ listingId: listingId || link.listingId, status: 'active' });
+  const click = {
+    id: await nextId('ref-click'), linkId: link.id, promoterId: link.promoterId,
+    listingId: listingId || link.listingId, code, ip: req?.ip || '', userAgent: req?.headers?.['user-agent'] || '',
+    campaignId: activeCampaign?.id || '', createdAt: now(),
   };
-  store.state.attributionSessions.unshift(session);
+  const session = {
+    id: await nextId('attr-session'), sessionKey: req?.sessionID || `session-${cryptoSafeSuffix()}`,
+    clickId: click.id, linkId: click.linkId, promoterId: click.promoterId, listingId: click.listingId,
+    campaignId: activeCampaign?.id || '', referralCode: code, source, medium,
+    landingPath: req?.originalUrl || req?.url || '', ip: click.ip, userAgent: click.userAgent,
+    status: 'active', expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), createdAt: now(),
+  };
+  link.clicks = Number(link.clicks || 0) + 1;
+  if (activeCampaign) activeCampaign.clicks = Number(activeCampaign.clicks || 0) + 1;
+  await promoterRepository.withTransaction(async (dbSession) => {
+    await promoterRepository.clicks.save(click, { id: click.id }, { session: dbSession });
+    await promoterRepository.attributionSessions.save(session, { id: session.id }, { session: dbSession });
+    await promoterRepository.links.save(link, { id: link.id }, { session: dbSession });
+    if (activeCampaign) await promoterRepository.campaigns.save(activeCampaign, { id: activeCampaign.id }, { session: dbSession });
+  });
   return { click, session };
 }
 
-function recordConversion(booking = {}, source = 'booking') {
-  ensureCollections();
+async function recordConversion(booking = {}, source = 'booking') {
   const attribution = booking.promoterAttribution || {};
   if (!attribution.promoterId) return null;
-  const link = attribution.linkId ? store.state.promoterLinks.find((row) => row.id === attribution.linkId) : null;
-  const session = store.state.attributionSessions.find((row) => row.linkId === attribution.linkId && row.status === 'active');
+  const link = attribution.linkId ? await promoterRepository.links.findOne({ id: attribution.linkId }) : null;
+  const session = attribution.linkId
+    ? await promoterRepository.attributionSessions.findOne({ linkId: attribution.linkId, status: 'active' })
+    : null;
   const campaign = link?.campaignId
-    ? store.state.promotionCampaigns.find((row) => row.id === link.campaignId)
-    : store.state.promotionCampaigns.find((row) => row.listingId === booking.listingId && row.status === 'active');
-  const existing = store.state.campaignConversions.find((row) => row.bookingRef === booking.bookingRef && row.promoterId === attribution.promoterId);
-  if (session) {
-    session.status = 'converted';
-    session.convertedAt = now();
-    session.bookingRef = booking.bookingRef;
-  }
-  if (link) link.conversions = Number(link.conversions || 0) + (existing ? 0 : 1);
-  if (campaign && !existing) campaign.bookings = Number(campaign.bookings || 0) + 1;
-  const conversion = existing || {
-    id: nextId('campaign-conversion', store.state.campaignConversions),
-    createdAt: now(),
-  };
+    ? await promoterRepository.campaigns.findOne({ id: link.campaignId })
+    : await promoterRepository.campaigns.findOne({ listingId: booking.listingId, status: 'active' });
+  const existing = await promoterRepository.conversions.findOne({ bookingRef: booking.bookingRef, promoterId: attribution.promoterId });
+  const conversion = existing || { id: await nextId('campaign-conversion'), createdAt: now() };
   Object.assign(conversion, {
-    campaignId: campaign?.id || '',
-    linkId: attribution.linkId || '',
-    clickId: session?.clickId || '',
-    promoterId: attribution.promoterId,
-    listingId: booking.listingId,
-    companyId: booking.companyId,
-    bookingId: booking.id,
-    bookingRef: booking.bookingRef,
-    customerUserId: booking.customerUserId || '',
-    amount: Number(booking.pricing?.total || 0),
-    commissionAmount: Number(booking.pricing?.split?.promoterAmount || 0),
-    currency: booking.pricing?.currency || 'UGX',
-    attributionSource: source,
-    status: booking.bookingStatus || 'confirmed',
-    convertedAt: now(),
-    updatedAt: now(),
+    campaignId: campaign?.id || '', linkId: attribution.linkId || '', clickId: session?.clickId || '',
+    promoterId: attribution.promoterId, listingId: booking.listingId, companyId: booking.companyId,
+    bookingId: booking.id, bookingRef: booking.bookingRef, customerUserId: booking.customerUserId || '',
+    amount: Number(booking.pricing?.total || 0), commissionAmount: Number(booking.pricing?.split?.promoterAmount || 0),
+    currency: booking.pricing?.currency || platformCurrency(), attributionSource: source,
+    status: booking.bookingStatus || 'confirmed', convertedAt: now(), updatedAt: now(),
   });
-  if (!existing) store.state.campaignConversions.unshift(conversion);
+  await promoterRepository.withTransaction(async (dbSession) => {
+    if (session) {
+      Object.assign(session, { status: 'converted', convertedAt: now(), bookingRef: booking.bookingRef });
+      await promoterRepository.attributionSessions.save(session, { id: session.id }, { session: dbSession });
+    }
+    if (link && !existing) {
+      link.conversions = Number(link.conversions || 0) + 1;
+      await promoterRepository.links.save(link, { id: link.id }, { session: dbSession });
+    }
+    if (campaign && !existing) {
+      campaign.bookings = Number(campaign.bookings || 0) + 1;
+      await promoterRepository.campaigns.save(campaign, { id: campaign.id }, { session: dbSession });
+    }
+    await promoterRepository.conversions.save(conversion, { bookingRef: conversion.bookingRef, promoterId: conversion.promoterId }, { session: dbSession });
+  });
   return conversion;
 }
 
-function createFraudSignal({ booking, signalType = 'promoter_risk', severity, score, reasons = [], metadata = {} } = {}) {
-  ensureCollections();
-  const signal = {
-    id: nextId('fraud-signal', store.state.fraudSignals),
-    promoterId: booking?.promoterAttribution?.promoterId || metadata.promoterId || '',
-    agentId: booking?.createdByAgentId || metadata.agentId || '',
-    bookingId: booking?.id || '',
-    bookingRef: booking?.bookingRef || '',
-    linkId: booking?.promoterAttribution?.linkId || metadata.linkId || '',
-    clickId: metadata.clickId || '',
-    signalType,
-    severity: severity || (Number(score || 0) >= 60 ? 'high' : Number(score || 0) >= 25 ? 'medium' : 'low'),
-    score: Number(score || 0),
-    reasons,
-    status: 'open',
-    assignedTo: 'fraud-review',
-    metadata,
-    createdAt: now(),
-  };
-  store.state.fraudSignals.unshift(signal);
-  return signal;
-}
-
-function reviewFraudSignal(signalId, payload = {}, actorId = 'admin-system') {
-  ensureCollections();
-  const signal = store.state.fraudSignals.find((row) => row.id === signalId || row.bookingRef === signalId);
-  if (!signal) {
-    const error = new Error('Fraud signal not found');
-    error.status = 404;
-    throw error;
+async function createFraudSignal({ booking, signalType = 'promoter_risk', severity, score, reasons = [], metadata = {} } = {}) {
+  const bookingRef = booking?.bookingRef || '';
+  if (bookingRef) {
+    const existing = await promoterRepository.fraudSignals.findOne({ bookingRef, signalType });
+    if (existing) return existing;
   }
-  Object.assign(signal, {
-    status: clean(payload.status || 'resolved'),
-    resolution: clean(payload.resolution || payload.note || 'Reviewed'),
-    resolvedBy: actorId,
-    resolvedAt: now(),
-    updatedAt: now(),
-  });
+  const signal = {
+    id: await nextId('fraud-signal'), promoterId: booking?.promoterAttribution?.promoterId || metadata.promoterId || '',
+    agentId: booking?.createdByAgentId || metadata.agentId || '', bookingId: booking?.id || '',
+    bookingRef: booking?.bookingRef || '', linkId: booking?.promoterAttribution?.linkId || metadata.linkId || '',
+    clickId: metadata.clickId || '', signalType,
+    severity: severity || (Number(score || 0) >= 60 ? 'high' : Number(score || 0) >= 25 ? 'medium' : 'low'),
+    score: Number(score || 0), reasons, status: 'open', assignedTo: 'fraud-review', metadata, createdAt: now(),
+  };
+  await promoterRepository.fraudSignals.save(signal, { id: signal.id });
   return signal;
 }
 
-function promoterReportRows(promoterId) {
-  ensureCollections();
-  const links = store.state.promoterLinks.filter((row) => row.promoterId === promoterId);
+async function reviewFraudSignal(signalId, payload = {}, actorId = 'admin-system') {
+  const signal = await promoterRepository.fraudSignals.findOne({ $or: [{ id: signalId }, { bookingRef: signalId }] });
+  if (!signal) { const error = new Error('Fraud signal not found'); error.status = 404; throw error; }
+  const status = clean(payload.status || 'resolved');
+  if (!['open', 'reviewing', 'resolved', 'dismissed'].includes(status)) { const error = new Error('Invalid fraud review status'); error.status = 422; throw error; }
+  Object.assign(signal, {
+    status, resolution: clean(payload.resolution || payload.note || 'Reviewed'), resolvedBy: actorId,
+    resolvedAt: ['resolved', 'dismissed'].includes(status) ? now() : null, updatedAt: now(),
+  });
+  await promoterRepository.fraudSignals.save(signal, { id: signal.id });
+  return signal;
+}
+
+async function promoterReportRows(promoterId) {
+  const [links, clicks, sessions, conversions, signals] = await Promise.all([
+    promoterRepository.links.list({ promoterId }, { sort: { createdAt: -1 }, limit: 1000 }),
+    promoterRepository.clicks.list({ promoterId }, { sort: { createdAt: -1 }, limit: 5000 }),
+    promoterRepository.attributionSessions.list({ promoterId }, { sort: { createdAt: -1 }, limit: 5000 }),
+    promoterRepository.conversions.list({ promoterId }, { sort: { convertedAt: -1 }, limit: 5000 }),
+    promoterRepository.fraudSignals.list({ $or: [{ promoterId }, { agentId: promoterId }] }, { sort: { createdAt: -1 }, limit: 5000 }),
+  ]);
   return {
-    clicks: store.state.referralClicks.filter((row) => row.promoterId === promoterId).map((row) => [row.id, row.code, row.listingId, row.ip, row.userAgent, row.createdAt, row.campaignId || '']),
-    attributionSessions: store.state.attributionSessions.filter((row) => row.promoterId === promoterId).map((row) => [row.id, row.referralCode, row.listingId, row.campaignId, row.status, row.bookingRef || '', row.createdAt]),
-    campaignConversions: store.state.campaignConversions.filter((row) => row.promoterId === promoterId).map((row) => [row.id, row.campaignId, row.bookingRef, row.amount, row.commissionAmount, row.status, row.convertedAt]),
+    clicks: clicks.map((row) => [row.id, row.code, row.listingId, row.ip, row.userAgent, row.createdAt, row.campaignId || '']),
+    attributionSessions: sessions.map((row) => [row.id, row.referralCode, row.listingId, row.campaignId, row.status, row.bookingRef || '', row.createdAt]),
+    campaignConversions: conversions.map((row) => [row.id, row.campaignId, row.bookingRef, row.amount, row.commissionAmount, row.status, row.convertedAt]),
     referralCards: links.map((link) => [link.id, link.code, link.listingId, link.url, link.qrCardUrl || `/promoter/links/${link.id}/qr-card`, link.status]),
-    fraudSignals: store.state.fraudSignals.filter((row) => row.promoterId === promoterId || row.agentId === promoterId).map((row) => [row.id, row.bookingRef, row.signalType, row.severity, row.score, row.status, row.createdAt]),
+    fraudSignals: signals.map((row) => [row.id, row.bookingRef, row.signalType, row.severity, row.score, row.status, row.createdAt]),
   };
 }
 
 module.exports = {
-  ensureAgentProfile,
-  createReferralLink,
-  createQrReferralCard,
-  recordClick,
-  recordConversion,
-  createFraudSignal,
-  reviewFraudSignal,
-  promoterReportRows,
+  ensureAgentProfile, createReferralLink, createQrReferralCard, recordClick, recordConversion,
+  createFraudSignal, reviewFraudSignal, promoterReportRows,
+  createReferralLinkLive: createReferralLink, createQrReferralCardLive: createQrReferralCard,
+  reviewFraudSignalLive: reviewFraudSignal, promoterReportRowsLive: promoterReportRows,
+  requirePromoterLive: requirePromoter,
 };

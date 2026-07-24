@@ -1,5 +1,5 @@
-const store = require('../data/persistentStore');
-const { mongoose } = require('../../config/db');
+const crypto = require('crypto');
+const notificationRepository = require('../../repositories/domain/notificationRepository');
 const { env } = require('../../config/env');
 const ticketAccessService = require('../booking/ticketAccessService');
 const { sendEmail } = require('./emailService');
@@ -7,32 +7,9 @@ const { sendSms } = require('./smsService');
 const { sendWhatsapp } = require('./whatsappService');
 const pushService = require('./pushService');
 
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
-}
-
 async function persistNotifications(rows, attempts = []) {
-  if (!mongoReady()) return;
-  if (rows.length) {
-    const Notification = require('../../models/Notification');
-    await Notification.bulkWrite(rows.map((row) => ({
-      updateOne: {
-        filter: { id: row.id },
-        update: { $set: row },
-        upsert: true,
-      },
-    })));
-  }
-  if (attempts.length) {
-    const NotificationDeliveryAttempt = require('../../models/NotificationDeliveryAttempt');
-    await NotificationDeliveryAttempt.bulkWrite(attempts.map((attempt) => ({
-      updateOne: {
-        filter: { id: attempt.id },
-        update: { $set: attempt },
-        upsert: true,
-      },
-    })));
-  }
+  await notificationRepository.notifications.saveMany(rows, (row) => ({ id: row.id }));
+  await notificationRepository.deliveryAttempts.saveMany(attempts, (row) => ({ id: row.id }));
 }
 
 function cleanText(value) {
@@ -40,7 +17,7 @@ function cleanText(value) {
 }
 
 function nextNotificationId() {
-  return `notification-${store.state.notifications.length + 1}`;
+  return `notification-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
 }
 
 async function queueNotification({
@@ -52,12 +29,16 @@ async function queueNotification({
   referenceType = '',
   referenceId = '',
   meta = {},
+  persistedMessage = null,
+  persistedMeta = null,
   ownerType = meta.ownerType || '',
   ownerId = meta.ownerId || userId || '',
   audience = meta.audience || '',
 } = {}) {
   const cleanTitle = cleanText(title || 'Classic Trip update');
-  const cleanMessage = cleanText(message || '');
+  const deliveryMessage = cleanText(message || '');
+  const storedMessage = persistedMessage === null ? deliveryMessage : cleanText(persistedMessage || '');
+  const storedMeta = persistedMeta === null ? meta : persistedMeta;
   const rows = [];
   const deliveryTasks = [];
   const attempts = [];
@@ -69,14 +50,14 @@ async function queueNotification({
       userId,
       channel,
       title: cleanTitle,
-      message: cleanMessage,
+      message: storedMessage,
       recipient,
       ownerType,
       ownerId,
       audience,
       referenceType,
       referenceId,
-      meta,
+      meta: storedMeta,
       status: 'queued',
       deliveryStatus: 'queued',
       sentCount: 0,
@@ -84,7 +65,6 @@ async function queueNotification({
       failedCount: 0,
       createdAt: new Date().toISOString(),
     };
-    store.state.notifications.push(row);
     rows.push(row);
 
     const attempt = {
@@ -99,14 +79,14 @@ async function queueNotification({
       provider: channel,
       status: 'queued',
       attemptedAt: new Date().toISOString(),
-      metadata: meta,
+      metadata: storedMeta,
     };
     attempts.push(attempt);
     if (channel === 'in_app') deliveryTasks.push({ row, attempt, promise: Promise.resolve({ status: 'sent', channel: 'in_app', provider: 'notification-center', response: 'Stored in notification center' }) });
-    if (channel === 'push') deliveryTasks.push({ row, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: cleanMessage, recipient, referenceType, referenceId, meta }) });
-    if (channel === 'email') deliveryTasks.push({ row, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: cleanMessage, meta }) });
-    if (channel === 'sms') deliveryTasks.push({ row, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
-    if (channel === 'whatsapp') deliveryTasks.push({ row, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: cleanMessage, meta }) });
+    if (channel === 'push') deliveryTasks.push({ row, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: deliveryMessage, recipient, referenceType, referenceId, meta }) });
+    if (channel === 'email') deliveryTasks.push({ row, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'sms') deliveryTasks.push({ row, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'whatsapp') deliveryTasks.push({ row, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
   }
 
   const deliveries = await Promise.allSettled(deliveryTasks.map((item) => item.promise));
@@ -143,13 +123,35 @@ function bookingRecipient(booking = {}) {
   };
 }
 
+function bookingAddons(booking = {}) {
+  const rows = Array.isArray(booking.addons)
+    ? booking.addons
+    : (Array.isArray(booking.pricing?.addons) ? booking.pricing.addons : []);
+  return rows.filter(Boolean);
+}
+
+function hasCommunicationTicketAddon(booking = {}) {
+  return bookingAddons(booking).some((addon) => {
+    const category = String(addon.category || '').trim().toLowerCase();
+    const identity = `${addon.id || ''} ${addon.name || ''}`.toLowerCase();
+    return category === 'communication' || /sms|whatsapp|ticket copy/.test(identity);
+  });
+}
+
+function bookingConfirmationChannels(booking = {}) {
+  const channels = ['in_app', 'push', 'email'];
+  if (hasCommunicationTicketAddon(booking)) channels.push('sms', 'whatsapp');
+  return channels;
+}
+
 async function bookingConfirmed(booking) {
   const ticketPath = ticketAccessService.ticketUrl(booking);
+  const isHotel = String(booking.serviceType || '').toLowerCase() === 'hotel';
   return queueNotification({
     userId: booking.customerUserId || null,
-    channels: ['in_app', 'push', 'email', 'whatsapp'],
-    title: `Booking confirmed ${booking.bookingRef}`,
-    message: `Your Classic Trip booking ${booking.bookingRef} is confirmed. Ticket: ${env.appUrl}${ticketPath}`,
+    channels: bookingConfirmationChannels(booking),
+    title: `${isHotel ? 'Hotel booking' : 'Booking'} confirmed ${booking.bookingRef}`,
+    message: `Your Classic Trip ${isHotel ? 'hotel booking' : 'booking'} ${booking.bookingRef} is confirmed. ${isHotel ? 'Voucher' : 'Ticket'}: ${env.appUrl}${ticketPath}`,
     recipient: bookingRecipient(booking),
     ownerType: booking.customerUserId ? 'customer' : 'guest',
     ownerId: booking.customerUserId || booking.guestSnapshot?.email || booking.guestSnapshot?.phone || '',
@@ -163,7 +165,7 @@ async function bookingConfirmed(booking) {
 async function paymentUpdated(booking, payment) {
   return queueNotification({
     userId: booking.customerUserId || null,
-    channels: ['in_app', 'push', 'email', 'whatsapp'],
+    channels: ['in_app', 'push', 'email'],
     title: `Payment ${payment.status}`,
     message: `Payment for booking ${booking.bookingRef} is ${payment.status}.`,
     recipient: bookingRecipient(booking),
@@ -224,80 +226,72 @@ function noteMatchesRole(note = {}, role = 'admin', context = {}) {
   return true;
 }
 
-function dashboardRows(role = 'admin', context = {}, options = {}) {
-  const limit = Number(options.limit || 120);
-  return (store.state.notifications || [])
-    .filter((note) => noteMatchesRole(note, role, context))
-    .slice(0, limit)
-    .map((note) => [
-      note.title || note.subject || 'Classic Trip update',
-      channelLabel(note),
-      recipientLabel(note),
-      String(note.sentCount || note.deliveredCount || 0),
-      note.deliveryStatus || note.status || 'queued',
-      note.status || 'queued',
-      { entity: 'notification', id: note.id, label: note.title || note.subject || note.id, status: note.status || 'queued', detail: { notification: note }, actions: ['view', 'send', 'export'] },
-    ]);
+
+async function visibleNotifications(role = 'admin', context = {}, options = {}) {
+  const limit = Math.min(500, Math.max(1, Number(options.limit || 120)));
+  const rows = await notificationRepository.notifications.list({}, { sort: { createdAt: -1 }, limit: Math.max(limit * 4, 200) });
+  return rows.filter((note) => noteMatchesRole(note, role, context)).slice(0, limit);
 }
 
-function unreadCount(role = 'admin', context = {}) {
-  return (store.state.notifications || [])
-    .filter((note) => noteMatchesRole(note, role, context))
-    .filter((note) => !note.readAt && !['dismissed', 'archived'].includes(String(note.status || '').toLowerCase()))
-    .length;
+async function dashboardRowsLive(role = 'admin', context = {}, options = {}) {
+  const rows = await visibleNotifications(role, context, options);
+  return rows.map((note) => [
+    note.title || note.subject || 'Classic Trip update',
+    channelLabel(note),
+    recipientLabel(note),
+    String(note.sentCount || note.deliveredCount || 0),
+    note.deliveryStatus || note.status || 'queued',
+    note.status || 'queued',
+    { entity: 'notification', id: note.id, label: note.title || note.subject || note.id, status: note.status || 'queued', detail: { notification: note }, actions: ['view', 'send', 'export'] },
+  ]);
 }
 
-function notificationsForUser(user = {}, options = {}) {
+async function unreadCountLive(role = 'admin', context = {}) {
+  const rows = await visibleNotifications(role, context, { limit: 500 });
+  return rows.filter((note) => !note.readAt && !['dismissed', 'archived'].includes(String(note.status || '').toLowerCase())).length;
+}
+
+function userNotificationContext(user = {}) {
   const role = user.role === 'super_admin' ? 'admin' : user.role === 'company_admin' ? 'company' : user.role === 'company_employee' ? 'employee' : user.role || 'customer';
-  const context = {
-    customerId: user.id || '',
-    promoterId: user.id || '',
-    employeeId: user.id || '',
-    companyId: user.companyId || '',
-    email: user.email || '',
-    phone: user.phone || '',
-  };
-  const limit = Number(options.limit || 30);
-  return (store.state.notifications || [])
-    .filter((note) => noteMatchesRole(note, role, context))
-    .slice(0, limit)
-    .map((note) => ({
-      id: note.id,
-      title: note.title || note.subject || 'Classic Trip update',
-      message: note.message || note.body || '',
-      channel: note.channel,
-      status: note.status,
-      deliveryStatus: note.deliveryStatus,
-      readAt: note.readAt || null,
-      createdAt: note.createdAt,
-      referenceType: note.referenceType || '',
-      referenceId: note.referenceId || '',
-      meta: note.meta || {},
-    }));
+  return { role, context: {
+    customerId: user.id || '', promoterId: user.id || '', employeeId: user.id || '', companyId: user.companyId || '',
+    email: user.email || '', phone: user.phone || '',
+  } };
 }
 
+function publicNotification(note = {}) {
+  return {
+    id: note.id, title: note.title || note.subject || 'Classic Trip update', message: note.message || note.body || '',
+    channel: note.channel, status: note.status, deliveryStatus: note.deliveryStatus, readAt: note.readAt || null,
+    createdAt: note.createdAt, referenceType: note.referenceType || '', referenceId: note.referenceId || '', meta: note.meta || {},
+  };
+}
+
+async function notificationsForUserLive(user = {}, options = {}) {
+  const { role, context } = userNotificationContext(user);
+  return (await visibleNotifications(role, context, options)).map(publicNotification);
+}
 async function markRead(notificationId, user = {}) {
-  const note = (store.state.notifications || []).find((item) => item.id === notificationId);
+  const note = await notificationRepository.notifications.findOne({ id: notificationId });
   if (!note) return null;
-  const visible = notificationsForUser(user, { limit: Number.MAX_SAFE_INTEGER }).some((item) => item.id === notificationId);
+  const visible = (await notificationsForUserLive(user, { limit: 500 })).some((item) => item.id === notificationId);
   if (!visible && user.role !== 'super_admin') return null;
   note.readAt = new Date().toISOString();
   note.status = note.status === 'queued' ? 'read' : note.status;
-  if (mongoReady()) {
-    const Notification = require('../../models/Notification');
-    await Notification.updateOne({ id: note.id }, { $set: { readAt: note.readAt, status: note.status } });
-  }
+  await notificationRepository.notifications.save(note, { id: note.id });
   return note;
 }
 
 module.exports = {
   queueNotification,
   bookingConfirmed,
+  bookingConfirmationChannels,
+  hasCommunicationTicketAddon,
   paymentUpdated,
   refundApproved,
   employeeInvited,
-  dashboardRows,
-  unreadCount,
-  notificationsForUser,
+  dashboardRowsLive,
+  unreadCountLive,
+  notificationsForUserLive,
   markRead,
 };

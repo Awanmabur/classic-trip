@@ -17,12 +17,12 @@ const verificationChecklistItemSchema = new Schema({
 
 const verificationReviewSchema = new Schema({
   id: { type: String, index: true },
-  targetType: { type: String, enum: ['company', 'driver', 'provider'], index: true },
+  targetType: { type: String, enum: ['company', 'driver', 'provider', 'promoter'], index: true },
   targetId: { type: String, index: true },
   companyId: { type: String, index: true },
   invitationId: { type: String, index: true },
-  status: { type: String, enum: ['draft', 'pending_review', 'approved', 'rejected', 'activated'], default: 'draft', index: true },
-  riskLevel: { type: String, default: 'medium' },
+  status: { type: String, enum: ['draft', 'pending_review', 'approved', 'company_activated', 'rejected', 'activated'], default: 'draft', index: true },
+  riskLevel: { type: String, default: 'medium', enum: ['low', 'medium', 'high', 'critical'] },
   checklist: [verificationChecklistItemSchema],
   documents: [Schema.Types.Mixed],
   payoutAccount: Schema.Types.Mixed,

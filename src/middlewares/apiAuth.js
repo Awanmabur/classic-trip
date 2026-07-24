@@ -1,3 +1,4 @@
+const accountStateService = require('../services/auth/accountStateService');
 function wantsJson(req) {
   return String(req.originalUrl || req.path || '').startsWith('/api/') || req.xhr || String(req.headers.accept || '').includes('application/json');
 }
@@ -6,30 +7,34 @@ function jsonError(res, status, message, code) {
   return res.status(status).json({ ok: false, code, message });
 }
 
-function requireApiAuth(req, res, next) {
-  if (req.session?.user) return next();
-  // Two independent flags must both be set for this bypass to activate — NODE_ENV=test alone
-  // (a realistic deployment misconfiguration) is not enough to grant an unauthenticated caller
-  // a company_employee session.
-  if (process.env.NODE_ENV === 'test' && process.env.ALLOW_SCANNER_TEST_BYPASS === 'true' && String(req.originalUrl || req.path || '').startsWith('/api/scanner')) {
-    req.session = req.session || {};
-    req.session.user = { id: 'test-employee', role: 'company_employee', companyId: 'company-01' };
-    return next();
+async function requireApiAuth(req, res, next) {
+  if (req.session?.user) {
+    try {
+      const current = await accountStateService.refreshSessionUser(req);
+      if (current && accountStateService.accountIsActive(current)) return next();
+      if (req.session) req.session.user = null;
+      return jsonError(res, 403, 'Your account is not active yet.', current?.status === 'pending' ? 'account_pending' : 'account_inactive');
+    } catch (error) {
+      return next(error);
+    }
   }
   return wantsJson(req) ? jsonError(res, 401, 'Authentication is required for this API.', 'auth_required') : res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
 }
 
 function requireApiRole(...roles) {
   return function apiRoleGuard(req, res, next) {
-    const role = req.session?.user?.role;
-    if (role && roles.includes(role)) return next();
+    const { canonicalRole } = require('../config/accessControl');
+    const role = canonicalRole(req.session?.user?.role);
+    const allowed = roles.map(canonicalRole);
+    if (role && allowed.includes(role)) return next();
     return jsonError(res, 403, 'You do not have permission to perform this action.', 'forbidden');
   };
 }
 
 function scopedCompanyId(req) {
   const user = req.session?.user || {};
-  if (['super_admin', 'admin'].includes(user.role)) return req.body?.companyId || req.query?.companyId || user.companyId || '';
+  const { canonicalRole } = require('../config/accessControl');
+  if (['super_admin', 'admin'].includes(canonicalRole(user.role))) return req.body?.companyId || req.query?.companyId || user.companyId || '';
   return user.companyId || '';
 }
 

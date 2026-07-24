@@ -1,4 +1,5 @@
-const store = require('../../services/data/persistentStore');
+const supportRepository = require('../../repositories/domain/supportRepository');
+const { nextId } = require('../../services/data/idService');
 const companyService = require('../../services/company/companyService');
 const bookingService = require('../../services/booking/bookingService');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
@@ -25,17 +26,17 @@ async function driverDashboard(req, res, next) {
     const context = { companyId: companyId(req), employeeId: actorId(req) };
     const dashboardData = await mongoDashboardService.roleDashboard('driver', context);
     const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId: companyId(req) });
-    const notificationRows = notificationService.dashboardRows('driver', context);
-    res.render('dashboards/admin/index', {
+    const [notificationRows, notificationCount, companies] = await Promise.all([notificationService.dashboardRowsLive('driver', context), notificationService.unreadCountLive('driver', context), mongoDashboardService.listEntity('companies', {}, { limit: 250 })]);
+    res.render('dashboards/driver/index', {
       seo: { title: 'Driver dashboard | Classic Trip' },
       dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
       dashboardMode: 'driver',
       dashboardShell: buildDashboardShell('driver', {
         user: req.session?.user,
         companyId: companyId(req),
-        companies: store.state.companies,
+        companies,
         notifications: notificationRows,
-        notificationCount: notificationService.unreadCount('driver', context),
+        notificationCount,
         activePage: req.params?.page || 'overview',
         company: companyDashboardData.company,
         serviceProfile: companyDashboardData.serviceProfile,
@@ -76,18 +77,21 @@ async function bookingAssist(req, res, next) {
     } else if (action === 'no_show') {
       await bookingService.markNoShow(req.params.bookingRef, actorId(req), companyId(req), req.body.note || '');
     } else {
-      store.state.supportTickets.push({
-        id: `support-${store.state.supportTickets.length + 1}`,
+      const ticket = {
+        id: await nextId('support'),
         companyId: companyId(req),
         bookingRef: req.params.bookingRef,
         ownerType: 'company',
+        ownerId: companyId(req),
         subject: 'Driver assistance note',
-        message: req.body.note || 'Driver assistance note',
+        category: 'Driver assistance',
+        message: String(req.body.note || 'Driver assistance note').trim().slice(0, 3000),
         priority: 'normal',
         status: 'open',
         createdBy: actorId(req),
         createdAt: new Date().toISOString(),
-      });
+      };
+      await supportRepository.tickets.save(ticket, { id: ticket.id });
     }
     res.redirect(`/driver/tickets/${encodeURIComponent(req.params.bookingRef)}`);
   } catch (error) {

@@ -1,5 +1,4 @@
-const store = require('../data/persistentStore');
-const futureServiceArchitecture = require('../release/futureServiceArchitecture');
+const mongoDashboardService = require('../dashboard/mongoDashboardService');
 const securityService = require('../security/securityService');
 
 // See manifestService.js's neutralizeFormula — same CSV formula-injection risk applies here,
@@ -18,20 +17,13 @@ function toCsv(headers, rows) {
   return [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
 }
 
-function dashboardRows(scope, type, context = {}) {
-  if (type === 'futureServices') return futureServiceArchitecture.reportRows();
-  if (type === 'loginAudits') return securityService.reportRows('loginAudits');
-  if (type === 'securityEvents') return securityService.reportRows('securityEvents');
-  if (type === 'deviceSessions') return securityService.reportRows('deviceSessions');
-  if (type === 'idempotencyKeyRecords') return securityService.reportRows('idempotencyKeyRecords');
-  // No fallback ids here: store.dashboardData() now throws on a missing id rather than
-  // silently substituting a seeded/demo account's data.
-  if (scope === 'admin') return store.dashboardData('admin')[type] || [];
-  if (scope === 'company') return store.dashboardData('company', { companyId: context.companyId })[type] || [];
-  if (scope === 'employee') return store.dashboardData('employee', { companyId: context.companyId, employeeId: context.employeeId })[type] || [];
-  if (scope === 'promoter') return store.dashboardData('promoter', { promoterId: context.promoterId })[type] || [];
-  if (scope === 'customer') return store.dashboardData('customer', { customerId: context.customerId })[type] || [];
-  return [];
+async function dashboardRows(scope, type, context = {}) {
+  if (type === 'loginAudits') return securityService.reportRowsLive('loginAudits');
+  if (type === 'securityEvents') return securityService.reportRowsLive('securityEvents');
+  if (type === 'deviceSessions') return securityService.reportRowsLive('deviceSessions');
+  if (type === 'idempotencyKeyRecords') return securityService.reportRowsLive('idempotencyKeyRecords');
+  const dashboard = await mongoDashboardService.roleDashboard(scope, context);
+  return dashboard[type] || [];
 }
 
 const TYPE_ALIASES = {
@@ -130,9 +122,6 @@ const TYPE_ALIASES = {
   'agent-sales': 'agentSales',
   'offline-sale': 'offlineSales',
   'offline-sales': 'offlineSales',
-  'future-service': 'futureServices',
-  'future-services': 'futureServices',
-  'future-services-architecture': 'futureServices',
   'login-audit': 'loginAudits',
   'login-audits': 'loginAudits',
   'security-event': 'securityEvents',
@@ -200,7 +189,6 @@ const HEADERS = {
   referralCards: ['Link', 'Promoter', 'Code', 'Listing', 'QR card', 'Status'],
   agentSales: ['Sale', 'Booking', 'Customer', 'Listing', 'Payment method', 'Amount', 'Status'],
   offlineSales: ['Sale', 'Booking', 'Customer', 'Listing', 'Payment method', 'Amount', 'Status'],
-  futureServices: ['Service', 'Label', 'Release status', 'Bookable', 'Entities', 'Workflows', 'Readiness checklist'],
   loginAudits: ['Audit', 'User/Identity', 'Role', 'Result', 'Reason', 'IP', 'Created'],
   securityEvents: ['Event', 'Type', 'Severity', 'Actor', 'Entity type', 'Entity', 'Status', 'Reason', 'Created'],
   deviceSessions: ['Session', 'User', 'Role', 'Device fingerprint', 'Status', 'First seen', 'Last seen'],
@@ -217,10 +205,10 @@ function normalizeRows(rows) {
   return rows.map((row) => (Array.isArray(row) ? row.filter((cell) => typeof cell !== 'object') : Object.values(row)));
 }
 
-function generateCsvReport(scope, type, context = {}) {
+async function generateCsvReport(scope, type, context = {}) {
   const requested = String(type || 'bookings').replace(/\.csv$/i, '');
   const key = TYPE_ALIASES[requested] || requested;
-  const rows = normalizeRows(dashboardRows(scope, key, context));
+  const rows = normalizeRows(await dashboardRows(scope, key, context));
   const headers = HEADERS[key] || rows[0]?.map((_, index) => `Column ${index + 1}`) || ['Value'];
   return {
     filename: `${scope}-${requested}-${new Date().toISOString().slice(0, 10)}.csv`,

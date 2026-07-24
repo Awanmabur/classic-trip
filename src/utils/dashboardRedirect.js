@@ -1,10 +1,10 @@
 const ROLE_DASHBOARD_MAP = {
   super_admin: '/admin',
-  admin: '/admin',
+  admin: '/operations/dashboard',
   finance_admin: '/finance/dashboard',
   support_admin: '/support/dashboard',
   operations_admin: '/operations/dashboard',
-  content_admin: '/admin',
+  content_admin: '/content/dashboard',
   company_admin: '/company/dashboard',
   company_employee: '/employee/dashboard',
   driver: '/driver/dashboard',

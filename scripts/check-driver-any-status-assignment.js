@@ -1,0 +1,33 @@
+'use strict';
+const fs = require('fs');
+const path = require('path');
+let passed = 0;
+function read(file) { return fs.readFileSync(path.join(process.cwd(), file), 'utf8'); }
+function check(value, message) { if (!value) { console.error(`FAIL: ${message}`); process.exitCode = 1; } else passed += 1; }
+const eligibility = read('src/services/company/driverEligibilityService.js');
+const departure = read('src/modules/bus/services/busDepartureService.js');
+const setup = read('src/modules/bus/services/busSetupService.js');
+const projection = read('src/services/dashboard/dashboardProjectionEngine.js');
+const workspace = read('public/js/dashboard-workspace.js');
+const guide = read('src/views/dashboards/shared/sections/setup-guide.ejs');
+const { evaluateDriverAssignment, evaluateDriverEligibility } = require('../src/services/company/driverEligibilityService');
+const pendingEmployee = { id: 'driver-pending', roleTitle: 'Driver', status: 'pending_verification', safetyStatus: 'pending_review', serviceCategories: ['driver'], permissions: [] };
+const pendingUser = { id: 'user-pending', role: 'driver', status: 'suspended', verificationStatus: 'pending' };
+const pendingAssignment = evaluateDriverAssignment(pendingEmployee, pendingUser);
+const pendingOperational = evaluateDriverEligibility(pendingEmployee, pendingUser);
+check(pendingAssignment.assignable === false, 'A pending, suspended, unverified or uncleared driver must not be assignable.');
+check(pendingOperational.eligible === false, 'Non-operational driver records must fail eligibility.');
+check(eligibility.includes('assignable: eligibility.eligible'), 'Assignment must be governed by full operational eligibility.');
+check(eligibility.includes("normalize(employee.safetyStatus) !== 'cleared'"), 'Safety clearance must be mandatory.');
+check(eligibility.includes('REQUIRED_DRIVER_PERMISSIONS.filter'), 'Every required driver permission must be present.');
+check(departure.includes('Select an active, verified driver account from this company'), 'Departure selection must reject request and invitation placeholders.');
+check(!departure.includes('if (!employee) employee = await materializeDriverCandidate'), 'Assigning a departure must not materialize pending requests as drivers.');
+check(departure.includes("failures.push('verified_operational_driver_missing')"), 'Publication must require an operational driver.');
+check(setup.includes("employees.list({ companyId, status: 'active' }"), 'Smart setup must load only active employee memberships.');
+check(!setup.includes('specialValues.push(`request:'), 'Smart setup must not select pending driver requests.');
+check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Dashboard selectors must contain operational drivers only.');
+check(!projection.includes("status: assignment.assignable ? (eligibility.eligible ? 'assignable_operational' : 'assignable_with_warning')"), 'Dashboard must not expose non-operational assignable states.');
+check(workspace.includes('Only active driver accounts with accepted membership'), 'UI must explain the strict assignment rule.');
+check(!workspace.includes('Any saved company driver can be assigned regardless'), 'Unsafe any-status assignment copy must be removed.');
+check(guide.includes('Only an active, verified, licensed and safety-cleared driver'), 'Setup guide must explain operational driver requirements.');
+if (!process.exitCode) console.log(`Strict driver assignment verification passed (${passed}/${passed}).`);

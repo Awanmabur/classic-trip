@@ -1,0 +1,46 @@
+<section class="section" id="handover">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3><i class="fa-solid fa-clipboard-list"></i> Shift handover</h3>
+                <p>Record open bookings, payment notes, customer follow-ups, and operational issues for the next staff member.</p>
+              </div>
+              <% if(canSubmitEmployeeWorkflow){ %><button class="btn btnPrimary" data-modal="create" data-type="handover"><i class="fa-solid fa-plus"></i> New handover</button><% } %>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead><tr><th>Handover</th><th>Shift</th><th>Next staff</th><th>Note</th><th>Created</th><th>Status</th><th></th></tr></thead>
+                <tbody id="employeeHandoversTable"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle">
+                <h3>Shift summary</h3>
+                <p>These counts come from the employee dashboard data for <%= employeeCompanyName %>.</p>
+              </div>
+            </div>
+            <div class="splitGrid">
+              <div class="splitItem"><div class="splitTop"><span>Current shift</span><span class="badge info"><%= employeeProfileShift %></span></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Checked in</span><strong><%= employeeStatsData.checkedIn || '0' %></strong></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Open tasks</span><strong><%= employeeStatsData.openTasks || '0' %></strong></div></div>
+              <div class="splitItem"><div class="splitTop"><span>Shift ends</span><span class="badge warn"><%= employeeStatsData.shiftEnds || 'Not set' %></span></div></div>
+            </div>
+            <% if(canSubmitEmployeeWorkflow){ %>
+            <form class="formPanel" method="POST" action="/employee/handovers">
+              <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+              <div class="formGrid">
+                <div class="field"><label>Shift</label><div class="control"><i class="fa-solid fa-clock"></i><input name="shift" value="<%= employeeProfileShift %>" required></div></div>
+                <div class="field"><label>Next staff</label><div class="control"><i class="fa-solid fa-user-group"></i><input name="nextStaff" placeholder="Next staff member"></div></div>
+                <div class="field full"><label>Handover note</label><div class="control"><textarea name="note" placeholder="Cash, bookings, check-ins, issues, and follow-ups" required></textarea></div></div>
+              </div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Create handover</button>
+            </form>
+            <% } else { %>
+            <div class="notice">Handover records for this role are shown here for continuity. Update the related support, finance, or operations record from its dedicated workflow page.</div>
+            <% } %>
+          </div>
+        </div>
+      </section>

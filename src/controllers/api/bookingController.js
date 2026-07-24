@@ -1,40 +1,34 @@
 const bookingService = require('../../services/booking/bookingService');
-const store = require('../../services/data/persistentStore');
-const { mongoose } = require('../../config/db');
+const busBookingService = require('../../modules/bus/services/busBookingService');
+const hotelService = require('../../services/hotel/hotelService');
+const commerceRepository = require('../../repositories/domain/commerceRepository');
+const { stripClientSuppliedIdentity } = require('../../utils/sanitizePublicPayload');
+const ticketAccessService = require('../../services/booking/ticketAccessService');
 
 async function create(req, res, next) {
   try {
-    const booking = await bookingService.createGuestBooking(req.body, req);
-    res.status(201).json({ booking, ticketUrl: `/tickets/${booking.bookingRef}` });
+    const payload = stripClientSuppliedIdentity(req.body);
+    const listing = await commerceRepository.listings.findOne({ id: String(payload.listingId || '').trim() });
+    if (!listing) throw Object.assign(new Error('Booking listing was not found'), { status: 404 });
+    const serviceType = String(listing.serviceType || '').trim().toLowerCase();
+    const booking = serviceType === 'bus'
+      ? await busBookingService.createGuestBooking(payload, req)
+      : serviceType === 'hotel'
+        ? await hotelService.createHotelBooking(payload, req)
+        : await bookingService.createGuestBooking(payload, req);
+    ticketAccessService.grantSessionAccess(req, booking.bookingRef);
+    res.status(201).json({ booking, ticketUrl: ticketAccessService.ticketUrl(booking) });
   } catch (error) {
     next(error);
   }
 }
 
 async function findBookingFresh(bookingRef) {
-  const cached = store.findBooking(bookingRef);
-  if (cached) return cached;
-  if (mongoose.connection.readyState !== 1) return null;
-  const Booking = require('../../models/Booking');
-  const row = await Booking.findOne({ bookingRef }).lean();
-  if (!row) return null;
-  if (!row.id && row._id) row.id = String(row._id);
-  delete row._id;
-  delete row.__v;
-  store.state.bookings.unshift(row);
-  return row;
+  return commerceRepository.bookings.findOne({ bookingRef });
 }
 
 function canReadBooking(req, booking = {}) {
-  const user = req.session?.user;
-  if (user?.role === 'super_admin' || user?.role === 'admin') return true;
-  if (user?.companyId && user.companyId === booking.companyId) return true;
-  if (user?.id && user.id === booking.customerUserId) return true;
-  const contact = String(req.query.contact || req.query.email || req.query.phone || '').toLowerCase().trim();
-  if (!contact) return false;
-  const email = String(booking.guestSnapshot?.email || booking.buyerSnapshot?.email || '').toLowerCase();
-  const phone = String(booking.guestSnapshot?.phone || booking.buyerSnapshot?.phone || '').toLowerCase();
-  return Boolean((email && email.includes(contact)) || (phone && phone.includes(contact)));
+  return ticketAccessService.canAccessBooking(req, booking);
 }
 
 function publicBookingPayload(booking = {}) {

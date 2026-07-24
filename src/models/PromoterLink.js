@@ -9,7 +9,7 @@ const promoterLinkSchema = new Schema({
   url: String,
   clicks: { type: Number, default: 0 },
   conversions: { type: Number, default: 0 },
-  status: { type: String, default: 'active', index: true },
+  status: { type: String, default: 'active', index: true, enum: ['active', 'archived'] },
 }, { timestamps: true });
 
 module.exports = model('PromoterLink', promoterLinkSchema);

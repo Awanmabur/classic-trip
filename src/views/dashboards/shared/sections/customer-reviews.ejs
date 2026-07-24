@@ -1,0 +1,23 @@
+<%
+  const customerReviewOptions = dashboardData?.options?.reviewableBookings || [];
+%>
+<section class="section" id="customer-reviews">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-star"></i> Reviews</h3><p>Your submitted reviews and completed bookings that can be reviewed.</p></div></div>
+      <div class="tableWrap"><table><thead><tr><th>Customer</th><th>Service</th><th>Rating</th><th>Comment</th><th>Reply/date</th><th>Status</th><th></th></tr></thead><tbody id="customerReviewsTable"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Write review</h3><p>Select one of your completed bookings. Internal IDs never need to be typed.</p></div></div>
+      <form class="formPanel" method="POST" action="/account/reviews">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Completed booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="bookingRef" required><option value="">Select completed booking</option><% customerReviewOptions.forEach(function(option){ %><option value="<%= option.value %>"><%= option.label %></option><% }) %></select></div><small class="fieldHelp"><%= customerReviewOptions.length ? 'Only bookings eligible for review are listed.' : 'A booking appears here after the trip or stay is completed.' %></small></div>
+          <div class="field"><label>Rating</label><div class="control"><i class="fa-solid fa-star"></i><select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div></div>
+          <div class="field full"><label>Comment</label><div class="control"><textarea name="comment" required></textarea></div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit" <%= customerReviewOptions.length ? '' : 'disabled' %>><i class="fa-solid fa-star"></i> Submit review</button>
+      </form>
+    </div>
+  </div>
+</section>

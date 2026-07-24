@@ -26,6 +26,20 @@ async function create(req, res, next) {
   }
 }
 
+async function updateCommission(req, res, next) {
+  try {
+    await companyService.updateCommercialTerms(
+      req.params.slug,
+      req.body,
+      req.session?.user?.id || 'admin-system'
+    );
+    if (req.flash) req.flash('success', 'Partner commission percentage updated. Existing bookings keep their historical percentage.');
+    res.redirect('/admin/companies');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function approve(req, res, next) {
   try {
     await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.VERIFIED, req.session?.user?.id || 'admin-system', req.body);
@@ -53,4 +67,4 @@ async function suspend(req, res, next) {
   }
 }
 
-module.exports = { create, approve, reject, suspend };
+module.exports = { create, updateCommission, approve, reject, suspend };

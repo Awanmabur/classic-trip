@@ -1,4 +1,5 @@
 const bookingService = require('../../services/booking/bookingService');
+const hotelService = require('../../services/hotel/hotelService');
 const { resolveCompanyId } = require('../../utils/companyScope');
 
 function companyIdFor(req) {
@@ -29,4 +30,34 @@ async function noShow(req, res, next) {
   }
 }
 
-module.exports = { checkIn, noShow };
+async function hotelCheckIn(req, res, next) {
+  try {
+    await hotelService.markStay(companyIdFor(req), req.params.bookingRef, 'checked_in', req.session?.user?.id || 'employee-form');
+    res.redirect('/employee/dashboard/in-house-guests');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function hotelCheckOut(req, res, next) {
+  try {
+    await hotelService.markStay(companyIdFor(req), req.params.bookingRef, 'checked_out', req.session?.user?.id || 'employee-form', { overrideReason: req.body.overrideReason });
+    res.redirect('/employee/dashboard/departures');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function hotelNoShow(req, res, next) {
+  try {
+    await hotelService.markNoShow(companyIdFor(req), req.params.bookingRef, req.session?.user?.id || 'employee-form', {
+      reason: req.body.reason || req.body.note,
+      overrideReason: req.body.overrideReason,
+    });
+    res.redirect('/employee/dashboard/arrivals');
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { checkIn, noShow, hotelCheckIn, hotelCheckOut, hotelNoShow };

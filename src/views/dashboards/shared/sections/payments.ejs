@@ -1,0 +1,79 @@
+<section class="section" id="payments">
+        <%
+          const financeRowId = function(row){
+            if (!Array.isArray(row)) return row?.id || row?.value || '';
+            const meta = row.find(function(cell){ return cell && typeof cell === 'object' && !Array.isArray(cell); }) || {};
+            return meta.id || meta.value || row[0] || '';
+          };
+          const financeRowLabel = function(row){
+            if (!Array.isArray(row)) return row?.label || row?.title || row?.name || row?.id || '';
+            return [row[0], row[1], row[2]].filter(function(value){ return value && typeof value !== 'object'; }).join(' · ');
+          };
+          const payoutRequestOptions = (dashboardData?.payoutRequests || []).map(function(row){ return { value: financeRowId(row), label: financeRowLabel(row) }; }).filter(function(option){ return option.value; });
+          const settlementBatchOptions = (dashboardData?.settlementBatches || []).map(function(row){ return { value: financeRowId(row), label: financeRowLabel(row) }; }).filter(function(option){ return option.value; });
+        %>
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div class="cardTitle"><h3><%= isEmployeeDashboard ? 'Payments' : 'Payments & split settlement' %></h3><p><%= isEmployeeDashboard ? 'Record desk payments and keep booking payment status aligned with the staff workflow.' : 'Track customer payments, Classic Trip net commissions, promoter commissions, and partner payouts.' %></p></div>
+              <% if(isEmployeeDashboard || isCompanyDashboard){ %><button class="btn btnPrimary" data-modal="create" data-type="payment"><i class="fa-solid fa-wallet"></i> Record payment</button><% } else { %><form method="POST" action="<%= isFinanceDashboard ? '/finance/release-eligible' : '/admin/finance/release-eligible' %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-unlock-keyhole"></i> Release eligible</button></form><% } %>
+            </div>
+            <div class="tableWrap"><table><thead><tr><th>Transaction</th><th>Booking</th><th>Customer paid</th><th>Partner</th><th>Classic Trip net</th><th>Promoter reward</th><th>Status</th><th></th></tr></thead><tbody id="paymentsTable"></tbody></table></div>
+          </div>
+          <% if(isEmployeeDashboard){ %>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Staff payment actions</h3><p>Use these controls for bookings handled during the current shift.</p></div></div>
+            <div class="heroActions"><button class="btn btnBlue" data-modal="create" data-type="payment"><i class="fa-solid fa-wallet"></i> Record payment</button><button class="btn" data-modal="create" data-type="refund"><i class="fa-solid fa-rotate-left"></i> Request refund</button><button class="btn" data-modal="create" data-type="handover"><i class="fa-solid fa-clipboard-list"></i> Shift handover</button></div>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Shift reconciliation</h3><p>Export reports and leave handover notes for payments, refunds, check-ins, and open support tasks.</p></div></div>
+            <div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Payments recorded</span><span class="badge ok"><%= dashboardData?.stats?.paymentsRecorded || '0' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Refund requests</span><span class="badge warn"><%= dashboardData?.stats?.refundRequestsHandled || '0' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Generated reports</span><span class="badge info"><%= Array.isArray(dashboardData?.reports) ? dashboardData.reports.length.toLocaleString() : '0' %></span></div></div></div>
+          </div>
+          <% } else { %>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Settlement batches</h3><p>Create period settlements and finance statements for companies and promoters.</p></div></div>
+            <form class="formPanel" method="POST" action="<%= isFinanceDashboard ? '/finance/settlements' : '/admin/settlements' %>">
+              <div class="formGrid">
+                <div class="field"><label>Period start</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" name="periodStart" /></div></div>
+                <div class="field"><label>Period end</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" name="periodEnd" /></div></div>
+                <div class="field full"><label>Notes</label><div class="control"><textarea name="notes" placeholder="Settlement notes"></textarea></div></div>
+              </div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-file-invoice-dollar"></i> Create settlement</button>
+            </form>
+            <a class="btn btnBlue" href="/admin/reports/settlements.csv"><i class="fa-solid fa-download"></i> Export settlements</a>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Payout requests and batches</h3><p>Sync withdrawal requests, review payout risk, and export provider batches.</p></div></div>
+            <div class="heroActions">
+              <form method="POST" action="<%= isFinanceDashboard ? '/finance/payouts/sync' : '/admin/payouts/sync' %>"><button class="btn" type="submit"><i class="fa-solid fa-rotate"></i> Sync requests</button></form>
+              <a class="btn btnBlue" href="/admin/reports/ledger.csv"><i class="fa-solid fa-download"></i> Export ledger</a>
+            </div>
+            <form class="formPanel" method="POST" action="<%= isFinanceDashboard ? '/finance/payouts/batch' : '/admin/payouts/batch' %>">
+              <div class="formGrid">
+                <div class="field"><label>Approved payout requests</label><div class="control"><i class="fa-solid fa-list-check"></i><select name="requestIds" multiple required><% payoutRequestOptions.forEach(function(option){ %><option value="<%= option.value %>"><%= option.label %></option><% }) %></select></div><small class="fieldHelp">Select existing requests; internal payout IDs are never typed manually.</small></div>
+                <div class="field"><label>Provider ref</label><div class="control"><i class="fa-solid fa-building-columns"></i><input name="providerReference" placeholder="BANK-EXPORT" /></div></div>
+              </div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-money-bill-transfer"></i> Create payout batch</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Ledger, refund debits, and reconciliation</h3><p>Compare gross payments, releases, withdrawals, refund debits, and settlement variance.</p></div></div>
+            <form class="formPanel" method="POST" action="<%= isFinanceDashboard ? '/finance/reconciliation' : '/admin/reconciliation' %>">
+              <div class="formGrid">
+                <div class="field"><label>Settlement batch</label><div class="control"><i class="fa-solid fa-scale-balanced"></i><select name="settlementBatchId" required><option value="">Select settlement batch</option><% settlementBatchOptions.forEach(function(option){ %><option value="<%= option.value %>"><%= option.label %></option><% }) %></select></div></div>
+                <div class="field"><label>Notes</label><div class="control"><i class="fa-regular fa-note-sticky"></i><input name="notes" placeholder="Variance notes" /></div></div>
+              </div>
+              <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-check-double"></i> Reconcile</button>
+            </form>
+            <form class="formPanel" method="POST" action="<%= isFinanceDashboard ? '/finance/statements' : '/admin/finance/statements' %>">
+              <div class="formGrid"><div class="field full"><label>Statement notes</label><div class="control"><i class="fa-solid fa-file-lines"></i><input name="notes" placeholder="Manual statement run" /></div></div></div>
+              <button class="btn btnBlue" type="submit"><i class="fa-solid fa-file-circle-check"></i> Generate statements</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="cardHead"><div class="cardTitle"><h3>Finance rules</h3><p>Current split logic used by the marketplace.</p></div></div>
+            <div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Partner receives</span><strong><%= platformConfig.partnerPayoutPercent %>%</strong></div><div class="progress"><i style="width:<%= platformConfig.partnerPayoutPercent %>%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Partner commission</span><strong><%= platformConfig.partnerCommissionPercent %>%</strong></div><div class="progress"><i style="width:<%= platformConfig.partnerCommissionPercent %>%"></i></div></div><div class="splitItem"><div class="splitTop"><span>Promoter share of commission</span><strong><%= platformConfig.promoterSharePercent %>%</strong></div><div class="progress"><i style="width:<%= platformConfig.promoterSharePercent %>%"></i></div></div><div class="notice">Promoter rewards come from Classic Trip’s commission. Partner payout remains <%= platformConfig.partnerPayoutPercent %>%.</div><button class="btn btnBlue" data-modal="edit" data-type="finance rules"><i class="fa-solid fa-gear"></i> Edit finance rules</button></div>
+          </div>
+          <% } %>
+        </div>
+      </section>

@@ -1,13 +1,13 @@
-const store = require('../../services/data/persistentStore');
-
-function index(req, res) {
-  res.render('pages/blogs', { seo: { title: 'Classic Trip blog' }, blogs: store.state.blogs });
+const contentRepository = require('../../repositories/domain/contentRepository');
+async function index(req, res, next) {
+  try { res.render('pages/blogs', { seo: { title: 'Classic Trip blog' }, blogs: await contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 200 }) }); }
+  catch (error) { next(error); }
 }
-
-function show(req, res, next) {
-  const blog = store.state.blogs.find((item) => item.slug === req.params.slug);
-  if (!blog) return next();
-  return res.render('pages/blog-post', { seo: { title: `${blog.title} | Classic Trip` }, blog });
+async function show(req, res, next) {
+  try {
+    const blog = await contentRepository.blogs.findOne({ slug: req.params.slug, status: 'published' });
+    if (!blog) return next();
+    return res.render('pages/blog-post', { seo: { title: `${blog.title} | Classic Trip` }, blog });
+  } catch (error) { return next(error); }
 }
-
 module.exports = { index, show };

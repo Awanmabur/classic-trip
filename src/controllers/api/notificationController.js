@@ -15,10 +15,12 @@ function config(req, res) {
   });
 }
 
-function list(req, res) {
+async function list(req, res, next) {
+  try {
   const limit = Math.min(100, Math.max(1, Number(req.query.limit || 30)));
-  const notifications = notificationService.notificationsForUser(currentUser(req), { limit });
-  res.json({ ok: true, notifications, unreadCount: notifications.filter((note) => !note.readAt).length });
+  const notifications = await notificationService.notificationsForUserLive(currentUser(req), { limit });
+  return res.json({ ok: true, notifications, unreadCount: notifications.filter((note) => !note.readAt).length });
+  } catch (error) { return next(error); }
 }
 
 async function markRead(req, res, next) {

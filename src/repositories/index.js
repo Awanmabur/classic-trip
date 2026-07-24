@@ -1,4 +1,5 @@
-const { MongoRepository, mongoReady } = require('./mongoRepository');
+const { platformCurrency } = require('../utils/currency');
+const { MongoRepository, mongoReady, requireMongo } = require('./mongoRepository');
 
 const entityModelMap = {
   users: 'User',
@@ -11,6 +12,13 @@ const entityModelMap = {
   listings: 'Listing',
   routes: 'Route',
   routeStops: 'RouteStop',
+  routeSegments: 'RouteSegment',
+  seatMapTemplates: 'SeatMapTemplate',
+  seatMapVersions: 'SeatMapVersion',
+  fareProducts: 'FareProduct',
+  busSegmentFares: 'BusSegmentFare',
+  serviceAddons: 'ServiceAddon',
+  busSeatSegmentInventories: 'BusSeatSegmentInventory',
   vehicles: 'Vehicle',
   schedules: 'TripSchedule',
   tripSchedules: 'TripSchedule',
@@ -18,17 +26,29 @@ const entityModelMap = {
   driverAssignments: 'DriverAssignment',
   driverIncidents: 'DriverIncident',
   tripStatusUpdates: 'TripStatusUpdate',
-  rooms: 'Room',
   hotelProperties: 'HotelProperty',
   roomTypes: 'RoomType',
   roomUnits: 'RoomUnit',
   roomNightInventories: 'RoomNightInventory',
   stayRules: 'StayRule',
+  ratePlans: 'RatePlan',
+  hotelReservations: 'HotelReservation',
+  hotelGuests: 'HotelGuest',
+  roomAssignments: 'RoomAssignment',
+  housekeepingTasks: 'HousekeepingTask',
+  maintenanceBlocks: 'MaintenanceBlock',
   holds: 'InventoryHold',
   inventoryHolds: 'InventoryHold',
+  inventoryHoldItems: 'InventoryHoldItem',
+  outboxEvents: 'OutboxEvent',
   carts: 'Cart',
   cartCheckoutAttempts: 'CartCheckoutAttempt',
+  bookingGroups: 'BookingGroup',
   bookings: 'Booking',
+  bookingItems: 'BookingItem',
+  busReservations: 'BusReservation',
+  busSeatAssignments: 'BusSeatAssignment',
+  busTickets: 'BusTicket',
   passengers: 'Passenger',
   payments: 'Payment',
   paymentWebhookEvents: 'PaymentWebhookEvent',
@@ -60,8 +80,6 @@ const entityModelMap = {
   fraudSignals: 'FraudSignal',
   campaigns: 'PromotionCampaign',
   promotionCampaigns: 'PromotionCampaign',
-  subscriptionOrders: 'SubscriptionOrder',
-  subscriptions: 'Subscription',
   notifications: 'Notification',
   supportTickets: 'SupportTicket',
   refunds: 'RefundRequest',
@@ -75,19 +93,8 @@ const entityModelMap = {
   loginAudits: 'LoginAudit',
   deviceSessions: 'DeviceSession',
   idempotencyKeyRecords: 'IdempotencyKeyRecord',
-  futureServiceModules: 'FutureServiceModule',
-  flightOffers: 'FlightOffer',
-  trainInventories: 'TrainInventory',
-  tourPackageInventories: 'TourPackageInventory',
-  carRentalUnits: 'CarRentalUnit',
-  eventTicketInventories: 'EventTicketInventory',
-  cargoShipments: 'CargoShipment',
-  insurancePolicyRecords: 'InsurancePolicyRecord',
-  corporateTravelAccounts: 'CorporateTravelAccount',
-  loyaltyAccounts: 'LoyaltyAccount',
   reviews: 'Review',
   auditLogs: 'AuditLog',
-  settings: 'Setting',
   platformSettings: 'PlatformSetting',
   savedListings: 'SavedListing',
   shiftHandovers: 'ShiftHandover',
@@ -95,6 +102,7 @@ const entityModelMap = {
   blogs: 'BlogPost',
   counters: 'Counter',
   scheduleRules: 'ScheduleRule',
+  rateLimitCounters: 'RateLimitCounter',
 };
 
 const filterOverrides = {
@@ -105,6 +113,13 @@ const filterOverrides = {
   companyPolicies: (row) => ({ id: row.id }),
   listings: (row) => ({ id: row.id }),
   routeStops: (row) => ({ id: row.id }),
+  routeSegments: (row) => ({ id: row.id }),
+  seatMapTemplates: (row) => ({ id: row.id }),
+  seatMapVersions: (row) => ({ id: row.id }),
+  fareProducts: (row) => ({ id: row.id }),
+  busSegmentFares: (row) => ({ id: row.id }),
+  serviceAddons: (row) => ({ id: row.id }),
+  busSeatSegmentInventories: (row) => ({ id: row.id }),
   driverAssignments: (row) => ({ id: row.id }),
   driverIncidents: (row) => ({ id: row.id }),
   tripStatusUpdates: (row) => ({ id: row.id }),
@@ -113,10 +128,21 @@ const filterOverrides = {
   roomUnits: (row) => ({ id: row.id }),
   roomNightInventories: (row) => ({ id: row.id }),
   stayRules: (row) => ({ id: row.id }),
+  ratePlans: (row) => ({ id: row.id }),
+  hotelReservations: (row) => ({ id: row.id }),
+  hotelGuests: (row) => ({ id: row.id }),
+  roomAssignments: (row) => ({ id: row.id }),
+  housekeepingTasks: (row) => ({ id: row.id }),
+  maintenanceBlocks: (row) => ({ id: row.id }),
+  bookingGroups: (row) => ({ groupRef: row.groupRef }),
   bookings: (row) => ({ bookingRef: row.bookingRef }),
+  bookingItems: (row) => ({ id: row.id }),
+  busReservations: (row) => ({ id: row.id }),
+  busSeatAssignments: (row) => ({ id: row.id }),
+  busTickets: (row) => ({ id: row.id }),
   payments: (row) => ({ idempotencyKey: row.idempotencyKey || row.id }),
   paymentWebhookEvents: (row) => ({ provider: row.provider, idempotencyKey: row.idempotencyKey || row.id }),
-  wallets: (row) => ({ ownerType: row.ownerType, ownerId: row.ownerId, currency: row.currency || 'UGX' }),
+  wallets: (row) => ({ ownerType: row.ownerType, ownerId: row.ownerId, currency: row.currency || platformCurrency() }),
   promoterLinks: (row) => ({ id: row.id }),
   referralClicks: (row) => ({ id: row.id }),
   attributionSessions: (row) => ({ id: row.id }),
@@ -124,15 +150,15 @@ const filterOverrides = {
   agentProfiles: (row) => ({ userId: row.userId || row.promoterId }),
   offlineSales: (row) => ({ saleRef: row.saleRef || row.id }),
   fraudSignals: (row) => ({ id: row.id }),
-  subscriptionOrders: (row) => ({ orderRef: row.orderRef }),
   // PlatformSetting is a true singleton with no app-level id field - match the one
   // existing document (if any) so repeated upserts update it in place.
   platformSettings: () => ({}),
   savedListings: (row) => ({ userId: row.userId, listingId: row.listingId }),
   seats: (row) => ({ scheduleId: row.scheduleId, seatNumber: row.seatNumber }),
-  rooms: (row) => ({ id: row.id }),
   holds: (row) => ({ id: row.id }),
   inventoryHolds: (row) => ({ id: row.id }),
+  inventoryHoldItems: (row) => ({ id: row.id }),
+  outboxEvents: (row) => ({ dedupeKey: row.dedupeKey || row.id }),
   carts: (row) => ({ cartRef: row.cartRef || row.id }),
   cartCheckoutAttempts: (row) => ({ id: row.id }),
   correspondenceMessages: (row) => ({ id: row.id }),
@@ -150,7 +176,6 @@ const filterOverrides = {
   payoutRequests: (row) => ({ transactionId: row.transactionId || row.id }),
   payoutBatches: (row) => ({ batchNumber: row.batchNumber || row.id }),
   reconciliationReports: (row) => ({ id: row.id }),
-  subscriptions: (row) => ({ id: row.id }),
   partnerLeads: (row) => ({ id: row.id }),
   discoverySessions: (row) => ({ id: row.id }),
   agreements: (row) => ({ id: row.id }),
@@ -160,20 +185,10 @@ const filterOverrides = {
   loginAudits: (row) => ({ id: row.id }),
   deviceSessions: (row) => ({ sessionHash: row.sessionHash || row.id }),
   idempotencyKeyRecords: (row) => ({ key: row.key, scope: row.scope }),
-  futureServiceModules: (row) => ({ key: row.key || row.id }),
-  flightOffers: (row) => ({ id: row.id }),
-  trainInventories: (row) => ({ id: row.id }),
-  tourPackageInventories: (row) => ({ id: row.id }),
-  carRentalUnits: (row) => ({ id: row.id }),
-  eventTicketInventories: (row) => ({ id: row.id }),
-  cargoShipments: (row) => ({ id: row.id }),
-  insurancePolicyRecords: (row) => ({ id: row.id }),
-  corporateTravelAccounts: (row) => ({ id: row.id }),
-  loyaltyAccounts: (row) => ({ id: row.id }),
-  settings: (row) => ({ key: row.key || row.id }),
   // Counter's primary key is _id (the entity prefix, e.g. "listing"), not the usual id field.
   counters: (row) => ({ _id: row._id }),
   scheduleRules: (row) => ({ id: row.id }),
+  rateLimitCounters: (row) => ({ key: row.key }),
 };
 
 const repositories = Object.fromEntries(Object.entries(entityModelMap).map(([entity, modelName]) => [
@@ -182,6 +197,7 @@ const repositories = Object.fromEntries(Object.entries(entityModelMap).map(([ent
     entity,
     modelName,
     defaultFilter: filterOverrides[entity] || ((row) => ({ id: row.id })),
+    objectIdIdentity: entity === 'users',
   }),
 ]));
 
@@ -195,9 +211,17 @@ function repositoryFor(entity) {
   return repository;
 }
 
+function readyRepository(entity) {
+  const repository = repositoryFor(entity);
+  if (repository.isReady()) return repository;
+  requireMongo(`dashboard entity: ${entity}`);
+  return repository;
+}
+
 module.exports = {
   ...repositories,
   entityModelMap,
   mongoReady,
   repositoryFor,
+  readyRepository,
 };

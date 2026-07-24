@@ -1,18 +1,21 @@
 const { Schema, model } = require('./_helpers');
 
-// Status is the full operational vocabulary the app actually uses (see companyService.js's
-// updateSeatStatus allowedStatuses) - not just the 4-value subset this previously declared.
-// Anything outside the enum was silently failing Mongoose validation on every write, leaving
-// the in-memory seat status permanently out of sync with what's actually saved in the database.
+// Canonical operational seat states persisted in MongoDB.
 const SEAT_STATUSES = [
   'available', 'selected', 'locked', 'held', 'taken', 'booked',
-  'checked-in', 'no-show', 'cancelled', 'refunded', 'blocked',
+  'checked_in', 'no_show', 'cancelled', 'refunded', 'blocked',
   'maintenance', 'reserved', 'disabled',
 ];
 
 const seatSchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
   scheduleId: { type: String, required: true, index: true },
+  companyId: { type: String, index: true },
+  listingId: { type: String, index: true },
+  routeId: { type: String, index: true },
+  vehicleId: { type: String, index: true },
+  seatMapVersionId: { type: String, index: true },
+  source: { type: String, enum: ['seat_map_projection'], default: 'seat_map_projection' },
   seatNumber: { type: String, required: true },
   seatClass: String,
   seatType: String,

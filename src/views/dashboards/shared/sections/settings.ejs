@@ -1,0 +1,25 @@
+<section class="section" id="settings">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Platform settings</h3><p>One source of truth for partner commission, promoter rewards, currencies, customer fees and inventory holds.</p></div></div>
+      <form class="formPanel" id="settingsForm" method="POST" action="/admin/settings">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Default partner commission %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" min="0" max="100" step="0.01" name="partnerCommissionPercent" value="<%= platformConfig.partnerCommissionPercent %>" required></div><small class="fieldHelp">Used for new partner contracts. Existing partner percentages can be adjusted from Partners / Companies and are frozen per booking.</small></div>
+          <div class="field"><label>Partner receives</label><div class="control"><i class="fa-solid fa-hand-holding-dollar"></i><input type="text" value="<%= platformConfig.partnerPayoutPercent %>%" readonly></div><small class="fieldHelp">Calculated automatically as 100% minus the partner commission.</small></div>
+          <div class="field"><label>Promoter share of commission %</label><div class="control"><i class="fa-solid fa-bullhorn"></i><input type="number" min="0" max="100" step="0.01" name="promoterSharePercent" value="<%= platformConfig.promoterSharePercent %>" required></div><small class="fieldHelp">Paid from Classic Trip’s commission when a valid promoter referral exists. It never reduces the partner share again.</small></div>
+          <div class="field"><label>Customer service fee %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" min="0" max="100" step="0.01" name="customerServiceFeePercent" value="<%= platformConfig.customerServiceFeePercent %>" required></div><small class="fieldHelp">Optional customer-facing fee shown before payment. Keep at 0 when the platform earns only from commission.</small></div>
+          <div class="field"><label>Customer flat service fee</label><div class="control"><i class="fa-solid fa-coins"></i><input type="number" min="0" step="1" name="customerServiceFeeFlat" value="<%= platformConfig.customerServiceFeeFlat %>" required></div></div>
+          <div class="field"><label>Customer tax %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" min="0" max="100" step="0.01" name="customerTaxPercent" value="<%= platformConfig.customerTaxPercent %>" required></div></div>
+          <div class="field"><label>Hold timer</label><div class="control"><i class="fa-regular fa-clock"></i><input type="number" min="1" max="180" name="holdMinutes" value="<%= platformConfig.holdMinutes %>" required></div></div>
+          <div class="field"><label>Default currency</label><div class="control"><i class="fa-solid fa-coins"></i><select name="defaultCurrency" required><% platformConfig.supportedCurrencies.forEach(function(code){ %><option value="<%= code %>" <%= code === platformConfig.defaultCurrency ? 'selected' : '' %>><%= code %></option><% }) %></select></div></div>
+          <div class="field"><label>Supported currencies</label><div class="control"><i class="fa-solid fa-coins"></i><input name="supportedCurrencies" value="<%= platformConfig.supportedCurrencies.join(', ') %>" required></div><small class="fieldHelp">Comma-separated ISO currency codes. All company and service forms reuse this list.</small></div>
+          <div class="field full"><label>Support message</label><div class="control"><textarea name="supportMessage"><%= platformConfig.supportMessage %></textarea></div></div>
+          <div class="field full"><div class="notice"><strong>Commission-only model:</strong> Partner registration is open directly. There are no recurring partner charges; only the configured booking commission applies. Verification still controls publishing, bookings, payment operations and payouts.</div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save settings</button>
+      </form>
+    </div>
+    <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Security controls</h3><p>Admin and platform protection settings.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Admin 2FA</span><span class="badge <%= platformMfaEnabled ? 'ok' : 'warn' %>"><%= platformMfaEnabled ? 'Enabled' : 'Temporarily disabled' %></span></div></div><div class="splitItem"><div class="splitTop"><span>Partner KYC required</span><span class="badge ok">Enabled</span></div></div><div class="splitItem"><div class="splitTop"><span>Suspicious payout hold</span><span class="badge warn">Manual review</span></div></div><div class="splitItem"><div class="splitTop"><span>Audit log</span><span class="badge info">Active</span></div></div></div></div>
+  </div>
+</section>

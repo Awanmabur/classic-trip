@@ -1,9 +1,9 @@
 const { Schema, moneySchema, model } = require('./_helpers');
 
 const cartSchema = new Schema({
-  id: { type: String, index: true },
+  id: { type: String, unique: true, sparse: true, index: true },
   cartRef: { type: String, unique: true, required: true, index: true },
-  status: { type: String, default: 'draft', index: true },
+  status: { type: String, default: 'draft', index: true, enum: ['draft', 'validated', 'inventory_failed', 'validation_failed', 'payment_failed', 'checked_out', 'payment_pending'] },
   userId: { type: String, index: true },
   guestKey: { type: String, index: true },
   customer: Schema.Types.Mixed,
@@ -19,6 +19,8 @@ const cartSchema = new Schema({
   paymentId: { type: String, index: true },
   paymentRef: { type: String, index: true },
   bookingRef: { type: String, index: true },
+  bookingGroupId: { type: String, index: true },
+  bookingGroupRef: { type: String, index: true },
   childBookingRefs: [String],
   expiresAt: Date,
   checkedOutAt: Date,

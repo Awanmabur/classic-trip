@@ -31,15 +31,6 @@ const ROLE_DASHBOARDS = {
       { label: 'Service Categories', items: [
         { page: 'bus-dashboard', label: 'Bus Providers', icon: 'fa-bus-simple' },
         { page: 'hotel-dashboard', label: 'Hotel Providers', icon: 'fa-hotel' },
-        { page: 'flight-dashboard', label: 'Flight Providers', icon: 'fa-plane' },
-        { page: 'train-dashboard', label: 'Train Providers', icon: 'fa-train' },
-        { page: 'tour-dashboard', label: 'Tour Operators', icon: 'fa-map-location-dot' },
-        { page: 'car-rental-dashboard', label: 'Car Rental Providers', icon: 'fa-car' },
-        { page: 'event-dashboard', label: 'Event Organizers', icon: 'fa-calendar-check' },
-        { page: 'cargo-dashboard', label: 'Cargo Providers', icon: 'fa-boxes-stacked' },
-        { page: 'insurance-dashboard', label: 'Insurance Providers', icon: 'fa-shield-heart' },
-        { page: 'corporate-dashboard', label: 'Corporate Accounts', icon: 'fa-briefcase' },
-        { page: 'loyalty-dashboard', label: 'Loyalty Partners', icon: 'fa-gift' },
       ] },
       { label: 'Money and Risk', items: [
         { page: 'payments', label: 'Payments & Split Fees', icon: 'fa-wallet' },
@@ -110,7 +101,6 @@ const ROLE_DASHBOARDS = {
         { page: 'ticket', label: 'Current Ticket', icon: 'fa-qrcode' },
         { page: 'saved', label: 'Saved Trips', icon: 'fa-heart' },
         { page: 'passengers', label: 'Saved Passengers', icon: 'fa-user-group' },
-        { page: 'loyalty-dashboard', label: 'Loyalty', icon: 'fa-gift' },
       ] },
       { label: 'Account', items: [
         { page: 'receipts', label: 'Receipts', icon: 'fa-receipt' },
@@ -211,7 +201,6 @@ const ROLE_DASHBOARDS = {
         { page: 'share', label: 'Share Listings', icon: 'fa-share-nodes' },
         { page: 'bus-dashboard', label: 'Bus Campaigns', icon: 'fa-bus-simple' },
         { page: 'hotel-dashboard', label: 'Hotel Campaigns', icon: 'fa-hotel' },
-        { page: 'event-dashboard', label: 'Event Campaigns', icon: 'fa-calendar-check' },
         { page: 'campaigns', label: 'Campaigns', icon: 'fa-bullhorn' },
         { page: 'performance', label: 'Performance', icon: 'fa-chart-pie' },
       ] },
@@ -274,6 +263,19 @@ const ROLE_DASHBOARDS = {
       ] },
     ],
   },
+  content: {
+    roleKey: 'content', label: 'Content Admin', consoleName: 'Content Console', route: '/content/dashboard', title: 'Content Dashboard', subtitle: 'Review marketplace content, listings, service categories, campaigns, media, blogs, and SEO content.', profileName: 'Content admin', profileMeta: 'Marketplace content controls', avatar: 'CO', statusLabel: 'Content', statusIcon: 'fa-pen-to-square', createLabel: 'Create Content',
+    groups: [
+      { label: 'Content Work', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'listings', label: 'Listings', icon: 'fa-layer-group' },
+        { page: 'ads', label: 'Ads & Promotions', icon: 'fa-rectangle-ad' },
+        { page: 'notifications', label: 'Notifications', icon: 'fa-bell' },
+        { page: 'reports', label: 'Content Reports', icon: 'fa-file-lines' },
+      ] },
+    ],
+  },
+
 };
 
 const ROLE_ALIASES = {
@@ -284,6 +286,10 @@ const ROLE_ALIASES = {
   customer: 'customer',
   promoter: 'promoter',
   driver: 'driver',
+  support_admin: 'support',
+  finance_admin: 'finance',
+  operations_admin: 'operations',
+  content_admin: 'content',
   support_agent: 'support',
   finance_agent: 'finance',
   operations_agent: 'operations',

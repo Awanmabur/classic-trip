@@ -13,7 +13,19 @@ function timingSafeStringEqual(a, b) {
 }
 
 function normalizePhone(value = '') {
-  return String(value || '').replace(/[^\d]/g, '').replace(/^0+/, '');
+  return String(value || '').replace(/[^\d]/g, '');
+}
+
+function phoneCandidates(value = '') {
+  const digits = normalizePhone(value);
+  if (!digits) return new Set();
+  const candidates = new Set([digits]);
+  if (digits.startsWith('00')) candidates.add(digits.slice(2));
+  if (digits.startsWith('0') && digits.length >= 9) candidates.add(digits.slice(1));
+  // Permit a local 9-digit number to match a full international number, but do not accept
+  // arbitrary short suffixes. Both sides must contribute a complete local subscriber number.
+  if (digits.length > 9 && digits.length <= 15) candidates.add(digits.slice(-9));
+  return candidates;
 }
 
 function accessCodeFor(booking = {}) {
@@ -37,10 +49,12 @@ function contactMatches(booking = {}, contact = '') {
   const email = normalize(booking.guestSnapshot?.email || booking.buyerSnapshot?.email || booking.customer?.email);
   const phone = normalize(booking.guestSnapshot?.phone || booking.buyerSnapshot?.phone || booking.customer?.phone);
   if (email && key.includes('@') && email === key) return true;
-  const keyDigits = normalizePhone(key);
-  const phoneDigits = normalizePhone(phone);
-  const suffixLength = 9;
-  if (phoneDigits && keyDigits && keyDigits.length >= 7 && phoneDigits.slice(-suffixLength) === keyDigits.slice(-suffixLength)) return true;
+  const submittedPhones = phoneCandidates(key);
+  const storedPhones = phoneCandidates(phone);
+  for (const submitted of submittedPhones) {
+    if (submitted.length < 9) continue;
+    if (storedPhones.has(submitted)) return true;
+  }
   return false;
 }
 
@@ -59,7 +73,7 @@ function queryAccess(req = {}) {
 function userCanAccess(req = {}, booking = {}) {
   const user = req.session?.user;
   if (!user) return false;
-  if (['super_admin', 'admin', 'support_agent', 'finance_agent', 'operations_agent'].includes(user.role)) return true;
+  if (['super_admin', 'admin', 'support_admin', 'finance_admin', 'operations_admin'].includes(user.role)) return true;
   if (user.companyId && user.companyId === booking.companyId) return true;
   if (user.id && user.id === booking.customerUserId) return true;
   if (user.id && user.id === booking.promoterAttribution?.promoterId) return true;

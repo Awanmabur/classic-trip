@@ -1,66 +1,34 @@
-const store = require('../../services/data/persistentStore');
-const { mongoose } = require('../../config/db');
+const promoterRepository = require('../../repositories/domain/promoterRepository');
+const { nextId } = require('../../services/data/idService');
+const { resolvePromoterId } = require('../../utils/promoterScope');
 
-function cleanText(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
-}
+function cleanText(value, max = 500) { return String(value || '').replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ').slice(0, max); }
+function amountValue(value) { const amount = Number(String(value || '').replace(/[^0-9.-]/g, '')); return Number.isFinite(amount) ? amount : 0; }
 
-function amountValue(value) {
-  const amount = Number(String(value || '').replace(/[^0-9.-]/g, ''));
-  return Number.isFinite(amount) ? amount : 0;
-}
-
-function nextId(prefix, rows = []) {
-  let index = rows.length + 1;
-  let id = `${prefix}-${index}`;
-  while (rows.some((row) => row.id === id)) {
-    index += 1;
-    id = `${prefix}-${index}`;
-  }
-  return id;
-}
-
-async function persist(campaign) {
-  if (mongoose.connection.readyState !== 1 || !campaign) return;
-  const PromotionCampaign = require('../../models/PromotionCampaign');
-  await PromotionCampaign.updateOne({ id: campaign.id }, { $set: campaign }, { upsert: true, runValidators: true });
-}
-
-function index(req, res) {
-  const promoterId = req.session?.user?.id || 'user-promoter-001';
-  res.json(store.state.promotionCampaigns.filter((campaign) => !campaign.promoterId || campaign.promoterId === promoterId));
+async function index(req, res, next) {
+  try {
+    const promoterId = resolvePromoterId(req);
+    const campaigns = await promoterRepository.campaigns.list({ $or: [{ promoterId }, { promoterId: { $exists: false } }, { promoterId: '' }] }, { sort: { createdAt: -1 }, limit: 250 });
+    return res.json(campaigns);
+  } catch (error) { return next(error); }
 }
 
 async function create(req, res, next) {
   try {
-    if (!Array.isArray(store.state.promotionCampaigns)) store.state.promotionCampaigns = [];
-    const listing = store.findListing(req.body.listingId || req.body.listingSlug || req.body.title);
-    if (!listing) {
-      const error = new Error('Listing not found');
-      error.status = 404;
-      throw error;
-    }
+    const key = cleanText(req.body.listingId || req.body.listingSlug || req.body.title, 180);
+    const listing = await promoterRepository.listings.findOne({ $or: [{ id: key }, { slug: key }, { title: key }] });
+    if (!listing || listing.status !== 'active') { const error = new Error('Listing not found or unavailable'); error.status = listing ? 409 : 404; throw error; }
+    const status = cleanText(req.body.status || 'active', 40).toLowerCase();
+    if (!['draft', 'active', 'paused', 'completed', 'expired'].includes(status)) { const error = new Error('Invalid campaign status'); error.status = 422; throw error; }
     const campaign = {
-      id: nextId('campaign', store.state.promotionCampaigns),
-      companyId: listing.companyId,
-      promoterId: req.session?.user?.id || 'user-promoter-001',
-      listingId: listing.id,
-      name: cleanText(req.body.name || req.body.title || `${listing.title} referral push`),
-      placement: cleanText(req.body.placement || 'promoter_share'),
-      budget: amountValue(req.body.budget),
-      clicks: 0,
-      bookings: 0,
-      status: cleanText(req.body.status || 'active').toLowerCase(),
-      startsAt: req.body.startsAt || null,
-      endsAt: req.body.endsAt || null,
-      createdAt: new Date().toISOString(),
+      id: await nextId('campaign'), companyId: listing.companyId, promoterId: resolvePromoterId(req), listingId: listing.id,
+      name: cleanText(req.body.name || req.body.title || `${listing.title} referral push`, 180), placement: cleanText(req.body.placement || 'promoter_share', 80),
+      budget: Math.max(0, amountValue(req.body.budget)), clicks: 0, bookings: 0, status,
+      startsAt: req.body.startsAt || null, endsAt: req.body.endsAt || null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
-    store.state.promotionCampaigns.unshift(campaign);
-    await persist(campaign);
-    res.redirect('/promoter/campaigns');
-  } catch (error) {
-    next(error);
-  }
+    await promoterRepository.campaigns.save(campaign, { id: campaign.id });
+    return res.redirect('/promoter/campaigns');
+  } catch (error) { return next(error); }
 }
 
 module.exports = { index, create };

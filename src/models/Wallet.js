@@ -2,7 +2,7 @@ const { Schema, model } = require('./_helpers');
 
 const walletSchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
-  ownerType: { type: String, required: true, index: true },
+  ownerType: { type: String, required: true, index: true, enum: ['platform', 'company', 'promoter', 'customer'] },
   ownerId: { type: String, required: true, index: true },
   currency: { type: String, required: true },
   availableBalance: { type: Number, default: 0 },

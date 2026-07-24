@@ -6,8 +6,8 @@
     <h1 class="heroTitle">Verified companies, promoter-ready campaigns, and public profiles.</h1>
     <p class="heroSub">Each profile shows services, routes, active listings, support contacts, verification, sponsored campaigns, referral assets, and booking links.</p>
     <div class="actions" style="margin-top:14px">
-      <a class="btn btnPrimary" href="/partner/onboarding?plan=growth"><i class="fa-solid fa-store"></i> Become a partner</a>
-      <a class="btn btnGhost" href="/pricing"><i class="fa-solid fa-layer-group"></i> Compare plans</a>
+      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
+      <a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
     </div>
     <div class="metricRow" style="margin-top:14px">
       <div class="stat"><b><%= companies.length %></b><span>Total partners</span></div>
@@ -21,12 +21,12 @@
       <article class="listing">
         <a href="/companies/<%= company.slug %>">
           <div class="thumb">
-            <img src="<%= company.coverImage.url %>" alt="<%= company.name %>">
+            <% if (company.coverImage.url) { %><img src="<%= company.coverImage.url %>" alt="<%= company.name %>"><% } else { %><div class="empty" style="height:100%;display:grid;place-items:center"><i class="fa-solid fa-building" style="font-size:38px"></i></div><% } %>
             <div class="cornerBadge <%= company.verificationStatus === 'verified' ? 'available' : 'promo' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus %></div>
           </div>
           <div class="listingBody">
             <div style="display:flex;align-items:center;gap:10px">
-              <img class="profileLogo" style="width:46px;height:46px;border-radius:16px" src="<%= company.logo.url %>" alt="<%= company.name %> logo">
+              <% if (company.logo.url) { %><img class="profileLogo" style="width:46px;height:46px;border-radius:16px" src="<%= company.logo.url %>" alt="<%= company.name %> logo"><% } else { %><span class="profileLogo" style="width:46px;height:46px;border-radius:16px;display:grid;place-items:center"><i class="fa-solid fa-bus"></i></span><% } %>
               <div>
                 <h3 class="listingTitle"><%= company.name %></h3>
                 <div class="small"><%= company.city %>, <%= company.country %> - <%= company.companyType %></div>

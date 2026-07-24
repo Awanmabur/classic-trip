@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const checks = [];
+function check(name, ok) { checks.push({ name, ok: Boolean(ok) }); if (!ok) console.error(`FAIL: ${name}`); }
+const home = read('src/views/pages/home.ejs');
+const homeJs = read('public/js/home.js');
+const listingCard = read('src/views/partials/listing-card.ejs');
+const details = read('src/views/pages/listing-details.ejs');
+const booking = read('src/views/pages/booking-form.ejs');
+const dashboard = read('public/js/dashboard-workspace.js');
+const setup = read('src/modules/bus/services/busSetupService.js');
+const domain = read('src/modules/bus/domain/busDomain.js');
+const homeCss = read('public/css/pages/home.css');
+const dashboardCss = read('public/css/dashboard-workspace.css');
+check('Marketplace server card uses approved shared reference', home.includes("include('../partials/listing-card'") && listingCard.includes('referenceBusCard') && listingCard.includes('class="meta"') && listingCard.includes('class="desc"'));
+check('Dynamic homepage bus card matches reference', homeJs.includes("const isBus = type === 'bus'") && homeJs.includes('referenceBusCard') && homeJs.includes('class="meta"'));
+check('Removed selected journey fare section', !details.includes('Selected journey fare') && !details.includes('journeyFareStrip'));
+check('Boarding/drop-off price explanation present', details.includes('price is recalculated from the boarding stop to the selected drop-off stop'));
+check('Stop selectors carry route order', details.includes('data-stop-order') && details.includes('synchronizeJourneySelectors'));
+check('Server supports connected fare bands', domain.includes('configured_fare_path') && domain.includes('edgesByOrigin') && domain.includes('fewest configured fare bands'));
+check('Exact segment fare remains first priority', domain.indexOf("source: 'exact'") < domain.indexOf('configured_fare_path'));
+check('Add-on templates have no preset numeric price', !/addonTemplateDefaults[\s\S]{0,1800}price\s*:\s*\d/.test(dashboard));
+check('Backend add-on templates have no preset numeric price', !/ADDON_TEMPLATES[\s\S]{0,1800}price\s*:\s*\d/.test(setup));
+check('Admin add-on price is required manual input', dashboard.includes('Admin-entered unit price') && dashboard.includes('Templates never choose or copy a price'));
+check('Backend requires submitted add-on price', setup.includes('price: moneyValue(payload.price'));
+check('Payment information panel has top margin', homeCss.includes('.paymentPage .directInfoHeader,.paymentPage .directTicketPreview{margin-top:16px!important}'));
+check('Passenger controls use uniform height', homeCss.includes('.directPassengerForm>select[name="sexes"]') && homeCss.includes('emergencyContactNames') && homeCss.includes('height:44px!important'));
+check('Dashboard input focus color removed', dashboardCss.includes('Keep clicked dashboard inputs visually neutral') && dashboardCss.includes('border-color:var(--line)!important'));
+check('Checkout still carries selected journey endpoints', booking.includes('originStopId') && booking.includes('destinationStopId') && booking.includes('safeAvailability.journey'));
+const passed = checks.filter((row) => row.ok).length;
+console.log(`Stop-pricing/UI checks: ${passed}/${checks.length}`);
+if (passed !== checks.length) process.exit(1);

@@ -1,0 +1,74 @@
+<%
+  const workflow = dashboardData?.staffDriverWorkflow || {};
+  const activeStaffCount = Number(workflow.activeStaff || 0);
+  const pendingStaffCount = Number(workflow.pendingStaff || 0);
+  const assignableDriverCount = Number(workflow.assignableDrivers || 0);
+  const activeDriverCount = Number(workflow.activeDrivers || 0);
+  const pendingDriverCount = Number(workflow.pendingDrivers || 0);
+%>
+<section class="section" id="staff">
+  <div class="notice" style="margin-bottom:16px">
+    <strong>Onboarding lifecycle:</strong>
+    Super Admin approves only the partner company. Partner Admin creates, invites, activates, suspends, assigns, and manages all company employees—including drivers, finance, support, operations, scanners, and hotel staff. Any saved driver record can be assigned to a departure.
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead">
+        <div class="cardTitle">
+          <h3>Staff & Roles</h3>
+          <p>Company employees are scoped to this company, branch, schedule, and permission group.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <span class="badge ok"><%= activeStaffCount %> active</span>
+            <span class="badge <%= pendingStaffCount ? 'warn' : 'info' %>"><%= pendingStaffCount %> awaiting acceptance</span>
+          </div>
+        </div>
+        <button class="btn btnBlue" data-modal="create" data-type="staff"><i class="fa-solid fa-user-plus"></i> Invite staff</button>
+      </div>
+      <div class="tableWrap">
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>Branch</th><th>Permissions</th><th>Last login / invite</th><th>Status</th><th></th></tr></thead>
+          <tbody id="companyStaffTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if(!isCompanyDashboard || companySupportsBusOperations){ %>
+      <div class="card">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <h3>Driver requests / assignments</h3>
+            <p>Each row follows the full driver lifecycle. Assignment to a departure is allowed at any lifecycle stage once a driver employee record exists; operational access remains controlled separately.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <span class="badge ok"><%= assignableDriverCount %> assignable</span>
+              <span class="badge info"><%= activeDriverCount %> operational</span>
+              <span class="badge <%= pendingDriverCount ? 'warn' : 'info' %>"><%= pendingDriverCount %> in progress</span>
+            </div>
+          </div>
+          <button class="btn" data-modal="create" data-type="driver"><i class="fa-solid fa-id-card"></i> Request driver</button>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead><tr><th>Driver</th><th>License</th><th>Safety</th><th>Permissions / stage</th><th>Branch / fleet</th><th>Status</th><th></th></tr></thead>
+            <tbody id="companyDriversTable"></tbody>
+          </table>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="card">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <h3>Hotel staff roles</h3>
+            <p>Front desk, housekeeping, inventory, finance, support, and report-viewer permissions only.</p>
+          </div>
+          <button class="btn" data-modal="create" data-type="hotel staff"><i class="fa-solid fa-user-plus"></i> Invite hotel staff</button>
+        </div>
+        <div class="metricList">
+          <div class="metricRow"><div><strong>Front desk</strong><span>Arrivals, check-ins, guest support</span></div><b class="badge info">Scoped</b></div>
+          <div class="metricRow"><div><strong>Housekeeping</strong><span>Room status and cleaning workflow</span></div><b class="badge info">Scoped</b></div>
+          <div class="metricRow"><div><strong>Finance</strong><span>Revenue and settlement visibility</span></div><b class="badge warn">Limited</b></div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>

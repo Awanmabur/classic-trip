@@ -3,7 +3,7 @@ const { Schema, model } = require('./_helpers');
 const pushSubscriptionSchema = new Schema({
   id: { type: String, index: true, unique: true },
   userId: { type: String, index: true },
-  userRole: { type: String, index: true },
+  userRole: { type: String, index: true, enum: ['super_admin', 'admin', 'finance_admin', 'support_admin', 'operations_admin', 'content_admin', 'company_admin', 'company_employee', 'driver', 'customer', 'promoter', ''] },
   companyId: { type: String, index: true },
   endpoint: { type: String, index: true },
   expirationTime: Schema.Types.Mixed,

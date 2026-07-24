@@ -3,6 +3,10 @@ const { env } = require('../config/env');
 const logger = require('../config/logger');
 
 const jobs = {
+  processOutbox: {
+    schedule: () => env.jobs.processOutbox,
+    module: () => require('./processOutbox'),
+  },
   cleanupExpiredLocks: {
     schedule: () => env.jobs.cleanupExpiredLocks,
     module: () => require('./cleanupExpiredLocks'),
@@ -88,8 +92,9 @@ function startScheduledJobs({ force = false, active = true } = {}) {
       logger.warn('Scheduled job skipped because cron expression is invalid', { name, expression });
       return;
     }
-    const task = cron.schedule(expression, () => runJob(name), { scheduled: active });
-    if (!active) task.stop();
+    const task = active
+      ? cron.schedule(expression, () => runJob(name))
+      : cron.createTask(expression, () => runJob(name));
     scheduledTasks.set(name, { expression, task, active });
     logger.info('Scheduled job registered', { name, expression, active });
   });
@@ -98,7 +103,10 @@ function startScheduledJobs({ force = false, active = true } = {}) {
 }
 
 function stopScheduledJobs() {
-  scheduledTasks.forEach(({ task }) => task.stop());
+  scheduledTasks.forEach(({ task }) => {
+    task.stop();
+    if (typeof task.destroy === 'function') task.destroy();
+  });
   scheduledTasks.clear();
 }
 

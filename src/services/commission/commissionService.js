@@ -1,16 +1,22 @@
 const calculateCommission = require('../../utils/calculateCommission');
-const store = require('../data/persistentStore');
+const financeRepository = require('../../repositories/domain/financeRepository');
+const { nextId } = require('../data/idService');
 
-function createCommission(booking, hasValidReferral, existingSplit = null) {
-  const duplicate = store.state.commissions.find((item) => item.bookingId === booking.id);
+async function createCommission(booking, hasValidReferral, existingSplit = null, options = {}) {
+  const duplicate = await financeRepository.commissions.findOne({ bookingId: booking.id }, options);
   if (duplicate) return duplicate;
-  const split = existingSplit || calculateCommission(booking.pricing.total, hasValidReferral);
+  const split = existingSplit || calculateCommission(booking.pricing.total, hasValidReferral, { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
   const commission = {
-    id: `commission-${store.state.commissions.length + 1}`,
+    id: await nextId('commission'),
     bookingId: booking.id,
     bookingRef: booking.bookingRef,
     promoterId: booking.promoterAttribution?.promoterId || null,
     companyId: booking.companyId,
+    commercialModel: 'percentage_commission',
+    partnerCommissionPercent: split.partnerCommissionPercent,
+    partnerPayoutPercent: split.partnerPayoutPercent,
+    promoterSharePercent: split.promoterSharePercent,
+    totalCommission: split.totalCommission,
     platformFee: split.platformFee,
     promoterAmount: split.promoterAmount,
     companyAmount: split.companyAmount,
@@ -18,7 +24,7 @@ function createCommission(booking, hasValidReferral, existingSplit = null) {
     releasedAt: null,
     createdAt: new Date().toISOString(),
   };
-  store.state.commissions.push(commission);
+  await financeRepository.commissions.save(commission, { bookingId: booking.id }, options);
   return commission;
 }
 

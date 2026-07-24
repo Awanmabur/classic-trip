@@ -1,30 +1,42 @@
 const billingService = require('../../services/billing/billingService');
 const { env } = require('../../config/env');
 const { resolveCompanyId } = require('../../utils/companyScope');
+const billingRepository = require('../../repositories/domain/billingRepository');
+const authService = require('../../services/auth/authService');
 
 function renderPlans(req, res) {
+  const plans = billingService.plans();
+  const requested = billingService.findPlan(req.query.plan);
   return res.render('pages/pricing', {
     seo: {
       title: 'Partner plans | Classic Trip',
       description: 'Choose a Classic Trip partner plan for onboarding, listings, payments, promotions, and staff workflows.',
     },
-    plans: billingService.plans(),
-    selectedPlanId: req.query.plan || 'growth',
+    plans,
+    selectedPlanId: requested?.id || billingService.findPlan()?.id || '',
   });
 }
 
-function renderOnboarding(req, res) {
-  const selectedPlanId = req.query.plan || 'growth';
-  return res.render('pages/partner-onboarding', {
-    seo: {
-      title: 'Partner onboarding | Classic Trip',
-      description: 'Create a partner account, select a plan, and continue to secure payment.',
-    },
-    plans: billingService.plans(),
-    selectedPlanId,
-    selectedPlan: billingService.findPlan(selectedPlanId),
-    form: req.query,
-  });
+async function renderOnboarding(req, res) {
+  const plan = String(req.query?.plan || '').trim();
+  const query = new URLSearchParams({ role: 'partner', ...(plan ? { plan } : {}) });
+  return res.redirect(303, `/register?${query.toString()}#partner`);
+}
+
+function assertPartnerOrderAccess(req, order) {
+  const user = req.session?.user;
+  if (!user) {
+    const error = new Error('Sign in with the partner account that created this order.');
+    error.status = 401;
+    error.code = 'authentication_required';
+    throw error;
+  }
+  if (user.role !== 'company_admin' || String(user.companyId || '') !== String(order.companyId || '')) {
+    const error = new Error('You do not have access to this partner billing order.');
+    error.status = 403;
+    error.code = 'billing_order_forbidden';
+    throw error;
+  }
 }
 
 async function createOnboarding(req, res, next) {
@@ -34,30 +46,42 @@ async function createOnboarding(req, res, next) {
     // logged the browser into it - the session stayed whatever it was before (often
     // anonymous), so req.session.user.companyId was unset on every later request. That's
     // exactly what fed the `|| 'company-01'` fallbacks across the company controllers,
-    // silently showing the new partner someone else's (the seeded demo company's) data.
+    // silently showing the new partner someone else's (the another company's) data.
     await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
-    req.session.user = { ...user, passwordHash: undefined };
+    req.session.user = authService.sanitizeUser(user);
     return res.redirect(`/billing/checkout/${order.orderRef}`);
   } catch (error) {
+    if (req.flash) req.flash('error', error.message || 'Partner onboarding could not be completed.');
+    const plan = String(req.body?.planId || '').trim();
+    const query = new URLSearchParams({ role: 'partner', ...(plan ? { plan } : {}) });
+    return res.redirect(`/register?${query.toString()}#partner`);
+  }
+}
+
+async function renderCheckout(req, res, next) {
+  try {
+    const order = await billingService.findOrderLive(req.params.orderRef);
+    if (!order) return next();
+    assertPartnerOrderAccess(req, order);
+    return res.render('pages/billing-checkout', {
+    seo: { title: `Pay ${order.planName} plan | Classic Trip` },
+    order,
+    company: await billingRepository.companies.findOne({ id: order.companyId }),
+    plan: billingService.findPlan(order.planId),
+    providers: require('../../services/payment/paymentService').providerSummary(),
+      defaultProvider: env.paymentProvider,
+    });
+  } catch (error) {
+    if (error.status === 401) return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
     return next(error);
   }
 }
 
-function renderCheckout(req, res, next) {
-  const order = billingService.findOrder(req.params.orderRef);
-  if (!order) return next();
-  return res.render('pages/billing-checkout', {
-    seo: { title: `Pay ${order.planName} plan | Classic Trip` },
-    order,
-    company: require('../../services/data/persistentStore').findCompany(order.companyId),
-    plan: billingService.findPlan(order.planId),
-    providers: require('../../services/payment/paymentService').providerSummary(),
-    defaultProvider: env.paymentProvider,
-  });
-}
-
 async function payOrder(req, res, next) {
   try {
+    const order = await billingService.findOrderLive(req.params.orderRef);
+    if (!order) return next();
+    assertPartnerOrderAccess(req, order);
     const result = await billingService.initiateOrderPayment(req.params.orderRef, req.body);
     return res.redirect(`/billing/success/${result.order.orderRef}`);
   } catch (error) {
@@ -65,17 +89,23 @@ async function payOrder(req, res, next) {
   }
 }
 
-function renderSuccess(req, res, next) {
-  const order = billingService.findOrder(req.params.orderRef);
-  if (!order) return next();
-  const company = require('../../services/data/persistentStore').findCompany(order.companyId);
-  return res.render('pages/billing-success', {
+async function renderSuccess(req, res, next) {
+  try {
+    const order = await billingService.findOrderLive(req.params.orderRef);
+    if (!order) return next();
+    assertPartnerOrderAccess(req, order);
+    const company = await billingRepository.companies.findOne({ id: order.companyId });
+    return res.render('pages/billing-success', {
     seo: { title: `Plan ${order.paymentStatus === 'successful' ? 'active' : 'pending'} | Classic Trip` },
     order,
     company,
     plan: billingService.findPlan(order.planId),
-    subscription: billingService.activeSubscription(order.companyId),
-  });
+      subscription: await billingService.activeSubscriptionLive(order.companyId),
+    });
+  } catch (error) {
+    if (error.status === 401) return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
+    return next(error);
+  }
 }
 
 async function createUpgrade(req, res, next) {
@@ -88,13 +118,12 @@ async function createUpgrade(req, res, next) {
   }
 }
 
-function renderCompanyBilling(req, res) {
+async function renderCompanyBilling(req, res) {
   const companyId = resolveCompanyId(req);
-  const store = require('../../services/data/persistentStore');
   return res.render('pages/company-billing', {
     seo: { title: 'Company billing | Classic Trip' },
-    company: store.findCompany(companyId),
-    billing: billingService.companyBillingSummary(companyId),
+    company: await billingRepository.companies.findOne({ id: companyId }),
+    billing: await billingService.companyBillingSummaryLive(companyId),
   });
 }
 

@@ -1,0 +1,26 @@
+const { MongoCollection } = require('./mongoCollection');
+
+module.exports = {
+  users: new MongoCollection('users'),
+  companies: new MongoCollection('companies'),
+  employees: new MongoCollection('companyEmployees'),
+  branches: new MongoCollection('companyBranches'),
+  listings: new MongoCollection('listings'),
+  routes: new MongoCollection('routes'),
+  routeStops: new MongoCollection('routeStops'),
+  vehicles: new MongoCollection('vehicles'),
+  schedules: new MongoCollection('schedules'),
+  seats: new MongoCollection('seats'),
+  bookings: new MongoCollection('bookings'),
+  passengers: new MongoCollection('passengers'),
+  driverAssignments: new MongoCollection('driverAssignments'),
+  driverIncidents: new MongoCollection('driverIncidents'),
+  tripStatusUpdates: new MongoCollection('tripStatusUpdates'),
+  shiftHandovers: new MongoCollection('shiftHandovers'),
+  ticketScans: new MongoCollection('ticketScans'),
+  supportTickets: new MongoCollection('supportTickets'),
+  refunds: new MongoCollection('refundRequests'),
+  rescheduleRequests: new MongoCollection('rescheduleRequests'),
+  timelineEvents: new MongoCollection('bookingTimelineEvents'),
+  auditLogs: new MongoCollection('auditLogs'),
+};

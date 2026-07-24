@@ -1,3 +1,4 @@
+const { platformCurrency } = require('../../utils/currency');
 function configured(config = {}) {
   return Boolean(config.apiUrl && config.apiKey);
 }
@@ -104,7 +105,7 @@ function createProvider(provider, config = {}) {
         provider,
         bookingRef: payment.bookingRef,
         amount: Number(payment.amount || 0),
-        currency: payment.currency || 'UGX',
+        currency: payment.currency || platformCurrency(),
         customer: payment.customer || {
           name: payment.fullName,
           email: payment.email,

@@ -12,7 +12,7 @@ const rescheduleRequestSchema = new Schema({
   preferredDate: Date,
   preferredTime: String,
   reason: String,
-  status: { type: String, default: 'pending', index: true },
+  status: { type: String, default: 'pending', index: true, enum: ['pending', 'approved', 'rejected'] },
   reviewNote: String,
   reviewedBy: String,
   reviewedAt: Date,

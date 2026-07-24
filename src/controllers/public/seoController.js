@@ -5,12 +5,12 @@ function robots(req, res) {
   res.type('text/plain; charset=utf-8').send(seoService.robotsTxt());
 }
 
-function sitemap(req, res) {
-  res.type('application/xml; charset=utf-8').send(seoService.sitemapXml());
+async function sitemap(req, res, next) {
+  try { res.type('application/xml; charset=utf-8').send(await seoService.sitemapXml()); } catch (error) { next(error); }
 }
 
-function llms(req, res) {
-  res.type('text/plain; charset=utf-8').send(seoService.llmsTxt());
+async function llms(req, res, next) {
+  try { res.type('text/plain; charset=utf-8').send(await seoService.llmsTxt()); } catch (error) { next(error); }
 }
 
 function indexNowKey(req, res, next) {

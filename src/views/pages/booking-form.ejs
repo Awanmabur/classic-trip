@@ -3,7 +3,8 @@
 <%
   const previewData = preview || {};
   const safeAvailability = availability || {};
-  const currency = previewData.currency || listing.currency || 'UGX';
+  const safeReturnAvailability = (typeof returnAvailability !== 'undefined' && returnAvailability) ? returnAvailability : {};
+  const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency || platformConfig.defaultCurrency;
   const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 48);
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 16);
   const previewSchedules = safeAvailability.schedules || [];
@@ -13,24 +14,50 @@
   const requestedSeatList = csvList(selectedSeatsParam || requestedOption);
   const requestedReturnSeatList = csvList(typeof returnSeats !== 'undefined' ? returnSeats : '');
   const requestedReturnScheduleId = typeof returnScheduleId !== 'undefined' ? returnScheduleId : '';
+  const safeReturnHoldId = typeof returnHoldId !== 'undefined' ? returnHoldId : '';
+  const requestedReturnOriginStopId = typeof returnOriginStopId !== 'undefined' ? returnOriginStopId : (safeReturnAvailability.journey?.originStopId || '');
+  const requestedReturnDestinationStopId = typeof returnDestinationStopId !== 'undefined' ? returnDestinationStopId : (safeReturnAvailability.journey?.destinationStopId || '');
   const requestedPassengerCount = Math.max(1, Number(typeof passengerCount !== 'undefined' ? passengerCount : 0) || 0, requestedSeatList.length || 0);
   const requestedScheduleId = typeof selectedScheduleId !== 'undefined' ? selectedScheduleId : '';
   const safeReferralCode = typeof referralCode !== 'undefined' ? referralCode : '';
+  const safeBookingDraftId = typeof bookingDraftId !== 'undefined' ? bookingDraftId : '';
   const safeHoldId = typeof holdId !== 'undefined' ? holdId : '';
+  const requestedOriginStopId = typeof selectedOriginStopId !== 'undefined' ? selectedOriginStopId : (safeAvailability.journey?.originStopId || '');
+  const requestedDestinationStopId = typeof selectedDestinationStopId !== 'undefined' ? selectedDestinationStopId : (safeAvailability.journey?.destinationStopId || '');
+  const todayDate = new Date();
+  const tomorrowDate = new Date(todayDate); tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const followingDate = new Date(tomorrowDate); followingDate.setUTCDate(followingDate.getUTCDate() + 1);
+  const requestedCheckIn = (typeof selectedCheckIn !== 'undefined' && selectedCheckIn) ? String(selectedCheckIn).slice(0, 10) : tomorrowDate.toISOString().slice(0, 10);
+  const requestedCheckOut = (typeof selectedCheckOut !== 'undefined' && selectedCheckOut) ? String(selectedCheckOut).slice(0, 10) : followingDate.toISOString().slice(0, 10);
+  const requestedHotelNights = Math.max(1, Math.round((new Date(`${requestedCheckOut}T00:00:00Z`) - new Date(`${requestedCheckIn}T00:00:00Z`)) / 86400000));
+  const requestedRoomCount = Math.max(1, Math.min(10, Number(typeof selectedRoomCount !== 'undefined' ? selectedRoomCount : 1) || 1));
+  const requestedAdults = Math.max(1, Math.min(40, Number(typeof selectedAdults !== 'undefined' ? selectedAdults : 1) || 1));
+  const requestedChildren = Math.max(0, Math.min(40, Number(typeof selectedChildren !== 'undefined' ? selectedChildren : 0) || 0));
   const addonCatalog = previewData.addons || [];
   const selectedAddonValues = typeof selectedAddonIds !== 'undefined' ? selectedAddonIds : [];
   const selectedAddonSet = new Set(selectedAddonValues.map(item => String(item || '').trim()).filter(Boolean));
   const formatBusSeat = (value, fallbackIndex) => {
-    const raw = String(value || '').trim();
-    if (!raw) return `Seat No ${Number(fallbackIndex || 0) + 1}`;
-    const legacy = raw.match(/^[A-Za-z](\d+)$/);
-    const clean = legacy ? legacy[1] : raw.replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
-    return `Seat No ${clean || (Number(fallbackIndex || 0) + 1)}`;
+    const raw = String(value || '').trim().replace(/^Seat\s*(No\.?|Number)?\s*/i, '').trim();
+    return `Seat No ${raw || (Number(fallbackIndex || 0) + 1)}`;
   };
   const formatBusSeats = (values) => (Array.isArray(values) ? values : csvList(values)).map((value, index) => formatBusSeat(value, index)).join(', ');
-  const selectedAddons = addonCatalog.filter(addon => selectedAddonSet.has(addon.id));
-  const selectedAddonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
-  let selectedFieldName = listing.serviceType === 'hotel' ? 'roomId' : 'selected';
+  const addonLegCount = listing.serviceType === 'hotel' ? requestedHotelNights : (requestedReturnSeatList.length ? 2 : 1);
+  const addonPassengerCount = listing.serviceType === 'hotel' ? requestedAdults + requestedChildren : Math.max(1, requestedPassengerCount);
+  const addonQuantity = (chargeBasis) => {
+    if (chargeBasis === 'per_passenger') return addonPassengerCount;
+    if (chargeBasis === 'per_trip_leg') return listing.serviceType === 'hotel' ? requestedRoomCount * addonLegCount : addonLegCount;
+    if (chargeBasis === 'per_passenger_per_leg') return addonPassengerCount * addonLegCount;
+    return 1;
+  };
+  const selectedAddons = addonCatalog
+    .filter(addon => selectedAddonSet.has(addon.id))
+    .map(addon => {
+      const quantity = addonQuantity(addon.chargeBasis || 'per_booking');
+      const unitPrice = Number(addon.price || 0);
+      return { ...addon, quantity, unitPrice, lineTotal: unitPrice * quantity };
+    });
+  const selectedAddonTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.lineTotal || 0), 0);
+  let selectedFieldName = listing.serviceType === 'hotel' ? 'roomTypeId' : 'selected';
   let selectedFieldValue = requestedOption;
   let selectedLabel = previewData.selectedPreview || requestedOption || 'Selected inventory';
   let selectedSchedule = null;
@@ -52,11 +79,13 @@
     selectedFieldName = 'selected';
     selectedFieldValue = (selectedBusSeats.length ? selectedBusSeats : [selectedSeat?.seatNumber || requestedOption || '']).filter(Boolean).join(',');
     selectedLabel = selectedFieldValue ? formatBusSeats(selectedFieldValue) : 'Seat pending';
-    const outboundSubtotal = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).reduce((sum, seat) => sum + Number(selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(seat?.priceDelta || 0), 0);
-    const returnSchedule = requestedReturnScheduleId ? schedules.find(schedule => schedule.id === requestedReturnScheduleId) : null;
+    const outboundFare = Number(safeAvailability.fare?.baseAmountPerSeat || listing.priceFrom || 0);
+    const outboundSubtotal = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).reduce((sum, seat) => sum + outboundFare + Number(seat?.priceDelta || 0), 0);
+    const returnSeatsAvailable = safeReturnAvailability.seats || [];
+    const returnFare = Number(safeReturnAvailability.fare?.baseAmountPerSeat || 0);
     const returnSubtotal = requestedReturnSeatList.reduce((sum, seatNumber) => {
-      const seat = seats.find(item => item.seatNumber === seatNumber) || {};
-      return sum + Number(returnSchedule?.basePrice || selectedSchedule?.basePrice || listing.priceFrom || 0) + Number(seat.priceDelta || 0);
+      const seat = returnSeatsAvailable.find(item => String(item.seatNumber) === String(seatNumber)) || {};
+      return sum + returnFare + Number(seat.priceDelta || 0);
     }, 0);
     basePrice = outboundSubtotal + returnSubtotal;
   }
@@ -67,10 +96,10 @@
       || rooms.find(room => room.inventory > 0)
       || rooms[0]
       || null;
-    selectedFieldName = 'roomId';
+    selectedFieldName = 'roomTypeId';
     selectedFieldValue = selectedRoom?.id || requestedOption || '';
     selectedLabel = selectedRoom?.roomType || previewData.selectedPreview || 'Room pending';
-    basePrice = Number(selectedRoom?.nightlyPrice || listing.priceFrom || 0);
+    basePrice = Number(selectedRoom?.nightlyPrice || listing.priceFrom || 0) * requestedHotelNights * requestedRoomCount;
   }
 
   if (listing.serviceType !== 'bus' && listing.serviceType !== 'hotel') {
@@ -88,10 +117,8 @@
   const selectedSeatSet = new Set(selectedSeatListForForm.map(item => String(item || '').trim()).filter(Boolean));
   const returnSeatSet = new Set(requestedReturnSeatList.map(item => String(item || '').trim()).filter(Boolean));
 
-  const serviceFee = Math.round(basePrice * 0.045 + 3500);
-  const computedTotal = basePrice + serviceFee + selectedAddonTotal;
-  const requestedTotal = Number(query?.total || 0);
-  const totalEstimate = requestedTotal > computedTotal ? requestedTotal : computedTotal;
+  const serviceFee = Math.round((Number(basePrice || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(basePrice || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
+  const totalEstimate = basePrice + serviceFee + selectedAddonTotal;
 %>
 <main class="container paymentPage" style="padding:16px 0 30px">
   <section class="sheet directPaymentSheet">
@@ -106,35 +133,39 @@
       </div>
     </div>
 
-    <form id="bookingPaymentForm" action="/bookings/guest" method="post" data-booking-form data-direct-payment-form>
+    <form id="bookingPaymentForm" action="<%= listing.serviceType === 'hotel' ? '/bookings/hotel' : '/bookings/guest' %>" method="post" data-booking-form data-direct-payment-form>
       <input type="hidden" name="listingId" value="<%= listing.id %>">
+      <% if (listing.serviceType === 'bus') { %><input type="hidden" name="bookingDraftId" value="<%= safeBookingDraftId %>"><% } %>
       <input type="hidden" name="ref" value="<%= safeReferralCode %>">
       <input type="hidden" name="holdId" value="<%= safeHoldId %>">
       <input type="hidden" name="total" value="<%= totalEstimate %>" data-total-input>
       <% if (selectedSchedule?.id) { %><input type="hidden" name="scheduleId" value="<%= selectedSchedule.id %>" data-schedule-input><% } %>
       <input type="hidden" name="<%= selectedFieldName %>" value="<%= selectedFieldValue %>" data-selected-input>
+      <% if (listing.serviceType === 'hotel') { %>
+        <input type="hidden" name="checkIn" value="<%= requestedCheckIn %>">
+        <input type="hidden" name="checkOut" value="<%= requestedCheckOut %>">
+        <input type="hidden" name="roomCount" value="<%= requestedRoomCount %>">
+      <% } %>
       <% if (listing.serviceType === 'bus') { %>
         <input type="hidden" name="selectedSeats" value="<%= selectedFieldValue %>" data-selected-seats-input>
         <input type="hidden" name="passengerCount" value="<%= requestedPassengerCount %>" data-passenger-count-input>
+        <input type="hidden" name="originStopId" value="<%= requestedOriginStopId %>">
+        <input type="hidden" name="destinationStopId" value="<%= requestedDestinationStopId %>">
       <% } %>
-      <% if (listing.serviceType === 'bus' && requestedReturnScheduleId) { %><input type="hidden" name="returnScheduleId" value="<%= requestedReturnScheduleId %>"><% } %>
+      <% if (listing.serviceType === 'bus' && requestedReturnScheduleId) { %>
+        <input type="hidden" name="returnScheduleId" value="<%= requestedReturnScheduleId %>">
+        <input type="hidden" name="returnHoldId" value="<%= safeReturnHoldId %>">
+        <input type="hidden" name="returnOriginStopId" value="<%= requestedReturnOriginStopId %>">
+        <input type="hidden" name="returnDestinationStopId" value="<%= requestedReturnDestinationStopId %>">
+      <% } %>
       <% if (listing.serviceType === 'bus' && requestedReturnSeatList.length) { %><input type="hidden" name="returnSeats" value="<%= requestedReturnSeatList.join(',') %>"><% } %>
       <% selectedAddons.forEach(addon => { %>
         <input type="hidden" name="addons" value="<%= addon.id %>">
       <% }) %>
 
       <% if (listing.serviceType === 'bus') { %>
-        <div class="legacyBookingTestCompat" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
-          Buyer information first
-          User information
-          Confirm seats
-          <span data-booking-step-panel="buyer"></span>
-          <span data-booking-step-panel="payment"></span>
-          Ticket 1 / Seat
-          Extra ticket details
-          <% selectedSeatListForForm.forEach((seatNumber) => { %><span data-booking-seat="<%= seatNumber %>"></span><% }) %>
-        </div>
-        <script>
+
+        <script nonce="<%= cspNonce %>">
           window.__busSelectedSeats = <%- toScriptJson(selectedSeatListForForm) %>;
         </script>
       <% } %>
@@ -142,8 +173,8 @@
       <div class="directPaymentGrid">
         <div class="directPassengerColumn">
           <div class="summaryCard directInfoHeader">
-            <h3>Ticket / passenger information</h3>
-            <div class="checkoutNotice">Add one passenger form for each selected ticket. When only one ticket is selected, only one form is shown.</div>
+            <h3><%= listing.serviceType === 'hotel' ? 'Guest information' : 'Ticket / passenger information' %></h3>
+            <div class="checkoutNotice"><%= listing.serviceType === 'hotel' ? 'Enter the lead guest and occupancy details. Availability, add-ons, fees, and the payment amount are verified again on the server.' : 'Add one passenger form for each selected ticket. When only one ticket is selected, only one form is shown.' %></div>
           </div>
 
           <% if (!selectedFieldValue && listing.bookable) { %>
@@ -165,31 +196,32 @@
                     <input type="hidden" name="passengerNames" data-copy-from="fullName">
                     <input type="hidden" name="passengerPhones" data-copy-from="phone">
                     <input type="hidden" name="passengerEmails" data-copy-from="email">
-                    <div class="bookingForm directPassengerForm">
-                      <input name="fullName" placeholder="Passenger full name" required>
-                      <input name="phone" placeholder="Passenger phone" required>
-                      <input class="full" name="email" type="email" placeholder="Passenger email" required>
-                      <select name="idType">
-                        <option value="">ID type</option>
-                        <option>National ID</option>
-                        <option>Passport</option>
-                        <option>Student ID</option>
-                      </select>
-                      <input name="documentNumber" placeholder="ID / passport number">
-                      <input name="pickupPoints" placeholder="Pickup point">
-                      <input name="dropoffPoints" placeholder="Drop-off point">
-                      <textarea class="full" name="passengerNotes" placeholder="Any note, baggage note, accessibility need, or special request..." style="border-radius:22px;min-height:90px"></textarea>
-                    </div>
-                  <% } else { %>
-                    <div class="bookingForm directPassengerForm">
-                      <input name="passengerNames" placeholder="Passenger full name" required>
-                      <input name="passengerPhones" placeholder="Passenger phone">
-                      <input class="full" name="passengerEmails" type="email" placeholder="Passenger email">
-                      <input name="pickupPoints" placeholder="Pickup point">
-                      <input name="dropoffPoints" placeholder="Drop-off point">
-                      <textarea class="full" name="passengerNotes" placeholder="Any note, baggage note, accessibility need, or special request..." style="border-radius:22px;min-height:90px"></textarea>
-                    </div>
                   <% } %>
+                  <div class="bookingForm directPassengerForm">
+                    <input name="<%= index === 0 ? 'fullName' : 'passengerNames' %>" placeholder="Passenger full name" required>
+                    <input name="<%= index === 0 ? 'phone' : 'passengerPhones' %>" placeholder="Passenger phone" <%= index === 0 ? 'required' : '' %>>
+                    <input class="full" name="<%= index === 0 ? 'email' : 'passengerEmails' %>" type="email" placeholder="Passenger email" <%= index === 0 ? 'required' : '' %>>
+                    <select name="identityTypes">
+                      <option value="">ID type</option>
+                      <option value="national_id">National ID</option>
+                      <option value="passport">Passport</option>
+                      <option value="student_id">Student ID</option>
+                      <option value="birth_certificate">Birth certificate</option>
+                    </select>
+                    <input name="identityNumbers" placeholder="ID / passport number">
+                    <label>Date of birth<input name="datesOfBirth" type="date"></label>
+                    <select name="sexes">
+                      <option value="">Sex</option>
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                      <option value="other">Other / prefer not to say</option>
+                    </select>
+                    <input name="nationalities" placeholder="Nationality">
+                    <input name="emergencyContactNames" placeholder="Emergency contact name">
+                    <input name="emergencyContactPhones" placeholder="Emergency contact phone">
+                    <label>Luggage items<input name="luggageCounts" type="number" min="0" max="20" value="0"></label>
+                    <textarea class="full" name="specialNotes" placeholder="Accessibility need, luggage note, or special request..." style="border-radius:22px;min-height:90px"></textarea>
+                  </div>
                 </section>
               <% }) %>
             </div>
@@ -197,7 +229,7 @@
             <section class="passengerRow directPassengerCard" data-passenger-row>
               <div class="directPassengerTop">
                 <h4><%= listing.serviceType === 'hotel' ? 'Guest information' : 'Ticket / passenger information' %></h4>
-                <span class="badge badgeInfo"><i class="fa-solid fa-ticket"></i> <%= selectedLabel %></span>
+                <span class="badge badgeInfo"><i class="fa-solid <%= listing.serviceType === 'hotel' ? 'fa-bed' : 'fa-ticket' %>"></i> <%= selectedLabel %></span>
               </div>
               <input type="hidden" name="passengerName" data-copy-from="fullName">
               <div class="bookingForm directPassengerForm">
@@ -211,7 +243,20 @@
                   <option>Student ID</option>
                 </select>
                 <input name="documentNumber" placeholder="ID / passport number">
-                <textarea class="full" name="notes" placeholder="Special request, hotel note, baggage note..." style="border-radius:22px;min-height:90px"></textarea>
+                <% if (listing.serviceType === 'hotel') { %>
+                  <input name="nationality" placeholder="Nationality">
+                  <label>Date of birth<input name="dateOfBirth" type="date"></label>
+                  <input name="emergencyContactName" placeholder="Emergency contact name">
+                  <input name="emergencyContactPhone" placeholder="Emergency contact phone">
+                  <label>Adults<input name="adults" type="number" min="1" max="40" value="<%= requestedAdults %>" required data-hotel-occupancy></label>
+                  <label>Children<input name="children" type="number" min="0" max="40" value="<%= requestedChildren %>" data-hotel-occupancy></label>
+                  <label>Infants<input name="infants" type="number" min="0" max="20" value="0" data-hotel-occupancy></label>
+                  <label>Estimated arrival<input name="estimatedArrivalTime" type="time"></label>
+                  <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the hotel manifest is complete." style="border-radius:22px;min-height:90px"></textarea>
+                  <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, bedding, airport transfer, meal, or other stay request..." style="border-radius:22px;min-height:90px"></textarea>
+                <% } else { %>
+                  <textarea class="full" name="notes" placeholder="Special request or note..." style="border-radius:22px;min-height:90px"></textarea>
+                <% } %>
               </div>
             </section>
           <% } %>
@@ -219,7 +264,7 @@
 
         <aside class="directPaymentSide" aria-label="Ticket and payment preview">
           <div class="summaryCard stickyTicketPreview directTicketPreview">
-            <h3>Ticket / seats preview</h3>
+            <h3><%= listing.serviceType === 'hotel' ? 'Booking / room preview' : 'Ticket / seats preview' %></h3>
             <div class="kv">
               <div><span>Service</span><b><%= listing.title %></b></div>
               <div><span>Selected</span><b><%= selectedLabel %></b></div>
@@ -227,16 +272,26 @@
                 <div><span>Schedule</span><b><%= selectedSchedule.departureLabel || selectedSchedule.departAt || selectedSchedule.id %></b></div>
               <% } %>
               <% if (listing.serviceType === 'bus') { %>
+                <div><span>Trip type</span><b><%= requestedReturnSeatList.length ? 'Return ticket' : 'One-way ticket' %></b></div>
+                <div><span>Outbound journey</span><b><%= safeAvailability.journey?.originName || listing.from %> → <%= safeAvailability.journey?.destinationName || listing.to %></b></div>
                 <div><span>Outbound seats</span><b><%= formatBusSeats(selectedSeatListForForm) %></b></div>
               <% } %>
               <% if (requestedReturnSeatList.length) { %>
+                <div><span>Return journey</span><b><%= safeReturnAvailability.journey?.originName || 'Return origin' %> → <%= safeReturnAvailability.journey?.destinationName || 'Return destination' %></b></div>
+                <div><span>Return schedule</span><b><%= safeReturnAvailability.schedule?.departAt || requestedReturnScheduleId %></b></div>
                 <div><span>Return seats</span><b><%= formatBusSeats(requestedReturnSeatList) %></b></div>
               <% } %>
-              <div><span>Tickets / rooms</span><b><%= listing.serviceType === 'bus' ? selectedSeatListForForm.length : 1 %></b></div>
+              <div><span>Tickets / rooms</span><b><%= listing.serviceType === 'bus' ? selectedSeatListForForm.length : requestedRoomCount %></b></div>
+              <% if (listing.serviceType === 'hotel') { %>
+                <div><span>Check-in</span><b><%= requestedCheckIn %></b></div>
+                <div><span>Check-out</span><b><%= requestedCheckOut %></b></div>
+                <div><span>Nights</span><b><%= requestedHotelNights %></b></div>
+              <% } %>
               <div><span>Base price</span><b><%= money(basePrice, currency) %></b></div>
-              <div><span>Service fee</span><b><%= money(serviceFee, currency) %></b></div>
-              <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => addon.name).join(', ') : 'None' %></b></div>
-              <div><span>Total</span><b><%= money(totalEstimate, currency) %></b></div>
+              <div><span>Service fee</span><b data-service-fee-summary><%= money(serviceFee, currency) %></b></div>
+              <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => `${addon.name}${addon.quantity > 1 ? ` × ${addon.quantity}` : ''}`).join(', ') : 'None' %></b></div>
+              <% if (selectedAddons.length) { %><div><span>Add-ons total</span><b data-addon-total-summary><%= money(selectedAddonTotal, currency) %></b></div><% } %>
+              <div><span>Total</span><b data-total-summary><%= money(totalEstimate, currency) %></b></div>
             </div>
           </div>
 
@@ -244,7 +299,7 @@
             <h3>Payment options</h3>
             <div class="checkoutNotice">You'll be redirected to Pesapal to complete a secure payment. Your ticket is issued only once payment succeeds.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
-              <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> Change selection</a>
+              <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> <%= listing.serviceType === 'hotel' ? 'Change room or dates' : 'Change selection' %></a>
               <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay with Pesapal</button>
             </div>
           </div>
@@ -253,7 +308,18 @@
     </form>
   </section>
 </main>
-<script>
+<script nonce="<%= cspNonce %>">
+  window.__hotelCheckoutPricing = <%- toScriptJson({
+    enabled: listing.serviceType === 'hotel',
+    currency,
+    basePrice,
+    nights: requestedHotelNights,
+    roomCount: requestedRoomCount,
+    addons: selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, unitPrice: addon.unitPrice, chargeBasis: addon.chargeBasis || 'per_booking' })),
+    feePercent: Number(platformConfig.customerServiceFeePercent || 0),
+    feeFlat: Number(platformConfig.customerServiceFeeFlat || 0),
+    taxPercent: Number(platformConfig.customerTaxPercent || 0),
+  }) %>;
   (function () {
     const form = document.querySelector('[data-direct-payment-form]');
     if (!form) return;
@@ -265,8 +331,35 @@
       });
     }
 
-    form.addEventListener('input', syncCopiedFields);
-    form.addEventListener('change', syncCopiedFields);
+    function recalculateHotelCheckout() {
+      const config = window.__hotelCheckoutPricing || {};
+      if (!config.enabled) return;
+      const adults = Math.max(1, Math.min(40, Number(form.querySelector('[name="adults"]')?.value || 1)));
+      const children = Math.max(0, Math.min(40, Number(form.querySelector('[name="children"]')?.value || 0)));
+      const guests = adults + children;
+      const addonTotal = (config.addons || []).reduce((sum, addon) => {
+        let quantity = 1;
+        if (addon.chargeBasis === 'per_passenger') quantity = guests;
+        if (addon.chargeBasis === 'per_trip_leg') quantity = Number(config.roomCount || 1) * Number(config.nights || 1);
+        if (addon.chargeBasis === 'per_passenger_per_leg') quantity = guests * Number(config.nights || 1);
+        return sum + Number(addon.unitPrice || 0) * quantity;
+      }, 0);
+      const subtotal = Number(config.basePrice || 0) + addonTotal;
+      const fee = Math.round((subtotal * Number(config.feePercent || 0) / 100) + Number(config.feeFlat || 0) + (subtotal * Number(config.taxPercent || 0) / 100));
+      const total = subtotal + fee;
+      const format = (amount) => `${config.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+      const addonOut = form.querySelector('[data-addon-total-summary]');
+      const feeOut = form.querySelector('[data-service-fee-summary]');
+      const totalOut = form.querySelector('[data-total-summary]');
+      const totalInput = form.querySelector('[data-total-input]');
+      if (addonOut) addonOut.textContent = format(addonTotal);
+      if (feeOut) feeOut.textContent = format(fee);
+      if (totalOut) totalOut.textContent = format(total);
+      if (totalInput) totalInput.value = String(total);
+    }
+
+    form.addEventListener('input', function () { syncCopiedFields(); recalculateHotelCheckout(); });
+    form.addEventListener('change', function () { syncCopiedFields(); recalculateHotelCheckout(); });
     form.addEventListener('submit', function (event) {
       syncCopiedFields();
       const required = Array.from(form.querySelectorAll('[required]'));
@@ -284,6 +377,7 @@
       }
     });
     syncCopiedFields();
+    recalculateHotelCheckout();
   }());
 </script>
 <%- include('../partials/site-footer') %>

@@ -50,9 +50,9 @@
               </select>
               <input class="full" name="paymentReference" placeholder="Phone number, card reference, or account ID">
             </div>
-            <p class="muted" style="font-size:12px;font-weight:800">Mock provider confirms immediately for development. External providers return pending until a signed webhook confirms payment.</p>
+            <p class="muted" style="font-size:12px;font-weight:800">Payment remains pending until the configured provider confirms it through a verified callback.</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
-              <a class="btn btnGhost" href="/partner/onboarding?plan=<%= order.planId %>"><i class="fa-solid fa-arrow-left"></i> Edit details</a>
+              <a class="btn btnGhost" href="/register?role=partner&plan=<%= order.planId %>#partner"><i class="fa-solid fa-arrow-left"></i> Edit details</a>
               <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Pay <%= money(order.amount, order.currency) %></button>
             </div>
           </form>

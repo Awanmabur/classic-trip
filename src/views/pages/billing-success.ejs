@@ -13,7 +13,7 @@
       <div class="ticketLine"><span>Status</span><b><%= order.paymentStatus %></b></div>
       <% if (subscription) { %><div class="ticketLine"><span>Renewal date</span><b><%= new Date(subscription.currentPeriodEnd).toLocaleDateString() %></b></div><% } %>
       <div class="actions">
-        <a class="btn btnPrimary" href="/login#partner"><i class="fa-regular fa-user"></i> Continue to login</a>
+        <a class="btn btnPrimary" href="/login"><i class="fa-regular fa-user"></i> Continue to login</a>
         <a class="btn btnGhost" href="/company/dashboard"><i class="fa-solid fa-gauge-high"></i> Company dashboard</a>
       </div>
     </div>

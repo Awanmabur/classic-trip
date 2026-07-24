@@ -1,4 +1,5 @@
 const authService = require('../../services/auth/authService');
+const securityService = require('../../services/security/securityService');
 
 function setGoogleIntent(req, res, next) {
   req.session.googleIntent = {
@@ -13,11 +14,23 @@ function setGoogleIntent(req, res, next) {
   next();
 }
 
-function afterGoogleLogin(req, res) {
-  req.session.user = req.user;
-  delete req.session.googleIntent;
-  delete req.session.googleIntentRole;
-  res.redirect(authService.redirectForRole(req.user.role));
+async function afterGoogleLogin(req, res, next) {
+  try {
+    const user = req.user;
+    const intent = req.session?.googleIntent || null;
+    if (!user || user.status !== 'active') {
+      req.logout?.(() => {});
+      if (req.session) delete req.session.user;
+      return res.redirect('/login?pending=approval');
+    }
+    await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
+    req.session.user = user;
+    if (intent) req.session.googleIntentCompleted = true;
+    await securityService.recordLoginAttempt({ user, identity: user.email || user.phone, result: 'success', req });
+    return res.redirect(authService.redirectAfterAuthentication(user));
+  } catch (error) {
+    return next(error);
+  }
 }
 
 function disabled(req, res) {

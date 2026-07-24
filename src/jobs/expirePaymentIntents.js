@@ -1,117 +1,194 @@
-const { mongoose } = require('../config/db');
-const store = require('../services/data/persistentStore');
+const commerceRepository = require('../repositories/domain/commerceRepository');
+const hotelRepository = require('../repositories/domain/hotelRepository');
 const inventoryHoldService = require('../services/booking/inventoryHoldService');
 
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
+const EXPIRABLE_INTENT_STATUSES = ['created', 'pending', 'processing'];
+const NON_CANCELLABLE_BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'refunded'];
+
+function normalize(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
-async function releaseBookingInventory(booking = {}, reason = 'payment_intent_expired') {
-  if (!booking) return { seats: 0, roomNights: 0, rooms: 0 };
+function ticketLegsCancelled(legs = [], now = new Date().toISOString()) {
+  return (legs || []).map((leg) => ({
+    ...leg,
+    status: ['valid', 'reserved', 'pending', 'pending_payment'].includes(normalize(leg.status)) ? 'cancelled' : leg.status,
+    checkInStatus: 'cancelled',
+    cancelledAt: leg.cancelledAt || now,
+  }));
+}
+
+async function refreshScheduleAvailability(scheduleId, session = null) {
+  if (!scheduleId) return null;
+  const availableSeats = await commerceRepository.seats.count({ scheduleId, status: 'available' }, { session: session || undefined });
+  await commerceRepository.schedules.updateOne(
+    { id: scheduleId },
+    { $set: { availableSeats, updatedAt: new Date().toISOString() } },
+    { session: session || undefined }
+  );
+  return availableSeats;
+}
+
+async function releaseBusInventory(booking, session = null) {
+  const claims = [...new Map((booking.bookingItems || [])
+    .filter((item) => item.scheduleId && item.seatNumber)
+    .map((item) => [`${item.scheduleId}:${String(item.seatNumber).toUpperCase()}`, item])).values()];
+  let released = 0;
+  for (const claim of claims) {
+    const result = await commerceRepository.seats.updateOne({
+      scheduleId: claim.scheduleId,
+      seatNumber: claim.seatNumber,
+      bookingRef: booking.bookingRef,
+      status: { $in: ['taken', 'booked', 'reserved', 'held', 'selected', 'locked'] },
+    }, {
+      $set: { status: 'available', updatedAt: new Date().toISOString() },
+      $unset: {
+        bookingRef: '', bookingId: '', lockedUntil: '', lockId: '',
+        passengerName: '', passengerPhone: '', passengerEmail: '',
+      },
+    }, { session: session || undefined });
+    released += Number(result?.modifiedCount ?? result?.nModified ?? 0);
+  }
+  for (const scheduleId of [...new Set(claims.map((item) => item.scheduleId))]) {
+    await refreshScheduleAvailability(scheduleId, session);
+  }
+  return released;
+}
+
+async function releaseHotelInventory(booking, session = null, reason = 'payment_intent_expired') {
+  const result = await hotelRepository.applyPaymentLifecycle({
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId || '',
+    paymentStatus: 'expired',
+    reason,
+    session,
+  });
+  if (result?.reservation) return { roomNights: Number(result.inventoryReleased || 0), rooms: 0 };
+
+  const nights = await commerceRepository.roomNights.list({ bookingRef: booking.bookingRef }, { session: session || undefined });
+  let roomNights = 0;
+  for (const night of nights) {
+    if (['occupied', 'checked_in', 'checked_out', 'cleaning', 'maintenance'].includes(normalize(night.status))) continue;
+    const released = await commerceRepository.roomNights.updateOne({ id: night.id, bookingRef: booking.bookingRef }, {
+      $set: { status: 'available', bookingRef: '', reservationId: '', assignmentId: '', guestName: '', checkInStatus: '', availableInventory: 1, updatedAt: new Date().toISOString() },
+      $unset: { holdId: '' },
+    }, { session: session || undefined });
+    roomNights += Number(released?.modifiedCount ?? released?.nModified ?? 0);
+  }
+  return { roomNights, rooms: 0 };
+}
+
+async function releaseBookingInventoryInSession(booking = {}, reason = 'payment_intent_expired', session = null) {
+  if (!booking?.bookingRef) return { booking: null, seats: 0, roomNights: 0, rooms: 0 };
+  const now = new Date().toISOString();
   let seats = 0;
   let roomNights = 0;
   let rooms = 0;
-  const now = new Date().toISOString();
-  booking.bookingStatus = 'cancelled';
-  booking.paymentStatus = booking.paymentStatus === 'successful' ? booking.paymentStatus : 'expired';
-  booking.cancelReason = booking.cancelReason || reason;
-  booking.cancelledAt = booking.cancelledAt || now;
-  booking.ticketLegs = (booking.ticketLegs || []).map((leg) => ({ ...leg, status: leg.status === 'valid' ? 'cancelled' : leg.status, checkInStatus: 'cancelled', cancelledAt: now }));
 
-  if (booking.serviceType === 'bus') {
-    const claims = (booking.bookingItems || []).filter((item) => item.scheduleId && item.seatNumber);
-    seats = claims.length;
-    claims.forEach((claim) => {
-      const seat = store.state.seats.find((row) => row.scheduleId === claim.scheduleId && row.seatNumber === claim.seatNumber);
-      if (seat && seat.status === 'taken') {
-        seat.status = 'available';
-        seat.bookingRef = '';
-        seat.lockedUntil = null;
-        seat.lockId = null;
-      }
-      const schedule = store.state.schedules.find((row) => row.id === claim.scheduleId);
-      if (schedule) schedule.availableSeats = Number(schedule.availableSeats || 0) + 1;
-    });
-    if (mongoReady() && claims.length) {
-      const Seat = require('../models/Seat');
-      const TripSchedule = require('../models/TripSchedule');
-      await Seat.bulkWrite(claims.map((claim) => ({ updateOne: { filter: { scheduleId: claim.scheduleId, seatNumber: claim.seatNumber, bookingRef: booking.bookingRef }, update: { $set: { status: 'available', bookingRef: '' }, $unset: { lockedUntil: '', lockId: '' } } } })), { ordered: false });
-      const counts = claims.reduce((acc, claim) => { acc[claim.scheduleId] = (acc[claim.scheduleId] || 0) + 1; return acc; }, {});
-      await TripSchedule.bulkWrite(Object.entries(counts).map(([id, count]) => ({ updateOne: { filter: { id }, update: { $inc: { availableSeats: count } } } })), { ordered: false });
-    }
+  if (normalize(booking.serviceType) === 'bus') seats = await releaseBusInventory(booking, session);
+  if (normalize(booking.serviceType) === 'hotel') {
+    const released = await releaseHotelInventory(booking, session, reason);
+    roomNights = released.roomNights;
+    rooms = released.rooms;
   }
 
-  if (booking.serviceType === 'hotel') {
-    const nightIds = booking.hotelStay?.nightIds || (booking.bookingItems || []).flatMap((item) => item.nightIds || []);
-    const roomId = booking.bookingItems?.[0]?.roomId || booking.bookingItems?.[0]?.roomUnitId || booking.hotelStay?.roomUnitIds?.[0];
-    (store.state.roomNightInventories || []).forEach((night) => {
-      if ((nightIds.length && nightIds.includes(night.id)) || night.bookingRef === booking.bookingRef) {
-        night.status = 'open';
-        night.bookingRef = '';
-        night.guestName = '';
-        night.checkInStatus = '';
-        night.updatedAt = now;
-        roomNights += 1;
-      }
-    });
-    const room = store.state.rooms.find((row) => row.id === roomId);
-    if (room) { room.inventory = Number(room.inventory || 0) + 1; rooms = 1; }
-    if (mongoReady()) {
-      const RoomNightInventory = require('../models/RoomNightInventory');
-      const Room = require('../models/Room');
-      const filter = nightIds.length ? { id: { $in: nightIds }, bookingRef: booking.bookingRef } : { bookingRef: booking.bookingRef };
-      const result = await RoomNightInventory.updateMany(filter, { $inc: { availableInventory: 1 }, $set: { status: 'open', bookingRef: '', guestName: '', checkInStatus: '' }, $unset: { holdId: '' } });
-      roomNights = Number(result.modifiedCount || result.nModified || roomNights || 0);
-      if (roomId) { await Room.updateOne({ id: roomId }, { $inc: { inventory: 1 } }); rooms = 1; }
-    }
-  }
+  const hotelBooking = normalize(booking.serviceType) === 'hotel';
+  const cancelled = {
+    ...booking,
+    bookingStatus: hotelBooking ? 'expired' : 'cancelled',
+    paymentStatus: booking.paymentStatus === 'successful' ? 'successful' : 'expired',
+    cancelReason: booking.cancelReason || reason,
+    cancelledAt: booking.cancelledAt || now,
+    ticketLegs: ticketLegsCancelled(booking.ticketLegs, now),
+    bookingItems: (booking.bookingItems || []).map((item) => ({ ...item, status: ['confirmed', 'awaiting_payment', 'reserved'].includes(normalize(item.status)) ? 'cancelled' : item.status })),
+    hotelStay: hotelBooking ? { ...(booking.hotelStay || {}), status: 'expired' } : booking.hotelStay,
+    lockedUntil: null,
+    updatedAt: now,
+  };
+  await commerceRepository.bookings.save(cancelled, { bookingRef: cancelled.bookingRef }, {
+    session: session || undefined,
+  });
+  return { booking: cancelled, seats, roomNights, rooms };
+}
 
-  return { seats, roomNights, rooms };
+async function releaseBookingInventory(booking = {}, reason = 'payment_intent_expired') {
+  let result;
+  await commerceRepository.withTransaction(async (session) => {
+    result = await releaseBookingInventoryInSession(booking, reason, session);
+  });
+  return result || { booking: null, seats: 0, roomNights: 0, rooms: 0 };
+}
+
+async function expireIntent(intent, now = new Date()) {
+  let outcome = { expired: false, cancelled: false, seats: 0, roomNights: 0, rooms: 0 };
+  let expiredIntent = null;
+  let cancelledBooking = null;
+
+  await commerceRepository.withTransaction(async (session) => {
+    const current = await commerceRepository.paymentIntents.findOne(
+      intent.id ? { id: intent.id } : { idempotencyKey: intent.idempotencyKey },
+      { session: session || undefined }
+    );
+    if (!current || !EXPIRABLE_INTENT_STATUSES.includes(normalize(current.status))) return;
+    if (!current.expiresAt || new Date(current.expiresAt) > now) return;
+
+    const update = {
+      status: 'expired',
+      failedAt: now.toISOString(),
+      failureReason: 'Payment intent expired before confirmation',
+      updatedAt: now.toISOString(),
+    };
+    const updateResult = await commerceRepository.paymentIntents.updateOne({
+      ...(current.id ? { id: current.id } : { idempotencyKey: current.idempotencyKey }),
+      status: { $in: EXPIRABLE_INTENT_STATUSES },
+      expiresAt: { $lte: now },
+    }, { $set: update }, { session: session || undefined });
+    if (Number(updateResult?.matchedCount ?? updateResult?.n ?? 0) !== 1) return;
+    expiredIntent = { ...current, ...update };
+    outcome.expired = true;
+
+    const booking = current.bookingRef
+      ? await commerceRepository.bookings.findOne({ bookingRef: current.bookingRef }, { session: session || undefined })
+      : null;
+    if (!booking || NON_CANCELLABLE_BOOKING_STATUSES.includes(normalize(booking.bookingStatus))) return;
+    const released = await releaseBookingInventoryInSession(booking, 'payment_intent_expired', session);
+    cancelledBooking = released.booking;
+    outcome = {
+      ...outcome,
+      cancelled: Boolean(released.booking),
+      seats: released.seats,
+      roomNights: released.roomNights,
+      rooms: released.rooms,
+    };
+  });
+  return outcome;
 }
 
 async function run() {
   const now = new Date();
-  const result = { expiredIntents: 0, cancelledBookings: 0, seatsReleased: 0, roomNightsReleased: 0, roomsReleased: 0, holdsExpired: 0 };
-  result.holdsExpired = await inventoryHoldService.expireActiveHolds();
+  const result = {
+    expiredIntents: 0,
+    cancelledBookings: 0,
+    seatsReleased: 0,
+    roomNightsReleased: 0,
+    roomsReleased: 0,
+    holdsExpired: await inventoryHoldService.expireActiveHolds(),
+  };
+  const intents = await commerceRepository.paymentIntents.list({
+    status: { $in: EXPIRABLE_INTENT_STATUSES },
+    expiresAt: { $lte: now },
+  }, { sort: { expiresAt: 1, createdAt: 1 } });
 
-  const inMemoryIntents = store.state.paymentIntents || [];
-  for (const intent of inMemoryIntents) {
-    if (['created', 'pending', 'processing'].includes(String(intent.status || '').toLowerCase()) && intent.expiresAt && new Date(intent.expiresAt) <= now) {
-      intent.status = 'expired';
-      intent.failedAt = now.toISOString();
-      intent.failureReason = 'Payment intent expired before confirmation';
-      result.expiredIntents += 1;
-      const booking = store.findBooking(intent.bookingRef);
-      if (booking && !['confirmed', 'checked_in', 'completed', 'refunded'].includes(String(booking.bookingStatus || '').toLowerCase())) {
-        const released = await releaseBookingInventory(booking);
-        result.cancelledBookings += 1;
-        result.seatsReleased += released.seats;
-        result.roomNightsReleased += released.roomNights;
-        result.roomsReleased += released.rooms;
-      }
-    }
+  for (const intent of intents) {
+    const expired = await expireIntent(intent, now);
+    if (!expired.expired) continue;
+    result.expiredIntents += 1;
+    if (expired.cancelled) result.cancelledBookings += 1;
+    result.seatsReleased += expired.seats;
+    result.roomNightsReleased += expired.roomNights;
+    result.roomsReleased += expired.rooms;
   }
-
-  if (mongoReady()) {
-    const PaymentIntent = require('../models/PaymentIntent');
-    const Booking = require('../models/Booking');
-    const expired = await PaymentIntent.find({ status: { $in: ['created', 'pending', 'processing'] }, expiresAt: { $lte: now } }).lean();
-    for (const intent of expired) {
-      await PaymentIntent.updateOne({ _id: intent._id }, { $set: { status: 'expired', failedAt: now, failureReason: 'Payment intent expired before confirmation' } });
-      const booking = store.findBooking(intent.bookingRef) || await Booking.findOne({ bookingRef: intent.bookingRef }).lean();
-      if (booking && !['confirmed', 'checked_in', 'completed', 'refunded'].includes(String(booking.bookingStatus || '').toLowerCase())) {
-        const released = await releaseBookingInventory(booking);
-        await Booking.updateOne({ bookingRef: booking.bookingRef }, { $set: { bookingStatus: 'cancelled', paymentStatus: 'expired', cancelReason: 'payment_intent_expired', cancelledAt: now, ticketLegs: booking.ticketLegs || [] } });
-        result.cancelledBookings += 1;
-        result.seatsReleased += released.seats;
-        result.roomNightsReleased += released.roomNights;
-        result.roomsReleased += released.rooms;
-      }
-    }
-    result.expiredIntents = Math.max(result.expiredIntents, expired.length);
-  }
-
   return result;
 }
 
-module.exports = { run, releaseBookingInventory };
+module.exports = { run, expireIntent, releaseBookingInventory };

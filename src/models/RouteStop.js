@@ -5,14 +5,15 @@ const routeStopSchema = new Schema({
   routeId: { type: String, required: true, index: true },
   listingId: { type: String, index: true },
   companyId: { type: String, required: true, index: true },
+  branchId: { type: String, index: true },
   name: { type: String, required: true },
-  stopType: { type: String, default: 'intermediate' },
+  stopType: { type: String, default: 'intermediate', enum: ['origin', 'boarding', 'pickup', 'intermediate', 'dropoff', 'destination'] },
   stopOrder: { type: Number, default: 0 },
   timeOffsetMinutes: { type: Number, default: 0 },
   pickupAllowed: { type: Boolean, default: true },
   dropoffAllowed: { type: Boolean, default: true },
   publicInstructions: String,
-  status: { type: String, default: 'active', index: true },
+  status: { type: String, default: 'active', index: true, enum: ['active', 'archived'] },
 }, { timestamps: true });
 
 routeStopSchema.index({ routeId: 1, stopOrder: 1 });

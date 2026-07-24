@@ -39,8 +39,18 @@ async function requestPayout(req, res, next) {
 
 async function createBooking(req, res, next) {
   try {
-    await actionService.createManualBooking(companyId(req), req.body, actorId(req));
+    await actionService.createManualBooking(companyId(req), req.body, actorId(req), { canRecordPayment: true });
     res.redirect('/company/bookings');
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+async function recordPayment(req, res, next) {
+  try {
+    await actionService.recordCompanyPayment(companyId(req), req.body, actorId(req));
+    res.redirect('/company/payouts#payments');
   } catch (error) {
     next(error);
   }
@@ -77,6 +87,7 @@ module.exports = {
   updateSettings,
   requestPayout,
   createBooking,
+  recordPayment,
   createNotice,
   updateSupport,
   replyToReview,

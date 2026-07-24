@@ -1,0 +1,100 @@
+<section class="section" id="manifests">
+        <% const busManifestCount = (dashboardData?.bookedSeatGroups || []).length; const hotelManifestCount = (dashboardData?.hotelManifestAll || []).length; const manifestSubview = dashboardData?.manifestSubview || 'all'; const hotelManifestDate = dashboardData?.hotelManifestDate || new Date().toISOString().slice(0,10); const hotelListingOptions = dashboardData?.options?.hotelListings || []; const selectedHotelListingId = dashboardData?.hotelManifestListingId || ''; const manifestRouteBase = isCompanyDashboard ? '/company' : '/employee'; const hotelExportQuery = `mode=${encodeURIComponent(manifestSubview === 'in-house' ? 'in-house' : manifestSubview)}&date=${encodeURIComponent(hotelManifestDate)}${selectedHotelListingId ? `&listingId=${encodeURIComponent(selectedHotelListingId)}` : ''}`; %>
+        <div class="manifestLayout <%= (!isCompanyDashboard && companySupportsBusOperations && companySupportsHotel) ? 'is-split' : '' %>">
+          <% if(!isCompanyDashboard || companySupportsBusOperations){ %>
+          <div class="card busManifestCard">
+            <div class="financeHeroTop busManifestHeader">
+              <div>
+                <h3>Passenger Manifests</h3>
+                <p>Print-ready bus passenger lists with route, schedule, vehicle, driver, seat, payment, check-in, no-show, and export actions.</p>
+              </div>
+              <div class="financeActions">
+                <a class="btn btnBlue" href="<%= manifestRouteBase %>/manifests"><i class="fa-solid fa-print"></i> Open printable manifest</a>
+              </div>
+            </div>
+            <div class="cardHead busManifestSectionHead">
+              <div class="cardTitle"><h3>Schedule summary</h3><p>Live snapshot of departure schedules, seat occupancy, and manifest readiness.</p></div>
+            </div>
+            <div class="financeKpis busManifestKpis">
+              <div class="financeKpi"><span>Schedules</span><strong><%= busManifestCount %></strong><small>Active departures</small></div>
+              <div class="financeKpi"><span>Booked seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalBooked||0),0) %></strong><small>Confirmed passengers</small></div>
+              <div class="financeKpi"><span>Held seats</span><strong><%= (dashboardData?.bookedSeatGroups || []).reduce((s,g)=>s+Number(g.totalHeld||0),0) %></strong><small>Pending payment</small></div>
+              <div class="financeKpi"><span>Ready for print</span><strong><%= busManifestCount %></strong><small>Manifests ready</small></div>
+            </div>
+            <div class="cardHead">
+              <div class="cardTitle"><h3>Filter schedules</h3><p>Search by route, vehicle, date, or manifest status.</p></div>
+            </div>
+            <div class="dashboardFilters busManifestFilters" data-filter-target="#companyBusManifestTable">
+              <div class="field"><label>Search schedules</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Schedule, route, vehicle, date"></div></div>
+              <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="published">Published</option><option value="boarding">Boarding</option><option value="departed">Departed</option><option value="completed">Completed</option><option value="active">Active</option></select></div></div>
+              <div class="field"><label>Manifest type</label><div class="control"><i class="fa-solid fa-list-check"></i><select data-filter-select><option value="">All manifests</option><option value="booked">Booked seats</option><option value="held">Held seats</option><option value="ready">Ready for print</option></select></div></div>
+              <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+            </div>
+            <div class="tableWrap busManifestTableWrap"><table><thead><tr><th>Schedule</th><th>Route</th><th>Vehicle</th><th>Date / departure</th><th>Booked</th><th>Held</th><th>Status</th><th></th></tr></thead><tbody id="companyBusManifestTable"></tbody></table></div>
+            <div class="filterEmpty busManifestEmpty" data-empty-for="#companyBusManifestTable">No manifests match the current filters.</div>
+            <div class="manifestPassengerBlock busManifestPassengerBlock">
+              <div class="cardHead"><div class="cardTitle"><h3>Passenger-level boarding list</h3><p>Seat-by-seat passengers with ticket, phone, payment, check-in, no-show, and operational actions.</p></div><a class="btn" href="<%= manifestRouteBase %>/manifests.csv"><i class="fa-solid fa-file-csv"></i> Export passengers</a></div>
+              <div class="dashboardFilters busManifestFilters" data-filter-target="#companyBusPassengerManifestTable">
+                <div class="field"><label>Search passengers</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Passenger, booking, phone, seat"></div></div>
+                <div class="field"><label>Payment</label><div class="control"><i class="fa-solid fa-money-check"></i><select data-filter-select><option value="">All payments</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div></div>
+                <div class="field"><label>Check-in</label><div class="control"><i class="fa-solid fa-qrcode"></i><select data-filter-select><option value="">All check-ins</option><option value="checked">Checked in</option><option value="pending">Pending</option><option value="no-show">No-show</option></select></div></div>
+                <div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+              </div>
+              <div class="tableWrap busManifestTableWrap"><table><thead><tr><th>Seat</th><th>Passenger</th><th>Booking</th><th>Phone</th><th>Payment</th><th>Check-in</th><th>Status</th><th></th></tr></thead><tbody id="companyBusPassengerManifestTable"></tbody></table></div>
+              <div class="filterEmpty busManifestEmpty" data-empty-for="#companyBusPassengerManifestTable">No passengers match the current filters.</div>
+            </div>
+          </div>
+          <% } %>
+          <% if(!isCompanyDashboard || companySupportsHotel){ %>
+          <div class="card hotelManifestCard">
+            <div class="financeHeroTop hotelManifestHeader">
+              <div>
+                <h3>Hotel manifests</h3>
+                <p>One operational guest register for arrivals, current stays and departures, backed by normalized reservations, named guests, room assignments and payment status. Check-in and check-out actions apply to the full reservation and all assigned rooms.</p>
+              </div>
+              <div class="financeActions">
+                <% if (hotelListingOptions.length) { %>
+                  <a class="btn btnBlue" href="<%= manifestRouteBase %>/hotels/manifest?<%= hotelExportQuery %>"><i class="fa-solid fa-print"></i> Printable manifest</a>
+                  <a class="btn" href="<%= manifestRouteBase %>/hotels/manifest.csv?<%= hotelExportQuery %>"><i class="fa-solid fa-file-csv"></i> CSV</a>
+                  <a class="btn" href="<%= manifestRouteBase %>/hotels/manifest.pdf?<%= hotelExportQuery %>"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+                <% } %>
+              </div>
+            </div>
+            <div class="financeKpis hotelManifestKpis">
+              <div class="financeKpi"><span>Reservations</span><strong><%= hotelManifestCount %></strong><small>Active hotel stays</small></div>
+              <div class="financeKpi"><span>Arrivals</span><strong><%= (dashboardData?.hotelArrivals || []).length %></strong><small>For <%= hotelManifestDate %></small></div>
+              <div class="financeKpi"><span>In-house</span><strong><%= (dashboardData?.hotelInHouse || []).length %></strong><small>Currently checked in</small></div>
+              <div class="financeKpi"><span>Departures</span><strong><%= (dashboardData?.hotelDepartures || []).length %></strong><small>For <%= hotelManifestDate %></small></div>
+            </div>
+            <form class="dashboardFilters hotelManifestFilters" method="get" action="<%= dashboardData?.requestedPath || '/company/manifests-dashboard' %>" data-filter-target="#companyHotelManifestTable">
+              <div class="field"><label>Search guests</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Guest, booking, contact, identity, property, room"></div></div>
+              <div class="field"><label>Stay status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="awaiting_payment">Awaiting payment</option><option value="confirmed">Confirmed</option><option value="checked_in">Checked in</option><option value="completed">Completed</option><option value="no_show">No-show</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></div></div>
+              <div class="field"><label>Property / listing</label><div class="control"><i class="fa-solid fa-hotel"></i><select name="listingId"><option value="">All hotel properties</option><% hotelListingOptions.forEach(function(option){ %><option value="<%= option.value %>" <%= selectedHotelListingId === option.value ? 'selected' : '' %>><%= option.label %></option><% }) %></select></div></div>
+              <div class="field"><label>Manifest date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" name="date" value="<%= hotelManifestDate %>"></div></div>
+              <div class="filterActions"><button class="btn btnBlue" type="submit"><i class="fa-solid fa-calendar-check"></i> Apply filters</button><a class="btn" href="<%= dashboardData?.requestedPath || '/company/manifests-dashboard' %>"><i class="fa-solid fa-rotate-left"></i> Clear filters</a><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-broom"></i> Clear table search</button></div>
+            </form>
+            <div class="innerTabs hotelManifestTabs" data-tab-group="hotel-manifest-tabs">
+              <button type="button" class="tabBtn <%= manifestSubview === 'all' ? 'is-on' : '' %>" data-tab-target="hotel-manifest-all"><i class="fa-solid fa-list"></i> All stays</button>
+              <button type="button" class="tabBtn <%= manifestSubview === 'arrivals' ? 'is-on' : '' %>" data-tab-target="hotel-manifest-arrivals"><i class="fa-solid fa-person-walking-luggage"></i> Arrivals</button>
+              <button type="button" class="tabBtn <%= manifestSubview === 'in-house' ? 'is-on' : '' %>" data-tab-target="hotel-manifest-inhouse"><i class="fa-solid fa-door-closed"></i> In-house</button>
+              <button type="button" class="tabBtn <%= manifestSubview === 'departures' ? 'is-on' : '' %>" data-tab-target="hotel-manifest-departures"><i class="fa-solid fa-door-open"></i> Departures</button>
+              <button type="button" class="tabBtn <%= manifestSubview === 'history' ? 'is-on' : '' %>" data-tab-target="hotel-manifest-history"><i class="fa-solid fa-clock-rotate-left"></i> History / no-shows</button>
+            </div>
+            <% const hotelManifestHeaders = ['Booking','Lead guest','Contact','Identity / nationality','Property','Room(s)','Occupancy','Check-in','Check-out','Payment','Stay status']; %>
+            <% const hotelManifestPanes = [
+              { id:'hotel-manifest-all', body:'companyHotelManifestTable', rows:dashboardData?.hotelManifestAll || [], active:manifestSubview === 'all', empty:'No active hotel reservations match the current filters.' },
+              { id:'hotel-manifest-arrivals', body:'companyHotelArrivalsTable', rows:dashboardData?.hotelArrivals || [], active:manifestSubview === 'arrivals', empty:'No arrivals are scheduled for the selected date.' },
+              { id:'hotel-manifest-inhouse', body:'companyHotelInHouseTable', rows:dashboardData?.hotelInHouse || [], active:manifestSubview === 'in-house', empty:'No guests are currently checked in.' },
+              { id:'hotel-manifest-departures', body:'companyHotelDeparturesTable', rows:dashboardData?.hotelDepartures || [], active:manifestSubview === 'departures', empty:'No departures are scheduled for the selected date.' },
+              { id:'hotel-manifest-history', body:'companyHotelHistoryTable', rows:dashboardData?.hotelManifestHistory || [], active:manifestSubview === 'history', empty:'No completed, cancelled, refunded or no-show stays are available.' }
+            ]; %>
+            <% hotelManifestPanes.forEach(function(pane){ %>
+              <div class="tabPane hotelManifestPane <%= pane.active ? 'is-open' : '' %>" id="<%= pane.id %>">
+                <div class="tableWrap"><table><thead><tr><% hotelManifestHeaders.forEach(function(header){ %><th><%= header %></th><% }) %><th></th></tr></thead><tbody id="<%= pane.body %>"></tbody></table></div>
+                <div class="filterEmpty" data-empty-for="#<%= pane.body %>"><%= pane.empty %></div>
+              </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+      </section>

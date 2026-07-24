@@ -1,4 +1,4 @@
-const store = require('../services/data/persistentStore');
+const busOperationsRepository = require('../repositories/domain/busOperationsRepository');
 const companyService = require('../services/company/companyService');
 
 // How far ahead a rule's schedules are ever allowed to exist. Each run extends every active
@@ -71,7 +71,7 @@ async function materializeRule(rule, horizonEnd, now) {
 
 async function run(now = new Date()) {
   const horizonEnd = startOfDay(new Date(now.getTime() + HORIZON_DAYS * DAY_MS));
-  const activeRules = store.state.scheduleRules.filter((rule) => rule.status === 'active');
+  const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' });
   let totalCreated = 0;
   let totalSkipped = 0;
   const results = [];

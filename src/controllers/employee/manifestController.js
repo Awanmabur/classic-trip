@@ -1,146 +1,71 @@
 const manifestService = require('../../services/operations/manifestService');
 const { resolveCompanyId } = require('../../utils/companyScope');
 
-function companyId(req) {
-  return resolveCompanyId(req);
-}
+function companyId(req) { return resolveCompanyId(req); }
+function generatedBy(req) { return req.session?.user?.fullName || req.session?.user?.email || 'Classic Trip operator'; }
 
-function generatedBy(req) {
-  return req.session?.user?.fullName || req.session?.user?.email || 'Classic Trip operator';
-}
-
-function manifestPage(req, res, next) {
+async function manifestPage(req, res, next) {
   try {
-    const manifest = manifestService.buildManifest(companyId(req), req.params.scheduleId, {
-      generatedBy: generatedBy(req),
-      printMode: req.query.mode || 'before_departure',
-    });
-    res.render('pages/driver-manifest-print', {
-      seo: { title: `${manifest.schedule.id} manifest | Classic Trip` },
-      manifest,
-      mode: req.query.mode || 'print',
-    });
-  } catch (error) {
-    next(error);
-  }
+    const manifest = await manifestService.buildManifestLive(companyId(req), req.params.scheduleId, { generatedBy: generatedBy(req), printMode: req.query.mode || 'before_departure' });
+    res.render('pages/driver-manifest-print', { seo: { title: `${manifest.schedule.id} manifest | Classic Trip` }, manifest, mode: req.query.mode || 'print' });
+  } catch (error) { next(error); }
 }
-
-function manifestCsv(req, res, next) {
+async function manifestCsv(req, res, next) {
   try {
-    const report = manifestService.manifestCsv(companyId(req), req.params.scheduleId);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-    res.send(report.csv);
-  } catch (error) {
-    next(error);
-  }
+    const report = await manifestService.manifestCsvLive(companyId(req), req.params.scheduleId);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`); res.send(report.csv);
+  } catch (error) { next(error); }
 }
-
-function manifestExcel(req, res, next) {
+async function manifestExcel(req, res, next) {
   try {
-    const report = manifestService.manifestExcel(companyId(req), req.params.scheduleId);
-    res.setHeader('Content-Type', report.contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-    res.send(report.body);
-  } catch (error) {
-    next(error);
-  }
+    const report = await manifestService.manifestExcelLive(companyId(req), req.params.scheduleId);
+    res.setHeader('Content-Type', report.contentType); res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`); res.send(report.body);
+  } catch (error) { next(error); }
 }
-
 async function manifestPdf(req, res, next) {
   try {
     const buffer = await manifestService.manifestPdfBuffer(companyId(req), req.params.scheduleId, { generatedBy: generatedBy(req) });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${req.params.scheduleId}-manifest.pdf"`);
-    res.setHeader('Content-Length', buffer.length);
-    res.send(buffer);
-  } catch (error) {
-    next(error);
-  }
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="${req.params.scheduleId}-manifest.pdf"`); res.setHeader('Content-Length', buffer.length); res.send(buffer);
+  } catch (error) { next(error); }
 }
-
-function customerManifestPage(req, res, next) {
+async function customerManifestPage(req, res, next) {
   try {
-    const rows = manifestService.buildCustomerList(companyId(req), req.query || {});
-    res.render('pages/company-customer-manifest', {
-      seo: { title: 'Customer manifest | Classic Trip' },
-      rows,
-      filters: req.query || {},
-      generatedBy: generatedBy(req),
-      companyId: companyId(req),
-    });
-  } catch (error) {
-    next(error);
-  }
+    const scopedCompanyId = companyId(req);
+    const [rows, filterOptions] = await Promise.all([
+      manifestService.buildCustomerListLive(scopedCompanyId, req.query || {}),
+      manifestService.customerManifestFilterOptionsLive(scopedCompanyId),
+    ]);
+    res.render('pages/company-customer-manifest', { seo: { title: 'Customer manifest | Classic Trip' }, rows, filters: req.query || {}, filterOptions, generatedBy: generatedBy(req), companyId: scopedCompanyId });
+  } catch (error) { next(error); }
 }
-
-function customerManifestCsv(req, res, next) {
+async function customerManifestCsv(req, res, next) {
   try {
-    const report = manifestService.filteredCustomerCsv(companyId(req), req.query || {});
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-    res.send(report.csv);
-  } catch (error) {
-    next(error);
-  }
+    const report = await manifestService.filteredCustomerCsvLive(companyId(req), req.query || {});
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`); res.send(report.csv);
+  } catch (error) { next(error); }
 }
-
-function customerManifestExcel(req, res, next) {
+async function customerManifestExcel(req, res, next) {
   try {
-    const report = manifestService.filteredCustomerExcel(companyId(req), req.query || {});
-    res.setHeader('Content-Type', report.contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-    res.send(report.body);
-  } catch (error) {
-    next(error);
-  }
+    const report = await manifestService.filteredCustomerExcelLive(companyId(req), req.query || {});
+    res.setHeader('Content-Type', report.contentType); res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`); res.send(report.body);
+  } catch (error) { next(error); }
 }
-
 async function customerManifestPdf(req, res, next) {
   try {
     const buffer = await manifestService.filteredCustomerPdfBuffer(companyId(req), req.query || {});
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="company-customer-manifest.pdf"');
-    res.setHeader('Content-Length', buffer.length);
-    res.send(buffer);
-  } catch (error) {
-    next(error);
-  }
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="company-customer-manifest.pdf"'); res.setHeader('Content-Length', buffer.length); res.send(buffer);
+  } catch (error) { next(error); }
 }
-
-function ticketDetail(req, res, next) {
+async function ticketDetail(req, res, next) {
   try {
-    const ticket = manifestService.bookingForCompany(companyId(req), req.params.bookingRef);
-    res.render('pages/driver-ticket-detail', {
-      seo: { title: `${ticket.booking.bookingRef} operational ticket | Classic Trip` },
-      ticket,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const ticket = await manifestService.bookingForCompanyLive(companyId(req), req.params.bookingRef);
+    res.render('pages/driver-ticket-detail', { seo: { title: `${ticket.booking.bookingRef} operational ticket | Classic Trip` }, ticket });
+  } catch (error) { next(error); }
 }
-
-function seatTicketDetail(req, res, next) {
+async function seatTicketDetail(req, res, next) {
   try {
-    const ticket = manifestService.bookingForSeat(companyId(req), req.params.scheduleId, req.params.seatNumber);
-    res.render('pages/driver-ticket-detail', {
-      seo: { title: `${ticket.booking.bookingRef} operational ticket | Classic Trip` },
-      ticket,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const ticket = await manifestService.bookingForSeatLive(companyId(req), req.params.scheduleId, req.params.seatNumber);
+    res.render('pages/driver-ticket-detail', { seo: { title: `${ticket.booking.bookingRef} operational ticket | Classic Trip` }, ticket });
+  } catch (error) { next(error); }
 }
-
-module.exports = {
-  manifestPage,
-  manifestCsv,
-  manifestExcel,
-  manifestPdf,
-  customerManifestPage,
-  customerManifestCsv,
-  customerManifestExcel,
-  customerManifestPdf,
-  ticketDetail,
-  seatTicketDetail,
-};
+module.exports = { manifestPage, manifestCsv, manifestExcel, manifestPdf, customerManifestPage, customerManifestCsv, customerManifestExcel, customerManifestPdf, ticketDetail, seatTicketDetail };

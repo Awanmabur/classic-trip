@@ -1,17 +1,12 @@
 const searchService = require('../../services/search/searchService');
-const store = require('../../services/data/persistentStore');
-
-function searchPage(req, res) {
-  const { results, meta } = searchService.searchWithMeta(req.query);
-  res.render('pages/search', {
-    seo: { title: 'Search routes and services | Classic Trip' },
-    query: req.query,
-    categories: store.state.categories,
-    corridorStats: store.corridorStats(),
-    searchMeta: meta,
-    results,
-    companies: store.state.companies,
-  });
+async function searchPage(req, res, next) {
+  try {
+    const { results, meta, data } = await searchService.searchWithMeta(req.query);
+    res.render('pages/search', {
+      seo: { title: 'Search routes and services | Classic Trip' }, query: req.query,
+      categories: data.categories, corridorStats: meta.routeHighlights, searchMeta: meta,
+      results, companies: data.companies,
+    });
+  } catch (error) { next(error); }
 }
-
 module.exports = { searchPage };

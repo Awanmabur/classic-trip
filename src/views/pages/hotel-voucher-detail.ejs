@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/images/favicon-48.png" />
+  <title><%= seo.title %></title>
+  <style>
+    :root{font-family:Inter,Arial,sans-serif;color:#111827;background:#f8fafc}*{box-sizing:border-box}body{margin:0;padding:24px}.sheet{max-width:1040px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}.hero{background:#111827;color:#fff;padding:26px 28px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.hero h1{margin:0;font-size:28px}.hero p{margin:7px 0 0;color:#cbd5e1;font-weight:800;line-height:1.55}.badge{display:inline-flex;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 12px;font-weight:900;white-space:nowrap}.tools,.actions{display:flex;gap:10px;flex-wrap:wrap;padding:16px 28px;background:#f8fafc;border-bottom:1px solid #e5e7eb}.actions{border-top:1px solid #e5e7eb;border-bottom:0}.btn{border:1px solid #cbd5e1;border-radius:999px;padding:10px 14px;color:#111827;text-decoration:none;font:inherit;font-weight:900;background:#fff;cursor:pointer}.btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}.btn.danger{background:#fff1f2;color:#be123c;border-color:#fecdd3}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:22px 28px}.card{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#f8fafc;min-width:0}.card.wide{grid-column:1/-1}.card h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.row{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #e5e7eb}.row:last-child{border-bottom:0}.row span{color:#64748b;font-weight:900}.row b{text-align:right;overflow-wrap:anywhere}.tableWrap{overflow:auto;border:1px solid #e5e7eb;border-radius:14px;background:#fff}.table{width:100%;border-collapse:collapse;min-width:720px}.table th,.table td{text-align:left;padding:11px 12px;border-bottom:1px solid #e5e7eb;font-size:13px}.table th{background:#f8fafc;color:#475569;text-transform:uppercase;font-size:11px;letter-spacing:.05em}.table tr:last-child td{border-bottom:0}.status{display:inline-flex;border-radius:999px;padding:6px 9px;background:#e2e8f0;font-size:11px;font-weight:900;text-transform:capitalize}.status.good{background:#dcfce7;color:#166534}.status.warn{background:#fef3c7;color:#92400e}.status.bad{background:#ffe4e6;color:#be123c}.forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 28px 24px}.form{border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#fff}.form h3{margin:0 0 12px;font-size:14px}.form label{display:block;margin:10px 0 7px;color:#64748b;font-weight:900;font-size:12px}.form textarea{width:100%;min-height:88px;resize:vertical;border:1px solid #cbd5e1;border-radius:14px;padding:10px;font:inherit}.footer{padding:16px 28px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;font-weight:800}@media(max-width:760px){body{padding:10px}.sheet{border-radius:18px}.hero{padding:20px;display:block}.badge{margin-top:14px}.tools,.actions,.grid,.forms{padding-left:16px;padding-right:16px}.grid,.forms{grid-template-columns:1fr}.card.wide{grid-column:auto}.row{display:block}.row b{display:block;text-align:left;margin-top:4px}.btn{width:100%;text-align:center}.tools form,.actions form{width:100%}}@media print{body{padding:0}.sheet{border:0;border-radius:0;box-shadow:none}.tools,.actions,.forms{display:none}.hero{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style>
+  <link rel="stylesheet" href="/css/accessibility.css?v=20260724-final-bus-hotel" />
+</head>
+<body>
+<%
+  const bookingStatus = String(booking.bookingStatus || '').toLowerCase().replace(/[\s-]+/g, '_');
+  const stayStatus = String(booking.hotelStay && booking.hotelStay.status || reservation.status || bookingStatus).toLowerCase().replace(/[\s-]+/g, '_');
+  const paymentStatus = String(booking.paymentStatus || reservation.paymentStatus || '').toLowerCase();
+  const canArrive = ticketReady && ['confirmed','booked'].includes(bookingStatus) && !['checked_in','occupied','in_house'].includes(stayStatus);
+  const canDepart = ['checked_in','occupied','in_house'].includes(stayStatus);
+  const total = Number((booking.pricing && booking.pricing.total) || (reservation.pricing && reservation.pricing.total) || 0);
+  const currency = (booking.pricing && booking.pricing.currency) || (reservation.pricing && reservation.pricing.currency) || defaultCurrency;
+  const statusClass = /successful|confirmed|checked_in|completed|eligible/.test(`${paymentStatus} ${stayStatus} ${reservation.settlementStatus}`) ? 'good' : /failed|cancel|refund|no_show/.test(`${paymentStatus} ${stayStatus}`) ? 'bad' : 'warn';
+%>
+  <main class="sheet">
+    <section class="hero">
+      <div><h1>Hotel Operational Voucher</h1><p><%= property.propertyName || listing.title || 'Hotel property' %><br><%= property.address || '' %><%= property.city ? ' · ' + property.city : '' %></p></div>
+      <span class="badge"><%= booking.bookingRef %></span>
+    </section>
+    <nav class="tools">
+      <button class="btn primary" type="button" data-page-action="print">Print voucher</button>
+      <a class="btn" href="<%= actorBase %>/hotels/bookings/<%= encodeURIComponent(booking.bookingRef) %>/voucher.pdf">Download PDF</a>
+      <a class="btn" href="<%= dashboardPath %>">Back to hotel operations</a>
+    </nav>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Stay</h3>
+        <div class="row"><span>Check-in</span><b><%= reservation.checkInDate %> <%= property.checkInTime || '' %></b></div>
+        <div class="row"><span>Check-out</span><b><%= reservation.checkOutDate %> <%= property.checkOutTime || '' %></b></div>
+        <div class="row"><span>Actual check-in</span><b><%= reservation.actualCheckInAt ? new Date(reservation.actualCheckInAt).toLocaleString('en-UG') : '-' %></b></div>
+        <div class="row"><span>Actual check-out</span><b><%= reservation.actualCheckOutAt ? new Date(reservation.actualCheckOutAt).toLocaleString('en-UG') : '-' %></b></div>
+        <div class="row"><span>Rooms</span><b><%= reservation.roomCount %></b></div>
+        <div class="row"><span>Occupancy</span><b><%= reservation.adults %> adult(s), <%= reservation.children || 0 %> child(ren), <%= reservation.infants || 0 %> infant(s)</b></div>
+      </div>
+      <div class="card">
+        <h3>Payment and status</h3>
+        <div class="row"><span>Stay status</span><b><span class="status <%= statusClass %>"><%= stayStatus.replace(/_/g,' ') %></span></b></div>
+        <div class="row"><span>Payment</span><b><span class="status <%= paymentStatus === 'successful' ? 'good' : 'warn' %>"><%= paymentStatus || 'pending' %></span></b></div>
+        <div class="row"><span>Settlement</span><b><%= reservation.settlementStatus || booking.settlementStatus || '-' %></b></div>
+        <div class="row"><span>Total</span><b><%= currency %> <%= total.toLocaleString() %></b></div>
+        <div class="row"><span>Payment provider</span><b><%= booking.paymentProvider || '-' %></b></div>
+        <div class="row"><span>Payment reference</span><b><%= booking.paymentRef || '-' %></b></div>
+      </div>
+
+      <div class="card wide">
+        <h3>Rooms and rate plans</h3>
+        <div class="tableWrap"><table class="table"><thead><tr><th>Room</th><th>Room type</th><th>Rate plan</th><th>Meal plan</th><th>Status</th><th>Assigned guests</th></tr></thead><tbody>
+          <% assignments.forEach(function(assignment){ %>
+            <tr><td><strong><%= assignment.roomUnit && assignment.roomUnit.unitNumber || assignment.roomNumberSnapshot || '-' %></strong></td><td><%= assignment.roomType && assignment.roomType.name || assignment.roomTypeSnapshot || '-' %></td><td><%= assignment.ratePlan && assignment.ratePlan.name || assignment.ratePlanSnapshot && assignment.ratePlanSnapshot.name || '-' %></td><td><%= assignment.ratePlan && assignment.ratePlan.mealPlan || assignment.ratePlanSnapshot && assignment.ratePlanSnapshot.mealPlan || '-' %></td><td><%= assignment.status %></td><td><%= (assignment.guests || []).map(function(g){return g.fullName}).join(', ') || 'Assignment pending' %></td></tr>
+          <% }) %>
+          <% if(!assignments.length){ %><tr><td colspan="6">No canonical room assignments found.</td></tr><% } %>
+        </tbody></table></div>
+      </div>
+
+      <div class="card wide">
+        <h3>Guest manifest</h3>
+        <div class="tableWrap"><table class="table"><thead><tr><th>Guest</th><th>Type</th><th>Contact</th><th>Nationality</th><th>Identity</th><th>Check-in</th><th>Emergency contact</th></tr></thead><tbody>
+          <% guests.forEach(function(guest){ const masked = guest.identityNumber ? `${guest.identityType || 'ID'} ••••${String(guest.identityNumber).slice(-4)}` : '-'; %>
+            <tr><td><strong><%= guest.fullName %></strong><%- guest.isLeadGuest ? '<br><small>Lead guest</small>' : '' %></td><td><%= guest.guestType %></td><td><%= guest.phone || guest.email || '-' %></td><td><%= guest.nationality || '-' %></td><td><%= masked %></td><td><%= guest.checkInStatus || 'not checked' %></td><td><%= [guest.emergencyContactName,guest.emergencyContactPhone].filter(Boolean).join(' · ') || '-' %></td></tr>
+          <% }) %>
+          <% if(!guests.length){ %><tr><td colspan="7">No canonical guest records found.</td></tr><% } %>
+        </tbody></table></div>
+      </div>
+
+      <div class="card"><h3>Guest requests</h3><div class="row"><span>ETA</span><b><%= reservation.estimatedArrivalTime || '-' %></b></div><div class="row"><span>Special requests</span><b><%= reservation.specialRequests || '-' %></b></div><div class="row"><span>Arrival notes</span><b><%= reservation.arrivalNotes || '-' %></b></div><div class="row"><span>Departure notes</span><b><%= reservation.departureNotes || '-' %></b></div></div>
+      <div class="card"><h3>Policy snapshot</h3><div class="row"><span>Refund status</span><b><%= reservation.refundStatus || booking.refundStatus || 'none' %></b></div><div class="row"><span>Cancellation</span><b><%= reservation.policySnapshot && (reservation.policySnapshot.cancellationPolicy || reservation.policySnapshot.cancellationPenaltyType) || 'Booked rate rules apply' %></b></div><div class="row"><span>Source</span><b><%= reservation.source || booking.bookingChannel || booking.source || 'web' %></b></div></div>
+
+      <div class="card wide"><h3>Booking timeline</h3>
+        <% (timeline || []).slice(0,14).forEach(function(event){ %><div class="row"><span><%= event.action || event.status || 'event' %></span><b><%= event.title || 'Timeline event' %><br><small><%= event.message || '' %><%= event.createdAt ? ' · ' + new Date(event.createdAt).toLocaleString('en-UG') : '' %></small></b></div><% }) %>
+        <% if(!(timeline || []).length){ %><div class="row"><span>Timeline</span><b>No events yet</b></div><% } %>
+      </div>
+    </section>
+
+    <% if(canArrive || canDepart){ %>
+      <section class="forms">
+        <% if(canArrive){ %>
+          <form class="form" method="POST" action="<%= actorBase %>/hotels/bookings/<%= encodeURIComponent(booking.bookingRef) %>/check-in"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><h3>Guest arrival</h3><label>Early or late override reason</label><textarea name="overrideReason" placeholder="Leave blank when checking in on the scheduled date."></textarea><button class="btn primary" type="submit">Check in complete stay</button></form>
+          <form class="form" method="POST" action="<%= actorBase %>/hotels/bookings/<%= encodeURIComponent(booking.bookingRef) %>/no-show"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><h3>No-show</h3><label>Reason or early no-show override</label><textarea name="reason" required placeholder="Record why the guest was marked no-show."></textarea><button class="btn danger" type="submit">Mark no-show and release rooms</button></form>
+        <% } %>
+        <% if(canDepart){ %>
+          <form class="form" method="POST" action="<%= actorBase %>/hotels/bookings/<%= encodeURIComponent(booking.bookingRef) %>/check-out"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><h3>Guest departure</h3><label>Early or late override reason</label><textarea name="overrideReason" placeholder="Leave blank when checking out on the scheduled date."></textarea><button class="btn primary" type="submit">Check out and send rooms to housekeeping</button></form>
+        <% } %>
+      </section>
+    <% } %>
+    <footer class="footer">Authorized hotel operations view. Identity numbers are masked; the live booking and normalized reservation remain the source of truth.</footer>
+  </main>
+  <script src="/js/page-actions.js" defer></script>
+</body>
+</html>

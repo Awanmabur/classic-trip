@@ -5,8 +5,8 @@ const savedListingSchema = new Schema({
   userId: { type: String, required: true, index: true },
   listingId: { type: String, required: true, index: true },
   companyId: { type: String, index: true },
-  serviceType: { type: String, index: true },
-  status: { type: String, default: 'saved', index: true },
+  serviceType: { type: String, index: true, enum: ['bus', 'hotel'] },
+  status: { type: String, default: 'saved', index: true, enum: ['saved'] },
   notes: String,
 }, { timestamps: true });
 

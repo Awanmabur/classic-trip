@@ -1,0 +1,71 @@
+<%
+  const analyticsBookings = Array.isArray(dashboardData?.bookings) ? dashboardData.bookings : [];
+  const analyticsListings = Array.isArray(dashboardData?.listings) ? dashboardData.listings : [];
+  const analyticsRoutes = Array.isArray(dashboardData?.routeInventory) && dashboardData.routeInventory.length
+    ? dashboardData.routeInventory
+    : (Array.isArray(dashboardData?.routes) ? dashboardData.routes : []);
+  const analyticsPayments = Array.isArray(dashboardData?.payments) ? dashboardData.payments : [];
+  const analyticsSupport = Array.isArray(dashboardData?.support) ? dashboardData.support : [];
+  const analyticsRefunds = Array.isArray(dashboardData?.refunds) ? dashboardData.refunds : [];
+  const analyticsLinks = Array.isArray(dashboardData?.links) ? dashboardData.links : [];
+  const analyticsClicks = Array.isArray(dashboardData?.referralClicks) ? dashboardData.referralClicks : [];
+  const analyticsConversions = Array.isArray(dashboardData?.campaignConversions) ? dashboardData.campaignConversions : [];
+  const rowText = function(row){ return Array.isArray(row) ? row.filter(function(cell){ return typeof cell !== 'object'; }).join(' ') : String(row || ''); };
+  const countMatching = function(rows, pattern){ return rows.filter(function(row){ return pattern.test(rowText(row).toLowerCase()); }).length; };
+  const confirmedBookingCount = countMatching(analyticsBookings, /confirmed|checked_in|completed|paid/);
+  const openSupportCount = analyticsSupport.filter(function(row){ return !/closed|resolved|completed/.test(rowText(row).toLowerCase()); }).length;
+  const pendingRefundCount = analyticsRefunds.filter(function(row){ return /pending|requested|review|processing/.test(rowText(row).toLowerCase()); }).length;
+  const successfulPaymentCount = countMatching(analyticsPayments, /successful|paid|completed/);
+%>
+<section class="section" id="analytics">
+  <div class="analyticsPanel">
+    <div class="grid4">
+      <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-layer-group"></i></div></div><div class="statNumber"><%= analyticsListings.length.toLocaleString() %></div><div class="statLabel">Listings in database</div></article>
+      <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div></div><div class="statNumber"><%= analyticsBookings.length.toLocaleString() %></div><div class="statLabel">Bookings in scope</div></article>
+      <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-money-bill-wave"></i></div></div><div class="statNumber"><%= successfulPaymentCount.toLocaleString() %></div><div class="statLabel">Successful payments</div></article>
+      <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-headset"></i></div></div><div class="statNumber"><%= openSupportCount.toLocaleString() %></div><div class="statLabel">Open support cases</div></article>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead">
+          <div class="cardTitle"><h3>Category performance</h3><p>Current listing counts by service category from the database.</p></div>
+        </div>
+        <div class="chart"><div class="bars" id="categoryBars"></div></div>
+      </div>
+      <div class="card">
+        <div class="cardHead"><div class="cardTitle"><h3>Current route inventory</h3><p>Routes and departures currently available in this dashboard scope.</p></div></div>
+        <% if(analyticsRoutes.length){ %>
+          <div class="metricList">
+            <% analyticsRoutes.slice(0, 6).forEach(function(row){ const cells = Array.isArray(row) ? row.filter(function(cell){ return typeof cell !== 'object'; }) : [String(row || '')]; %>
+              <div class="metricRow"><div><strong><%= cells[0] || 'Route' %></strong><span><%= cells.slice(1, 4).filter(Boolean).join(' · ') || 'No additional route details' %></span></div><b><%= cells[4] || cells[5] || '' %></b></div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="emptyState"><i class="fa-solid fa-route"></i><strong>No route inventory yet</strong><span>Create canonical routes and published dated departures to populate this section.</span></div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead"><div class="cardTitle"><h3>Operational quality</h3><p>Counts derived from current booking, payment, support, and refund records.</p></div></div>
+        <div class="splitGrid">
+          <div class="splitItem"><div class="splitTop"><span>Confirmed or completed bookings</span><strong><%= confirmedBookingCount.toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Successful payments</span><strong><%= successfulPaymentCount.toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Open support cases</span><strong><%= openSupportCount.toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Refunds awaiting action</span><strong><%= pendingRefundCount.toLocaleString() %></strong></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cardHead"><div class="cardTitle"><h3>Promoter funnel</h3><p>Actual referral records stored in MongoDB.</p></div></div>
+        <div class="splitGrid">
+          <div class="splitItem"><div class="splitTop"><span>Referral links</span><strong><%= analyticsLinks.length.toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Tracked link visits</span><strong><%= analyticsClicks.length.toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Attributed bookings</span><strong><%= countMatching(analyticsBookings, /referral|promoter|attributed/).toLocaleString() %></strong></div></div>
+          <div class="splitItem"><div class="splitTop"><span>Recorded conversions</span><strong><%= analyticsConversions.length.toLocaleString() %></strong></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

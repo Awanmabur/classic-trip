@@ -1,0 +1,32 @@
+<section class="section" id="revenue">
+        <% const financeSummary = dashboardData?.financeSummary || {}; const zeroMoney = `${platformConfig.defaultCurrency} 0`; %>
+        <div class="financeHeroGrid">
+          <div class="financeHero">
+            <div class="financeHeroTop">
+              <div><h3>Revenue drilldown</h3><p>Booking-level ledger for bus and hotel revenue: gross, company earning, Classic Trip net commission, promoter commission, refund impact, and net payable.</p></div>
+              <div class="financeActions"><a class="btn btnBlue" href="/company/reports/revenueDrilldown.csv"><i class="fa-solid fa-download"></i> Export revenue</a><a class="btn" href="/company/reports/financeStatements.csv"><i class="fa-solid fa-file-invoice-dollar"></i> Statements</a></div>
+            </div>
+            <div class="financeKpis">
+              <div class="financeKpi"><span>Gross sales</span><strong><%= financeSummary.gross || zeroMoney %></strong><small><%= financeSummary.bookings || 0 %> bookings</small></div>
+              <div class="financeKpi"><span>Company earning</span><strong><%= financeSummary.companyEarning || zeroMoney %></strong><small>Before refunds</small></div>
+              <div class="financeKpi"><span>Refund impact</span><strong class="moneyNegative"><%= financeSummary.refundDebits || zeroMoney %></strong><small><%= financeSummary.refunds || 0 %> refund records</small></div>
+              <div class="financeKpi"><span>Net payable</span><strong class="moneyPositive"><%= financeSummary.netPayable || zeroMoney %></strong><small>After reversals</small></div>
+            </div>
+          </div>
+          <div class="financePanel">
+            <h4>Balance snapshot</h4>
+            <div class="financeBadgeRow">
+              <div class="metricRow"><div><strong><%= financeSummary.availableBalance || zeroMoney %></strong><span>Available wallet balance</span></div><b class="badge ok">Available</b></div>
+              <div class="metricRow"><div><strong><%= financeSummary.pending || financeSummary.pendingBalance || zeroMoney %></strong><span>Pending release / under review</span></div><b class="badge warn">Pending</b></div>
+              <div class="metricRow"><div><strong><%= financeSummary.released || zeroMoney %></strong><span>Released / settled earnings</span></div><b class="badge info">Released</b></div>
+            </div>
+            <div class="financeActions" style="margin-top:12px"><button class="btn btnBlue" data-modal="create" data-type="payout"><i class="fa-solid fa-wallet"></i> Request payout</button><a class="btn" href="/company/settlement"><i class="fa-solid fa-layer-group"></i> Open settlement</a></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardHead"><div class="cardTitle"><h3>Booking-level revenue ledger</h3><p>Each booking shows the split, refund debit, and settlement status.</p></div></div>
+          <div class="dashboardFilters" style="margin:0 16px 12px" data-filter-target="#companyRevenueTable"><div class="field"><label>Search revenue</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Booking, transaction, bus, hotel, status"></div></div><div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="pending">Pending</option><option value="release ready">Release ready</option><option value="released">Released</option><option value="paid">Paid</option><option value="refund">Refund impact</option></select></div></div><div class="field"><label>Service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select data-filter-select><option value="">All services</option><option value="bus">Bus</option><option value="hotel">Hotel</option></select></div></div><div class="filterActions"><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div></div>
+          <div class="tableWrap"><table><thead><tr><th>Txn</th><th>Booking</th><th>Service</th><th>Gross</th><th>Company</th><th>Platform</th><th>Promoter</th><th>Refund</th><th>Net</th><th>Status</th><th></th></tr></thead><tbody id="companyRevenueTable"></tbody></table></div>
+          <div class="filterEmpty" style="padding:0 16px" data-empty-for="#companyRevenueTable">No revenue rows match the current filters.</div>
+        </div>
+      </section>

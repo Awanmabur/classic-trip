@@ -25,7 +25,7 @@
       <div><h2><%= results.length %> results</h2><p>Sponsored listings stay labeled while ranking higher, and sold-out or teaser listings are clearly marked.</p></div>
       <form class="actions" action="/search" method="get">
         <% Object.entries(query || {}).forEach(([key, value]) => { if (key !== 'sort' && value) { %><input type="hidden" name="<%= key %>" value="<%= value %>"><% } }) %>
-        <select class="btn btnGhost selectLike" name="sort" onchange="this.form.submit()">
+        <select class="btn btnGhost selectLike" name="sort" data-page-action="submit-form">
           <option value="recommended" <%= query?.sort === 'recommended' || !query?.sort ? 'selected' : '' %>>Recommended</option>
           <option value="soonest" <%= query?.sort === 'soonest' ? 'selected' : '' %>>Soonest</option>
           <option value="cheapest" <%= query?.sort === 'cheapest' ? 'selected' : '' %>>Cheapest</option>

@@ -2,7 +2,7 @@
   <div class="footerGrid">
     <div class="footerBrand">
       <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-      <p>Classic Trip is a multi-tenant travel marketplace for buses, hotels, flights, trains, ferries, tours, car rentals and partner services across East Africa.</p>
+      <p>Classic Trip is a multi-tenant marketplace for verified bus and hotel services.</p>
       <span><i class="fa-solid fa-shield-halved"></i> Secure checkout &amp; payment</span>
       <span><i class="fa-solid fa-clock"></i> 10-minute seat &amp; room holds</span>
       <span><i class="fa-solid fa-headset"></i> 24/7 customer support</span>
@@ -12,9 +12,7 @@
       <h3>Book &amp; manage</h3>
       <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
       <a href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> Hotels</a>
-      <a href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> Flights</a>
-      <a href="/search?serviceType=train"><i class="fa-solid fa-train"></i> Trains</a>
-      <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
+      <a href="/services#coming-soon"><i class="fa-solid fa-clock"></i> Coming soon</a>      <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
       <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
       <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
       <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
@@ -22,8 +20,8 @@
 
     <div class="footerCol">
       <h3>Partners &amp; promoters</h3>
-      <a href="/pricing"><i class="fa-solid fa-layer-group"></i> Partner plans</a>
-      <a href="/partner/onboarding"><i class="fa-solid fa-arrow-right"></i> Become a partner</a>
+      <a href="/partner-commission"><i class="fa-solid fa-percent"></i> Partner commission</a>
+      <a href="/register?role=partner#partner"><i class="fa-solid fa-arrow-right"></i> Become a partner</a>
       <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
       <a href="/companies"><i class="fa-solid fa-building"></i> Browse partners</a>
       <a href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How it works</a>
@@ -42,7 +40,7 @@
   </div>
   <div class="footerBottom">
     <span>&copy; 2026 Classic Trip. Marketplace for East Africa bookings.</span>
-    <span>3% promoter &bull; 7% platform fee &bull; Partner payout ready &bull; Gmail &amp; WhatsApp ticket delivery</span>
+    <span>Secure payments &bull; Transparent pricing &bull; Partner payouts &bull; Ticket delivery</span>
   </div>
 </footer>
 <div class="toast" id="toast">Ready</div>

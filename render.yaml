@@ -2,10 +2,10 @@ services:
   - type: web
     name: classic-trip
     runtime: node
-    plan: free
+    plan: starter
     region: oregon
     branch: master
-    buildCommand: npm install
+    buildCommand: npm ci && npm run verify
     startCommand: npm start
     healthCheckPath: /health
     envVars:
@@ -17,18 +17,18 @@ services:
         sync: false
       - key: SITE_URL
         sync: false
-      - key: DEMO_MODE
-        value: "false"
-      - key: ALLOW_DEMO_LOGIN
-        value: "false"
-      - key: DEMO_PASSWORD
-        sync: false
       - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
         sync: false
       - key: MONGO_TRANSACTIONS
         value: "true"
       - key: SESSION_SECRET
         generateValue: true
+      - key: PLATFORM_MFA_ENABLED
+        value: "false"
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
       - key: SUPER_ADMIN_EMAIL
         sync: false
       - key: SUPER_ADMIN_PASSWORD
@@ -45,16 +45,8 @@ services:
         sync: false
       - key: CLOUDINARY_FOLDER
         value: classic-trip
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GOOGLE_CALLBACK_URL
-        sync: false
       - key: PAYMENT_PROVIDER
         value: pesapal
-      - key: ALLOW_MOCK_PAYMENTS
-        value: "false"
       - key: PAYMENT_WEBHOOK_SECRET
         generateValue: true
       - key: PESAPAL_API_URL
@@ -81,17 +73,11 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
-      - key: WHATSAPP_API_URL
-        sync: false
-      - key: WHATSAPP_API_TOKEN
+      - key: WHATSAPP_ACCESS_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false
       - key: PUSH_ENABLED
         value: "false"
-      - key: PUSH_VAPID_PUBLIC_KEY
-        sync: false
-      - key: PUSH_VAPID_PRIVATE_KEY
-        sync: false
       - key: ENABLE_JOBS
         value: "true"

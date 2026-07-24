@@ -1,12 +1,9 @@
 const releaseService = require('../services/commission/releaseService');
-const store = require('../services/data/persistentStore');
-
+const financeRepository = require('../repositories/domain/financeRepository');
 async function run() {
-  const results = await Promise.all(
-    store.state.bookings
-      .filter((booking) => booking.bookingStatus === 'completed')
-      .map((booking) => releaseService.releaseCompletedBooking(booking.bookingRef))
-  );
-  return results.flatMap((result) => result || []);
+  const bookings = await financeRepository.bookings.list({ bookingStatus: { $in: ['completed', 'checked_in'] } }, { sort: { createdAt: 1 }, limit: 5000 });
+  const results = [];
+  for (const booking of bookings) results.push(...((await releaseService.releaseCompletedBooking(booking.bookingRef)) || []));
+  return results;
 }
 module.exports = { run };

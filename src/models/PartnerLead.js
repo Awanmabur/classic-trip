@@ -2,7 +2,7 @@ const { Schema, model } = require('./_helpers');
 
 const partnerLeadSchema = new Schema({
   id: { type: String, index: true },
-  leadType: { type: String, index: true },
+  leadType: { type: String, index: true, enum: ['bus', 'hotel', 'driver', 'promoter', 'agent', 'company', 'other'] },
   businessName: { type: String, index: true },
   contactName: String,
   phone: String,
@@ -11,9 +11,9 @@ const partnerLeadSchema = new Schema({
   city: String,
   country: String,
   serviceCategory: String,
-  sourceChannel: String,
+  sourceChannel: { type: String, enum: ['public_form', 'public_partner_form', 'manual_admin'] },
   notes: String,
-  status: { type: String, default: 'new', index: true },
+  status: { type: String, default: 'new', index: true, enum: ['new', 'contacted', 'qualified', 'session_scheduled', 'session_completed', 'agreement_draft', 'agreement_sent', 'agreement_approved', 'agreement_rejected', 'agreement_expired', 'agreement_suspended', 'agreement_terminated', 'invitation_sent'] },
   assignedTo: String,
   createdBy: String,
   updatedBy: String,

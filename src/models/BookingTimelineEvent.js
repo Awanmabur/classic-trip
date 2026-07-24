@@ -11,9 +11,12 @@ const bookingTimelineEventSchema = new Schema({
   action: { type: String, index: true },
   title: String,
   message: String,
+  // status intentionally left unconstrained: live data shows only null despite timelineService.js
+  // always setting a non-null default, an unexplained mismatch worth investigating separately
+  // before enforcing an enum here.
   status: { type: String, index: true },
-  visibility: { type: String, default: 'shared', index: true },
-  actorType: { type: String, index: true },
+  visibility: { type: String, default: 'shared', index: true, enum: ['shared', 'internal'] },
+  actorType: { type: String, index: true, enum: ['customer', 'system', 'company', 'employee', 'admin', 'promoter'] },
   actorId: { type: String, index: true },
   actorName: String,
   metadata: Schema.Types.Mixed,

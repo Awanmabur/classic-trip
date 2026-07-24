@@ -1,3 +1,5 @@
+const { ACTIVE_SERVICE_TYPES, ALL_SERVICE_TYPES } = require('./serviceRegistry');
+
 module.exports = {
   ROLES: {
     SUPER_ADMIN: 'super_admin',
@@ -32,5 +34,6 @@ module.exports = {
     FAILED: 'failed',
     REFUNDED: 'refunded',
   },
-  ENABLED_BOOKING_TYPES: ['bus', 'hotel'],
+  ENABLED_BOOKING_TYPES: ACTIVE_SERVICE_TYPES,
+  ALL_SERVICE_TYPES,
 };

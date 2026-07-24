@@ -12,7 +12,7 @@ function companyId(req) {
 async function submitCompany(req, res, next) {
   try {
     await verificationService.submitCompanyChecklist(companyId(req), req.body, actorId(req));
-    res.redirect('/company/settings#verification');
+    res.redirect('/company/profile#verification');
   } catch (error) {
     next(error);
   }

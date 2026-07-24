@@ -1,28 +1,19 @@
-const store = require('../data/persistentStore');
+const { platformCurrency } = require('../../utils/currency');
+const financeRepository = require('../../repositories/domain/financeRepository');
 const walletService = require('../wallet/walletService');
 const ledgerService = require('../wallet/ledgerService');
 const commissionService = require('../commission/commissionService');
 const releaseService = require('../commission/releaseService');
 const notificationService = require('../notification/notificationService');
-const { mongoose } = require('../../config/db');
-const { nextId: atomicNextId } = require('../data/idService');
+const { nextId } = require('../data/idService');
+const { env } = require('../../config/env');
 
-function mongoReady() {
-  return mongoose.connection.readyState === 1;
-}
-
-async function upsertModel(modelName, row, filter = { id: row.id }) {
-  if (!mongoReady() || !row) return;
-  const Model = require(`../../models/${modelName}`);
-  await Model.updateOne(filter, { $set: row }, { upsert: true, runValidators: true });
-}
-
-function cleanText(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
+function cleanText(value, max = 1000) {
+  return String(value || '').replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ').slice(0, max);
 }
 
 function normalize(value) {
-  return cleanText(value).toLowerCase().replace(/\s+/g, '_');
+  return cleanText(value).toLowerCase().replace(/[\s-]+/g, '_');
 }
 
 function amountValue(value, fallback = 0) {
@@ -31,110 +22,96 @@ function amountValue(value, fallback = 0) {
   return Number.isFinite(amount) ? amount : fallback;
 }
 
-function ensureCollections() {
-  if (!Array.isArray(store.state.settlementBatches)) store.state.settlementBatches = [];
-  if (!Array.isArray(store.state.payoutRequests)) store.state.payoutRequests = [];
-  if (!Array.isArray(store.state.payoutBatches)) store.state.payoutBatches = [];
-  if (!Array.isArray(store.state.reconciliationReports)) store.state.reconciliationReports = [];
-  if (!Array.isArray(store.state.auditLogs)) store.state.auditLogs = [];
-  if (!Array.isArray(store.state.walletTransactions)) store.state.walletTransactions = [];
-  if (!Array.isArray(store.state.commissions)) store.state.commissions = [];
-  if (!Array.isArray(store.state.paymentIntents)) store.state.paymentIntents = [];
-  if (!Array.isArray(store.state.receiptInvoices)) store.state.receiptInvoices = [];
-  if (!Array.isArray(store.state.taxFeeRecords)) store.state.taxFeeRecords = [];
-  if (!Array.isArray(store.state.financeStatements)) store.state.financeStatements = [];
-  if (!Array.isArray(store.state.financeRiskReviews)) store.state.financeRiskReviews = [];
+function bookingEligibleForRelease(booking = {}) {
+  const serviceType = normalize(booking.serviceType);
+  const bookingStatus = normalize(booking.bookingStatus || booking.checkInStatus);
+  const stayStatus = normalize(booking.hotelStay?.status);
+  if (serviceType === 'hotel') return bookingStatus === 'completed' && ['checked_out', 'completed'].includes(stayStatus);
+  return ['checked_in', 'completed'].includes(bookingStatus);
 }
 
-// Audit-log IDs are intentionally left on the legacy in-memory-length scheme: audit rows are
-// append-only supplementary records (not primary entity data), audit() is called synchronously
-// from dozens of places throughout this file, and a rare colliding audit id merely overwrites
-// one log entry rather than corrupting booking/seat/schedule data. Not worth the async blast
-// radius of converting every audit() call site — unlike the entity IDs below, which now use
-// idService's atomic counter.
-function legacyNextId(prefix, rows = []) {
-  let index = rows.length + 1;
-  let id = `${prefix}-${index}`;
-  while (rows.some((row) => row.id === id)) {
-    index += 1;
-    id = `${prefix}-${index}`;
-  }
-  return id;
+function reference(prefix, id) {
+  const suffix = String(id || Date.now()).split('-').pop().replace(/[^a-z0-9]/gi, '').toUpperCase();
+  return `${prefix}-${suffix.padStart(6, '0')}`;
 }
 
-function audit(actorId, action, target, meta = {}) {
-  ensureCollections();
+function normalizedPayoutMethod(value) {
+  const method = normalize(value || 'wallet');
+  if (method.includes('mobile')) return 'Mobile Money';
+  if (method.includes('bank')) return 'Bank';
+  return 'Wallet';
+}
+
+async function audit(actorId, action, target, meta = {}) {
   const row = {
-    id: legacyNextId('audit', store.state.auditLogs),
+    id: await nextId('audit'),
     actorId: actorId || 'finance-system',
+    actorRole: 'finance_admin',
     action,
     target,
+    entityType: 'finance',
+    entityId: cleanText(target, 180),
     metadata: meta,
+    status: 'success',
     createdAt: new Date().toISOString(),
   };
-  store.state.auditLogs.push(row);
+  await financeRepository.auditLogs.save(row, { id: row.id });
   return row;
 }
 
-function bookingEligibleForRelease(booking = {}) {
-  return ['checked_in', 'completed'].includes(normalize(booking.bookingStatus || booking.checkInStatus));
-}
-
-
-function ref(prefix, rows = []) {
-  return `${prefix}-${String(rows.length + 1).padStart(6, '0')}`;
-}
-
 async function recordPaymentIntent(payload = {}, actorId = 'payment-system') {
-  ensureCollections();
-  const idempotencyKey = cleanText(payload.idempotencyKey || `${payload.provider || 'mock'}:${payload.bookingRef || payload.cartRef || 'general'}:${payload.amount || 0}`);
-  let intent = store.state.paymentIntents.find((item) => item.idempotencyKey === idempotencyKey);
+  const idempotencyKey = cleanText(payload.idempotencyKey || `${payload.provider || env.paymentProvider}:${payload.bookingRef || payload.cartRef || 'general'}:${payload.amount || 0}`, 240);
+  let intent = await financeRepository.paymentIntents.findOne({ idempotencyKey });
   if (!intent) {
+    const id = await nextId('payment-intent');
     intent = {
-      id: await atomicNextId('payment-intent'),
-      intentRef: ref('PI', store.state.paymentIntents),
-      bookingId: cleanText(payload.bookingId || ''),
-      bookingRef: cleanText(payload.bookingRef || ''),
-      cartRef: cleanText(payload.cartRef || ''),
-      companyId: cleanText(payload.companyId || ''),
-      customerUserId: cleanText(payload.customerUserId || ''),
-      provider: cleanText(payload.provider || 'mock'),
-      providerReference: cleanText(payload.providerReference || ''),
+      id,
+      intentRef: reference('PI', id),
+      bookingId: cleanText(payload.bookingId, 180),
+      bookingRef: cleanText(payload.bookingRef, 180),
+      cartRef: cleanText(payload.cartRef, 180),
+      companyId: cleanText(payload.companyId, 180),
+      customerUserId: cleanText(payload.customerUserId, 180),
+      provider: cleanText(payload.provider || env.paymentProvider, 40),
+      providerReference: cleanText(payload.providerReference, 240),
       idempotencyKey,
       amount: amountValue(payload.amount),
-      currency: cleanText(payload.currency || 'UGX'),
-      status: cleanText(payload.status || 'created'),
-      checkoutUrl: cleanText(payload.checkoutUrl || ''),
+      currency: cleanText(payload.currency || platformCurrency(), 8).toUpperCase(),
+      status: cleanText(payload.status || 'created', 40),
+      checkoutUrl: cleanText(payload.checkoutUrl, 1000),
       attempts: [],
       metadata: payload.metadata || {},
       createdBy: actorId,
       createdAt: new Date().toISOString(),
       expiresAt: payload.expiresAt || null,
     };
-    store.state.paymentIntents.unshift(intent);
   }
-  intent.providerReference = cleanText(payload.providerReference || intent.providerReference || '');
-  intent.status = cleanText(payload.status || intent.status || 'created');
-  intent.checkoutUrl = cleanText(payload.checkoutUrl || intent.checkoutUrl || '');
-  intent.updatedAt = new Date().toISOString();
-  intent.attempts.push({ status: intent.status, providerReference: intent.providerReference, at: intent.updatedAt });
-  if (intent.status === 'successful') intent.paidAt = new Date().toISOString();
+  Object.assign(intent, {
+    providerReference: cleanText(payload.providerReference || intent.providerReference, 240),
+    status: cleanText(payload.status || intent.status || 'created', 40),
+    checkoutUrl: cleanText(payload.checkoutUrl || intent.checkoutUrl, 1000),
+    updatedAt: new Date().toISOString(),
+  });
+  intent.attempts = [...(intent.attempts || []), { status: intent.status, providerReference: intent.providerReference, at: intent.updatedAt }].slice(-25);
+  if (intent.status === 'successful') intent.paidAt = intent.paidAt || new Date().toISOString();
   if (intent.status === 'failed') intent.failedAt = new Date().toISOString();
-  await upsertModel('PaymentIntent', intent, { idempotencyKey: intent.idempotencyKey });
+  await financeRepository.paymentIntents.save(intent, { idempotencyKey });
   return intent;
 }
 
 async function recordBookingFinancialDocuments(booking = {}, payment = null, actorId = 'finance-system') {
-  ensureCollections();
-  if (!booking || !booking.id || !booking.bookingRef) return null;
-  const existingReceipt = store.state.receiptInvoices.find((item) => item.bookingRef === booking.bookingRef && item.documentType === 'receipt');
-  const existingInvoice = store.state.receiptInvoices.find((item) => item.bookingRef === booking.bookingRef && item.documentType === 'invoice');
+  if (!booking?.id || !booking?.bookingRef) return null;
+  const [existingReceipt, existingInvoice, existingTaxRecord, paymentRow] = await Promise.all([
+    financeRepository.receiptInvoices.findOne({ bookingRef: booking.bookingRef, documentType: 'receipt' }),
+    financeRepository.receiptInvoices.findOne({ bookingRef: booking.bookingRef, documentType: 'invoice' }),
+    financeRepository.taxFeeRecords.findOne({ bookingRef: booking.bookingRef }),
+    payment ? Promise.resolve(payment) : financeRepository.payments.findOne({ $or: [{ bookingId: booking.id }, { bookingRef: booking.bookingRef }, { providerReference: booking.paymentRef }] }),
+  ]);
   const pricing = booking.pricing || {};
-  const paymentRow = payment || store.state.payments.find((item) => item.bookingRef === booking.bookingRef || item.bookingId === booking.id) || {};
   const common = {
     bookingId: booking.id,
     bookingRef: booking.bookingRef,
-    paymentId: paymentRow.id || booking.paymentRef || '',
+    paymentId: paymentRow?.id || booking.paymentRef || '',
     companyId: booking.companyId,
     customerUserId: booking.customerUserId || '',
     customerName: booking.guestSnapshot?.fullName || '',
@@ -143,68 +120,64 @@ async function recordBookingFinancialDocuments(booking = {}, payment = null, act
     subtotal: Number(pricing.subtotal || 0),
     fees: Number(pricing.fees || 0) + Number(pricing.addonTotal || 0),
     taxes: Number(pricing.taxes || 0),
-    total: Number(pricing.total || paymentRow.amount || 0),
-    currency: pricing.currency || paymentRow.currency || 'UGX',
-    status: booking.paymentStatus === 'successful' ? 'issued' : 'pending',
+    total: Number(pricing.total || paymentRow?.amount || 0),
+    currency: String(pricing.currency || paymentRow?.currency || platformCurrency()).toUpperCase(),
+    status: 'issued',
     issuedAt: new Date().toISOString(),
-    metadata: { paymentRef: paymentRow.providerReference || booking.paymentRef || '', ticketCount: (booking.ticketLegs || []).length || 1 },
+    metadata: { paymentRef: paymentRow?.providerReference || booking.paymentRef || '', ticketCount: (booking.ticketLegs || []).length || 1 },
   };
-  const receipt = existingReceipt || { id: await atomicNextId('receipt-invoice'), documentRef: ref('RCT', store.state.receiptInvoices), documentType: 'receipt', ...common };
-  Object.assign(receipt, common);
-  if (!existingReceipt) store.state.receiptInvoices.unshift(receipt);
-  const invoice = existingInvoice || { id: await atomicNextId('receipt-invoice'), documentRef: ref('INV', store.state.receiptInvoices), documentType: 'invoice', ...common };
-  Object.assign(invoice, common);
-  if (!existingInvoice) store.state.receiptInvoices.unshift(invoice);
-
-  let taxRecord = store.state.taxFeeRecords.find((item) => item.bookingRef === booking.bookingRef);
-  if (!taxRecord) {
-    taxRecord = {
-      id: await atomicNextId('tax-fee'),
-      bookingId: booking.id,
-      bookingRef: booking.bookingRef,
-      paymentId: paymentRow.id || '',
-      companyId: booking.companyId,
-      currency: common.currency,
-      subtotal: common.subtotal,
-      serviceFee: Number(pricing.fees || 0),
-      taxAmount: Number(pricing.taxes || 0),
-      providerFee: Number(pricing.providerFee || 0),
-      totalFees: Number(pricing.fees || 0) + Number(pricing.taxes || 0) + Number(pricing.providerFee || 0),
-      status: 'recorded',
-      recordedAt: new Date().toISOString(),
-      metadata: { split: pricing.split || {} },
-    };
-    store.state.taxFeeRecords.unshift(taxRecord);
-  }
-  await upsertModel('ReceiptInvoice', receipt, { documentRef: receipt.documentRef });
-  await upsertModel('ReceiptInvoice', invoice, { documentRef: invoice.documentRef });
-  await upsertModel('TaxFeeRecord', taxRecord);
-  audit(actorId, 'finance.documents.issued', booking.bookingRef, { receipt: receipt.documentRef, invoice: invoice.documentRef });
+  const receiptId = existingReceipt?.id || await nextId('receipt-invoice');
+  const receipt = { ...(existingReceipt || {}), id: receiptId, documentRef: existingReceipt?.documentRef || reference('RCT', receiptId), documentType: 'receipt', ...common };
+  const invoiceId = existingInvoice?.id || await nextId('receipt-invoice');
+  const invoice = { ...(existingInvoice || {}), id: invoiceId, documentRef: existingInvoice?.documentRef || reference('INV', invoiceId), documentType: 'invoice', ...common };
+  const taxRecord = existingTaxRecord || {
+    id: await nextId('tax-fee'),
+    bookingId: booking.id,
+    bookingRef: booking.bookingRef,
+    paymentId: paymentRow?.id || '',
+    companyId: booking.companyId,
+    currency: common.currency,
+    subtotal: common.subtotal,
+    serviceFee: Number(pricing.fees || 0),
+    taxAmount: Number(pricing.taxes || 0),
+    providerFee: Number(pricing.providerFee || 0),
+    totalFees: Number(pricing.fees || 0) + Number(pricing.taxes || 0) + Number(pricing.providerFee || 0),
+    status: 'recorded',
+    recordedAt: new Date().toISOString(),
+    metadata: { split: pricing.split || {} },
+  };
+  await financeRepository.withTransaction(async (session) => {
+    await financeRepository.receiptInvoices.save(receipt, { documentRef: receipt.documentRef }, { session });
+    await financeRepository.receiptInvoices.save(invoice, { documentRef: invoice.documentRef }, { session });
+    await financeRepository.taxFeeRecords.save(taxRecord, { bookingRef: booking.bookingRef }, { session });
+  });
+  await audit(actorId, 'finance.documents.issued', booking.bookingRef, { receipt: receipt.documentRef, invoice: invoice.documentRef });
   return { receipt, invoice, taxRecord };
 }
 
-function riskFlagsForPayout(ownerType, ownerId, amount) {
+async function riskFlagsForPayout(ownerType, ownerId, amount) {
+  const [pendingRefunds, heldTransactions] = await Promise.all([
+    ownerType === 'company' ? financeRepository.refunds.count({ companyId: ownerId, status: { $nin: ['rejected', 'closed'] } }) : 0,
+    financeRepository.transactions.count({ ownerType, ownerId, status: { $in: ['held', 'review'] } }),
+  ]);
   const flags = [];
-  const pendingRefunds = (store.state.refundRequests || []).filter((item) => item.companyId === ownerId && !['rejected', 'closed'].includes(normalize(item.status))).length;
-  const heldTxns = (store.state.walletTransactions || []).filter((txn) => txn.ownerType === ownerType && txn.ownerId === ownerId && ['held', 'review'].includes(normalize(txn.status))).length;
   if (pendingRefunds) flags.push('open_refunds');
-  if (heldTxns) flags.push('held_wallet_transactions');
+  if (heldTransactions) flags.push('held_wallet_transactions');
   if (Number(amount || 0) > 5000000) flags.push('large_payout');
   return flags;
 }
 
 async function createFinanceRiskReview(targetType, targetId, payload = {}, actorId = 'finance-system') {
-  ensureCollections();
-  const flags = riskFlagsForPayout(payload.ownerType, payload.ownerId, payload.amount);
+  const flags = await riskFlagsForPayout(payload.ownerType, payload.ownerId, payload.amount);
   const riskScore = flags.length * 35;
   const review = {
-    id: await atomicNextId('finance-risk'),
+    id: await nextId('finance-risk'),
     targetType,
     targetId,
     ownerType: payload.ownerType || '',
     ownerId: payload.ownerId || '',
     amount: amountValue(payload.amount),
-    currency: cleanText(payload.currency || 'UGX'),
+    currency: cleanText(payload.currency || platformCurrency(), 8).toUpperCase(),
     riskScore,
     flags,
     status: riskScore >= 70 ? 'hold_recommended' : 'clear',
@@ -213,78 +186,8 @@ async function createFinanceRiskReview(targetType, targetId, payload = {}, actor
     notes: flags.length ? flags.join(', ') : 'No finance risk flags detected',
     metadata: payload.metadata || {},
   };
-  store.state.financeRiskReviews.unshift(review);
-  await upsertModel('FinanceRiskReview', review);
+  await financeRepository.riskReviews.save(review, { id: review.id });
   return review;
-}
-
-async function generateFinanceStatements(payload = {}, actorId = 'finance-system') {
-  ensureCollections();
-  const periodStart = payload.periodStart || null;
-  const periodEnd = payload.periodEnd || new Date().toISOString();
-  const rows = await financeRows(periodStart, periodEnd);
-  const statements = [];
-  for (const row of rows) {
-    const wallet = await walletFor(row.ownerType, row.ownerId, row.currency);
-    const statement = {
-      id: await atomicNextId('finance-statement'),
-      statementRef: ref('STMT', store.state.financeStatements),
-      ownerType: row.ownerType,
-      ownerId: row.ownerId,
-      settlementBatchId: cleanText(payload.settlementBatchId || ''),
-      payoutBatchId: cleanText(payload.payoutBatchId || ''),
-      periodStart,
-      periodEnd,
-      currency: row.currency || wallet.currency || 'UGX',
-      gross: Number(row.gross || 0),
-      platformFee: Number(row.platformFee || 0),
-      companyEarning: Number(row.companyEarning || 0),
-      promoterCommission: Number(row.promoterCommission || 0),
-      refundDebits: Number(row.refundDebits || 0),
-      payoutTotal: (store.state.walletTransactions || []).filter((txn) => txn.ownerType === row.ownerType && txn.ownerId === row.ownerId && /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType))).reduce((total, txn) => total + Number(txn.amount || 0), 0),
-      openingBalance: 0,
-      closingBalance: Number(wallet.availableBalance || 0) + Number(wallet.pendingBalance || 0),
-      status: 'issued',
-      generatedBy: actorId,
-      generatedAt: new Date().toISOString(),
-      rows: [{ bookingRefs: row.bookingRefs || [], transactionIds: row.transactionIds || [] }],
-      notes: cleanText(payload.notes || payload.note || ''),
-    };
-    store.state.financeStatements.unshift(statement);
-    await upsertModel('FinanceStatement', statement, { statementRef: statement.statementRef });
-    statements.push(statement);
-  }
-  audit(actorId, 'finance.statements.generated', 'finance-statements', { count: statements.length });
-  return statements;
-}
-
-async function ensurePendingCommissionForBooking(booking) {
-  if (!booking || !booking.id) return null;
-  let commission = store.state.commissions.find((item) => item.bookingId === booking.id);
-  if (!commission) {
-    commission = commissionService.createCommission(booking, Boolean(booking.promoterAttribution), booking.pricing?.split);
-    await upsertModel('Commission', commission);
-  }
-  return commission;
-}
-
-async function releaseEligibleEarnings(actorId = 'finance-system') {
-  ensureCollections();
-  const released = [];
-  for (const booking of store.state.bookings.filter(bookingEligibleForRelease)) {
-    const before = store.state.commissions.filter((item) => item.bookingId === booking.id && item.status === 'pending').length;
-    await ensurePendingCommissionForBooking(booking);
-    const result = (await releaseService.releaseCompletedBooking(booking.bookingRef)) || [];
-    for (const commission of result) {
-      commission.releaseSource = 'finance_settlement';
-      commission.releasedBy = actorId;
-      await upsertModel('Commission', commission);
-      released.push({ bookingRef: booking.bookingRef, commissionId: commission.id, companyId: commission.companyId, promoterId: commission.promoterId, companyAmount: commission.companyAmount || 0, promoterAmount: commission.promoterAmount || 0 });
-    }
-    if (!result.length && before) await ensurePendingCommissionForBooking(booking);
-  }
-  audit(actorId, 'finance.earnings.released', 'eligible-bookings', { released: released.length });
-  return released;
 }
 
 function bookingInPeriod(booking, periodStart, periodEnd) {
@@ -298,11 +201,12 @@ async function walletFor(ownerType, ownerId, currency) {
   return walletService.getOrCreateWallet(ownerType, ownerId, currency);
 }
 
-// Rows are keyed by (owner, currency), not just owner: an owner who somehow has bookings in two
-// different currencies (legacy data from before currency was locked to the company) gets two
-// separate rows, each a real same-currency sum, instead of one row whose totals blindly mix
-// amounts from both currencies under whichever currency label happened to be written last.
 async function financeRows(periodStart, periodEnd) {
+  const [bookings, transactions, commissions] = await Promise.all([
+    financeRepository.bookings.list({}, { sort: { createdAt: -1 }, limit: 5000 }),
+    financeRepository.transactions.list({}, { sort: { createdAt: -1 }, limit: 10000 }),
+    financeRepository.commissions.list({}, { sort: { createdAt: -1 }, limit: 10000 }),
+  ]);
   const rowsByOwner = new Map();
   const add = (key, patch) => {
     const current = rowsByOwner.get(key) || { gross: 0, companyEarning: 0, promoterCommission: 0, platformFee: 0, refundDebits: 0, payable: 0, bookingRefs: [], transactionIds: [] };
@@ -310,42 +214,57 @@ async function financeRows(periodStart, periodEnd) {
     rowsByOwner.set(key, current);
     return current;
   };
-
-  for (const booking of store.state.bookings.filter((item) => bookingInPeriod(item, periodStart, periodEnd))) {
+  for (const booking of bookings.filter((item) => bookingInPeriod(item, periodStart, periodEnd))) {
     const split = booking.pricing?.split || {};
-    const currency = booking.pricing?.currency || 'UGX';
+    const currency = String(booking.pricing?.currency || platformCurrency()).toUpperCase();
     const companyId = booking.companyId || 'company-unknown';
-    const companyKey = `company:${companyId}:${currency}`;
-    const company = add(companyKey, { ownerType: 'company', ownerId: companyId, currency });
+    const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
     company.gross += Number(booking.pricing?.total || 0);
     company.companyEarning += Number(split.companyAmount || 0);
     company.platformFee += Number(split.platformFee || 0);
     company.payable += Number(split.companyAmount || 0);
     company.bookingRefs.push(booking.bookingRef);
-
     if (booking.promoterAttribution?.promoterId && Number(split.promoterAmount || 0) > 0) {
-      const promoterKey = `promoter:${booking.promoterAttribution.promoterId}:${currency}`;
-      const promoter = add(promoterKey, { ownerType: 'promoter', ownerId: booking.promoterAttribution.promoterId, currency });
+      const promoterId = booking.promoterAttribution.promoterId;
+      const promoter = add(`promoter:${promoterId}:${currency}`, { ownerType: 'promoter', ownerId: promoterId, currency });
       promoter.gross += Number(booking.pricing?.total || 0);
       promoter.promoterCommission += Number(split.promoterAmount || 0);
       promoter.payable += Number(split.promoterAmount || 0);
       promoter.bookingRefs.push(booking.bookingRef);
     }
   }
-
-  for (const txn of store.state.walletTransactions.filter((item) => item.transactionType === 'refund_debit')) {
-    const currency = txn.currency || 'UGX';
-    const key = `${txn.ownerType}:${txn.ownerId}:${currency}`;
-    const row = add(key, { ownerType: txn.ownerType, ownerId: txn.ownerId, currency });
+  const bookingById = new Map(bookings.map((booking) => [String(booking.id), booking]));
+  for (const commission of commissions) {
+    const booking = bookingById.get(String(commission.bookingId));
+    if (booking && !bookingInPeriod(booking, periodStart, periodEnd)) continue;
+    const currency = String(booking?.pricing?.currency || commission.currency || platformCurrency()).toUpperCase();
+    const companyId = commission.companyId || booking?.companyId || 'company-unknown';
+    const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
+    const split = booking?.pricing?.split || {};
+    if (!Number(split.companyAmount || 0)) company.companyEarning += Number(commission.companyAmount || 0);
+    if (!Number(split.platformFee || 0)) company.platformFee += Number(commission.platformFee || 0);
+    company.payable = Math.max(company.payable, Number(commission.companyAmount || 0));
+    if (commission.bookingRef && !company.bookingRefs.includes(commission.bookingRef)) company.bookingRefs.push(commission.bookingRef);
+    if (commission.promoterId && Number(commission.promoterAmount || 0) > 0) {
+      const promoter = add(`promoter:${commission.promoterId}:${currency}`, { ownerType: 'promoter', ownerId: commission.promoterId, currency });
+      if (!Number(split.promoterAmount || 0)) promoter.promoterCommission += Number(commission.promoterAmount || 0);
+      promoter.payable = Math.max(promoter.payable, Number(commission.promoterAmount || 0));
+      if (commission.bookingRef && !promoter.bookingRefs.includes(commission.bookingRef)) promoter.bookingRefs.push(commission.bookingRef);
+    }
+  }
+  for (const txn of transactions.filter((item) => item.transactionType === 'refund_debit')) {
+    const currency = String(txn.currency || platformCurrency()).toUpperCase();
+    const row = add(`${txn.ownerType}:${txn.ownerId}:${currency}`, { ownerType: txn.ownerType, ownerId: txn.ownerId, currency });
     row.refundDebits += Number(txn.amount || 0);
     row.payable -= Number(txn.amount || 0);
     row.transactionIds.push(txn.id);
   }
-
   const rows = [];
   for (const row of rowsByOwner.values()) {
-    const wallet = await walletFor(row.ownerType, row.ownerId, row.currency);
-    const owner = row.ownerType === 'company' ? store.findCompany(row.ownerId) : store.state.users.find((user) => user.id === row.ownerId);
+    const [wallet, owner] = await Promise.all([
+      walletFor(row.ownerType, row.ownerId, row.currency),
+      row.ownerType === 'company' ? financeRepository.companies.findOne({ id: row.ownerId }) : financeRepository.users.findOne({ id: row.ownerId }),
+    ]);
     rows.push({
       ...row,
       ownerName: owner?.name || owner?.fullName || row.ownerId,
@@ -359,27 +278,88 @@ async function financeRows(periodStart, periodEnd) {
   return rows.filter((row) => row.gross > 0 || row.availableBalance > 0 || row.refundDebits > 0);
 }
 
-// One batch per currency, not one blended batch: summing rows across currencies into a single
-// batch with one currency label was the exact "settlement mixing" bug - now each batch's totals
-// are guaranteed to be a real same-currency sum.
+async function generateFinanceStatements(payload = {}, actorId = 'finance-system') {
+  const periodStart = payload.periodStart || null;
+  const periodEnd = payload.periodEnd || new Date().toISOString();
+  const [rows, transactions] = await Promise.all([
+    financeRows(periodStart, periodEnd),
+    financeRepository.transactions.list({}, { sort: { createdAt: -1 }, limit: 10000 }),
+  ]);
+  const statements = [];
+  for (const row of rows) {
+    const wallet = await walletFor(row.ownerType, row.ownerId, row.currency);
+    const id = await nextId('finance-statement');
+    const statement = {
+      id,
+      statementRef: reference('STMT', id),
+      ownerType: row.ownerType,
+      ownerId: row.ownerId,
+      settlementBatchId: cleanText(payload.settlementBatchId, 180),
+      payoutBatchId: cleanText(payload.payoutBatchId, 180),
+      periodStart,
+      periodEnd,
+      currency: row.currency || wallet.currency || platformCurrency(),
+      gross: Number(row.gross || 0),
+      platformFee: Number(row.platformFee || 0),
+      companyEarning: Number(row.companyEarning || 0),
+      promoterCommission: Number(row.promoterCommission || 0),
+      refundDebits: Number(row.refundDebits || 0),
+      payoutTotal: transactions.filter((txn) => txn.ownerType === row.ownerType && txn.ownerId === row.ownerId && /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType))).reduce((total, txn) => total + Number(txn.amount || 0), 0),
+      openingBalance: 0,
+      closingBalance: Number(wallet.availableBalance || 0) + Number(wallet.pendingBalance || 0),
+      status: 'issued',
+      generatedBy: actorId,
+      generatedAt: new Date().toISOString(),
+      rows: [{ bookingRefs: row.bookingRefs || [], transactionIds: row.transactionIds || [] }],
+      notes: cleanText(payload.notes || payload.note),
+    };
+    await financeRepository.statements.save(statement, { statementRef: statement.statementRef });
+    statements.push(statement);
+  }
+  await audit(actorId, 'finance.statements.generated', 'finance-statements', { count: statements.length });
+  return statements;
+}
+
+async function ensurePendingCommissionForBooking(booking) {
+  if (!booking?.id) return null;
+  let commission = await financeRepository.commissions.findOne({ bookingId: booking.id });
+  if (!commission) commission = await commissionService.createCommission(booking, Boolean(booking.promoterAttribution), booking.pricing?.split);
+  return commission;
+}
+
+async function releaseEligibleEarnings(actorId = 'finance-system') {
+  const bookings = await financeRepository.bookings.list({}, { sort: { createdAt: -1 }, limit: 5000 });
+  const released = [];
+  for (const booking of bookings.filter(bookingEligibleForRelease)) {
+    await ensurePendingCommissionForBooking(booking);
+    const result = (await releaseService.releaseCompletedBooking(booking.bookingRef)) || [];
+    for (const commission of result) {
+      Object.assign(commission, { releaseSource: 'finance_settlement', releasedBy: actorId });
+      await financeRepository.commissions.save(commission, { id: commission.id });
+      released.push({ bookingRef: booking.bookingRef, commissionId: commission.id, companyId: commission.companyId, promoterId: commission.promoterId, companyAmount: commission.companyAmount || 0, promoterAmount: commission.promoterAmount || 0 });
+    }
+  }
+  await audit(actorId, 'finance.earnings.released', 'eligible-bookings', { released: released.length });
+  return released;
+}
+
 async function createSettlementBatch(payload = {}, actorId = 'finance-system') {
-  ensureCollections();
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
   const rows = await financeRows(periodStart, periodEnd);
   const rowsByCurrency = new Map();
   rows.forEach((row) => {
-    const currency = row.currency || 'UGX';
+    const currency = row.currency || platformCurrency();
     if (!rowsByCurrency.has(currency)) rowsByCurrency.set(currency, []);
     rowsByCurrency.get(currency).push(row);
   });
-  if (!rowsByCurrency.size) rowsByCurrency.set(cleanText(payload.currency || 'UGX'), []);
-
+  if (!rowsByCurrency.size) rowsByCurrency.set(cleanText(payload.currency || platformCurrency(), 8).toUpperCase(), []);
   const batches = [];
   for (const [currency, currencyRows] of rowsByCurrency) {
+    const id = await nextId('settlement');
     const batch = {
-      id: await atomicNextId('settlement'),
-      batchNumber: `SET-${String(store.state.settlementBatches.length + 1).padStart(5, '0')}`,
+      id,
+      batchNumber: reference('SET', id),
       periodStart,
       periodEnd,
       currency,
@@ -393,92 +373,110 @@ async function createSettlementBatch(payload = {}, actorId = 'finance-system') {
       totalRefundDebits: currencyRows.reduce((total, row) => total + Number(row.refundDebits || 0), 0),
       totalPayable: currencyRows.reduce((total, row) => total + Number(row.payable || 0), 0),
       rows: currencyRows,
-      notes: cleanText(payload.notes || payload.note || ''),
+      notes: cleanText(payload.notes || payload.note),
     };
-    store.state.settlementBatches.unshift(batch);
-    await upsertModel('SettlementBatch', batch);
-    audit(actorId, 'finance.settlement.created', batch.id, { rows: currencyRows.length, totalPayable: batch.totalPayable, currency });
+    await financeRepository.settlementBatches.save(batch, { batchNumber: batch.batchNumber });
+    await audit(actorId, 'finance.settlement.created', batch.id, { rows: currencyRows.length, totalPayable: batch.totalPayable, currency });
     batches.push(batch);
   }
-  await generateFinanceStatements({ periodStart, periodEnd, settlementBatchId: batches[0]?.id || '', notes: cleanText(payload.notes || payload.note || '') }, actorId);
+  await generateFinanceStatements({ periodStart, periodEnd, settlementBatchId: batches[0]?.id || '', notes: cleanText(payload.notes || payload.note) }, actorId);
   return batches;
 }
 
 async function createPayoutRequestFromTransaction(transaction, payload = {}, actorId = 'finance-system') {
-  ensureCollections();
   if (!transaction) return null;
-  let request = store.state.payoutRequests.find((item) => item.transactionId === transaction.id);
+  let request = await financeRepository.payoutRequests.findOne({ transactionId: transaction.id });
   if (!request) {
     request = {
-      id: await atomicNextId('payout-request'),
+      id: await nextId('payout-request'),
       ownerType: transaction.ownerType,
       ownerId: transaction.ownerId,
       walletId: transaction.walletId,
       transactionId: transaction.id,
       amount: Number(transaction.amount || 0),
-      currency: transaction.currency || 'UGX',
-      payoutMethod: cleanText(transaction.payoutMethod || payload.payoutMethod || payload.method || 'wallet'),
-      payoutAccount: cleanText(transaction.payoutAccount || payload.payoutAccount || ''),
+      currency: String(transaction.currency || platformCurrency()).toUpperCase(),
+      payoutMethod: normalizedPayoutMethod(transaction.payoutMethod || payload.payoutMethod || payload.method),
+      payoutAccount: cleanText(transaction.payoutAccount || payload.payoutAccount, 240),
       status: 'requested',
       requestedBy: transaction.requestedBy || actorId,
       requestedAt: transaction.createdAt || new Date().toISOString(),
-      notes: cleanText(transaction.note || payload.note || ''),
+      notes: cleanText(transaction.note || payload.note),
     };
-    store.state.payoutRequests.unshift(request);
   } else {
     Object.assign(request, {
       amount: Number(transaction.amount || request.amount || 0),
-      currency: transaction.currency || request.currency || 'UGX',
-      payoutMethod: cleanText(transaction.payoutMethod || request.payoutMethod || 'wallet'),
-      payoutAccount: cleanText(transaction.payoutAccount || request.payoutAccount || ''),
-      status: request.status || 'requested',
+      currency: String(transaction.currency || request.currency || platformCurrency()).toUpperCase(),
+      payoutMethod: normalizedPayoutMethod(transaction.payoutMethod || request.payoutMethod),
+      payoutAccount: cleanText(transaction.payoutAccount || request.payoutAccount, 240),
       updatedAt: new Date().toISOString(),
     });
   }
-  await upsertModel('PayoutRequest', request);
+  await financeRepository.payoutRequests.save(request, { transactionId: transaction.id });
   return request;
 }
 
 async function syncPayoutRequests(actorId = 'finance-system') {
-  ensureCollections();
-  const payouts = store.state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType)));
+  const payouts = await financeRepository.transactions.list({ transactionType: 'withdrawal_request' }, { sort: { createdAt: -1 }, limit: 5000 });
   const requests = [];
   for (const txn of payouts) requests.push(await createPayoutRequestFromTransaction(txn, {}, actorId));
   return requests.filter(Boolean);
 }
 
 async function requestOwnerPayout(ownerType, ownerId, amount, payload = {}, actorId = 'dashboard-user') {
-  ensureCollections();
-  // An owner normally has exactly one wallet (their company's operating currency), so the
-  // requested currency defaults to whichever wallet they already have; payload.currency lets a
-  // promoter who has earned in more than one currency specify which balance to withdraw from.
-  const existingWallet = store.state.wallets.find((w) => w.ownerType === ownerType && w.ownerId === ownerId);
-  const currency = cleanText(payload.currency) || existingWallet?.currency || 'UGX';
+  if (!['company', 'promoter'].includes(ownerType)) {
+    const error = new Error('Payouts are available only for companies and promoters');
+    error.status = 422;
+    throw error;
+  }
+  if (ownerType === 'promoter') {
+    const promoter = await financeRepository.users.findOne({ id: ownerId, role: 'promoter' });
+    if (!promoter || normalize(promoter.status) !== 'active' || normalize(promoter.verificationStatus) !== 'verified') {
+      const error = new Error('Promoter verification must be approved before requesting payouts');
+      error.status = 403;
+      throw error;
+    }
+  }
+  if (ownerType === 'company') {
+    const company = await financeRepository.companies.findOne({ id: ownerId });
+    if (!company || normalize(company.status) !== 'active' || normalize(company.verificationStatus) !== 'verified') {
+      const error = new Error('Company verification must be approved before requesting payouts');
+      error.status = 403;
+      throw error;
+    }
+  }
+  const wallets = await financeRepository.wallets.list({ ownerType, ownerId });
+  const currency = cleanText(payload.currency || wallets[0]?.currency || platformCurrency(), 8).toUpperCase();
   const wallet = await walletFor(ownerType, ownerId, currency);
-  const result = await walletService.requestWithdrawal(ownerType, ownerId, currency, amountValue(amount, wallet.availableBalance), {
-    referenceType: `${ownerType}_payout`,
+  const requestedAmount = amountValue(amount, wallet.availableBalance);
+  if (requestedAmount <= 0) {
+    const error = new Error('Payout amount must be greater than zero');
+    error.status = 422;
+    throw error;
+  }
+  const result = await walletService.requestWithdrawal(ownerType, ownerId, currency, requestedAmount, {
+    referenceType: 'payout',
     referenceId: ownerId,
-    requestedBy: actorId,
+    payoutMethod: normalizedPayoutMethod(payload.payoutMethod || payload.method),
+    payoutAccount: cleanText(payload.payoutAccount || payload.account, 240),
+    meta: { requestedBy: actorId, note: cleanText(payload.note) },
   });
   if (result.transaction) {
     Object.assign(result.transaction, {
-      payoutMethod: cleanText(payload.payoutMethod || payload.method || 'bank'),
-      payoutAccount: cleanText(payload.payoutAccount || payload.account || ''),
-      note: cleanText(payload.note || ''),
+      payoutMethod: normalizedPayoutMethod(payload.payoutMethod || payload.method),
+      payoutAccount: cleanText(payload.payoutAccount || payload.account, 240),
+      note: cleanText(payload.note),
       requestedBy: actorId,
       updatedAt: new Date().toISOString(),
     });
-    await upsertModel('WalletTransaction', result.transaction);
+    await financeRepository.transactions.save(result.transaction, { id: result.transaction.id });
   }
-  await upsertModel('Wallet', result.wallet);
   const request = await createPayoutRequestFromTransaction(result.transaction, payload, actorId);
-  audit(actorId, `${ownerType}.payout.requested`, ownerId, { amount: amountValue(amount, wallet.availableBalance), transactionId: result.transaction?.id });
+  await audit(actorId, `${ownerType}.payout.requested`, ownerId, { amount: requestedAmount, transactionId: result.transaction?.id });
   return { ...result, request };
 }
 
 async function reviewPayoutRequest(transactionId, payload = {}, actorId = 'finance-system') {
-  ensureCollections();
-  const transaction = store.state.walletTransactions.find((txn) => txn.id === transactionId || txn.referenceId === transactionId);
+  const transaction = await financeRepository.transactions.findOne({ $or: [{ id: transactionId }, { referenceId: transactionId }] });
   if (!transaction) {
     const error = new Error('Payout transaction not found');
     error.status = 404;
@@ -496,101 +494,93 @@ async function reviewPayoutRequest(transactionId, payload = {}, actorId = 'finan
   request.riskStatus = riskReview.status;
   if (action === 'rejected') {
     const reason = cleanText(payload.reason || payload.note || 'Rejected by finance');
-    await walletService.rejectWithdrawal(transaction.id, actorId, { reason });
-    transaction.reviewReason = reason;
-    request.status = 'rejected';
-    request.rejectionReason = reason;
+    const rejected = await walletService.rejectWithdrawal(transaction.id, actorId, { reason });
+    Object.assign(transaction, rejected || {}, { reviewReason: reason });
+    Object.assign(request, { status: 'rejected', rejectionReason: reason });
   } else if (action === 'held' || action === 'hold') {
-    transaction.status = 'held';
-    transaction.reviewedBy = actorId;
-    transaction.reviewedAt = new Date().toISOString();
-    transaction.holdReason = cleanText(payload.reason || payload.note || 'Held for review');
-    request.status = 'held';
-    request.holdReason = transaction.holdReason;
+    Object.assign(transaction, { status: 'held', reviewedBy: actorId, reviewedAt: new Date().toISOString(), holdReason: cleanText(payload.reason || payload.note || 'Held for review') });
+    Object.assign(request, { status: 'held', holdReason: transaction.holdReason });
   } else {
-    walletService.approveWithdrawal(transaction.id, actorId);
-    transaction.providerReference = cleanText(payload.providerReference || payload.exportReference || `PAYOUT-${Date.now()}`);
-    request.status = 'approved';
-    request.providerReference = transaction.providerReference;
+    const approved = await walletService.approveWithdrawalPersisted(transaction.id, actorId);
+    Object.assign(transaction, approved || {}, { providerReference: cleanText(payload.providerReference || payload.exportReference || `PAYOUT-${Date.now()}`, 240) });
+    Object.assign(request, { status: 'approved', providerReference: transaction.providerReference });
   }
-  request.reviewedBy = actorId;
-  request.reviewedAt = new Date().toISOString();
-  request.notes = cleanText(payload.note || request.notes || '');
-  await upsertModel('WalletTransaction', transaction);
-  await upsertModel('PayoutRequest', request);
-  audit(actorId, 'finance.payout.reviewed', transaction.id, { status: transaction.status, ownerType: transaction.ownerType, ownerId: transaction.ownerId });
+  Object.assign(request, { reviewedBy: actorId, reviewedAt: new Date().toISOString(), notes: cleanText(payload.note || request.notes) });
+  await financeRepository.withTransaction(async (session) => {
+    await financeRepository.transactions.save(transaction, { id: transaction.id }, { session });
+    await financeRepository.payoutRequests.save(request, { transactionId: transaction.id }, { session });
+  });
+  await audit(actorId, 'finance.payout.reviewed', transaction.id, { status: transaction.status, ownerType: transaction.ownerType, ownerId: transaction.ownerId });
   return { transaction, request };
 }
 
 async function createPayoutBatch(payload = {}, actorId = 'finance-system') {
-  ensureCollections();
   await syncPayoutRequests(actorId);
-  const selectedIds = String(payload.requestIds || payload.transactionIds || '').split(',').map(cleanText).filter(Boolean);
-  let requests = store.state.payoutRequests.filter((request) => ['requested', 'approved'].includes(normalize(request.status)));
+  const selectedIds = String(payload.requestIds || payload.transactionIds || '').split(',').map((value) => cleanText(value, 180)).filter(Boolean);
+  let requests = await financeRepository.payoutRequests.list({ status: { $in: ['requested', 'approved'] } }, { sort: { requestedAt: 1 }, limit: 5000 });
   if (selectedIds.length) requests = requests.filter((request) => selectedIds.includes(request.id) || selectedIds.includes(request.transactionId));
   if (!requests.length) {
     const error = new Error('No payout requests available for batch');
     error.status = 422;
     throw error;
   }
-  // A payout batch must be one currency: requests in any other currency than the batch's own
-  // are excluded rather than folded into a total that would mix units together.
-  const batchCurrency = cleanText(payload.currency) || requests[0].currency || 'UGX';
-  requests = requests.filter((request) => (request.currency || 'UGX') === batchCurrency);
+  const batchCurrency = cleanText(payload.currency || requests[0].currency || platformCurrency(), 8).toUpperCase();
+  requests = requests.filter((request) => String(request.currency || platformCurrency()).toUpperCase() === batchCurrency);
   if (!requests.length) {
     const error = new Error(`No ${batchCurrency} payout requests available for batch`);
     error.status = 422;
     throw error;
   }
+  const id = await nextId('payout-batch');
   const batch = {
-    id: await atomicNextId('payout-batch'),
-    batchNumber: `PO-${String(store.state.payoutBatches.length + 1).padStart(5, '0')}`,
-    settlementBatchId: cleanText(payload.settlementBatchId || ''),
+    id,
+    batchNumber: reference('PO', id),
+    settlementBatchId: cleanText(payload.settlementBatchId, 180),
     currency: batchCurrency,
-    ownerType: cleanText(payload.ownerType || 'mixed'),
+    ownerType: cleanText(payload.ownerType || 'mixed', 40),
     status: 'exported',
     createdBy: actorId,
     createdAt: new Date().toISOString(),
     exportedAt: new Date().toISOString(),
-    providerReference: cleanText(payload.providerReference || `EXPORT-${Date.now()}`),
+    providerReference: cleanText(payload.providerReference || `EXPORT-${Date.now()}`, 240),
     totalAmount: requests.reduce((total, request) => total + Number(request.amount || 0), 0),
     requestIds: requests.map((request) => request.id),
     rows: requests.map((request) => ({ id: request.id, transactionId: request.transactionId, ownerType: request.ownerType, ownerId: request.ownerId, amount: request.amount, currency: request.currency, payoutMethod: request.payoutMethod, payoutAccount: request.payoutAccount, status: request.status })),
-    notes: cleanText(payload.notes || payload.note || ''),
+    notes: cleanText(payload.notes || payload.note),
   };
-  store.state.payoutBatches.unshift(batch);
-  for (const request of requests) {
-    request.payoutBatchId = batch.id;
-    request.status = request.status === 'approved' ? 'batched' : 'exported';
-    request.exportReference = batch.providerReference;
-    request.updatedAt = new Date().toISOString();
-    await upsertModel('PayoutRequest', request);
-  }
-  await upsertModel('PayoutBatch', batch);
-  audit(actorId, 'finance.payout_batch.created', batch.id, { requests: requests.length, totalAmount: batch.totalAmount });
+  await financeRepository.withTransaction(async (session) => {
+    await financeRepository.payoutBatches.save(batch, { batchNumber: batch.batchNumber }, { session });
+    for (const request of requests) {
+      Object.assign(request, { payoutBatchId: batch.id, exportReference: batch.providerReference, updatedAt: new Date().toISOString() });
+      await financeRepository.payoutRequests.save(request, { transactionId: request.transactionId }, { session });
+    }
+  });
+  await audit(actorId, 'finance.payout_batch.created', batch.id, { requests: requests.length, totalAmount: batch.totalAmount });
   return batch;
 }
 
-// Scoped to one currency at a time: reconciling gross payments against payouts only balances
-// correctly when every figure summed into it is denominated in the same unit.
 async function createReconciliationReport(payload = {}, actorId = 'finance-system') {
-  ensureCollections();
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
-  const reportCurrency = cleanText(payload.currency) || 'UGX';
-  const bookings = store.state.bookings.filter((booking) => bookingInPeriod(booking, periodStart, periodEnd) && (booking.pricing?.currency || 'UGX') === reportCurrency);
+  const reportCurrency = cleanText(payload.currency || platformCurrency(), 8).toUpperCase();
+  const [allBookings, transactions, payoutRequests] = await Promise.all([
+    financeRepository.bookings.list({}, { sort: { createdAt: -1 }, limit: 10000 }),
+    financeRepository.transactions.list({}, { sort: { createdAt: -1 }, limit: 20000 }),
+    financeRepository.payoutRequests.list({}, { sort: { requestedAt: -1 }, limit: 10000 }),
+  ]);
+  const bookings = allBookings.filter((booking) => bookingInPeriod(booking, periodStart, periodEnd) && String(booking.pricing?.currency || platformCurrency()).toUpperCase() === reportCurrency);
   const grossPayments = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
-  const refundDebits = store.state.walletTransactions.filter((txn) => txn.transactionType === 'refund_debit' && (txn.currency || 'UGX') === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
+  const refundDebits = transactions.filter((txn) => txn.transactionType === 'refund_debit' && String(txn.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
   const promoterCommissions = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0);
   const platformFees = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.platformFee || 0), 0);
-  const requestedPayouts = store.state.payoutRequests.filter((request) => !['rejected', 'held'].includes(normalize(request.status)) && (request.currency || 'UGX') === reportCurrency).reduce((total, request) => total + Number(request.amount || 0), 0);
-  const completedPayouts = store.state.walletTransactions.filter((txn) => /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType)) && ['completed', 'paid'].includes(normalize(txn.status)) && (txn.currency || 'UGX') === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
+  const requestedPayouts = payoutRequests.filter((request) => !['rejected', 'held'].includes(normalize(request.status)) && String(request.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, request) => total + Number(request.amount || 0), 0);
+  const completedPayouts = transactions.filter((txn) => txn.transactionType === 'withdrawal_request' && ['completed', 'paid'].includes(normalize(txn.status)) && String(txn.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const variance = grossPayments - refundDebits - companyEarnings - promoterCommissions - platformFees;
   const report = {
-    id: await atomicNextId('reconciliation'),
-    settlementBatchId: cleanText(payload.settlementBatchId || ''),
-    payoutBatchId: cleanText(payload.payoutBatchId || ''),
+    id: await nextId('reconciliation'),
+    settlementBatchId: cleanText(payload.settlementBatchId, 180),
+    payoutBatchId: cleanText(payload.payoutBatchId, 180),
     periodStart,
     periodEnd,
     currency: reportCurrency,
@@ -609,11 +599,10 @@ async function createReconciliationReport(payload = {}, actorId = 'finance-syste
       { label: 'Payment split variance', value: variance, status: Math.abs(variance) <= 1 ? 'ok' : 'review' },
       { label: 'Open payout exposure', value: Math.max(0, requestedPayouts - completedPayouts), status: requestedPayouts > completedPayouts ? 'open' : 'ok' },
     ],
-    notes: cleanText(payload.notes || payload.note || ''),
+    notes: cleanText(payload.notes || payload.note),
   };
-  store.state.reconciliationReports.unshift(report);
-  await upsertModel('ReconciliationReport', report);
-  audit(actorId, 'finance.reconciliation.created', report.id, { status: report.status, variance: report.variance });
+  await financeRepository.reconciliationReports.save(report, { id: report.id });
+  await audit(actorId, 'finance.reconciliation.created', report.id, { status: report.status, variance: report.variance });
   return report;
 }
 
@@ -624,7 +613,7 @@ async function notifyPayoutResult(result) {
     userId: transaction.ownerId,
     channels: ['email'],
     title: 'Payout approved',
-    message: `Your payout of ${transaction.currency || 'UGX'} ${Number(transaction.amount || 0).toLocaleString()} has been approved.`,
+    message: `Your payout of ${transaction.currency || platformCurrency()} ${Number(transaction.amount || 0).toLocaleString()} has been approved.`,
     referenceType: 'payout',
     referenceId: transaction.id,
     meta: { ownerType: transaction.ownerType, ownerId: transaction.ownerId },
@@ -644,4 +633,5 @@ module.exports = {
   createPayoutBatch,
   createReconciliationReport,
   notifyPayoutResult,
+  financeRows,
 };

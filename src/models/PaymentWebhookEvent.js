@@ -2,12 +2,12 @@ const { Schema, model } = require('./_helpers');
 
 const paymentWebhookEventSchema = new Schema({
   id: { type: String, index: true },
-  provider: { type: String, index: true },
+  provider: { type: String, index: true, enum: ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo', 'cash', 'bank_transfer', 'card', 'mobile_money'] },
   providerReference: { type: String, index: true },
   bookingRef: { type: String, index: true },
   idempotencyKey: { type: String, index: true },
-  status: { type: String, default: 'received', index: true },
-  signatureStatus: { type: String, default: 'unchecked', index: true },
+  status: { type: String, default: 'received', index: true, enum: ['received', 'blocked', 'processed'] },
+  signatureStatus: { type: String, default: 'unchecked', index: true, enum: ['unchecked', 'failed', 'verified', 'verified_provider_status'] },
   amount: Number,
   currency: String,
   eventType: String,

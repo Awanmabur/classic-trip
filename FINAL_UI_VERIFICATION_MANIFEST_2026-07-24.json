@@ -1,0 +1,42 @@
+{
+  "project": "Classic Trip",
+  "release": "final-bus-hotel-ui-organized",
+  "date": "2026-07-24",
+  "scope": [
+    "hotel information architecture",
+    "dashboard home navigation",
+    "notice spacing",
+    "rounded empty table states",
+    "marketplace card consistency",
+    "bus and hotel regression verification"
+  ],
+  "checks": {
+    "productionArchitecture": "5604/5604",
+    "productionBusWorkflow": "28/28",
+    "busFormContracts": "45/45",
+    "smartBusForms": "30/30",
+    "smartPublication": "19/19",
+    "driverAssignment": "15/15",
+    "driverUiAccessibility": "26/26",
+    "driverMaterialization": "5/5",
+    "staffDriverWorkflow": "50/50",
+    "partnerOwnership": "19/19",
+    "multipartCsrf": "40/40",
+    "browserCsrf": "4/4",
+    "partnerIdentity": "9/9",
+    "commissionOnly": "40/40",
+    "dashboardRepository": "8/8",
+    "addonsReturnSeats": "30/30",
+    "stopPricingUi": "15/15",
+    "busHotelEndToEnd": "57/57",
+    "busHotelArchitecture": "95/95",
+    "busHotelConclusion": "37/37",
+    "hotelOperations": "27/27",
+    "uiConsistency": "16/16",
+    "finalRegression": "43/43",
+    "javascriptSyntax": "421/421",
+    "ejsSyntax": "118/118"
+  },
+  "dependencyBackedRuntimeExecuted": false,
+  "dependencyBackedRuntimeReason": "The artifact workspace does not contain installed node_modules or live MongoDB/provider integrations."
+}

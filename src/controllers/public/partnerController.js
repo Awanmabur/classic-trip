@@ -1,64 +1,60 @@
-const store = require('../../services/data/persistentStore');
-const partnerPipelineService = require('../../services/onboarding/partnerPipelineService');
-const { mongoose } = require('../../config/db');
+const authService = require('../../services/auth/authService');
 
-function cleanText(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
+function redirectToPartnerForm(res, errorCode = '') {
+  const suffix = errorCode ? `?error=${encodeURIComponent(errorCode)}` : '?role=partner';
+  return res.redirect(`/register${suffix}#partner`);
 }
 
-function nextId(prefix, rows) {
-  let index = rows.length + 1;
-  let id = `${prefix}-${index}`;
-  while (rows.some((row) => row.id === id)) {
-    index += 1;
-    id = `${prefix}-${index}`;
-  }
-  return id;
-}
-
-async function persist(ticket) {
-  if (mongoose.connection.readyState !== 1) return;
-  const SupportTicket = require('../../models/SupportTicket');
-  await SupportTicket.updateOne({ id: ticket.id }, { $set: ticket }, { upsert: true, runValidators: true });
-}
-
-async function create(req, res, next) {
+async function createOnboarding(req, res, next) {
   try {
-    const lead = await partnerPipelineService.createLead({
-      businessName: req.body.name,
-      companyType: req.body.companyType,
-      contactName: req.body.contactName,
+    if (req.session?.user) {
+      if (req.session.user.role === 'company_admin') return res.redirect('/company/profile?onboarding=1');
+      const error = new Error('Sign out before registering a separate partner company. Existing company staff must join through a signed invitation.');
+      error.status = 409;
+      error.code = 'authenticated_account_conflict';
+      throw error;
+    }
+    const user = await authService.registerUser({
+      fullName: req.body.contactName,
       email: req.body.email,
       phone: req.body.phone,
-      whatsapp: req.body.whatsapp,
-      city: req.body.city || '',
-      country: req.body.country || 'Uganda',
-      notes: req.body.notes,
-      sourceChannel: 'public_partner_form',
-      sourcePath: req.originalUrl,
-    }, cleanText(req.body.email || 'public-partner-request'));
-
-    const ticket = {
-      id: nextId('support', store.state.supportTickets),
-      ownerType: 'partner_lead',
-      ownerId: lead.id,
-      companyId: '',
-      category: 'Partner onboarding',
-      subject: `Partner request: ${lead.businessName}`,
-      message: `Contact ${cleanText(req.body.contactName)} at ${cleanText(req.body.email)} / ${cleanText(req.body.phone)} for verification.`,
-      priority: 'high',
-      status: 'open',
-      assignedTo: 'admin-onboarding',
-      createdBy: cleanText(req.body.email || 'partner-request'),
-      createdAt: new Date().toISOString(),
-      meta: { source: 'public_partner_form', leadId: lead.id },
-    };
-    store.state.supportTickets.unshift(ticket);
-    await persist(ticket);
-    return res.redirect('/login#partner');
+      password: req.body.password,
+      role: 'company_admin',
+      company: req.body.name,
+      companyName: req.body.name,
+      legalName: req.body.legalName,
+      companyType: req.body.companyType,
+      country: req.body.country,
+      city: req.body.city,
+      operatingCurrency: req.body.operatingCurrency,
+      registrationNumber: req.body.registrationNumber,
+      taxNumber: req.body.taxNumber,
+      headOfficeAddress: req.body.headOfficeAddress,
+      website: req.body.website,
+      description: req.body.description,
+      termsAccepted: req.body.termsAccepted,
+      signupSource: 'partner_onboarding',
+    });
+    await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
+    req.session.user = authService.sanitizeUser(user);
+    if (req.flash) req.flash('success', 'Partner account created. Complete company verification before publishing services or receiving payouts. No registration payment is required.');
+    return res.redirect('/company/profile?onboarding=1');
   } catch (error) {
+    if (['account_exists', 'registration_conflict', 'company_registration_conflict', 'company_identifier_unavailable', 'authenticated_account_conflict'].includes(error.code)) {
+      if (req.flash) req.flash('error', error.message);
+      return redirectToPartnerForm(res, error.code);
+    }
     return next(error);
   }
 }
 
-module.exports = { create };
+function commissionInfo(req, res) {
+  return res.render('pages/partner-commission', {
+    seo: {
+      title: 'Partner commission | Classic Trip',
+      description: 'Classic Trip partners register directly and pay only the configured percentage commission on completed bookings.',
+    },
+  });
+}
+
+module.exports = { createOnboarding, commissionInfo };

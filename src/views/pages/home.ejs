@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <title>Classic Trip | Multi-Tenant Booking Platform</title>
-  <meta name="description" content="Classic Trip multi-tenant booking platform for buses, hotels, flights, trains, ferries, car rentals, events and tours with seat/room selection and 10 minute holds." />
+  <meta name="description" content="Classic Trip booking platform for buses and hotels with live seat and room inventory." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,23 +13,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css">
+  <link rel="stylesheet" href="/css/pages/home.css?v=20260724-hotel-ui-final-1">
   <meta name="csrf-token" content="<%= csrfToken %>">
-  <script src="/js/csrf.js" defer></script>
+  <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/notifications.js" defer></script>
+  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
     <div class="navIn">
       <a class="brand" href="#home"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
-        <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
+        <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#coming-soon">Coming soon</a><a href="#ads">Promotions</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
       </nav>
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconbtn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
         <% if (currentUser) { %><a class="btn btnGhost" href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
-        <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button></form><% } else { %><button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus')"><i class="fa-solid fa-ticket"></i> Start</button><% } %>
+        <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button></form><% } else { %><button class="btn btnPrimary" type="button" data-home-action="scroll-section" data-section-id="bus"><i class="fa-solid fa-ticket"></i> Start</button><% } %>
       </div>
     </div>
   </header>
@@ -55,19 +56,19 @@
         </a>
       <% } %>
       <div class="drawerLinks">
-        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#flight">Flights</a><a href="#train">Trains</a><a href="#more">More services</a><a href="#ads">Ads</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
+        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Hotels</a><a href="#coming-soon">Coming soon</a><a href="#ads">Promotions</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
       </div>
       <div class="drawerFilters" id="drawerFilters"></div>
-      <button class="btn btnPrimary" type="button" onclick="scrollToSectionId('bus');document.getElementById('drawer')?.classList.remove('open')"><i class="fa-solid fa-bolt"></i> Start booking</button>
+      <button class="btn btnPrimary" type="button" data-home-action="scroll-section" data-section-id="bus" data-close-drawer="true"><i class="fa-solid fa-bolt"></i> Start booking</button>
     </div>
   </div>
 
   <nav class="bottomNav" id="siteBottomNav">
-    <button type="button" onclick="location.href='/'" class="active" title="Home"><i class="fa-solid fa-house"></i><span>Home</span></button>
-    <button type="button" onclick="location.href='/search'" title="Search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
-    <button type="button" onclick="location.href='/tickets'" title="Tickets"><i class="fa-solid fa-ticket"></i><span>Tickets</span></button>
-    <button type="button" onclick="location.href='/saved'" title="Saved"><i class="fa-regular fa-heart"></i><span>Saved</span></button>
-    <button type="button" onclick="document.getElementById('drawer').classList.toggle('open')" title="Menu"><i class="fa-regular fa-user"></i><span>Profile</span></button>
+    <button type="button" data-home-action="navigate" data-url="/" class="active" title="Home"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button type="button" data-home-action="navigate" data-url="/search" title="Search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+    <button type="button" data-home-action="navigate" data-url="/tickets" title="Tickets"><i class="fa-solid fa-ticket"></i><span>Tickets</span></button>
+    <button type="button" data-home-action="navigate" data-url="/saved" title="Saved"><i class="fa-regular fa-heart"></i><span>Saved</span></button>
+    <button type="button" data-home-action="drawer-toggle" title="Menu"><i class="fa-regular fa-user"></i><span>Profile</span></button>
   </nav>
 
   <main>
@@ -77,20 +78,19 @@
           <div>
             <div class="chips heroBadgesTop">
               <span class="chip active"><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
-              <span class="chip"><i class="fa-solid fa-clock"></i> 10 min hold</span>
+              <span class="chip"><i class="fa-solid fa-clock"></i> <%= platformConfig.holdMinutes %> min hold</span>
               <span class="chip"><i class="fa-solid fa-users"></i> Promoter links</span>
               <span class="chip"><i class="fa-solid fa-building"></i> Partner dashboards</span>
             </div>
-            <h1 class="heroTitle"><span class="keepLine">Book transport, stays &amp; experiences</span> in one place.</h1>
-            <p class="heroSub">Partners list buses, hotels, flights, trains and more. Customers can view the real structure, pick seats or rooms, hold them for 10 minutes, then complete checkout.</p>
+            <h1 class="heroTitle"><span class="keepLine">Book buses and stays</span> in one place.</h1>
+            <p class="heroSub">Verified partners publish buses and hotels. Customers use live database inventory, select seats or rooms, hold them securely, and complete checkout.</p>
           </div>
 
           <div class="card searchBox">
             <div class="tabs" id="searchTabs">
               <button class="tab active" data-type="bus"><i class="fa-solid fa-bus"></i> Bus</button>
               <button class="tab" data-type="hotel"><i class="fa-solid fa-hotel"></i> Hotel</button>
-              <button class="tab" data-type="flight"><i class="fa-solid fa-plane"></i> Flight</button>
-              <button class="tab" data-type="train"><i class="fa-solid fa-train"></i> Train</button>
+              <% comingSoonServiceTypes.slice(0,3).forEach(function(key){ var service = serviceCatalog[key]; %><button class="tab" type="button" disabled title="Coming soon"><i class="fa-solid <%= service.icon %>"></i> <%= service.singular %> <small>Soon</small></button><% }) %>
             </div>
             <div class="formGrid">
               <div class="field" id="fromField"><label>From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="fromInput" placeholder="From city"></div></div>
@@ -100,8 +100,8 @@
               <div class="field"><label>Guests / seats</label><div class="control"><i class="fa-solid fa-user-group"></i><select><option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>
             </div>
             <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap">
-              <button class="btn btnGhost" onclick="runSearch()"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart search</button>
-              <button class="btn btnBlue" onclick="runSearch()"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+              <button class="btn btnGhost" data-home-action="run-search"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart search</button>
+              <button class="btn btnBlue" data-home-action="run-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
             </div>
           </div>
         </div>
@@ -112,8 +112,8 @@
           <div class="stat"><b><%= bootstrap.heroStats.bookableInventory %></b><span>Bookable now</span></div>
           <div class="stat"><b><%= bootstrap.heroStats.availableNow || 0 %></b><span>Seats / rooms open</span></div>
           <div class="stat"><b><%= bootstrap.heroStats.departuresNext24h || 0 %></b><span>Next 24h departures</span></div>
-          <div class="stat"><b>10 min</b><span>Seat / room hold timer</span></div>
-          <div class="stat"><b>3%</b><span>Promoter commission ready</span></div>
+          <div class="stat"><b><%= platformConfig.holdMinutes %> min</b><span>Inventory hold timer</span></div>
+          <div class="stat"><b><%= platformConfig.supportedCurrencies.length %></b><span>Supported currencies</span></div>
         </div>
       </div>
     </section>
@@ -125,46 +125,44 @@
           <div class="muted" style="font-size:13px;font-weight:800">Filter marketplace listings</div>
         </div>
         <div class="sideNav" id="categoryFilters">
-          <button class="btn btnGhost active" onclick="filterCards('all', this)"><i class="fa-solid fa-border-all"></i> All</button>
-          <button class="btn btnGhost" onclick="filterCards('bus', this)"><i class="fa-solid fa-bus"></i> Bus</button>
-          <button class="btn btnGhost" onclick="filterCards('hotel', this)"><i class="fa-solid fa-hotel"></i> Hotel</button>
-          <button class="btn btnGhost" onclick="filterCards('flight', this)"><i class="fa-solid fa-plane"></i> Flight</button>
-          <button class="btn btnGhost" onclick="filterCards('train', this)"><i class="fa-solid fa-train"></i> Train</button>
-          <button class="btn btnGhost" onclick="filterCards('more', this)"><i class="fa-solid fa-plus"></i> More</button>
+          <button class="btn btnGhost active" data-home-action="filter-cards" data-filter="all"><i class="fa-solid fa-border-all"></i> All</button>
+          <button class="btn btnGhost" data-home-action="filter-cards" data-filter="bus"><i class="fa-solid fa-bus"></i> Bus</button>
+          <button class="btn btnGhost" data-home-action="filter-cards" data-filter="hotel"><i class="fa-solid fa-hotel"></i> Hotel</button>
+          <button class="btn btnGhost" data-home-action="filter-cards" data-filter="more"><i class="fa-solid fa-plus"></i> More</button>
         </div>
         <div>
           <div class="sideTitle">Country routes</div>
-          <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Filter by corridor, for example Kenya â‡„ Uganda.</div>
+          <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Filter by corridor, for example Kenya ⇄ Uganda.</div>
           <div class="routeFilters" id="routeFilters">
-            <button class="btn btnGhost active" onclick="filterRoute('all', this)"><i class="fa-solid fa-earth-africa"></i> All East Africa</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-ke', this)">Uganda â‡„ Kenya</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-tz', this)">Uganda â‡„ Tanzania</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-rw', this)">Uganda â‡„ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-bi', this)">Uganda â‡„ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-ss', this)">Uganda â‡„ South Sudan</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-tz', this)">Kenya â‡„ Tanzania</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-rw', this)">Kenya â‡„ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-ug', this)">Kenya â‡„ Uganda</button>
-            <button class="btn btnGhost" onclick="filterRoute('tz-rw', this)">Tanzania â‡„ Rwanda</button>
-            <button class="btn btnGhost" onclick="filterRoute('tz-bi', this)">Tanzania â‡„ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('rw-bi', this)">Rwanda â‡„ Burundi</button>
-            <button class="btn btnGhost" onclick="filterRoute('rw-drc', this)">Rwanda â‡„ DR Congo</button>
-            <button class="btn btnGhost" onclick="filterRoute('ss-et', this)">South Sudan â‡„ Ethiopia</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-so', this)">Ethiopia â‡„ Somalia</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-dj', this)">Ethiopia â‡„ Djibouti</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-er', this)">Ethiopia â‡„ Eritrea</button>
-            <button class="btn btnGhost" onclick="filterRoute('regional', this)">Regional / international</button>
-            <button class="btn btnGhost" onclick="filterRoute('ug-local', this)">Uganda local</button>
-            <button class="btn btnGhost" onclick="filterRoute('ke-local', this)">Kenya local</button>
-            <button class="btn btnGhost" onclick="filterRoute('tz-local', this)">Tanzania local</button>
-            <button class="btn btnGhost" onclick="filterRoute('rw-local', this)">Rwanda local</button>
-            <button class="btn btnGhost" onclick="filterRoute('bi-local', this)">Burundi local</button>
-            <button class="btn btnGhost" onclick="filterRoute('ss-local', this)">South Sudan local</button>
-            <button class="btn btnGhost" onclick="filterRoute('et-local', this)">Ethiopia local</button>
-            <button class="btn btnGhost" onclick="filterRoute('so-local', this)">Somalia local</button>
-            <button class="btn btnGhost" onclick="filterRoute('dj-local', this)">Djibouti local</button>
-            <button class="btn btnGhost" onclick="filterRoute('er-local', this)">Eritrea local</button>
-            <button class="btn btnGhost" onclick="filterRoute('drc-local', this)">DR Congo local</button>
+            <button class="btn btnGhost active" data-home-action="filter-route" data-filter="all"><i class="fa-solid fa-earth-africa"></i> All East Africa</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-ke">Uganda ⇄ Kenya</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-tz">Uganda ⇄ Tanzania</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-rw">Uganda ⇄ Rwanda</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-bi">Uganda ⇄ Burundi</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-ss">Uganda ⇄ South Sudan</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ke-tz">Kenya ⇄ Tanzania</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ke-rw">Kenya ⇄ Rwanda</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ke-ug">Kenya ⇄ Uganda</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="tz-rw">Tanzania ⇄ Rwanda</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="tz-bi">Tanzania ⇄ Burundi</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="rw-bi">Rwanda ⇄ Burundi</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="rw-drc">Rwanda ⇄ DR Congo</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ss-et">South Sudan ⇄ Ethiopia</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="et-so">Ethiopia ⇄ Somalia</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="et-dj">Ethiopia ⇄ Djibouti</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="et-er">Ethiopia ⇄ Eritrea</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="regional">Regional / international</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ug-local">Uganda local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ke-local">Kenya local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="tz-local">Tanzania local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="rw-local">Rwanda local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="bi-local">Burundi local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="ss-local">South Sudan local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="et-local">Ethiopia local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="so-local">Somalia local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="dj-local">Djibouti local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="er-local">Eritrea local</button>
+            <button class="btn btnGhost" data-home-action="filter-route" data-filter="drc-local">DR Congo local</button>
           </div>
         </div>
         <div class="summaryCard">
@@ -176,52 +174,53 @@
       <div>
         <section class="section" id="bus">
           <div class="sectionHead"><div><h2>Featured buses</h2><p>Dynamic seat layout: 2+2, 2+1, VIP, sleeper, or custom partner structure.</p></div><span class="badge badgeInfo"><i class="fa-solid fa-chair"></i> Seat selection</span></div>
-          <div class="gridCards" id="cards"></div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-bus" onclick="showMore('bus')"><i class="fa-solid fa-plus"></i> More</button></div>
+          <% var initialBusListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'bus' || item.group === 'bus'); }).slice(0, 6); %>
+          <div class="gridCards" id="cards">
+            <% if (initialBusListings.length) { initialBusListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
+              <div class="card marketplaceEmptyCard" data-home-empty="bus"><strong>No published bus services yet</strong><p class="muted">Published departures will appear here automatically.</p></div>
+            <% } %>
+          </div>
+          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-bus" data-home-action="show-more" data-group="bus"><i class="fa-solid fa-plus"></i> More</button></div>
         </section>
 
         <section class="section" id="hotel">
           <div class="sectionHead"><div><h2>Hotels, rooms & houses</h2><p>Customers can view floor/room structure before booking.</p></div><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span></div>
-          <div class="gridCards" id="hotelCards"></div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-hotel" onclick="showMore('hotel')"><i class="fa-solid fa-plus"></i> More</button></div>
+          <% var initialHotelListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'hotel' || item.group === 'hotel'); }).slice(0, 6); %>
+          <div class="gridCards" id="hotelCards">
+            <% if (initialHotelListings.length) { initialHotelListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
+              <div class="card marketplaceEmptyCard" data-home-empty="hotel"><strong>No published hotels yet</strong><p class="muted">Verified properties with dated room inventory will appear here automatically.</p></div>
+            <% } %>
+          </div>
+          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-hotel" data-home-action="show-more" data-group="hotel"><i class="fa-solid fa-plus"></i> More</button></div>
         </section>
 
-        <section class="section" id="flight">
-          <div class="sectionHead"><div><h2>Flights</h2><p>Seat map, baggage, meals, class upgrade and passenger details.</p></div><span class="badge badgeWarn"><i class="fa-solid fa-suitcase"></i> Baggage addons</span></div>
-          <div class="gridCards" id="flightCards"></div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-flight" onclick="showMore('flight')"><i class="fa-solid fa-plus"></i> More</button></div>
-        </section>
-
-        <section class="section" id="train">
-          <div class="sectionHead"><div><h2>Trains</h2><p>Coach, berth, cabin or seat selection with hold timer.</p></div><span class="badge badgeHot"><i class="fa-solid fa-train-subway"></i> Coach map</span></div>
-          <div class="gridCards" id="trainCards"></div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-train" onclick="showMore('train')"><i class="fa-solid fa-plus"></i> More</button></div>
-        </section>
-
-        <section class="section" id="more">
-          <div class="sectionHead"><div><h2>More services to add</h2><p>Make Classic Trip bigger than transport only.</p></div><span class="badge badgeInfo"><i class="fa-solid fa-sparkles"></i> Expansion ready</span></div>
-          <div class="gridCards" id="moreCards"></div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-more" onclick="showMore('more')"><i class="fa-solid fa-plus"></i> More</button></div>
-        </section>
-
-        <section class="section" id="ads">
+  
+      <section class="section" id="coming-soon">
+        <div class="sectionHead"><div><h2>More ways to travel are coming</h2><p>They remain part of Classic Trip while each workflow is built with its own inventory, pricing, verification and operations.</p></div><a class="btn btnGhost" href="/services#coming-soon">View roadmap</a></div>
+        <div class="gridCards">
+          <% comingSoonServiceTypes.forEach(function(key){ var service = serviceCatalog[key]; %>
+            <article class="listing card" style="padding:14px"><span class="badge badgeInfo"><i class="fa-solid <%= service.icon %>"></i> Coming soon</span><h3 style="margin:10px 0 5px"><%= service.label %></h3><p class="muted" style="margin:0"><%= service.description %></p></article>
+          <% }) %>
+        </div>
+      </section>
+      <section class="section" id="ads">
           <div class="sectionHead">
             <div>
               <h2>Ads & promoted listings</h2>
-              <p>Partners can promote routes, hotels, flights, trains and packages so they appear higher in search.</p>
+              <p>Partners can promote published bus routes and hotel listings so they appear higher in search.</p>
             </div>
             <span class="badge badgeWarn"><i class="fa-solid fa-bullhorn"></i> Partner growth</span>
           </div>
           <div class="pageIntro">
             <div>
               <h3>Promotion center</h3>
-              <p>Use this page for featured campaigns, boosted listings, banners, partner offers and route ads.</p>
+              <p>Approved campaigns linked to published services appear here from the database.</p>
             </div>
-            <a class="btn btnPrimary" href="/company/dashboard#promotions"><i class="fa-solid fa-plus"></i> Promote listing</a>
+            <% if (currentUser?.role === 'company_admin') { %><a class="btn btnPrimary" href="/company/dashboard#promotions"><i class="fa-solid fa-plus"></i> Promote listing</a><% } else { %><a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-building"></i> Become a partner</a><% } %>
           </div>
           <div class="gridCards" id="adsCards">
 <% var sponsored = (bootstrap.listings || []).filter(function(l) { return l.isSponsored; }).slice(0, 4); %>
-<% if (sponsored.length) { sponsored.forEach(function(l) { var svcIcon = l.serviceType === 'hotel' ? 'fa-hotel' : l.serviceType === 'flight' ? 'fa-plane' : l.serviceType === 'train' ? 'fa-train' : l.serviceType === 'ferry' ? 'fa-ship' : l.serviceType === 'tour' ? 'fa-map-location-dot' : l.serviceType === 'car_rental' ? 'fa-car' : 'fa-bus'; %>
+<% if (sponsored.length) { sponsored.forEach(function(l) { var svcIcon = l.serviceType === 'hotel' ? 'fa-hotel' : 'fa-bus'; %>
             <article class="promoCard">
               <div class="promoIcon"><i class="fa-solid <%= svcIcon %>"></i></div>
               <span class="badge badgeWarn" style="width:max-content;margin-bottom:8px"><i class="fa-solid fa-star"></i> Promoted</span>
@@ -230,10 +229,7 @@
               <a class="btn btnGhost" href="<%= l.url %>"><i class="fa-regular fa-eye"></i> View listing</a>
             </article>
 <% }); } else { %>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-bus"></i></div><h3>Boost bus route</h3><p>Move a bus route higher in search for selected corridors like Uganda â‡„ Kenya.</p><a class="btn btnGhost" href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> View buses</a></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-hotel"></i></div><h3>Promote hotel rooms</h3><p>Advertise rooms, apartments, houses and special weekend offers.</p><a class="btn btnGhost" href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> View hotels</a></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-plane"></i></div><h3>Flight campaign</h3><p>Promote flights with baggage deals, class upgrades and seasonal prices.</p><a class="btn btnGhost" href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> View flights</a></article>
-            <article class="promoCard"><div class="promoIcon"><i class="fa-solid fa-chart-line"></i></div><h3>Ad analytics</h3><p>Track views, clicks, bookings, promoter links and revenue share.</p><a class="btn btnGhost" href="/company/dashboard#promotions"><i class="fa-solid fa-chart-line"></i> Open analytics</a></article>
+            <div class="card" data-home-empty="promotions" style="padding:20px"><strong>No active promotions yet</strong><p class="muted" style="margin:6px 0 0">Approved campaigns linked to published listings will appear here.</p></div>
 <% } %>
           </div>
         </section>
@@ -249,9 +245,9 @@
           <div class="pageIntro">
             <div>
               <h3>Content that helps customers book with confidence</h3>
-              <p>Use this section for SEO articles, route guides, city guides, partner announcements, safety notes and promotional stories.</p>
+              <p>Published articles appear here from the content database.</p>
             </div>
-            <a class="btn btnGhost" href="/admin/dashboard#content"><i class="fa-solid fa-pen-nib"></i> Write blog</a>
+            <% if (currentUser?.role === 'super_admin') { %><a class="btn btnGhost" href="/admin/dashboard#content"><i class="fa-solid fa-pen-nib"></i> Write blog</a><% } %>
           </div>
           <div class="gridCards" id="blogCards">
 <% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
@@ -261,7 +257,7 @@
                 <span class="badge <%= badgeCls %> blogTag"><%= post.tag || 'Guide' %></span>
                 <div class="blogIconActions">
                   <a class="miniIcon" href="<%= post.url %>" title="Read"><i class="fa-regular fa-eye"></i></a>
-                  <button class="miniIcon" title="Share" data-t="<%= post.title %>" data-u="<%= post.url %>" onclick="try{navigator.share({title:this.dataset.t,url:location.origin+this.dataset.u})}catch(e){}"><i class="fa-solid fa-share-nodes"></i></button>
+                  <button class="miniIcon" title="Share" data-t="<%= post.title %>" data-u="<%= post.url %>" data-home-action="share-dataset"><i class="fa-solid fa-share-nodes"></i></button>
                 </div>
               </div>
               <div class="blogBody">
@@ -272,77 +268,7 @@
               </div>
             </article>
 <% }); } else { %>
-            <article class="promoCard blogCard">
-              <div class="blogImage">
-                <img src="https://images.unsplash.com/photo-1517840901100-8179e982acb7?auto=format&fit=crop&w=1200&q=70" alt="Kampala to Nairobi route guide">
-                <span class="badge badgeInfo blogTag"><i class="fa-solid fa-route"></i> Route guide</span>
-                <div class="blogIconActions">
-                  <button class="miniIcon" title="View" onclick="openBlog('route')"><i class="fa-regular fa-eye"></i></button>
-                  <button class="miniIcon" title="Love" onclick="loveBlog('route')"><i class="fa-regular fa-heart"></i></button>
-                  <button class="miniIcon" title="Share" onclick="shareBlog('route')"><i class="fa-solid fa-share-nodes"></i></button>
-                </div>
-              </div>
-              <div class="blogBody">
-                <h3>Kampala to Nairobi: what travelers should know</h3>
-                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 06 May 2026</span><span><i class="fa-regular fa-clock"></i> 4 min read</span><span><i class="fa-solid fa-location-dot"></i> Uganda â‡„ Kenya</span></div>
-                <p>Departure points, border documents, luggage tips, seat selection and how the 10-minute hold works.</p>
-                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
-              </div>
-            </article>
-
-            <article class="promoCard blogCard">
-              <div class="blogImage">
-                <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=70" alt="Hotel room booking tips">
-                <span class="badge badgeOk blogTag"><i class="fa-solid fa-hotel"></i> Stay tips</span>
-                <div class="blogIconActions">
-                  <button class="miniIcon" title="View" onclick="openBlog('hotel')"><i class="fa-regular fa-eye"></i></button>
-                  <button class="miniIcon" title="Love" onclick="loveBlog('hotel')"><i class="fa-regular fa-heart"></i></button>
-                  <button class="miniIcon" title="Share" onclick="shareBlog('hotel')"><i class="fa-solid fa-share-nodes"></i></button>
-                </div>
-              </div>
-              <div class="blogBody">
-                <h3>How to choose rooms, houses and apartments safely</h3>
-                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 04 May 2026</span><span><i class="fa-regular fa-clock"></i> 3 min read</span><span><i class="fa-solid fa-door-open"></i> Room map</span></div>
-                <p>Compare rooms, view structures, check amenities, save favorites and open receipts later.</p>
-                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
-              </div>
-            </article>
-
-            <article class="promoCard blogCard">
-              <div class="blogImage">
-                <img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=70" alt="Partner promotions dashboard">
-                <span class="badge badgeWarn blogTag"><i class="fa-solid fa-bullhorn"></i> Promotion</span>
-                <div class="blogIconActions">
-                  <button class="miniIcon" title="View" onclick="openBlog('promo')"><i class="fa-regular fa-eye"></i></button>
-                  <button class="miniIcon" title="Love" onclick="loveBlog('promo')"><i class="fa-regular fa-heart"></i></button>
-                  <button class="miniIcon" title="Share" onclick="shareBlog('promo')"><i class="fa-solid fa-share-nodes"></i></button>
-                </div>
-              </div>
-              <div class="blogBody">
-                <h3>How partner promotions help companies get bookings</h3>
-                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 01 May 2026</span><span><i class="fa-regular fa-clock"></i> 5 min read</span><span><i class="fa-solid fa-chart-line"></i> Ads</span></div>
-                <p>Boosted listings, banners, referral links and ad analytics can grow partner sales.</p>
-                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
-              </div>
-            </article>
-
-            <article class="promoCard blogCard">
-              <div class="blogImage">
-                <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=70" alt="Gmail and WhatsApp ticket access">
-                <span class="badge badgeHot blogTag"><i class="fa-solid fa-ticket"></i> Booking help</span>
-                <div class="blogIconActions">
-                  <button class="miniIcon" title="View" onclick="openBlog('tickets')"><i class="fa-regular fa-eye"></i></button>
-                  <button class="miniIcon" title="Love" onclick="loveBlog('tickets')"><i class="fa-regular fa-heart"></i></button>
-                  <button class="miniIcon" title="Share" onclick="shareBlog('tickets')"><i class="fa-solid fa-share-nodes"></i></button>
-                </div>
-              </div>
-              <div class="blogBody">
-                <h3>Where to find tickets after Gmail or WhatsApp delivery</h3>
-                <div class="blogMeta"><span><i class="fa-regular fa-calendar"></i> 29 Apr 2026</span><span><i class="fa-regular fa-clock"></i> 2 min read</span><span><i class="fa-solid fa-envelope-circle-check"></i> My bookings</span></div>
-                <p>Open receipts, resend tickets, view QR codes and access bookings from the customer dashboard.</p>
-                <div class="blogActions"><a class="btn btnGhost" href="/blogs"><i class="fa-regular fa-eye"></i> Read more</a></div>
-              </div>
-            </article>
+            <div class="card" data-home-empty="blogs" style="padding:20px"><strong>No published articles yet</strong><p class="muted" style="margin:6px 0 0">Articles created and published by the Super Admin will appear here.</p></div>
 <% } %>
           </div>
         </section>
@@ -355,18 +281,16 @@
     <div class="footerGrid">
       <div class="footerBrand">
         <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-        <p>Classic Trip is a multi-tenant travel marketplace for buses, hotels, flights, trains, ferries, tours, car rentals and partner services across East Africa.</p>
+        <p>Classic Trip is a database-backed marketplace for bus travel and hotel stays.</p>
         <span><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
-        <span><i class="fa-solid fa-clock"></i> 10 minute seat / room holds</span>
-        <span><i class="fa-solid fa-headset"></i> 24/7 customer support ready</span>
+        <span><i class="fa-solid fa-clock"></i> <%= platformConfig.holdMinutes %> minute inventory holds</span>
+        <span><i class="fa-solid fa-headset"></i> Customer support</span>
       </div>
 
       <div class="footerCol">
         <h3>Book & manage</h3>
         <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
         <a href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> Hotels</a>
-        <a href="/search?serviceType=flight"><i class="fa-solid fa-plane"></i> Flights</a>
-        <a href="/search?serviceType=train"><i class="fa-solid fa-train"></i> Trains</a>
         <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
         <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
         <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
@@ -375,12 +299,11 @@
 
       <div class="footerCol">
         <h3>Partners & promoters</h3>
-        <a href="/pricing"><i class="fa-solid fa-layer-group"></i> Partner plans</a>
-        <a href="/partner/onboarding"><i class="fa-solid fa-arrow-right"></i> Become a partner</a>
+        <a href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
         <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
         <a href="/companies"><i class="fa-solid fa-building"></i> Browse partners</a>
         <a href="/company/dashboard"><i class="fa-solid fa-chart-line"></i> Partner dashboard</a>
-        <a href="/pricing"><i class="fa-solid fa-percent"></i> 3% promoter commission</a>
+        <a href="/partner-commission"><i class="fa-solid fa-percent"></i> Commission model</a>
       </div>
 
       <div class="footerCol">
@@ -394,177 +317,16 @@
       </div>
     </div>
     <div class="footerBottom">
-      <span>Â© 2026 Classic Trip. Marketplace for East Africa bookings.</span>
-      <span>3% promoter â€¢ 7% platform fee â€¢ Partner payout ready â€¢ Gmail & WhatsApp ticket access</span>
+      <span>&copy; <%= new Date().getFullYear() %> Classic Trip. Marketplace for East Africa bookings.</span>
+      <span>Secure payments • Transparent pricing • Partner payouts • Ticket access</span>
     </div>
   </footer>
 
 
-  <div class="modal" id="viewModal">
-    <div class="sheet">
-      <div class="sheetTop">
-        <div>
-          <div class="badge badgeInfo" id="modalType">Bus</div>
-          <div class="sheetTitle" id="modalTitle">Listing title</div>
-          <div class="sheetSub" id="modalSub">Partner â€¢ route â€¢ date</div>
-        </div>
-        <div class="sheetTopActions">
-          <button class="iconbtn" id="modalSaveBtn" title="Save" onclick="saveCurrentListing()"><i class="fa-regular fa-heart"></i></button>
-          <button class="iconbtn" title="Share" onclick="shareCurrentListing()"><i class="fa-solid fa-share-nodes"></i></button>
-          <button class="iconbtn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-      </div>
-
-      <div class="sheetBody">
-        <div class="visual">
-          <div class="visualHero">
-            <img id="modalImg" src="" alt="Selected listing">
-            <div class="visualText">
-              <h3 id="modalHeroTitle">View structure</h3>
-              <p id="modalHeroSub">Select available seats / rooms / slots.</p>
-            </div>
-          </div>
-
-          <div class="selector">
-            <div class="selectorTop">
-              <div>
-                <b id="layoutTitle">Choose your seat</b>
-                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint">Click available seats to select. Taken seats cannot be selected.</div>
-              </div>
-              <div class="legend">
-                <span class="leg"><i class="dot free"></i> Available</span>
-                <span class="leg"><i class="dot selected"></i> Selected</span>
-                <span class="leg"><i class="dot hold"></i> Held</span>
-                <span class="leg"><i class="dot taken"></i> Taken</span>
-              </div>
-            </div>
-            <div class="layoutBox" id="layoutBox"></div>
-          </div>
-        </div>
-
-        <div class="sidePanel">
-          <div class="summaryCard">
-            <h3>Booking summary</h3>
-            <div class="timer" id="timerBox"><span><i class="fa-regular fa-clock"></i> Hold expires in</span><b id="timer">10:00</b></div>
-            <div class="kv" style="margin-top:10px">
-              <div><span>Selected</span><b id="selectedOut">None</b></div>
-              <div><span>Base price</span><b id="baseOut">UGX 0</b></div>
-              <div><span>Service fee</span><b id="feeOut">UGX 0</b></div>
-              <div><span>Total</span><b id="totalOut">UGX 0</b></div>
-            </div>
-          </div>
-
-          <div class="summaryCard">
-            <h3>Addons</h3>
-            <div class="addons" id="addons"></div>
-          </div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn btnGhost" onclick="resetSelection()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-            <button class="btn btnBlue" onclick="holdSelection()"><i class="fa-solid fa-clock"></i> Hold 10 mins</button>
-            <button class="btn btnPrimary" onclick="goPaymentPage()"><i class="fa-solid fa-lock"></i> Proceed payment</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="checkoutStep" id="checkoutStep">
-        <div class="summaryCard">
-          <h3>User information</h3>
-          <div class="checkoutNotice">This page appears after Proceed payment. It keeps the selected seat/room/slot and collects customer information separately from the show page.</div>
-          <div class="bookingForm" style="margin-top:10px">
-            <input id="nameInput" placeholder="Full name">
-            <input id="phoneInput" placeholder="Phone number">
-            <input class="full" id="emailInput" placeholder="Email address">
-            <select id="idInput"><option value="">ID type</option><option>National ID</option><option>Passport</option><option>Student ID</option></select>
-            <input id="docInput" placeholder="ID / passport number">
-            <textarea class="full" id="noteInput" placeholder="Special request, pickup point, hotel note, baggage note..."></textarea>
-          </div>
-        </div>
-
-        <div class="summaryCard">
-          <h3>Payment</h3>
-          <div class="kv">
-            <div><span>Listing</span><b id="checkoutListing">-</b></div>
-            <div><span>Selected</span><b id="checkoutSelected">-</b></div>
-            <div><span>Total to pay</span><b id="checkoutTotal">UGX 0</b></div>
-          </div>
-          <div class="payMethods">
-            <label class="payMethod"><input type="radio" name="payMethod" value="Mobile Money" checked> Mobile Money</label>
-            <label class="payMethod"><input type="radio" name="payMethod" value="Card"> Card</label>
-            <label class="payMethod"><input type="radio" name="payMethod" value="Wallet"> Wallet</label>
-            <label class="payMethod"><input type="radio" name="payMethod" value="Pay at office"> Pay at office</label>
-          </div>
-          <div class="bookingForm" style="margin-top:10px">
-            <input id="paymentRefInput" class="full" placeholder="Mobile money number / card reference / wallet ID">
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px">
-            <button class="btn btnGhost" onclick="backToSelection()"><i class="fa-solid fa-arrow-left"></i> Back</button>
-            <button class="btn btnPrimary" onclick="confirmBooking()"><i class="fa-solid fa-lock"></i> Pay & confirm</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-  <div class="modal" id="receiptModal">
-    <div class="sheet" style="max-width:720px">
-      <div class="sheetTop">
-        <div>
-          <div class="badge badgeOk"><i class="fa-solid fa-receipt"></i> Receipt</div>
-          <div class="sheetTitle" id="receiptTitle">Booking receipt</div>
-          <div class="sheetSub" id="receiptSub">Classic Trip ticket receipt</div>
-        </div>
-        <button class="iconbtn" onclick="closeReceipt()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="receiptBody">
-        <div class="receiptPaper" id="receiptPaper"></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btnGhost" onclick="toast('Receipt email queued for delivery.')"><i class="fa-regular fa-envelope"></i> Gmail</button>
-          <button class="btn btnGhost" onclick="toast('WhatsApp receipt queued for delivery.')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-          <button class="btn btnPrimary" onclick="closeReceipt()"><i class="fa-solid fa-check"></i> Done</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal" id="blogModal">
-    <div class="sheet" style="max-width:860px">
-      <div class="sheetTop">
-        <div>
-          <div class="badge badgeInfo" id="blogModalTag"><i class="fa-regular fa-newspaper"></i> Blog</div>
-          <div class="sheetTitle" id="blogModalTitle">Blog title</div>
-          <div class="sheetSub" id="blogModalSub">Date â€¢ read time</div>
-        </div>
-        <div class="sheetTopActions">
-          <button class="iconbtn" title="Love" onclick="loveActiveBlog()"><i class="fa-regular fa-heart"></i></button>
-          <button class="iconbtn" title="Share" onclick="shareActiveBlog()"><i class="fa-solid fa-share-nodes"></i></button>
-          <button class="iconbtn" onclick="closeBlog()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-      </div>
-      <div class="receiptBody">
-        <div class="blogReadHero">
-          <img id="blogModalImg" src="" alt="Blog image">
-          <div class="blogReadText">
-            <h3 id="blogHeroTitle">Blog title</h3>
-            <p id="blogHeroIntro">Blog intro text</p>
-          </div>
-        </div>
-        <article class="blogArticle" id="blogArticleBody"></article>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding:0 14px 14px">
-          <button class="btn btnGhost" onclick="shareActiveBlog()"><i class="fa-solid fa-share-nodes"></i> Share</button>
-          <button class="btn btnGhost" onclick="loveActiveBlog()"><i class="fa-regular fa-heart"></i> Save</button>
-          <button class="btn btnPrimary" onclick="closeBlog()"><i class="fa-solid fa-check"></i> Done</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="toast" id="toast">Ready</div>
 
-  <script>window.CLASSIC_TRIP_DATA = <%- toScriptJson(bootstrap || {}) %>;</script>
-  <script src="/js/home.js"></script>
+  <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
+  <script src="/js/home.js?v=20260724-hotel-ui-final-1" defer></script>
 </body>
 </html>
 

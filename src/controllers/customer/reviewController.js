@@ -1,27 +1,19 @@
 const workflowService = require('../../services/support/workflowService');
-const store = require('../../services/data/persistentStore');
+const customerService = require('../../services/customer/customerService');
 const { pushFlash } = require('../../middlewares/flash');
-const { ownsBooking } = require('../../utils/bookingOwnership');
 
-function create(req, res, next) {
+async function create(req, res, next) {
   try {
-    const user = req.session?.user || {};
-    const userId = user.id;
-    const booking = store.findBooking(req.body.bookingRef);
-    if (!booking || !ownsBooking(booking, user)) {
+    const user = await customerService.requireSessionUser(req);
+    const booking = await customerService.findOwnedBooking(req.body.bookingRef, user);
+    if (!booking) {
       pushFlash(req, 'error', 'You do not have permission to review this booking.');
       return res.redirect('/account');
     }
-    workflowService.createReview({
-      bookingRef: req.body.bookingRef,
-      customerUserId: userId || null,
-      rating: req.body.rating,
-      comment: req.body.comment,
-    });
+    const customerRepository = require('../../repositories/domain/customerRepository');
+    await Promise.resolve(workflowService.createReview({ bookingRef: booking.bookingRef, customerUserId: user.id, rating: req.body.rating, comment: req.body.comment }));
     return res.redirect('/account');
-  } catch (error) {
-    return next(error);
-  }
+  } catch (error) { return next(error); }
 }
 
 module.exports = { create };

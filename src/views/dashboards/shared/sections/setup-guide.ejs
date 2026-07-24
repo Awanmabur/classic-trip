@@ -1,0 +1,72 @@
+<%
+  const setupOptions = dashboardData?.options || {};
+  const setupCounts = {
+    branches: (setupOptions.branches || []).length,
+    listings: (setupOptions.listings || []).length,
+    routes: (setupOptions.routes || []).length,
+    vehicles: (setupOptions.vehicles || []).length,
+    drivers: (setupOptions.drivers || []).length,
+    schedules: (setupOptions.schedules || []).length,
+    properties: (setupOptions.hotelProperties || []).length,
+    roomTypes: (setupOptions.roomTypes || []).length,
+    roomUnits: (setupOptions.roomUnits || []).length,
+    roomNights: (setupOptions.roomNights || []).length,
+  };
+  const staffDriverWorkflow = dashboardData?.staffDriverWorkflow || {};
+  const pendingDriverCount = Number(staffDriverWorkflow.pendingDrivers || 0);
+  const isBusGuide = companyServiceType === 'bus';
+  const isHotelGuide = companyServiceType === 'hotel';
+  const readinessClass = function(ready){ return ready ? 'ok' : 'warn'; };
+  const readinessText = function(ready){ return ready ? 'Ready' : 'Required first'; };
+%>
+<section class="section" id="setup-guide" aria-labelledby="setupGuideHeading">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3 id="setupGuideHeading"><i class="fa-solid fa-diagram-project"></i> <%= companyServiceProfile.primaryLabel || 'Service' %> Setup & Workflow Guide</h3>
+        <p>Follow the steps in order. Each later feature selects records created by the earlier step; users should never type internal IDs or recreate an existing branch, vehicle, room, driver, route, or schedule name.</p>
+      </div>
+      <span class="badge info"><%= isBusGuide ? 'Bus workflow' : isHotelGuide ? 'Hotel workflow' : 'Service workflow' %></span>
+    </div>
+
+    <div class="notice" style="margin-bottom:16px">
+      <strong>Core rule:</strong> Setup records describe reusable resources. Daily-work records use those resources. Bookings generate operational and finance records automatically.
+    </div>
+
+    <% if (isBusGuide) { %>
+      <div class="splitGrid">
+        <div class="splitItem"><div class="splitTop"><strong>1. Company verification</strong><span class="badge <%= readinessClass(dashboardData?.company?.verificationStatus === 'verified') %>"><%= dashboardData?.company?.verificationStatus === 'verified' ? 'Verified' : 'Pending' %></span></div><p>Super Admin verifies the partner. Only verified companies can publish live listings and departures.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>2. Branches / terminals</strong><span class="badge <%= readinessClass(setupCounts.branches > 1) %>"><%= setupCounts.branches %> created</span></div><p>Create origin, destination, boarding, drop-off, and office locations once. Routes and staff assignments select these records.</p><button class="btn" type="button" data-modal="create" data-type="branch"><i class="fa-solid fa-plus"></i> Add branch</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>3. Bus listing</strong><span class="badge <%= readinessClass(setupCounts.listings > 0) %>"><%= setupCounts.listings %> created</span></div><p>The marketplace product customers see. It owns the public title, company, corridor summary, base price, media, and operating branch.</p><button class="btn" type="button" data-jump="listings"><i class="fa-solid fa-layer-group"></i> Open listings</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>4. Route & ordered stops</strong><span class="badge <%= readinessClass(setupCounts.routes > 0) %>"><%= setupCounts.routes %> created</span></div><p>A reusable path under one bus listing. It selects origin/destination branches and ordered pickup/drop-off stops; it does not represent a particular date.</p><button class="btn" type="button" data-jump="routes"><i class="fa-solid fa-route"></i> Open routes</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>5. Vehicle & seat template</strong><span class="badge <%= readinessClass(setupCounts.vehicles > 0) %>"><%= setupCounts.vehicles %> created</span></div><p>The physical bus and its reusable seat layout. Seat Maps edits the template; a schedule copies it into live departure seats.</p><button class="btn" type="button" data-jump="vehicles"><i class="fa-solid fa-bus-simple"></i> Open vehicles</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>6. Driver assignment</strong><span class="badge <%= readinessClass(setupCounts.drivers > 0) %>"><%= setupCounts.drivers %> saved<%= pendingDriverCount ? ` · ${pendingDriverCount} in lifecycle` : '' %></span></div><p>Only an active, verified, licensed and safety-cleared driver with the required operational permissions can be assigned to a departure. Pending requests and invitations remain in onboarding until approval is complete.</p><button class="btn" type="button" data-jump="staff"><i class="fa-solid fa-user-tie"></i> Open staff</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>7. Schedule & fare</strong><span class="badge <%= readinessClass(setupCounts.schedules > 0) %>"><%= setupCounts.schedules %> created</span></div><p>A dated departure that selects one route, one compatible vehicle, any saved driver record, time, fare, and status. It automatically generates live seats from the vehicle template.</p><button class="btn" type="button" data-jump="schedules"><i class="fa-solid fa-calendar-days"></i> Open schedules</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>8. Bookings → manifest</strong><span class="badge ok">Automatic</span></div><p>Checkout claims a schedule seat, creates booking, passenger snapshot, ticket/QR, payment, timeline, and settlement rows. Passenger Manifests group those passengers by schedule.</p><button class="btn" type="button" data-jump="bookings"><i class="fa-solid fa-ticket"></i> Open bookings</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>9. Daily work</strong><span class="badge info">Operational</span></div><p>Drivers and permitted staff use the same schedule for boarding, manifest, delays, seat status, no-show, incidents, trip completion, and customer notices.</p><button class="btn" type="button" data-jump="manifests"><i class="fa-solid fa-file-lines"></i> Open manifests</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>10. Revenue & settlement</strong><span class="badge info">Derived</span></div><p>Successful payment creates platform/company/promoter splits. Completion makes eligible earnings releasable; finance and company dashboards read the same ledger.</p><button class="btn" type="button" data-jump="settlement"><i class="fa-solid fa-wallet"></i> Open settlement</button></div>
+      </div>
+    <% } else if (isHotelGuide) { %>
+      <div class="splitGrid">
+        <div class="splitItem"><div class="splitTop"><strong>1. Company verification</strong><span class="badge <%= readinessClass(dashboardData?.company?.verificationStatus === 'verified') %>"><%= dashboardData?.company?.verificationStatus === 'verified' ? 'Verified' : 'Pending' %></span></div><p>Super Admin verifies the hotel partner before the company can publish live inventory.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>2. Branch / front desk</strong><span class="badge <%= readinessClass(setupCounts.branches > 0) %>"><%= setupCounts.branches %> created</span></div><p>Create the physical operating location or front desk. Listings, policies, and staff select this record.</p><button class="btn" type="button" data-modal="create" data-type="branch"><i class="fa-solid fa-plus"></i> Add location</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>3. Hotel listing</strong><span class="badge <%= readinessClass(setupCounts.listings > 0) %>"><%= setupCounts.listings %> created</span></div><p>The public marketplace page containing title, city, media, starting price, check-in/out times, and customer-facing information.</p><button class="btn" type="button" data-jump="listings"><i class="fa-solid fa-hotel"></i> Open listings</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>4. Hotel property</strong><span class="badge <%= readinessClass(setupCounts.properties > 0) %>"><%= setupCounts.properties %> created</span></div><p>The physical property attached to a selected listing. It owns address, check-in/out rules, amenities, policies, and taxes.</p><button class="btn" type="button" data-jump="hotel-rooms"><i class="fa-solid fa-building"></i> Open properties</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>5. Room type</strong><span class="badge <%= readinessClass(setupCounts.roomTypes > 0) %>"><%= setupCounts.roomTypes %> created</span></div><p>A sellable category such as Deluxe Double. It selects its listing and property and defines capacity, bed type, base price, amenities, and policies.</p><button class="btn" type="button" data-jump="hotel-rooms"><i class="fa-solid fa-bed"></i> Open room types</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>6. Room units</strong><span class="badge <%= readinessClass(setupCounts.roomUnits > 0) %>"><%= setupCounts.roomUnits %> created</span></div><p>The real rooms such as 101 or A-12. Housekeeping and maintenance update these physical units; users select a room type before adding units.</p><button class="btn" type="button" data-jump="hotel-rooms"><i class="fa-solid fa-door-open"></i> Open room units</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>7. Room-night inventory</strong><span class="badge <%= readinessClass(setupCounts.roomNights > 0) %>"><%= setupCounts.roomNights %> nights</span></div><p>Date-specific availability and price for each physical room. A booking can only claim a unit when every requested night is available.</p><button class="btn" type="button" data-jump="hotel-rooms"><i class="fa-solid fa-calendar-days"></i> Open inventory</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>8. Booking → guest stay</strong><span class="badge ok">Automatic</span></div><p>Checkout claims room nights, creates the booking, guest snapshot, stay/ticket data, payment, timeline, and settlement rows.</p><button class="btn" type="button" data-jump="bookings"><i class="fa-solid fa-ticket"></i> Open bookings</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>9. Daily hotel work</strong><span class="badge info">Operational</span></div><p>Arrivals, check-in, in-house guests, checkout, room cleaning, maintenance, support, and guest notices all reference the same booking, room unit, and room nights.</p><button class="btn" type="button" data-jump="manifests"><i class="fa-solid fa-clipboard-list"></i> Open arrivals</button></div>
+        <div class="splitItem"><div class="splitTop"><strong>10. Revenue & settlement</strong><span class="badge info">Derived</span></div><p>Successful payments create ledger splits. Checkout completion releases eligible company/promoter earnings and updates finance statements.</p><button class="btn" type="button" data-jump="settlement"><i class="fa-solid fa-wallet"></i> Open settlement</button></div>
+      </div>
+    <% } else { %>
+      <div class="splitGrid">
+        <div class="splitItem"><div class="splitTop"><strong>1. Verify company</strong><span class="badge warn">Required</span></div><p>Complete partner onboarding, company verification, payout details, and role assignment.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>2. Create operating locations</strong><span class="badge info">Reusable</span></div><p>Create branches, offices, stations, terminals, or desks before assigning staff or services.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>3. Create public listing</strong><span class="badge info">Marketplace</span></div><p>The listing is the customer-visible service. Inventory records must select that listing.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>4. Configure inventory and availability</strong><span class="badge info">Service-specific</span></div><p>Create the service resources, schedules/dates, capacity, prices, and eligible operators.</p></div>
+        <div class="splitItem"><div class="splitTop"><strong>5. Operate bookings</strong><span class="badge ok">Connected</span></div><p>Bookings create customer, ticket, manifest, support, notification, payment, and settlement records automatically.</p></div>
+      </div>
+    <% } %>
+  </div>
+</section>

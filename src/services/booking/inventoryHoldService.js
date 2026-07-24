@@ -1,27 +1,105 @@
-const store = require('../data/persistentStore');
-const repositories = require('../../repositories');
+const crypto = require('crypto');
+const commerceRepository = require('../../repositories/domain/commerceRepository');
 
-function ensureHolds() {
-  if (!Array.isArray(store.state.inventoryHolds)) store.state.inventoryHolds = [];
+function iso(value) {
+  return value instanceof Date ? value.toISOString() : value;
 }
 
-function upsertStateHold(hold) {
-  ensureHolds();
-  const index = store.state.inventoryHolds.findIndex((item) => item.id === hold.id);
-  if (index >= 0) {
-    store.state.inventoryHolds[index] = { ...store.state.inventoryHolds[index], ...hold };
-    return store.state.inventoryHolds[index];
+function itemId(holdId, resourceKey) {
+  const digest = crypto.createHash('sha256').update(`${holdId}:${resourceKey}`).digest('hex').slice(0, 24);
+  return `hold-item-${digest}`;
+}
+
+function seatResourceKey(scheduleId, seatNumber) {
+  return `schedule-seat:${String(scheduleId)}:${String(seatNumber).trim().toUpperCase()}`;
+}
+
+function roomNightResourceKey(roomUnitId, nightDate) {
+  const date = new Date(nightDate);
+  if (Number.isNaN(date.getTime())) throw Object.assign(new Error('A valid room night date is required'), { status: 422 });
+  return `room-unit-night:${String(roomUnitId)}:${date.toISOString().slice(0, 10)}`;
+}
+
+async function activeResourceItem(resourceKey, now = new Date(), ignoredHoldId = '') {
+  const row = await commerceRepository.holdItems.findOne({ resourceKey, status: 'active' });
+  if (!row || row.holdId === ignoredHoldId || new Date(row.expiresAt || 0) <= now) return null;
+  return row;
+}
+
+async function assertResourcesAvailable(items, ignoredHoldId = '') {
+  const now = new Date();
+  for (const item of items) {
+    const existing = await commerceRepository.holdItems.findOne({
+      resourceKey: item.resourceKey,
+      status: 'active',
+      holdId: { $ne: ignoredHoldId },
+      expiresAt: { $gt: now },
+    });
+    if (existing) {
+      const error = new Error('Inventory is temporarily held by another checkout');
+      error.status = 409;
+      error.resourceKey = item.resourceKey;
+      throw error;
+    }
   }
-  store.state.inventoryHolds.unshift(hold);
-  return hold;
 }
 
-async function persistHold(hold) {
-  await repositories.inventoryHolds.upsert(hold);
+function seatItem(parent, scheduleId, seatNumber, context = {}) {
+  const resourceKey = seatResourceKey(scheduleId, seatNumber);
+  return {
+    id: itemId(parent.id, resourceKey),
+    holdId: parent.id,
+    resourceType: 'schedule_seat',
+    resourceKey,
+    serviceType: parent.serviceType,
+    companyId: parent.companyId,
+    listingId: parent.listingId,
+    scheduleId,
+    seatNumber: String(seatNumber),
+    selectedLabel: String(seatNumber),
+    status: 'active',
+    expiresAt: parent.expiresAt,
+    metadata: context.meta || {},
+    createdAt: parent.createdAt,
+  };
+}
+
+function roomNightItem(parent, roomUnitId, roomTypeId, nightDate, context = {}) {
+  const normalizedDate = new Date(nightDate).toISOString().slice(0, 10);
+  const resourceKey = roomNightResourceKey(roomUnitId, normalizedDate);
+  return {
+    id: itemId(parent.id, resourceKey), holdId: parent.id, resourceType: 'room_unit_night', resourceKey,
+    serviceType: parent.serviceType, companyId: parent.companyId, listingId: parent.listingId,
+    roomTypeId, roomUnitId, nightDate: normalizedDate, selectedLabel: parent.selectedLabel || '',
+    status: 'active', expiresAt: parent.expiresAt,
+    metadata: { ...(context.meta || {}), roomTypeId, roomUnitId, nightDate: normalizedDate }, createdAt: parent.createdAt,
+  };
+}
+
+async function persistParentAndItems(parent, items) {
+  await assertResourcesAvailable(items, parent.id);
+  parent.itemIds = items.map((item) => item.id);
+  parent.itemCount = items.length;
+  try {
+    await commerceRepository.withTransaction(async (session) => {
+      await commerceRepository.holds.save(parent, { id: parent.id }, { session });
+      await commerceRepository.holdItems.saveMany(items, (item) => ({ id: item.id }), { session });
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      const conflict = new Error('Inventory is temporarily held by another checkout');
+      conflict.status = 409;
+      conflict.cause = error;
+      throw conflict;
+    }
+    throw error;
+  }
+  return { ...parent, items };
 }
 
 async function recordSeatHold(hold, context = {}) {
-  const row = upsertStateHold({
+  const createdAt = hold.createdAt || new Date().toISOString();
+  const parent = {
     id: hold.id,
     holdType: 'seat',
     type: 'seat',
@@ -33,20 +111,21 @@ async function recordSeatHold(hold, context = {}) {
     selectedLabel: hold.seatNumber,
     token: hold.id,
     status: 'active',
-    lockedUntil: hold.lockedUntil,
-    expiresAt: hold.lockedUntil,
+    lockedUntil: iso(hold.lockedUntil),
+    expiresAt: iso(hold.lockedUntil),
     createdBy: context.createdBy || context.userId || '',
     source: context.source || 'listing_hold',
     meta: context.meta || {},
-    createdAt: hold.createdAt || new Date().toISOString(),
-  });
-  await persistHold(row);
-  return row;
+    createdAt,
+  };
+  return persistParentAndItems(parent, [seatItem(parent, hold.scheduleId, hold.seatNumber, context)]);
 }
 
-
 async function recordGroupedSeatHold(hold, context = {}) {
-  const row = upsertStateHold({
+  const seatNumbers = [...new Set([].concat(hold.seatNumbers || hold.seatNumber || []).map((seat) => String(seat).trim()).filter(Boolean))];
+  if (!seatNumbers.length) throw Object.assign(new Error('At least one seat is required for a grouped hold'), { status: 422 });
+  const createdAt = hold.createdAt || new Date().toISOString();
+  const parent = {
     id: hold.id,
     holdType: 'seat',
     type: 'seats',
@@ -54,95 +133,97 @@ async function recordGroupedSeatHold(hold, context = {}) {
     listingId: context.listingId || '',
     companyId: context.companyId || '',
     scheduleId: hold.scheduleId,
-    seatNumber: (hold.seatNumbers || [])[0] || hold.seatNumber,
-    selectedLabel: (hold.seatNumbers || []).join(', '),
+    seatNumber: seatNumbers[0],
+    selectedLabel: seatNumbers.join(', '),
     token: hold.id,
     status: 'active',
-    lockedUntil: hold.lockedUntil,
-    expiresAt: hold.lockedUntil,
+    lockedUntil: iso(hold.lockedUntil),
+    expiresAt: iso(hold.lockedUntil),
     createdBy: context.createdBy || context.userId || '',
     source: context.source || 'listing_hold',
-    meta: { ...(context.meta || {}), seatNumbers: hold.seatNumbers || [], grouped: true },
-    createdAt: hold.createdAt || new Date().toISOString(),
-  });
-  await persistHold(row);
-  return row;
+    meta: { ...(context.meta || {}), seatNumbers, grouped: true },
+    createdAt,
+  };
+  return persistParentAndItems(parent, seatNumbers.map((seatNumber) => seatItem(parent, hold.scheduleId, seatNumber, context)));
 }
 
 async function recordRoomHold(reservation, context = {}) {
-  const row = upsertStateHold({
-    id: reservation.id,
-    holdType: 'room',
-    type: 'room',
-    serviceType: context.serviceType || 'hotel',
-    listingId: context.listingId || '',
-    companyId: context.companyId || '',
-    roomId: reservation.roomId,
-    selectedLabel: context.selectedLabel || reservation.roomType || '',
-    token: reservation.id,
-    guest: reservation.guest || {},
-    status: 'active',
-    lockedUntil: reservation.expiresAt,
-    expiresAt: reservation.expiresAt,
-    createdBy: context.createdBy || context.userId || '',
-    source: context.source || 'listing_hold',
-    meta: context.meta || {},
-    createdAt: reservation.createdAt || new Date().toISOString(),
+  const roomUnitId = reservation.roomUnitId || context.roomUnitId;
+  const roomTypeId = reservation.roomTypeId || context.roomTypeId || '';
+  const nightDates = [...new Set([].concat(reservation.nightDates || context.nightDates || []).map((value) => new Date(value).toISOString().slice(0, 10)))];
+  if (!roomUnitId || !nightDates.length) throw Object.assign(new Error('Room holds require a room unit and at least one night'), { status: 422 });
+  const createdAt = reservation.createdAt || new Date().toISOString();
+  const parent = {
+    id: reservation.id, holdType: 'room', type: 'room_nights', serviceType: context.serviceType || 'hotel',
+    listingId: context.listingId || '', companyId: context.companyId || '', roomTypeId, roomUnitIds: [roomUnitId],
+    startDate: nightDates[0], endDate: nightDates[nightDates.length - 1], selectedLabel: context.selectedLabel || reservation.roomType || '',
+    token: reservation.id, guest: reservation.guest || {}, status: 'active', lockedUntil: iso(reservation.expiresAt), expiresAt: iso(reservation.expiresAt),
+    createdBy: context.createdBy || context.userId || '', source: context.source || 'listing_hold',
+    meta: { ...(context.meta || {}), roomTypeId, roomUnitId, nightDates }, createdAt,
+  };
+  return persistParentAndItems(parent, nightDates.map((date) => roomNightItem(parent, roomUnitId, roomTypeId, date, context)));
+}
+
+async function updateHoldAndItems(holdId, update, context = {}) {
+  const [hold, items] = await Promise.all([
+    commerceRepository.holds.findOne({ id: holdId }),
+    commerceRepository.holdItems.list({ holdId, ...(context.onlyActive === false ? {} : { status: 'active' }) }),
+  ]);
+  if (hold) Object.assign(hold, update);
+  items.forEach((item) => {
+    const itemBooking = context.itemBookings?.[item.resourceKey] || {};
+    Object.assign(item, update, itemBooking);
   });
-  await persistHold(row);
-  return row;
+
+
+  await commerceRepository.withTransaction(async (session) => {
+    if (hold) await commerceRepository.holds.save(hold, { id: hold.id }, { session });
+    if (items.length) await commerceRepository.holdItems.saveMany(items, (item) => ({ id: item.id }), { session });
+  });
+  return hold || { id: holdId, ...update };
 }
 
 async function consumeHold(holdId, booking = {}, context = {}) {
   if (!holdId) return null;
-  ensureHolds();
-  const hold = store.state.inventoryHolds.find((item) => item.id === holdId);
-  const consumedAt = new Date().toISOString();
-  const update = {
+  return updateHoldAndItems(holdId, {
     status: 'consumed',
-    consumedAt,
+    consumedAt: new Date().toISOString(),
     consumedBy: context.userId || booking.customerUserId || '',
     bookingId: booking.id || '',
-    bookingRef: booking.bookingRef || '',
-  };
-  if (hold) Object.assign(hold, update);
-  await repositories.inventoryHolds.updateOne({ id: holdId }, { $set: update });
-  return hold || { id: holdId, ...update };
+    bookingRef: booking.bookingRef || booking.groupRef || '',
+  }, context);
 }
 
-async function releaseHold(holdId, reason = 'released') {
+async function releaseHold(holdId, reason = 'released', context = {}) {
   if (!holdId) return null;
-  ensureHolds();
-  const hold = store.state.inventoryHolds.find((item) => item.id === holdId);
-  const update = { status: 'released', releasedAt: new Date().toISOString(), releaseReason: reason };
-  if (hold) Object.assign(hold, update);
-  await repositories.inventoryHolds.updateOne({ id: holdId }, { $set: update });
-  return hold || { id: holdId, ...update };
+  return updateHoldAndItems(holdId, {
+    status: 'released',
+    releasedAt: new Date().toISOString(),
+    releaseReason: reason,
+  }, context);
 }
 
 async function expireActiveHolds(now = new Date()) {
-  ensureHolds();
   const nowDate = now instanceof Date ? now : new Date(now);
-  let expired = 0;
-  store.state.inventoryHolds.forEach((hold) => {
-    if (hold.status === 'active' && hold.expiresAt && new Date(hold.expiresAt) <= nowDate) {
-      hold.status = 'expired';
-      hold.releasedAt = nowDate.toISOString();
-      hold.releaseReason = 'expired';
-      expired += 1;
-    }
+  const nowIso = nowDate.toISOString();
+  const [holds, items] = await Promise.all([
+    commerceRepository.holds.list({ status: 'active', expiresAt: { $lte: nowDate } }),
+    commerceRepository.holdItems.list({ status: 'active', expiresAt: { $lte: nowDate } }),
+  ]);
+  const update = { status: 'expired', releasedAt: nowIso, releaseReason: 'expired' };
+  holds.forEach((hold) => Object.assign(hold, update));
+  items.forEach((item) => Object.assign(item, update));
+  await commerceRepository.withTransaction(async (session) => {
+    if (holds.length) await commerceRepository.holds.saveMany(holds, (hold) => ({ id: hold.id }), { session });
+    if (items.length) await commerceRepository.holdItems.saveMany(items, (item) => ({ id: item.id }), { session });
   });
-  if (repositories.mongoReady()) {
-    const result = await repositories.inventoryHolds.updateMany(
-      { status: 'active', expiresAt: { $lte: nowDate } },
-      { $set: { status: 'expired', releasedAt: nowDate, releaseReason: 'expired' } }
-    );
-    expired = Math.max(expired, result.modifiedCount || 0);
-  }
-  return expired;
+  return new Set([...holds.map((hold) => hold.id), ...items.map((item) => item.holdId)]).size;
 }
 
 module.exports = {
+  seatResourceKey,
+  roomNightResourceKey,
+  activeResourceItem,
   recordSeatHold,
   recordGroupedSeatHold,
   recordRoomHold,

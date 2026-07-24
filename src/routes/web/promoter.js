@@ -13,10 +13,14 @@ const { requireAuth } = require('../../middlewares/auth');
 const { requireRole } = require('../../middlewares/roles');
 const { supportRules } = require('../../validators/supportValidator');
 const { withdrawalRules } = require('../../validators/withdrawalValidator');
+const { offlineSaleRules } = require('../../validators/promoterOfflineSaleValidator');
 const { validateRequest } = require('../../middlewares/validate');
+const { sensitiveActionLimiter } = require('../../middlewares/rateLimit');
+const { requireVerifiedPromoter } = require('../../middlewares/promoterVerification');
 const router = express.Router();
 
 router.use('/promoter', requireAuth, requireRole('promoter', 'super_admin'));
+router.post('/promoter/*', sensitiveActionLimiter);
 
 router.get('/promoter/dashboard', dashboardController.index);
 router.get('/promoter/links', dashboardController.index);
@@ -34,10 +38,10 @@ router.get('/promoter/links/:id/qr-card', networkController.qrCard);
 router.post('/promoter/agent-profile', networkController.ensureAgentProfile);
 router.post('/promoter/links', networkController.createEnhancedLink);
 router.post('/promoter/links/:id/archive', linkController.archive);
-router.post('/promoter/offline-sales', offlineSalesController.create);
+router.post('/promoter/offline-sales', requireVerifiedPromoter, offlineSaleRules, validateRequest, offlineSalesController.create);
 router.get('/promoter/offline-sales/:id/receipt', offlineSalesController.receipt);
 router.get('/promoter/api/commissions', commissionController.index);
-router.post('/promoter/withdrawals', withdrawalRules, validateRequest, withdrawalController.request);
+router.post('/promoter/withdrawals', requireVerifiedPromoter, withdrawalRules, validateRequest, withdrawalController.request);
 router.post('/promoter/profile', profileController.update);
 router.post('/promoter/verification', profileController.updateVerification);
 router.post('/promoter/support', supportRules, validateRequest, supportController.create);

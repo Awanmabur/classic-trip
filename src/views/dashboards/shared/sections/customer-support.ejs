@@ -1,0 +1,37 @@
+<%
+  const customerBookingOptions = dashboardData?.options?.bookings || [];
+  const customerRescheduleOptions = dashboardData?.options?.reschedulableBookings || [];
+%>
+<section class="section" id="customer-support">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-headset"></i> Support</h3><p>Customer-visible cases, booking messages, support responses, and the Booking correspondence timeline.</p></div></div>
+      <div class="tableWrap"><table><thead><tr><th>Case</th><th>Subject</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="customerSupportTable"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Create support case</h3><p>Select an owned booking or choose General support.</p></div></div>
+      <form class="formPanel" method="POST" action="/account/support">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Related booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="bookingRef"><option value="">General support (no booking)</option><% customerBookingOptions.forEach(function(option){ %><option value="<%= option.value %>"><%= option.label %></option><% }) %></select></div><small class="fieldHelp">Only bookings belonging to this account are listed.</small></div>
+          <div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div>
+          <div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="How can support help?" required></textarea></div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send case</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Request reschedule</h3><p>Select an eligible booking and request a new travel date and time.</p></div></div>
+      <form class="formPanel" method="POST" action="/account/reschedules">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Eligible booking</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="bookingRef" required><option value="">Select booking</option><% customerRescheduleOptions.forEach(function(option){ %><option value="<%= option.value %>"><%= option.label %></option><% }) %></select></div><small class="fieldHelp"><%= customerRescheduleOptions.length ? 'Only active bookings that can be rescheduled are shown.' : 'No booking is currently eligible for rescheduling.' %></small></div>
+          <div class="field"><label>Preferred date</label><div class="control"><i class="fa-solid fa-calendar-day"></i><input type="date" name="preferredDate" required></div></div>
+          <div class="field"><label>Preferred time</label><div class="control"><i class="fa-solid fa-clock"></i><input type="time" name="preferredTime"></div></div>
+          <div class="field full"><label>Reason</label><div class="control"><textarea name="reason" placeholder="Why do you need a new travel time?" required></textarea></div></div>
+        </div>
+        <button class="btn btnBlue" type="submit" <%= customerRescheduleOptions.length ? '' : 'disabled' %>><i class="fa-solid fa-calendar-check"></i> Request reschedule</button>
+      </form>
+    </div>
+  </div>
+</section>
