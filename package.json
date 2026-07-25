@@ -1,7 +1,7 @@
 {
   "name": "classic-trip-platform",
   "version": "1.0.0",
-  "description": "Production multi-tenant bus and hotel marketplace with MongoDB-backed operations.",
+  "description": "Production East Africa marketplace for buses, accommodation, agent-supported flights and safe local mobility.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -20,7 +20,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "jest --runInBand tests/unit",
-    "verify": "npm run check && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
+    "verify": "npm run check && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -43,7 +43,17 @@
     "check:commission-only": "node scripts/check-partner-commission-only.js",
     "migrate:commission-only:dry": "node scripts/migrate-partner-commission-only.js",
     "migrate:commission-only": "node scripts/migrate-partner-commission-only.js --apply",
-    "check:ui-final": "node scripts/check-final-ui-consistency.js"
+    "check:ui-final": "node scripts/check-final-ui-consistency.js",
+    "check:flight-taxi": "node scripts/check-flight-taxi-end-to-end.js",
+    "seed:travel-reference:dry": "node scripts/seed-east-africa-travel-reference.js",
+    "seed:travel-reference": "node scripts/seed-east-africa-travel-reference.js --apply",
+    "migrate:flight-taxi:dry": "node scripts/migrate-flight-taxi-domain.js",
+    "migrate:flight-taxi": "node scripts/migrate-flight-taxi-domain.js --apply",
+    "check:platform-final": "node scripts/check-final-platform-polish.js",
+    "migrate:country-currency:dry": "node scripts/migrate-country-market-currency.js",
+    "migrate:country-currency": "node scripts/migrate-country-market-currency.js --apply",
+    "check:platform-layout-admin": "node scripts/check-full-platform-layout-and-admin.js",
+    "check:dashboard-service-coverage": "node scripts/check-dashboard-service-coverage.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -57,7 +57,60 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
       ] },
     ],
+  },
+  flight: {
+    createLabel: 'Create Customer Quote',
+    groups: [
+      { label: 'Agency', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'company-profile', label: 'Agency Profile', icon: 'fa-building-circle-check' },
+        { page: 'staff', label: 'Agency Staff', icon: 'fa-user-tie' },
+      ] },
+      { label: 'Sales', items: [
+        { page: 'flight-search', label: 'Search Live Flights', icon: 'fa-magnifying-glass' },
+        { page: 'flight-quotes', label: 'Customer Quotes', icon: 'fa-file-invoice' },
+        { page: 'bookings', label: 'Flight Bookings', icon: 'fa-ticket' },
+      ] },
+      { label: 'Customer Service', items: [
+        { page: 'flight-travelers', label: 'Travelers', icon: 'fa-users' },
+        { page: 'flight-tickets', label: 'Tickets & References', icon: 'fa-plane-ticket' },
+        { page: 'flight-changes', label: 'Change Requests', icon: 'fa-calendar-pen' },
+        { page: 'flight-refunds', label: 'Refund Requests', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
+      ] },
+      { label: 'Agency Finance', items: [
+        { page: 'revenue', label: 'Commission Revenue', icon: 'fa-money-bill-wave' },
+        { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
+        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
+      ] },
+    ],
+  },
+  local_transport: {
+    createLabel: 'Add My Vehicle',
+    groups: [
+      { label: 'Account', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'company-profile', label: 'Profile & Compliance', icon: 'fa-id-card' },
+        { page: 'staff', label: 'Team', icon: 'fa-user-tie' },
+      ] },
+      { label: 'My Mobility Work', items: [
+        { page: 'taxi-fleet', label: 'My Vehicles', icon: 'fa-car' },
+        { page: 'taxi-drivers', label: 'My Drivers', icon: 'fa-motorcycle' },
+        { page: 'taxi-availability', label: 'Go Online', icon: 'fa-toggle-on' },
+        { page: 'taxi-operations', label: 'Assigned Rides', icon: 'fa-location-dot' },
+        { page: 'bookings', label: 'Ride History', icon: 'fa-ticket' },
+        { page: 'taxi-incidents', label: 'Safety & Incidents', icon: 'fa-shield-halved' },
+      ] },
+      { label: 'Earnings & Help', items: [
+        { page: 'support', label: 'Support', icon: 'fa-headset' },
+        { page: 'reviews', label: 'Ratings', icon: 'fa-star' },
+        { page: 'revenue', label: 'Earnings', icon: 'fa-money-bill-wave' },
+        { page: 'settlement', label: 'Payouts', icon: 'fa-wallet' },
+        { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
+      ] },
+    ],
   }
+
 };
 
 const EMPLOYEE_SERVICE_MENU_CONFIG = {
@@ -103,6 +156,44 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
       { label: 'Back Office', items: [
         { page: 'payments', label: 'Guest Payments', icon: 'fa-wallet' },
         { page: 'refunds', label: 'Refund Requests', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Support Tasks', icon: 'fa-headset' },
+        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
+        { page: 'reports', label: 'My Reports', icon: 'fa-file-lines' },
+        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
+      ] },
+    ],
+  },
+  flight: {
+    createLabel: 'Create Customer Quote',
+    groups: [
+      { label: 'Agency Sales', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'bookings', label: 'Agency Bookings', icon: 'fa-ticket' },
+        { page: 'customers', label: 'Travellers', icon: 'fa-users' },
+        { page: 'payments', label: 'Customer Payments', icon: 'fa-wallet' },
+      ] },
+      { label: 'Customer Service', items: [
+        { page: 'refunds', label: 'Changes & Refunds', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Customer Support', icon: 'fa-headset' },
+        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
+        { page: 'reports', label: 'Agency Reports', icon: 'fa-file-lines' },
+        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
+      ] },
+    ],
+  },
+  local_transport: {
+    createLabel: 'Review Assigned Ride',
+    groups: [
+      { label: 'Mobility Shift', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'bookings', label: 'Assigned Rides', icon: 'fa-location-dot' },
+        { page: 'schedule', label: 'Scheduled Assignments', icon: 'fa-calendar-days' },
+        { page: 'driver-ops', label: 'Ride Status', icon: 'fa-route' },
+      ] },
+      { label: 'Safety & Service', items: [
+        { page: 'driver-incidents', label: 'Safety Incidents', icon: 'fa-triangle-exclamation' },
+        { page: 'customers', label: 'Assigned Customers', icon: 'fa-users' },
+        { page: 'payments', label: 'Ride Receipts', icon: 'fa-wallet' },
         { page: 'support', label: 'Support Tasks', icon: 'fa-headset' },
         { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
         { page: 'reports', label: 'My Reports', icon: 'fa-file-lines' },
@@ -167,9 +258,38 @@ function cloneMenu(menu = {}) {
   };
 }
 
+function mobilityMenuForPartnerCategory(config = {}, partnerCategory = '') {
+  const category = String(partnerCategory || '').trim().toLowerCase();
+  const individual = ['boda_rider', 'car_driver'].includes(category);
+  const groups = (config.groups || []).map((group) => ({
+    ...group,
+    items: (group.items || []).map((item) => ({ ...item })),
+  }));
+  if (!individual) return { ...config, groups };
+  const vehicleLabel = category === 'boda_rider' ? 'My Boda' : 'My Car';
+  return {
+    ...config,
+    createLabel: category === 'boda_rider' ? 'Add My Boda' : 'Add My Car',
+    groups: groups.map((group) => ({
+      ...group,
+      items: (group.items || []).filter((item) => item.page !== 'staff').map((item) => {
+        if (item.page === 'taxi-fleet') return { ...item, label: vehicleLabel, icon: category === 'boda_rider' ? 'fa-motorcycle' : 'fa-car-side' };
+        if (item.page === 'taxi-drivers') return { ...item, label: category === 'boda_rider' ? 'My Rider Profile' : 'My Driver Profile', icon: 'fa-id-card' };
+        if (item.page === 'taxi-availability') return { ...item, label: 'Go Online / Offline' };
+        if (item.page === 'revenue') return { ...item, label: 'My Earnings' };
+        if (item.page === 'settlement') return { ...item, label: 'My Payouts' };
+        return item;
+      }),
+    })).filter((group) => group.items.length),
+  };
+}
+
 function applyCompanyServiceProfile(menu, serviceProfile = {}, company = {}) {
   const serviceType = serviceProfile.primaryServiceType || 'partner';
-  const config = COMPANY_SERVICE_MENU_CONFIG[serviceType] || COMPANY_SERVICE_MENU_CONFIG.partner;
+  const baseConfig = COMPANY_SERVICE_MENU_CONFIG[serviceType] || COMPANY_SERVICE_MENU_CONFIG.partner;
+  const config = serviceType === 'local_transport'
+    ? mobilityMenuForPartnerCategory(baseConfig, serviceProfile.partnerCategory || company.partnerCategory || company.settings?.partnerCategory)
+    : baseConfig;
   const visiblePages = new Set(serviceProfile.visiblePages || []);
   let groups = (config.groups || []).map((group) => ({
     ...group,
@@ -198,7 +318,7 @@ function applyCompanyServiceProfile(menu, serviceProfile = {}, company = {}) {
     title,
     subtitle,
     profileName: company.name || menu.profileName,
-    profileMeta: serviceProfile.primaryLabel ? `${serviceProfile.primaryLabel} partner` : menu.profileMeta,
+    profileMeta: serviceProfile.primaryLabel ? `${serviceProfile.primaryLabel}` : menu.profileMeta,
     statusLabel: company.verificationStatus === 'verified' ? 'Verified' : company.verificationStatus || menu.statusLabel,
     createLabel: config.createLabel || menu.createLabel,
   };
@@ -220,10 +340,10 @@ const EMPLOYEE_PAGE_PERMISSIONS = {
   overview: [],
   bookings: ['booking.view', 'booking.create_manual'],
   checkin: ['checkin.scan', 'checkin.manage'],
-  schedule: ['schedule.update', 'schedule.delay_notice', 'manifest.view'],
-  'driver-ops': ['manifest.view'],
+  schedule: ['schedule.update', 'schedule.delay_notice', 'manifest.view', 'booking.view'],
+  'driver-ops': ['manifest.view', 'trip.status.update', 'booking.view'],
   'driver-manifest': ['manifest.view'],
-  'driver-incidents': ['manifest.view'],
+  'driver-incidents': ['manifest.view', 'incident.create'],
   inventory: ['inventory.update', 'manifest.view'],
   customers: ['customer.note', 'booking.view'],
   payments: ['payment.record'],
@@ -279,6 +399,8 @@ function menuHref(roleKey, page) {
       reports: '/company/reports',
       'bus-dashboard': '/company/bus-dashboard',
       'hotel-dashboard': '/company/hotel-dashboard',
+      'flight-dashboard': '/company/dashboard/flight-search',
+      'taxi-dashboard': '/company/dashboard/taxi-operations',
     };
     return companyRoutes[page] || `/company/dashboard/${page}`;
   }

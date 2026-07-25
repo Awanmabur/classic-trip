@@ -1925,3 +1925,23 @@ html[data-theme="light"] .emptyTableRow td{background:#f8fafc!important}
 .emptyTableRow td{overflow:hidden;background-clip:padding-box!important}
 .emptyTableRow .miniLogo{border-radius:14px}
 .dashboardSidebar .dashboardHomeLink{display:flex}
+
+/* Platform travel supply controls reuse the existing dashboard visual language. */
+.adminSupplyControl{display:grid;gap:14px;margin-top:14px;scroll-margin-top:90px}
+.supplyNoticeCard{border-color:rgba(255,183,3,.28)}
+.adminSupplyControl .formPanel{margin:0 16px 16px;border-radius:22px}
+.adminSupplyControl .control{border-radius:18px}
+.adminSupplyControl .btn{border-radius:16px}
+.inlineReviewForm{display:grid;gap:6px;min-width:220px}
+.inlineReviewForm select,.inlineReviewForm input{width:100%;min-height:36px;padding:0 10px;border:1px solid var(--line2);border-radius:14px;background:var(--field);color:var(--text);font-weight:800}
+.inlineReviewForm .tinyBtn{justify-self:end}
+.adminSupplyControl textarea{min-height:86px}
+
+/* Consistent soft corners without turning every control into an unrelated pill design. */
+.btn,.tinyBtn,.iconBtn{border-radius:16px}
+.control,.searchBox,.dashboardFilters input,.dashboardFilters select,.dashboardFilters textarea,.formPanel input,.formPanel select,.formPanel textarea{border-radius:18px}
+
+@media(max-width:760px){
+  .adminSupplyControl .formPanel{margin:0 12px 12px}
+  .inlineReviewForm{min-width:180px}
+}

@@ -1,0 +1,11 @@
+'use strict';
+const { MongoCollection } = require('../../../repositories/domain/mongoCollection');
+const { runMongoUnitOfWork } = require('../../../services/shared/mongoUnitOfWork');
+const { nextId } = require('../../../services/data/idService');
+const { notFoundError } = require('../domain/taxiDomain');
+const names={users:'users',places:'places',companies:'companies',employees:'companyEmployees',listings:'listings',vehicleClasses:'vehicleClasses',vehicles:'taxiVehicles',drivers:'taxiDriverProfiles',zones:'taxiServiceZones',fareRules:'taxiFareRules',availability:'driverAvailabilities',locations:'driverLocations',quotes:'rideQuotes',requests:'rideRequests',rides:'taxiRides',assignments:'rideAssignments',events:'rideEvents',incidents:'taxiIncidents',earnings:'driverEarnings',bookings:'bookings',bookingItems:'bookingItems',payments:'payments',paymentIntents:'paymentIntents',commissions:'commissions',auditLogs:'auditLogs',outboxEvents:'outboxEvents'};
+const repo=Object.fromEntries(Object.entries(names).map(([k,v])=>[k,new MongoCollection(v)]));
+async function oneOrThrow(collection,filter,message,options={}){const row=await collection.findOne(filter,options);if(!row)throw notFoundError(message);return row;}
+async function audit({actorId='system',action,targetType='taxi',targetId,companyId='',metadata={},session=null}){const row={id:await nextId('audit'),actorId,actorRole:metadata.actorRole||'',action,targetType,targetId,target:targetId,companyId,meta:metadata,status:'success',createdAt:new Date().toISOString()};await repo.auditLogs.save(row,{id:row.id},session?{session}:{});return row;}
+async function outbox({eventType,aggregateType,aggregateId,companyId='',payload={},dedupeKey,session=null}){const row={id:await nextId('outbox'),dedupeKey:dedupeKey||`${eventType}:${aggregateId}`,topic:eventType,type:eventType,eventType,aggregateType,aggregateId,companyId,payload,status:'pending',attempts:0,createdAt:new Date().toISOString()};await repo.outboxEvents.save(row,{dedupeKey:row.dedupeKey},session?{session}:{});return row;}
+module.exports={...repo,nextId,oneOrThrow,audit,outbox,withTransaction:(work)=>runMongoUnitOfWork(work)};

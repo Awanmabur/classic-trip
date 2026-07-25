@@ -1,0 +1,78 @@
+<%- include('../partials/site-head', { seo }) %>
+<link rel="stylesheet" href="/css/pages/travel-booking.css?v=20260725-final-polish-1">
+<%- include('../partials/site-header') %>
+<main class="container travelPage" id="taxiBookingApp">
+  <section class="card heroCard">
+    <div class="heroTop">
+      <div><span class="badge badgeInfo"><i class="fa-solid fa-motorcycle"></i> Safe local mobility</span><h1 class="heroTitle">Request a safe ride in a few taps.</h1><p class="heroSub">Choose a verified boda or car for everyday journeys, airport transfers, office trips and longer district or intercity travel.</p></div>
+      <div class="secureNote"><i class="fa-solid fa-shield-halved"></i><span>Verified drivers and vehicles, transparent upfront pricing, protected payment and a private pickup PIN for every assigned ride.</span></div>
+    </div>
+  </section>
+
+  <div class="travelShell safeRideShell">
+    <section class="travelStack">
+      <div class="travelPanel safeRidePanel">
+        <div class="travelPanelHead"><div><h2>Book a ride</h2><p class="muted">Choose trusted places from the suggestions or use your current location.</p></div><span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Upfront price</span></div>
+        <div class="shortcutRow safeRideShortcuts">
+          <button class="travelChip" type="button" data-ride-shortcut="current"><i class="fa-solid fa-location-crosshairs"></i> Current</button>
+          <button class="travelChip" type="button" data-ride-shortcut="home"><i class="fa-solid fa-house"></i> Home</button>
+          <button class="travelChip" type="button" data-ride-shortcut="work"><i class="fa-solid fa-building"></i> Work</button>
+          <button class="travelChip" type="button" data-ride-shortcut="airport"><i class="fa-solid fa-plane"></i> Airport</button>
+        </div>
+
+        <form id="taxiQuoteForm" class="travelForm" autocomplete="off">
+          <div class="safeRideRouteFields">
+            <div class="travelField full placeField" data-place-field="pickup">
+              <label>Pickup</label>
+              <div class="travelControl safeRideControl"><i class="fa-solid fa-circle-dot"></i><input id="pickupSearch" placeholder="Current location, home or office" required aria-autocomplete="list"><button class="inputIconBtn" type="button" data-current-pickup title="Use current location"><i class="fa-solid fa-location-crosshairs"></i></button></div>
+              <div class="placeSuggestions hidden" id="pickupSuggestions" role="listbox"></div>
+            </div>
+            <div class="travelField full placeField" data-place-field="destination">
+              <label>Where to?</label>
+              <div class="travelControl safeRideControl"><i class="fa-solid fa-location-dot"></i><input id="destinationSearch" placeholder="Airport, office, hotel, town or district" required aria-autocomplete="list"></div>
+              <div class="placeSuggestions hidden" id="destinationSuggestions" role="listbox"></div>
+            </div>
+          </div>
+
+          <input type="hidden" id="pickupPlaceId"><input type="hidden" id="pickupLatitude"><input type="hidden" id="pickupLongitude"><input type="hidden" id="pickupCity"><input type="hidden" id="pickupDistrict"><input type="hidden" id="pickupCountry"><input type="hidden" id="pickupCountryCode">
+          <input type="hidden" id="destinationPlaceId"><input type="hidden" id="destinationLatitude"><input type="hidden" id="destinationLongitude"><input type="hidden" id="destinationCity"><input type="hidden" id="destinationDistrict"><input type="hidden" id="destinationCountry"><input type="hidden" id="destinationCountryCode">
+
+          <div class="tripTypeRow safeRideTiming" role="group" aria-label="Pickup time">
+            <button class="travelChip active" type="button" data-ride-time="now"><i class="fa-solid fa-bolt"></i> Ride now</button>
+            <button class="travelChip" type="button" data-ride-time="scheduled"><i class="fa-regular fa-clock"></i> Schedule</button>
+          </div>
+          <div class="travelField full hidden" id="scheduledRideField"><label>Pickup date and time</label><div class="travelControl"><i class="fa-regular fa-calendar-check"></i><input id="scheduledPickupAt" type="datetime-local"></div></div>
+
+          <details class="rideDetails">
+            <summary><i class="fa-solid fa-sliders"></i> Passengers, luggage and stop</summary>
+            <div class="travelFormGrid three rideDetailsGrid">
+              <div class="travelField"><label>Passengers</label><div class="travelControl"><i class="fa-solid fa-user-group"></i><input id="passengerCount" type="number" min="1" max="20" value="1"></div></div>
+              <div class="travelField"><label>Luggage</label><div class="travelControl"><i class="fa-solid fa-suitcase"></i><input id="luggageCount" type="number" min="0" max="30" value="0"></div></div>
+              <div class="travelField"><label>Extra stop</label><div class="travelControl"><i class="fa-solid fa-route"></i><select id="extraStopToggle"><option value="no">No stop</option><option value="yes">Add one stop</option></select></div></div>
+              <div class="travelField full placeField hidden" id="extraStopField" data-place-field="stop"><label>Stop</label><div class="travelControl"><i class="fa-solid fa-location-dot"></i><input id="stopSearch" placeholder="Choose a stop"></div><div class="placeSuggestions hidden" id="stopSuggestions" role="listbox"></div></div>
+            </div>
+          </details>
+
+          <div class="travelActions safeRideAction"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right"></i> Find a ride</button><span class="locationStatus" id="taxiLocationStatus">Your location is used only when you allow it.</span></div>
+          <div class="travelMessage" id="taxiMessage"></div>
+        </form>
+      </div>
+
+      <div class="travelPanel hidden" id="taxiQuotesPanel">
+        <div class="travelPanelHead"><div><h2>Choose your ride</h2><p class="muted" id="taxiQuoteSummary"></p></div><span class="badge badgeInfo" id="taxiQuoteCount">0 rides</span></div>
+        <div class="quoteList safeRideQuotes" id="taxiQuotes"></div>
+      </div>
+    </section>
+
+    <aside class="travelStack">
+      <div class="travelPanel sticky safeRideSummary">
+        <div class="routePreview" id="taxiRoutePreview"><div class="routePoint"><span class="routeDot"></span><div><b id="routePickupLabel">Pickup</b><span id="routePickupMeta">Choose your starting point</span></div></div><div class="routePoint"><span class="routeDot"></span><div><b id="routeDestinationLabel">Destination</b><span id="routeDestinationMeta">Choose where you are going</span></div></div></div>
+        <div class="trackingGrid safeRideMetrics"><div class="trackingMetric"><b id="routeDistance">—</b><span>Distance</span></div><div class="trackingMetric"><b id="routeDuration">—</b><span>Estimated time</span></div></div>
+      </div>
+      <div class="travelPanel"><h3>Ride safely</h3><div class="timeline safeRideSafety"><div class="timelineItem"><span class="timelineMark"></span><div><b>Check driver and vehicle</b><span>Match the app details before boarding.</span></div></div><div class="timelineItem"><span class="timelineMark"></span><div><b>Share only the pickup PIN</b><span>The driver needs it only after arriving.</span></div></div><div class="timelineItem"><span class="timelineMark"></span><div><b>Platform price</b><span>No roadside fare negotiation.</span></div></div><div class="timelineItem"><span class="timelineMark"></span><div><b>Report a safety issue</b><span>Ride events and safety cases are audited.</span></div></div></div></div>
+    </aside>
+  </div>
+</main>
+<script nonce="<%= cspNonce %>" id="taxiPageBootstrap" type="application/json"><%- toScriptJson({ query: initialQuery }) %></script>
+<script src="/js/taxi.js?v=20260725-final-polish-1" defer></script>
+<%- include('../partials/site-footer') %>

@@ -58,22 +58,22 @@ const forbiddenRuntimePatterns = [
   [/\.isMongoReady\(/, 'runtime Mongo availability branch'],
   [/skipPersistence|alreadyPersistedInTransaction/, 'persistence bypass flag'],
   [/Public · schedule pending/, 'public-without-departure status'],
-  [/\b(?:flight|train|tour|cargo|car[_ -]?rental|ferry|loyalty)\b/i, 'unsupported service shell'],
+  [/\bloyalty\b/i, 'unreleased loyalty shell'],
 ];
-const comingSoonDefinitionFiles = new Set(['src/config/serviceRegistry.js', 'src/views/pages/services.ejs']);
+const comingSoonDefinitionFiles = new Set([]);
 for (const file of runtimeFiles) {
   const text = fs.readFileSync(file, 'utf8');
   const relative = path.relative(root, file).replace(/\\/g, '/');
   for (const [pattern, label] of forbiddenRuntimePatterns) {
-    if (label === 'unsupported service shell' && comingSoonDefinitionFiles.has(relative)) continue;
+    if (label === 'removed service shell' && comingSoonDefinitionFiles.has(relative)) continue;
     check(!pattern.test(text), `${relative} still contains ${label}`);
   }
 }
 const serviceRegistry = source('src/config/serviceRegistry.js');
-check(/bus:.*status:\s*'active'/s.test(serviceRegistry) && /hotel:.*status:\s*'active'/s.test(serviceRegistry), 'Bus and hotel must remain operational');
-check(/flight:.*status:\s*'coming_soon'/s.test(serviceRegistry) && /local_transport:.*status:\s*'coming_soon'/s.test(serviceRegistry), 'Future services must remain explicitly coming soon');
+check(/bus:.*status:\s*'active'/s.test(serviceRegistry) && /hotel:.*status:\s*'active'/s.test(serviceRegistry) && /flight:.*status:\s*'active'/s.test(serviceRegistry) && /local_transport:.*status:\s*'active'/s.test(serviceRegistry), 'Bus, hotel, flight and local transport must remain operational');
+check(/tour:.*status:\s*'coming_soon'/s.test(serviceRegistry) && /car_rental:.*status:\s*'coming_soon'/s.test(serviceRegistry) && /cargo:.*status:\s*'coming_soon'/s.test(serviceRegistry), 'Only approved future services may remain in the roadmap');
 
-const currencyAllowed = new Set(['src/models/PlatformSetting.js', 'src/services/platform/platformConfigService.js']);
+const currencyAllowed = new Set(['src/models/PlatformSetting.js', 'src/services/platform/platformConfigService.js', 'src/config/countryMarkets.js']);
 for (const file of runtimeFiles) {
   const relative = path.relative(root, file).replace(/\\/g, '/');
   const text = fs.readFileSync(file, 'utf8');

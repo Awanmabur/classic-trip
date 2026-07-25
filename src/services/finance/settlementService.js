@@ -217,13 +217,23 @@ async function financeRows(periodStart, periodEnd) {
   for (const booking of bookings.filter((item) => bookingInPeriod(item, periodStart, periodEnd))) {
     const split = booking.pricing?.split || {};
     const currency = String(booking.pricing?.currency || platformCurrency()).toUpperCase();
-    const companyId = booking.companyId || 'company-unknown';
-    const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
-    company.gross += Number(booking.pricing?.total || 0);
-    company.companyEarning += Number(split.companyAmount || 0);
-    company.platformFee += Number(split.platformFee || 0);
-    company.payable += Number(split.companyAmount || 0);
-    company.bookingRefs.push(booking.bookingRef);
+    const companyId = commissionService.settlementCompanyId(booking);
+    if (companyId && Number(split.companyAmount || 0) > 0) {
+      const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
+      company.gross += Number(booking.pricing?.total || 0);
+      company.companyEarning += Number(split.companyAmount || 0);
+      company.platformFee += Number(split.platformFee || 0);
+      company.payable += Number(split.companyAmount || 0);
+      company.bookingRefs.push(booking.bookingRef);
+    }
+    if (String(booking.serviceType || '').toLowerCase() === 'flight' && Number(split.supplierPayable || 0) > 0) {
+      const supplierId = booking.supplierId || 'platform-flight-supply';
+      const supplier = add(`flight_supplier:${supplierId}:${currency}`, { ownerType: 'flight_supplier', ownerId: supplierId, currency });
+      supplier.gross += Number(booking.pricing?.total || 0);
+      supplier.supplierPayable = Number(supplier.supplierPayable || 0) + Number(split.supplierPayable || 0);
+      supplier.payable += Number(split.supplierPayable || 0);
+      supplier.bookingRefs.push(booking.bookingRef);
+    }
     if (booking.promoterAttribution?.promoterId && Number(split.promoterAmount || 0) > 0) {
       const promoterId = booking.promoterAttribution.promoterId;
       const promoter = add(`promoter:${promoterId}:${currency}`, { ownerType: 'promoter', ownerId: promoterId, currency });
@@ -238,13 +248,15 @@ async function financeRows(periodStart, periodEnd) {
     const booking = bookingById.get(String(commission.bookingId));
     if (booking && !bookingInPeriod(booking, periodStart, periodEnd)) continue;
     const currency = String(booking?.pricing?.currency || commission.currency || platformCurrency()).toUpperCase();
-    const companyId = commission.companyId || booking?.companyId || 'company-unknown';
-    const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
+    const companyId = commission.companyId || commissionService.settlementCompanyId(booking || {});
     const split = booking?.pricing?.split || {};
-    if (!Number(split.companyAmount || 0)) company.companyEarning += Number(commission.companyAmount || 0);
-    if (!Number(split.platformFee || 0)) company.platformFee += Number(commission.platformFee || 0);
-    company.payable = Math.max(company.payable, Number(commission.companyAmount || 0));
-    if (commission.bookingRef && !company.bookingRefs.includes(commission.bookingRef)) company.bookingRefs.push(commission.bookingRef);
+    if (companyId && Number(commission.companyAmount || 0) > 0) {
+      const company = add(`company:${companyId}:${currency}`, { ownerType: 'company', ownerId: companyId, currency });
+      if (!Number(split.companyAmount || 0)) company.companyEarning += Number(commission.companyAmount || 0);
+      if (!Number(split.platformFee || 0)) company.platformFee += Number(commission.platformFee || 0);
+      company.payable = Math.max(company.payable, Number(commission.companyAmount || 0));
+      if (commission.bookingRef && !company.bookingRefs.includes(commission.bookingRef)) company.bookingRefs.push(commission.bookingRef);
+    }
     if (commission.promoterId && Number(commission.promoterAmount || 0) > 0) {
       const promoter = add(`promoter:${commission.promoterId}:${currency}`, { ownerType: 'promoter', ownerId: commission.promoterId, currency });
       if (!Number(split.promoterAmount || 0)) promoter.promoterCommission += Number(commission.promoterAmount || 0);
@@ -263,7 +275,11 @@ async function financeRows(periodStart, periodEnd) {
   for (const row of rowsByOwner.values()) {
     const [wallet, owner] = await Promise.all([
       walletFor(row.ownerType, row.ownerId, row.currency),
-      row.ownerType === 'company' ? financeRepository.companies.findOne({ id: row.ownerId }) : financeRepository.users.findOne({ id: row.ownerId }),
+      row.ownerType === 'company'
+        ? financeRepository.companies.findOne({ id: row.ownerId })
+        : row.ownerType === 'flight_supplier'
+          ? financeRepository.flightSuppliers.findOne({ id: row.ownerId })
+          : financeRepository.users.findOne({ id: row.ownerId }),
     ]);
     rows.push({
       ...row,
@@ -302,6 +318,7 @@ async function generateFinanceStatements(payload = {}, actorId = 'finance-system
       gross: Number(row.gross || 0),
       platformFee: Number(row.platformFee || 0),
       companyEarning: Number(row.companyEarning || 0),
+      supplierPayable: Number(row.supplierPayable || 0),
       promoterCommission: Number(row.promoterCommission || 0),
       refundDebits: Number(row.refundDebits || 0),
       payoutTotal: transactions.filter((txn) => txn.ownerType === row.ownerType && txn.ownerId === row.ownerId && /withdraw|payout/.test(normalize(txn.transactionType || txn.referenceType))).reduce((total, txn) => total + Number(txn.amount || 0), 0),
@@ -346,7 +363,15 @@ async function releaseEligibleEarnings(actorId = 'finance-system') {
 async function createSettlementBatch(payload = {}, actorId = 'finance-system') {
   const periodStart = payload.periodStart || null;
   const periodEnd = payload.periodEnd || new Date().toISOString();
-  const rows = await financeRows(periodStart, periodEnd);
+  const [rows, allBookings] = await Promise.all([
+    financeRows(periodStart, periodEnd),
+    financeRepository.bookings.list({}, { sort: { createdAt: -1 }, limit: 10000 }),
+  ]);
+  const grossByCurrency=new Map();
+  for (const booking of allBookings.filter((item)=>bookingInPeriod(item,periodStart,periodEnd))) {
+    const currency=String(booking.pricing?.currency || platformCurrency()).toUpperCase();
+    grossByCurrency.set(currency,Number(grossByCurrency.get(currency) || 0)+Number(booking.pricing?.total || 0));
+  }
   const rowsByCurrency = new Map();
   rows.forEach((row) => {
     const currency = row.currency || platformCurrency();
@@ -366,8 +391,9 @@ async function createSettlementBatch(payload = {}, actorId = 'finance-system') {
       status: 'draft',
       createdBy: actorId,
       createdAt: new Date().toISOString(),
-      totalGross: currencyRows.reduce((total, row) => total + Number(row.gross || 0), 0),
+      totalGross: Number(grossByCurrency.get(currency) || 0),
       totalCompanyEarning: currencyRows.reduce((total, row) => total + Number(row.companyEarning || 0), 0),
+      totalSupplierPayable: currencyRows.reduce((total, row) => total + Number(row.supplierPayable || 0), 0),
       totalPromoterCommission: currencyRows.reduce((total, row) => total + Number(row.promoterCommission || 0), 0),
       totalPlatformFee: currencyRows.reduce((total, row) => total + Number(row.platformFee || 0), 0),
       totalRefundDebits: currencyRows.reduce((total, row) => total + Number(row.refundDebits || 0), 0),
@@ -423,8 +449,8 @@ async function syncPayoutRequests(actorId = 'finance-system') {
 }
 
 async function requestOwnerPayout(ownerType, ownerId, amount, payload = {}, actorId = 'dashboard-user') {
-  if (!['company', 'promoter'].includes(ownerType)) {
-    const error = new Error('Payouts are available only for companies and promoters');
+  if (!['company', 'promoter', 'flight_supplier'].includes(ownerType)) {
+    const error = new Error('Payouts are available only for companies, promoters and approved flight suppliers');
     error.status = 422;
     throw error;
   }
@@ -572,11 +598,12 @@ async function createReconciliationReport(payload = {}, actorId = 'finance-syste
   const grossPayments = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
   const refundDebits = transactions.filter((txn) => txn.transactionType === 'refund_debit' && String(txn.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
   const companyEarnings = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
+  const supplierPayables = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.supplierPayable || 0), 0);
   const promoterCommissions = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.promoterAmount || 0), 0);
   const platformFees = bookings.reduce((total, booking) => total + Number(booking.pricing?.split?.platformFee || 0), 0);
   const requestedPayouts = payoutRequests.filter((request) => !['rejected', 'held'].includes(normalize(request.status)) && String(request.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, request) => total + Number(request.amount || 0), 0);
   const completedPayouts = transactions.filter((txn) => txn.transactionType === 'withdrawal_request' && ['completed', 'paid'].includes(normalize(txn.status)) && String(txn.currency || platformCurrency()).toUpperCase() === reportCurrency).reduce((total, txn) => total + Number(txn.amount || 0), 0);
-  const variance = grossPayments - refundDebits - companyEarnings - promoterCommissions - platformFees;
+  const variance = grossPayments - refundDebits - companyEarnings - supplierPayables - promoterCommissions - platformFees;
   const report = {
     id: await nextId('reconciliation'),
     settlementBatchId: cleanText(payload.settlementBatchId, 180),
@@ -590,6 +617,7 @@ async function createReconciliationReport(payload = {}, actorId = 'finance-syste
     grossPayments,
     refundDebits,
     companyEarnings,
+    supplierPayables,
     promoterCommissions,
     platformFees,
     requestedPayouts,

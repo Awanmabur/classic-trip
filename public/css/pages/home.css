@@ -167,7 +167,7 @@
     @media(max-width:680px){
       .hero{padding:7px 0 5px}
       .heroCard{padding:11px;border-radius:22px}
-      .heroTitle,.heroSub,.hero .chips,.hero .chipRow,.stats{display:none!important}
+      .homePage .heroSub,.homePage .hero .chips,.homePage .hero .chipRow{display:none!important}
       .heroTop{gap:9px}
       .hero .badgeInfo{font-size:10px;padding:5px 8px;gap:5px}
       .searchBox{padding:10px;border-radius:20px}
@@ -377,3 +377,40 @@ html[data-theme="light"] .heroCard::after{display:none}
 .gridCards>.marketplaceListingCard,.searchResultsGrid>.marketplaceListingCard{height:100%;display:grid;grid-template-rows:auto 1fr}
 .marketplaceListingCard .listingBody{align-content:start}
 .marketplaceListingCard .priceRow{margin-top:auto}
+
+
+/* Final platform polish: one compact, rounded visual language across every public catalog. */
+.marketplaceListingCard .actions,.marketplaceListingCard .listingActions,.partnerDirectoryCard .partnerCardActions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:center;flex-wrap:nowrap!important;width:100%}
+.marketplaceListingCard .actions .btn,.marketplaceListingCard .listingActions .btn,.partnerDirectoryCard .partnerCardActions .btn{width:100%;min-width:0;min-height:40px;padding:0 10px;border-radius:999px;justify-content:center;white-space:nowrap}
+.partnersDirectoryPage{display:grid;gap:14px;padding:16px 0 34px}
+.partnersDirectoryHero{padding:18px;border-radius:26px}
+.partnersDirectoryHero .heroTitle{max-width:28ch}
+.partnerDirectoryGrid{margin-top:0}
+.partnerDirectoryCard{overflow:hidden;border-radius:26px;background:linear-gradient(180deg,var(--cardA),var(--cardB));border:1px solid var(--line);box-shadow:var(--shadow2);height:100%;display:grid;grid-template-rows:auto 1fr}
+.partnerDirectoryCard .thumb{border-radius:0;min-height:170px}
+.partnerDirectoryCard .listingBody{padding:13px;display:grid;gap:10px;align-content:start}
+.partnerCardIdentity{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center}
+.partnerCardIdentity .profileLogo{width:44px;height:44px;border-radius:16px;object-fit:cover;background:var(--field);border:1px solid var(--line)}
+.partnerCardIdentity .listingTitle{margin:0}
+.partnerCardTags{display:flex;gap:6px;flex-wrap:wrap}
+.partnerCardTags span{padding:6px 9px;border-radius:999px;background:var(--field);border:1px solid var(--line);font-size:10px;font-weight:850;color:var(--muted)}
+.partnerCardSummary{margin:0;color:var(--muted);font-size:12px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.partnerDirectoryEmpty{grid-column:1/-1;padding:24px;border-radius:24px;text-align:center}
+@media(max-width:680px){
+  .homePage .heroTitle{display:block!important;font-size:22px;line-height:1.12}
+  .marketplaceListingCard .actions,.marketplaceListingCard .listingActions,.partnerDirectoryCard .partnerCardActions{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .marketplaceListingCard .actions .btn,.marketplaceListingCard .listingActions .btn,.partnerDirectoryCard .partnerCardActions .btn{min-height:38px;font-size:11px;padding-inline:7px}
+  .partnersDirectoryPage{padding-top:10px;gap:12px}
+  .partnersDirectoryHero{padding:14px;border-radius:22px}
+  .partnerDirectoryCard{border-radius:22px}
+  .partnerDirectoryCard .thumb{min-height:138px}
+  .partnerDirectoryCard .listingBody{padding:11px;gap:8px}
+}
+
+/* Price and actions remain readable at every card width; View and Book stay together. */
+.marketplaceListingCard .priceRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(154px,auto);align-items:end;gap:10px}
+.marketplaceListingCard .priceRow>.actions{margin:0;align-self:end}
+@media(max-width:680px){
+  .marketplaceListingCard .priceRow{grid-template-columns:1fr;align-items:stretch;gap:8px}
+  .marketplaceListingCard .priceRow>.actions{width:100%}
+}

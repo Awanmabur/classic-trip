@@ -3,9 +3,9 @@ const { Schema, model } = require('./_helpers');
 const walletTransactionSchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
   walletId: { type: String, index: true },
-  ownerType: { type: String, index: true, enum: ['platform', 'company', 'promoter', 'customer'] },
+  ownerType: { type: String, index: true, enum: ['platform', 'company', 'promoter', 'customer', 'flight_supplier'] },
   ownerId: { type: String, index: true },
-  transactionType: { type: String, index: true, enum: ['platform_fee', 'company_earning_pending', 'company_earning_released', 'promoter_commission_pending', 'promoter_commission_released', 'wallet_top_up_request', 'wallet_top_up_approved', 'wallet_top_up_rejected', 'withdrawal_request', 'withdrawal_reversal', 'refund_credit', 'refund_debit', 'earning_pending', 'credit', 'debit', 'cart_platform_fee', 'cart_company_earning_pending', 'cart_promoter_commission_pending'] },
+  transactionType: { type: String, index: true, enum: ['platform_fee', 'company_earning_pending', 'company_earning_released', 'promoter_commission_pending', 'promoter_commission_released', 'wallet_top_up_request', 'wallet_top_up_approved', 'wallet_top_up_rejected', 'withdrawal_request', 'withdrawal_reversal', 'refund_credit', 'refund_debit', 'earning_pending', 'credit', 'debit', 'cart_platform_fee', 'cart_company_earning_pending', 'cart_promoter_commission_pending', 'flight_supplier_payable_pending', 'flight_supplier_payable_released'] },
   direction: { type: String, enum: ['credit', 'debit'] },
   amount: Number,
   currency: { type: String, required: true, uppercase: true, trim: true },

@@ -1,0 +1,14 @@
+<%- include('../partials/site-head', { seo }) %>
+<link rel="stylesheet" href="/css/pages/travel-booking.css?v=20260724-flight-taxi-1">
+<%- include('../partials/site-header') %>
+<main class="container travelPage" id="flightOrderApp">
+  <section class="travelPanel">
+    <div class="travelPanelHead"><div><span class="badge badgeInfo"><i class="fa-solid fa-plane"></i> Protected flight order</span><h1 class="heroTitle" style="font-size:32px;margin-top:10px"><%= reference %></h1><p class="heroSub">Enter the private lookup code issued at checkout, unless this booking belongs to your signed-in account.</p></div><a class="btn btnGhost" href="/flights"><i class="fa-solid fa-magnifying-glass"></i> New search</a></div>
+    <form id="flightLookupForm" class="travelActions"><div class="travelControl" style="flex:1;min-width:220px"><i class="fa-solid fa-key"></i><input id="flightLookupCode" value="<%= lookupCode %>" placeholder="Private lookup code"></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-shield-halved"></i> Open order</button></form>
+    <div class="travelMessage" id="flightOrderLookupMessage"></div>
+  </section>
+  <section id="flightOrderDetails" class="travelStack hidden" style="margin-top:16px"></section>
+</main>
+<script nonce="<%= cspNonce %>" id="flightOrderBootstrap" type="application/json"><%- toScriptJson({ reference, lookupCode }) %></script>
+<script src="/js/flight-order.js?v=20260724-flight-taxi-1" defer></script>
+<%- include('../partials/site-footer') %>

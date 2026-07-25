@@ -8,6 +8,8 @@ const notificationService = require('../notification/notificationService');
 const securityService = require('../security/securityService');
 const paymentService = require('./paymentService');
 const busBookingService = require('../../modules/bus/services/busBookingService');
+const flightBookingService = require('../../modules/flight/services/flightBookingService');
+const taxiRideService = require('../../modules/taxi/services/taxiRideService');
 const { env } = require('../../config/env');
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -267,6 +269,10 @@ async function processBookingGroupWebhook(payload, headers, group) {
           await commerceRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session });
           await persistHotelNightLifecycle(booking, 'failed', session);
         });
+      } else if (String(booking.serviceType || '').toLowerCase() === 'flight') {
+        await flightBookingService.failPayment(booking.bookingRef, 'Grouped payment failed by provider webhook', { provider: payload.provider, providerReference: payload.providerReference, source: 'booking_group_webhook' });
+      } else if (String(booking.serviceType || '').toLowerCase() === 'local_transport') {
+        await taxiRideService.failPayment(booking.bookingRef, 'Grouped payment failed by provider webhook', { provider: payload.provider, providerReference: payload.providerReference, source: 'booking_group_webhook' });
       } else {
         await bookingService.purgeFailedBookingArtifacts(booking, {}, 'Grouped payment failed by provider webhook');
       }
@@ -284,7 +290,7 @@ async function processBookingGroupWebhook(payload, headers, group) {
   const payment = { id: await nextId('payment'), bookingId: group.id, bookingRef: group.groupRef, provider: payload.provider || env.paymentProvider, providerReference: payload.providerReference || payload.reference || idempotencyKey, amount: Number(payload.amount || group.pricing?.total || 0), grossAmount: Number(payload.amount || group.pricing?.total || 0), currency: payload.currency || group.pricing?.currency || platformCurrency(), status, paidAt: status === 'successful' ? new Date().toISOString() : null, idempotencyKey, rawPayload: payload, metadata: { bookingGroupRef: group.groupRef, childBookingRefs: group.bookingRefs || [] }, createdAt: new Date().toISOString() };
   Object.assign(group, { paymentId: payment.id, paymentRef: payment.providerReference, paymentProvider: payment.provider, paymentStatus: status, status: status === 'successful' ? 'confirmed' : status === 'failed' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'pending_payment' });
   for (const booking of bookings) {
-    if (String(booking.serviceType || '').toLowerCase() === 'bus') continue;
+    if (['bus', 'flight', 'local_transport'].includes(String(booking.serviceType || '').toLowerCase())) continue;
     Object.assign(booking, { paymentStatus: status, paymentRef: payment.providerReference, paymentProvider: payment.provider, updatedAt: new Date().toISOString() });
     applyHotelPaymentLifecycle(booking, status);
     if (String(booking.serviceType || '').toLowerCase() !== 'hotel') {
@@ -299,6 +305,14 @@ async function processBookingGroupWebhook(payload, headers, group) {
       if (status === 'successful') bookings[index] = await busBookingService.confirmPayment(booking.bookingRef, { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
       else if (status === 'failed') bookings[index] = await busBookingService.failPayment(booking.bookingRef, 'Grouped payment failed by provider webhook', { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
       else if (status === 'refunded') bookings[index] = await busBookingService.refundBooking(booking.bookingRef, 'Grouped payment refund confirmed by provider', { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
+    } else if (String(booking.serviceType || '').toLowerCase() === 'flight') {
+      if (status === 'successful') bookings[index] = await flightBookingService.confirmPayment(booking.bookingRef, { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
+      else if (status === 'failed') bookings[index] = await flightBookingService.failPayment(booking.bookingRef, 'Grouped payment failed by provider webhook', { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
+      else if (status === 'refunded') bookings[index] = await flightBookingService.cancelOrder(booking.bookingRef, 'Grouped payment refund confirmed by provider', { actorId: 'payment-webhook' });
+    } else if (String(booking.serviceType || '').toLowerCase() === 'local_transport') {
+      if (status === 'successful') bookings[index] = await taxiRideService.confirmPayment(booking.bookingRef, { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
+      else if (status === 'failed') bookings[index] = await taxiRideService.failPayment(booking.bookingRef, 'Grouped payment failed by provider webhook', { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'booking_group_webhook' });
+      else if (status === 'refunded') bookings[index] = (await taxiRideService.cancelRide(booking.bookingRef, 'Grouped payment refund confirmed by provider', { actorId: 'payment-webhook', actorType: 'system' })).booking;
     } else if (status === 'successful') Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking, { source: 'booking_group_webhook' }) || {});
   }
   await persistWebhookEvent(payload, headers, { status: 'processed', signatureStatus: 'verified', processedAt: new Date() });
@@ -376,6 +390,10 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
         await commerceRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session });
         await persistHotelNightLifecycle(booking, 'failed', session);
       });
+    } else if (String(booking.serviceType || '').toLowerCase() === 'flight') {
+      await flightBookingService.failPayment(booking.bookingRef, 'Payment failed by provider webhook', { provider: payload.provider, providerReference: payload.providerReference, source: 'payment_webhook' });
+    } else if (String(booking.serviceType || '').toLowerCase() === 'local_transport') {
+      await taxiRideService.failPayment(booking.bookingRef, 'Payment failed by provider webhook', { provider: payload.provider, providerReference: payload.providerReference, source: 'payment_webhook' });
     } else {
       await require('../booking/bookingService').purgeFailedBookingArtifacts(booking, {}, 'Payment failed by provider webhook');
     }
@@ -405,13 +423,19 @@ async function processPaymentWebhook(payload = {}, headers = {}) {
       await commerceRepository.bookings.save(booking, { bookingRef: booking.bookingRef });
       processedBooking = booking;
     }
+  } else if (String(booking.serviceType || '').toLowerCase() === 'flight') {
+    await persistPaymentState(payment, booking);
+    if (status === 'successful') processedBooking = await flightBookingService.confirmPayment(booking.bookingRef, { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'payment_webhook' });
+    else if (status === 'refunded') processedBooking = await flightBookingService.cancelOrder(booking.bookingRef, 'Refund confirmed by payment provider', { actorId: 'payment-webhook' });
+    else processedBooking = booking;
+  } else if (String(booking.serviceType || '').toLowerCase() === 'local_transport') {
+    await persistPaymentState(payment, booking);
+    if (status === 'successful') processedBooking = await taxiRideService.confirmPayment(booking.bookingRef, { provider: payment.provider, providerReference: payment.providerReference, paymentId: payment.id, source: 'payment_webhook' });
+    else if (status === 'refunded') processedBooking = (await taxiRideService.cancelRide(booking.bookingRef, 'Refund confirmed by payment provider', { actorId: 'payment-webhook', actorType: 'system' })).booking;
+    else processedBooking = booking;
   } else {
     Object.assign(booking, { paymentStatus: status, paymentProvider: payment.provider, paymentRef: payment.providerReference, updatedAt: new Date().toISOString() });
     applyHotelPaymentLifecycle(booking, status);
-    if (String(booking.serviceType || '').toLowerCase() !== 'hotel') {
-      if (status === 'successful' && ['draft', 'pending', 'pending_payment'].includes(booking.bookingStatus)) booking.bookingStatus = 'confirmed';
-      if (status === 'refunded') booking.bookingStatus = 'refunded';
-    }
     await persistPaymentState(payment, booking);
     if (status === 'successful') Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking, { source: 'payment_webhook' }) || {});
     processedBooking = booking;

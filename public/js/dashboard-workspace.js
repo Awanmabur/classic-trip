@@ -4,6 +4,8 @@ window.addEventListener('DOMContentLoaded', function () {
   const bootstrap = bootstrapNode ? JSON.parse(bootstrapNode.textContent || '{}') : {};
   const backendDashboardData = bootstrap.dashboardData || {};
   const platformConfig = bootstrap.platformConfig || {};
+  const countryMarkets = Array.isArray(bootstrap.countryMarkets) ? bootstrap.countryMarkets : [];
+  const countryOptions = countryMarkets.map((market) => ({ value: market.name, label: `${market.name} · ${market.currency}`, currency: market.currency, timezone: market.timezone, callingCode: market.callingCode }));
   const platformDefaultCurrency = String(platformConfig.defaultCurrency || '').toUpperCase();
   const supportedCurrencies = Array.isArray(platformConfig.supportedCurrencies) && platformConfig.supportedCurrencies.length
     ? platformConfig.supportedCurrencies
@@ -214,7 +216,7 @@ window.addEventListener('DOMContentLoaded', function () {
     reports: ['Reports', 'Download finance, partner, customer, promoter, ad, and booking performance reports.'],
     audit: ['Audit Logs', 'Track all sensitive admin, finance, support, partner, and system actions.'],
     admins: ['Admins & Roles', 'Manage staff access, roles, permissions, 2FA, and restricted controls.'],
-    kyc: ['KYC / Verification', 'Review company documents, payout accounts, business licenses, and compliance flags.'],
+    kyc: ['KYC / Verification', 'Review companies, flight-agent accreditation, rider and driver identity, vehicle compliance, payout accounts, licences and expiring documents.'],
     refunds: ['Refunds', 'Manage cancellations, reversals, chargebacks, refund approval, and partner responsibility.'],
     notifications: ['Notifications', 'Send and manage email, SMS, WhatsApp, push messages, receipts, and templates.'],
     system: ['System Health', 'Monitor platform uptime, queues, payment webhooks, ticket delivery, and database status.'],
@@ -1369,10 +1371,43 @@ window.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function marketForCountryBrowser(country = '') {
+    const wanted = String(country || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    return countryMarkets.find((market) => {
+      const name = String(market.name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      const code = String(market.code || '').trim().toLowerCase();
+      return wanted === name || wanted === code;
+    }) || null;
+  }
+
+  function bindCountryCurrency(form) {
+    if (!form) return;
+    const country = fieldControl(form, 'country');
+    const currency = fieldControl(form, 'operatingCurrency') || fieldControl(form, 'currency');
+    if (!country || !currency || currency.dataset.allowManualCurrency === 'true') return;
+    const sync = () => {
+      const market = marketForCountryBrowser(country.value);
+      const next = market?.currency || selectedOptionMeta(country, 'currency') || '';
+      if (next) {
+        currency.value = next;
+        currency.dataset.smartManaged = 'true';
+        clearFieldError(currency);
+      }
+      const timezone = fieldControl(form, 'timezone');
+      if (timezone && market?.timezone && !String(timezone.value || '').trim()) timezone.value = market.timezone;
+    };
+    if (country.dataset.currencyBound !== 'true') {
+      country.dataset.currencyBound = 'true';
+      country.addEventListener('change', sync);
+    }
+    sync();
+  }
+
   function bindDependentFields(root) {
     const form = root?.querySelector?.('form') || root?.closest?.('form') || (root?.matches?.('form') ? root : null);
     if (!form) return;
     form.querySelectorAll('[data-depends-on]').forEach((control) => refreshDependentControl(control, form));
+    bindCountryCurrency(form);
   }
 
   function refreshDependentsFor(parent) {
@@ -1469,8 +1504,11 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   function timezoneForCountryBrowser(country = '') {
-    const key = String(country).toLowerCase().replace(/[\s-]+/g, '_');
-    return ({ uganda:'Africa/Kampala', kenya:'Africa/Nairobi', rwanda:'Africa/Kigali', tanzania:'Africa/Dar_es_Salaam', south_sudan:'Africa/Juba', burundi:'Africa/Bujumbura', somalia:'Africa/Mogadishu' })[key] || 'Africa/Kampala';
+    return marketForCountryBrowser(country)?.timezone || 'Africa/Kampala';
+  }
+
+  function currencyForCountryBrowser(country = '') {
+    return marketForCountryBrowser(country)?.currency || platformDefaultCurrency;
   }
 
   function layoutColumns(layoutName = '2x2') {
@@ -1852,6 +1890,20 @@ window.addEventListener('DOMContentLoaded', function () {
     const dayOptions = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     const busAmenityOptions = ['AC','WiFi','USB charging','Reclining seats','Toilet','TV','Water','Extra luggage','Executive class'];
     const hotelAmenityOptions = ['WiFi','Breakfast','Parking','Airport shuttle','Pool','Gym','Restaurant','Air conditioning','Room service','Conference room'];
+    const staffRoleOptionsByService = {
+      bus: ['Scanner','Route Manager','Inventory Manager','Finance','Support','Report Viewer'],
+      hotel: ['Front Desk','Housekeeping','Hotel Manager','Inventory Manager','Finance','Support','Report Viewer'],
+      flight: ['Flight Sales Agent','Flight Ticketing Agent','Flight Customer Support','Agency Finance','Report Viewer'],
+      local_transport: ['Mobility Fleet Manager','Mobility Driver Coordinator','Mobility Customer Support','Safety Officer','Finance','Report Viewer'],
+    };
+    const staffPermissionOptionsByService = {
+      bus: [{value:'booking.view',label:'View bookings'},{value:'booking.create_manual',label:'Create counter bookings'},{value:'checkin.scan',label:'Scan tickets'},{value:'checkin.manage',label:'Check in passengers'},{value:'checkin.no_show',label:'Mark no-show'},{value:'manifest.view',label:'View manifests'},{value:'inventory.update',label:'Update seat inventory'},{value:'schedule.update',label:'Manage routes and schedules'},{value:'schedule.delay_notice',label:'Send delay notices'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage support'},{value:'customer.note',label:'Add customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
+      hotel: [{value:'booking.view',label:'View reservations'},{value:'booking.create_manual',label:'Create front-desk bookings'},{value:'checkin.manage',label:'Check guests in/out'},{value:'checkin.no_show',label:'Mark hotel no-show'},{value:'manifest.view',label:'View hotel manifests'},{value:'inventory.update',label:'Room inventory / housekeeping'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage guest support'},{value:'customer.note',label:'Add guest notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
+      flight: [{value:'booking.view',label:'View agency flight orders'},{value:'booking.create_manual',label:'Create customer quotes and assisted orders'},{value:'payment.record',label:'Record approved agency payments'},{value:'refund.request',label:'Request changes or refunds'},{value:'support.manage',label:'Manage traveler support'},{value:'support.note',label:'Add internal support notes'},{value:'customer.note',label:'Add traveler notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View agency reports'},{value:'profile.update',label:'Update own profile'}],
+      local_transport: [{value:'booking.view',label:'View assigned rides'},{value:'inventory.update',label:'Manage own approved fleet availability'},{value:'trip.status.update',label:'Update assigned ride status'},{value:'incident.create',label:'Create safety incidents'},{value:'refund.request',label:'Request ride refunds'},{value:'support.manage',label:'Manage rider support'},{value:'support.note',label:'Add internal support notes'},{value:'customer.note',label:'Add assigned customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View mobility reports'},{value:'profile.update',label:'Update own profile'}],
+    };
+    const staffRoleOptions = staffRoleOptionsByService[companyServiceType] || staffRoleOptionsByService.bus;
+    const staffPermissionOptions = staffPermissionOptionsByService[companyServiceType] || staffPermissionOptionsByService.bus;
     const listingStatusOptions = ['draft','active','paused','archived'];
     const scheduleStatusOptions = ['draft','active','published','boarding','departed','arrived','completed','delayed','cancelled','archived'];
     const listingSource = companyServiceType === 'hotel' ? (data.options?.hotelListings || data.options?.listings || data.listings) : companyServiceType === 'bus' ? (data.options?.busListings || data.options?.listings || data.listings) : (data.options?.listings || data.listings);
@@ -2766,7 +2818,8 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'headOfficeAddress', label:'Head-office address', icon:'fa-map-pin', value: data.company?.headOfficeAddress || '' },
         { name:'website', label:'Website', type:'url', icon:'fa-globe', value: data.company?.website || '' },
         { name:'city', label:'Head-office city', icon:'fa-location-dot', value: data.company?.city || '' },
-        { name:'country', label:'Country', type:'select', icon:'fa-earth-africa', options:['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo'], value: data.company?.country || '', required:true },
+        { name:'country', label:'Country', type:'select', icon:'fa-earth-africa', options:countryOptions, value: data.company?.country || '', required:true },
+        { name:'operatingCurrency', label:'Operating currency', icon:'fa-money-bill', value: currencyForCountryBrowser(data.company?.country), readonly:true, help:'Automatically selected from the company country and protected from manual mismatch.' },
         { name:'ownerEmail', label:'Owner login email', type:'email', icon:'fa-user-shield', required:true, value: data.company?.ownerEmail || '', help:'Changing this email requires fresh email verification.' },
         { name:'ownerPhone', label:'Owner verified phone', icon:'fa-mobile-screen', required:true, value: data.company?.ownerPhone || '', help:'Changing this phone sends a new six-digit verification code.' },
         { name:'supportEmail', label:'Support email', type:'email', icon:'fa-envelope', value: data.company?.supportEmail || '' },
@@ -2781,11 +2834,11 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fullName', label:'Full name', icon:'fa-user', required:true, placeholder:'Staff name' },
         { name:'email', label:'Email', type:'email', icon:'fa-envelope', required:true, placeholder:'staff@example.com' },
         { name:'phone', label:'Phone', icon:'fa-phone', placeholder:'Enter phone number' },
-        { name:'roleTitle', label:'Role title', type:'select', icon:'fa-user-tie', options: companyServiceType === 'hotel' ? ['Front Desk','Housekeeping','Hotel Manager','Inventory Manager','Finance','Support','Report Viewer'] : ['Scanner','Route Manager','Inventory Manager','Finance','Support','Report Viewer'], required:true },
+        { name:'roleTitle', label:'Role title', type:'select', icon:'fa-user-tie', options: staffRoleOptions, required:true },
         { name:'branchId', label:'Branch / terminal / property desk', type:'select', icon:'fa-location-dot', options:branches, help:'This controls the staff member’s operating location.' },
         { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, help:'Optional. Select only the public services this staff member may work with.' },
         { name:'scheduleIds', label:'Assigned schedules / departures', type:'multiselect', icon:'fa-calendar-days', options:schedules, help:'Optional. Selected schedules must belong to the selected listings and this company.' },
-        { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: companyServiceType === 'hotel' ? [{value:'booking.view',label:'View reservations'},{value:'booking.create_manual',label:'Create front-desk bookings'},{value:'checkin.manage',label:'Check guests in/out'},{value:'checkin.no_show',label:'Mark hotel no-show'},{value:'manifest.view',label:'View hotel manifests'},{value:'inventory.update',label:'Room inventory / housekeeping'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage guest support'},{value:'customer.note',label:'Add guest notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}] : [{value:'booking.view',label:'View bookings'},{value:'booking.create_manual',label:'Create counter bookings'},{value:'checkin.scan',label:'Scan tickets'},{value:'checkin.manage',label:'Check in passengers'},{value:'checkin.no_show',label:'Mark no-show'},{value:'manifest.view',label:'View manifests'},{value:'inventory.update',label:'Update seat inventory'},{value:'schedule.update',label:'Manage routes and schedules'},{value:'schedule.delay_notice',label:'Send delay notices'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage support'},{value:'customer.note',label:'Add customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}] },
+        { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: staffPermissionOptions },
       ]
     };
     if (isCompanyRole && key === 'driver') return {
@@ -2805,12 +2858,12 @@ window.addEventListener('DOMContentLoaded', function () {
       action: `/company/staff/${encodeURIComponent(recordId)}/role`, submit: 'Save employee access',
       fields: [
         { type:'smart-summary', label:'Partner Admin employee control', help:'Super Admin approves the partner company only. The Partner Admin activates, suspends, scopes, and assigns permissions to company employees.' },
-        { name:'roleTitle', label:'Role title', type:'select', icon:'fa-user-tie', options: companyServiceType === 'hotel' ? ['Front Desk','Housekeeping','Hotel Manager','Inventory Manager','Finance','Support','Report Viewer'] : ['Scanner','Route Manager','Inventory Manager','Finance','Support','Report Viewer'], required:true, value:fieldValue('staff.roleTitle') },
+        { name:'roleTitle', label:'Role title', type:'select', icon:'fa-user-tie', options: staffRoleOptions, required:true, value:fieldValue('staff.roleTitle') },
         { name:'status', label:'Employee status', type:'select', icon:'fa-circle-check', options:['active','pending_verification','invited','requested','suspended','rejected','revoked'], required:true, value:fieldValue('staff.status') || 'active' },
         { name:'branchId', label:'Branch / terminal / property desk', type:'select', icon:'fa-location-dot', options:branches, value:fieldValue('staff.branchId') },
         { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, value:fieldValue('staff.listingIds') },
         { name:'scheduleIds', label:'Assigned schedules / departures', type:'multiselect', icon:'fa-calendar-days', options:schedules, value:fieldValue('staff.scheduleIds') },
-        { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: companyServiceType === 'hotel' ? [{value:'booking.view',label:'View reservations'},{value:'booking.create_manual',label:'Create front-desk bookings'},{value:'checkin.manage',label:'Check guests in/out'},{value:'checkin.no_show',label:'Mark hotel no-show'},{value:'manifest.view',label:'View hotel manifests'},{value:'inventory.update',label:'Room inventory / housekeeping'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage guest support'},{value:'customer.note',label:'Add guest notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}] : [{value:'booking.view',label:'View bookings'},{value:'booking.create_manual',label:'Create counter bookings'},{value:'checkin.scan',label:'Scan tickets'},{value:'checkin.manage',label:'Check in passengers'},{value:'checkin.no_show',label:'Mark no-show'},{value:'manifest.view',label:'View manifests'},{value:'inventory.update',label:'Update seat inventory'},{value:'schedule.update',label:'Manage routes and schedules'},{value:'schedule.delay_notice',label:'Send delay notices'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage support'},{value:'customer.note',label:'Add customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}], value:fieldValue('staff.permissions') },
+        { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: staffPermissionOptions, value:fieldValue('staff.permissions') },
       ]
     };
     if (isCompanyRole && mode === 'edit' && key === 'driver activation') return {
@@ -3171,9 +3224,10 @@ window.addEventListener('DOMContentLoaded', function () {
           <input type="hidden" name="_csrf" value="${csrfToken}">
           <div class="formGrid">
             <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Enter company name" required></div></div>
-            <div class="field"><label>Company type</label><div class="control"><i class="fa-solid fa-briefcase"></i><select name="companyType"><option value="bus">Bus company</option><option value="hotel">Hotel</option></select></div></div>
-            <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><option value="" selected disabled>Select country</option><option>Uganda</option><option>Kenya</option><option>Rwanda</option><option>Tanzania</option><option>South Sudan</option><option>DR Congo</option></select></div></div>
-            <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><select name="operatingCurrency">${supportedCurrencies.map(code => `<option value="${escapeHtml(code)}"${code === platformDefaultCurrency ? ' selected' : ''}>${escapeHtml(code)}</option>`).join('')}</select></div></div>
+            <div class="field"><label>Partner type</label><div class="control"><i class="fa-solid fa-briefcase"></i><select name="companyType"><option value="bus">Bus operator</option><option value="hotel">Accommodation provider</option><option value="flight">Flight services</option><option value="local_transport">Local mobility</option></select></div></div>
+            <div class="field"><label>Partner model</label><div class="control"><i class="fa-solid fa-user-tag"></i><select name="partnerCategory" data-depends-on="companyType" data-filter-key="serviceType" required><option value="" disabled selected>Select partner model</option><option value="bus_operator" data-service-type="bus">Bus operator</option><option value="hotel_partner" data-service-type="hotel">Hotel or stay partner</option><option value="flight_agent" data-service-type="flight">Accredited flight agent</option><option value="boda_rider" data-service-type="local_transport">Boda rider</option><option value="car_driver" data-service-type="local_transport">Car driver</option><option value="fleet_owner" data-service-type="local_transport">Vehicle or fleet owner</option><option value="taxi_company" data-service-type="local_transport">Mobility company</option></select></div></div>
+            <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><option value="" selected disabled>Select country</option>${countryOptions.map(item => `<option value="${escapeHtml(item.value)}" data-currency="${escapeHtml(item.currency)}" data-timezone="${escapeHtml(item.timezone)}">${escapeHtml(item.label)}</option>`).join('')}</select></div></div>
+            <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><input name="operatingCurrency" value="${escapeHtml(platformDefaultCurrency)}" readonly></div><small class="fieldHelp">Set automatically from the selected country.</small></div>
             <div class="field"><label>Partner commission %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" name="commissionPercent" min="0" max="100" step="0.01" value="${escapeHtml(String(platformConfig.partnerCommissionPercent ?? 0))}" required></div><small class="fieldHelp">One percentage only. The partner receives the remainder.</small></div>
             <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" placeholder="Kampala"></div></div>
             <div class="field"><label>Support email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" placeholder="ops@example.com"></div></div>
@@ -3667,8 +3721,13 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#bookingsRefundedTable', data.bookings.filter(r => /refund/i.test(r[5])));
     fillTable('#partnersTable', data.partners, 'partners');
     fillTable('#partnersBusTable', data.partners.filter(r => /bus/i.test(r[1])), 'partners');
-    fillTable('#partnersHotelTable', data.partners.filter(r => /hotel/i.test(r[1])), 'partners');
-    fillTable('#partnersPendingTable', data.partners.filter(r => /pending|review/i.test(r[4])), 'partners');
+    fillTable('#partnersHotelTable', data.partners.filter(r => /hotel|stay partner/i.test(r[1])), 'partners');
+    fillTable('#partnersFlightTable', data.partners.filter(r => /flight|travel agent/i.test(r[1])), 'partners');
+    fillTable('#partnersBodaTable', data.partners.filter(r => /boda rider/i.test(r[1])), 'partners');
+    fillTable('#partnersCarTable', data.partners.filter(r => /car driver/i.test(r[1])), 'partners');
+    fillTable('#partnersFleetTable', data.partners.filter(r => /fleet|rental/i.test(r[1])), 'partners');
+    fillTable('#partnersMobilityCompanyTable', data.partners.filter(r => /taxi|mobility company/i.test(r[1])), 'partners');
+    fillTable('#partnersPendingTable', data.partners.filter(r => /pending|review|submitted/i.test(r[4])), 'partners');
     fillTable('#listingsTable', data.listings, 'listings');
     fillTable('#adminRoutesTable', data.routes || data.routeInventory || [], 'routes');
     fillTable('#adminVehiclesTable', data.vehicles || [], 'vehicles');

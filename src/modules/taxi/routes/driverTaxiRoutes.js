@@ -1,0 +1,21 @@
+'use strict';
+const express=require('express');
+const {requireApiAuth,requireApiRole}=require('../../../middlewares/apiAuth');
+const {enforceCompanyScope}=require('../../../middlewares/companyAccess');
+const {sensitiveActionLimiter}=require('../../../middlewares/rateLimit');
+const repo=require('../repositories/taxiRepository');
+const driverService=require('../services/taxiDriverService');
+const dispatchService=require('../services/taxiDispatchService');
+const rideService=require('../services/taxiRideService');
+const router=express.Router();
+router.use(requireApiAuth,requireApiRole('driver','company_employee','company_admin','super_admin'),enforceCompanyScope,sensitiveActionLimiter);
+async function actor(req){const user=req.session.user;let profile=null;if(user.role==='driver'||user.role==='company_employee')profile=await repo.drivers.findOne({companyId:user.companyId,userId:user.id});return{id:user.id,userId:user.id,companyId:user.companyId||req.body.companyId,driverProfileId:profile?.id||req.body.driverProfileId,actorType:user.role==='driver'?'driver':'company_staff'};}
+router.post('/availability',async(req,res,next)=>{try{res.json({availability:await driverService.setAvailability(req.body,await actor(req))});}catch(e){next(e);}});
+router.post('/location',async(req,res,next)=>{try{res.json({location:await driverService.heartbeat(req.body,await actor(req))});}catch(e){next(e);}});
+router.get('/offers',async(req,res,next)=>{try{const a=await actor(req);res.json({offers:await repo.assignments.list({driverProfileId:a.driverProfileId,status:'offered',offerExpiresAt:{$gt:new Date()}},{sort:{offeredAt:-1},limit:30})});}catch(e){next(e);}});
+router.post('/offers/:assignmentId/accept',async(req,res,next)=>{try{res.json(await dispatchService.acceptAssignment(req.params.assignmentId,await actor(req)));}catch(e){next(e);}});
+router.post('/offers/:assignmentId/decline',async(req,res,next)=>{try{res.json({assignment:await dispatchService.declineAssignment(req.params.assignmentId,req.body.reason,await actor(req))});}catch(e){next(e);}});
+router.post('/rides/:rideId/pin',async(req,res,next)=>{try{res.json({ride:await rideService.verifyPickupPin(req.params.rideId,req.body.pin,await actor(req))});}catch(e){next(e);}});
+router.post('/rides/:rideId/actions/:action',async(req,res,next)=>{try{res.json({ride:await driverService.driverTransition(req.params.rideId,req.params.action,req.body,await actor(req))});}catch(e){next(e);}});
+router.post('/incidents',async(req,res,next)=>{try{res.status(201).json({incident:await driverService.reportIncident(req.body,await actor(req))});}catch(e){next(e);}});
+module.exports=router;

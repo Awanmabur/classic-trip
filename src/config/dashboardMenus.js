@@ -31,6 +31,19 @@ const ROLE_DASHBOARDS = {
       { label: 'Service Categories', items: [
         { page: 'bus-dashboard', label: 'Bus Providers', icon: 'fa-bus-simple' },
         { page: 'hotel-dashboard', label: 'Hotel Providers', icon: 'fa-hotel' },
+        { page: 'flight-dashboard', label: 'Flight Agents & Supply', icon: 'fa-plane-departure' },
+        { page: 'taxi-dashboard', label: 'Local Mobility', icon: 'fa-motorcycle' },
+      ] },
+      { label: 'Partner Network', items: [
+        { page: 'flight-agents', label: 'Flight Agents', icon: 'fa-building-circle-check' },
+        { page: 'boda-riders', label: 'Boda Riders', icon: 'fa-motorcycle' },
+        { page: 'car-drivers', label: 'Car Drivers', icon: 'fa-car-side' },
+        { page: 'fleet-owners', label: 'Fleet & Rental Owners', icon: 'fa-warehouse' },
+        { page: 'mobility-companies', label: 'Mobility Companies', icon: 'fa-building' },
+        { page: 'mobility-drivers', label: 'Driver Verification', icon: 'fa-id-card' },
+        { page: 'mobility-vehicles', label: 'Vehicle Compliance', icon: 'fa-car-on' },
+        { page: 'mobility-dispatch', label: 'Dispatch & Live Rides', icon: 'fa-location-crosshairs' },
+        { page: 'mobility-safety', label: 'Safety & Incidents', icon: 'fa-shield-halved' },
       ] },
       { label: 'Money and Risk', items: [
         { page: 'payments', label: 'Payments & Split Fees', icon: 'fa-wallet' },

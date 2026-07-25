@@ -35,12 +35,44 @@ const SERVICE_DASHBOARDS = [
     ],
     modules: ['Properties', 'Room types', 'Room units', 'Night inventory', 'Pricing', 'Arrivals', 'In-house', 'Departures', 'Housekeeping', 'Settlement'],
   },
+  {
+    key: 'flight-dashboard',
+    label: 'Flight Supply & Agent Control',
+    serviceType: 'flight',
+    icon: 'fa-plane-departure',
+    status: 'production',
+    overview: 'Super Admin controls airlines, certified suppliers, airports, aircraft references, seat-map versions, fare families and live inventory. Verified travel agents search approved offers, prepare customer quotes, create bookings and manage traveler support.',
+    features: [
+      'Platform-owned airline, supplier, route, schedule, seat-map and inventory configuration',
+      'Fail-closed certified supplier adapters for external airline, NDC, GDS or consolidator inventory',
+      'Verified flight-agent search, customer quotes, booking conversion, passenger documents and ticket support',
+      'One-way and return booking with server repricing, baggage, meals, add-ons, seat selection and payment recovery',
+      'Super Admin review of schedule changes, exchanges, refunds, supplier payable and agent commission',
+    ],
+    modules: ['Airlines', 'Suppliers', 'Airports', 'Aircraft references', 'Seat maps', 'Routes', 'Fare families', 'Departures', 'Agent quotes', 'Orders', 'Tickets', 'Changes & refunds'],
+  },
+  {
+    key: 'taxi-dashboard',
+    label: 'Mobility Supply & Safety',
+    serviceType: 'local_transport',
+    icon: 'fa-motorcycle',
+    status: 'production',
+    overview: 'Super Admin controls ride classes, coverage, upfront pricing, safety verification and automatic dispatch. Riders, drivers and fleet owners manage only their own approved vehicles, availability, assigned rides, incidents and earnings.',
+    features: [
+      'Simple boda and car booking with pickup, destination, current location, Home, Work, airport and scheduled ride shortcuts',
+      'Platform-owned ride classes, service zones, fare rules, demand controls and automatic dispatch',
+      'Verified rider or driver identity, vehicle inspection, background checks, safety training and expiring compliance records',
+      'Server-authoritative quote, private booking lookup, pickup PIN, live ride status, cancellation and no-show controls',
+      'Partner-scoped fleet, assigned rides and earnings with separate platform commission and provider settlement',
+    ],
+    modules: ['Ride classes', 'Coverage', 'Fare rules', 'Vehicle review', 'Driver review', 'Automatic dispatch', 'Ride safety', 'Earnings', 'Settlement'],
+  }
 ];
 
 const ROLE_DASHBOARD_FEATURES = {
   admin: {
     label: 'Super Admin',
-    features: ['Company and driver verification', 'Bus and hotel operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
+    features: ['Company and driver verification', 'Bus, hotel, flight, and local taxi operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
   },
   company: {
     label: 'Company Admin',
@@ -52,7 +84,7 @@ const ROLE_DASHBOARD_FEATURES = {
   },
   driver: {
     label: 'Driver',
-    features: ['Assigned bus departures, route and stop details, manifests, check-in support, incidents, and trip status updates'],
+    features: ['Assigned bus departures or local taxi rides, manifests, pickup/boarding support, incidents, live status, and safety updates'],
   },
   customer: {
     label: 'Customer',
@@ -72,7 +104,7 @@ const ROLE_DASHBOARD_FEATURES = {
   },
   operations: {
     label: 'Operations',
-    features: ['Dated departures, room-night availability, manifests, check-ins, no-shows, incidents, completion, and operational reports'],
+    features: ['Bus and flight departures, hotel room nights, taxi dispatch, manifests, check-ins, no-shows, incidents, completion, and operational reports'],
   },
   content: {
     label: 'Content Admin',

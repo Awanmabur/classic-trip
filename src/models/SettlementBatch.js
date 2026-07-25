@@ -13,6 +13,7 @@ const settlementBatchSchema = new Schema({
   exportedAt: Date,
   totalGross: { type: Number, default: 0 },
   totalCompanyEarning: { type: Number, default: 0 },
+  totalSupplierPayable: { type: Number, default: 0 },
   totalPromoterCommission: { type: Number, default: 0 },
   totalPlatformFee: { type: Number, default: 0 },
   totalRefundDebits: { type: Number, default: 0 },

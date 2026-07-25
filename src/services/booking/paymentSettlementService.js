@@ -31,15 +31,34 @@ async function settleBookingPayment(bookingOrRef, options = {}) {
       || ['completed', 'checked_out'].includes(String(booking.hotelStay?.status || '').trim().toLowerCase())
       || Boolean(booking.completedAt || booking.checkOutAt)
     );
+    const flightFulfilled = serviceType === 'flight' && (
+      ['completed', 'flown'].includes(String(booking.bookingStatus || '').trim().toLowerCase())
+      || Boolean(booking.completedAt)
+    );
+    const taxiFulfilled = serviceType === 'local_transport' && (
+      String(booking.bookingStatus || '').trim().toLowerCase() === 'completed'
+      || Boolean(booking.completedAt)
+    );
+    const fulfillmentRequired = ['hotel', 'flight', 'local_transport'].includes(serviceType);
+    const fulfilled = hotelFulfilled || flightFulfilled || taxiFulfilled;
     const currentSettlement = String(booking.settlementStatus || '').trim().toLowerCase();
-    const settlementTarget = serviceType === 'hotel'
-      ? (currentSettlement === 'settled' ? 'settled' : (hotelFulfilled ? 'eligible' : 'pending_fulfillment'))
+    const settlementTarget = fulfillmentRequired
+      ? (currentSettlement === 'settled' ? 'settled' : (fulfilled ? 'eligible' : 'pending_fulfillment'))
       : 'settled';
     const split = booking.pricing?.split || calculateCommission(booking.pricing?.total || 0, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
     const currency = booking.pricing?.currency || platformCurrency();
     await commissionService.createCommission(booking, Boolean(booking.promoterAttribution), split, { session });
     await ensureMovement({ ownerType: 'platform', ownerId: 'platform', currency, amount: split.platformFee, transactionType: 'platform_fee', status: 'completed', pending: false, booking, session });
-    await ensureMovement({ ownerType: 'company', ownerId: booking.companyId, currency, amount: split.companyAmount, transactionType: 'company_earning_pending', status: 'pending', pending: true, booking, session });
+    // Flight supply belongs to the platform/supplier and taxi supply belongs to the
+    // marketplace until an eligible partner accepts dispatch. Never credit the platform
+    // company wallet as a fallback for an unassigned agent or mobility partner.
+    const settlementCompanyId = commissionService.settlementCompanyId(booking);
+    if (settlementCompanyId) {
+      await ensureMovement({ ownerType: 'company', ownerId: settlementCompanyId, currency, amount: split.companyAmount, transactionType: 'company_earning_pending', status: 'pending', pending: true, booking, session });
+    }
+    if (serviceType === 'flight' && Number(split.supplierPayable || 0) > 0) {
+      await ensureMovement({ ownerType: 'flight_supplier', ownerId: booking.supplierId || 'platform-flight-supply', currency, amount: split.supplierPayable, transactionType: 'flight_supplier_payable_pending', status: 'pending', pending: true, booking, session });
+    }
     if (booking.promoterAttribution?.promoterId) {
       await ensureMovement({ ownerType: 'promoter', ownerId: booking.promoterAttribution.promoterId, currency, amount: split.promoterAmount, transactionType: 'promoter_commission_pending', status: 'pending', pending: true, booking, session });
     }
@@ -69,8 +88,13 @@ async function settleBookingPayment(bookingOrRef, options = {}) {
     settled = booking;
   });
   if (!settled) return settled;
+  const walletOwners = [{ ownerType: 'platform', ownerId: 'platform' }];
+  const settlementOwnerId = commissionService.settlementCompanyId(settled);
+  if (settlementOwnerId) walletOwners.push({ ownerType: 'company', ownerId: settlementOwnerId });
+  if (settled.serviceType === 'flight' && settled.pricing?.split?.supplierPayable > 0) walletOwners.push({ ownerType: 'flight_supplier', ownerId: settled.supplierId || 'platform-flight-supply' });
+  if (settled.promoterAttribution?.promoterId) walletOwners.push({ ownerType: 'promoter', ownerId: settled.promoterAttribution.promoterId });
   const [wallets, transactions, commissions] = await Promise.all([
-    financeRepository.wallets.list({ $or: [{ ownerType: 'platform', ownerId: 'platform' }, { ownerType: 'company', ownerId: settled.companyId }, ...(settled.promoterAttribution?.promoterId ? [{ ownerType: 'promoter', ownerId: settled.promoterAttribution.promoterId }] : [])] }),
+    financeRepository.wallets.list({ $or: walletOwners }),
     financeRepository.transactions.list({ referenceType: 'booking', referenceId: settled.id }),
     financeRepository.commissions.list({ bookingId: settled.id }),
   ]);

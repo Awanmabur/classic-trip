@@ -2,6 +2,7 @@ const { platformCurrency } = require('../../utils/currency');
 const { getCachedPlatformConfig } = require('../platform/platformConfigService');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const crypto = require('crypto');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 const { env } = require('../../config/env');
 const generateBookingRef = require('../../utils/generateBookingRef');
 const calculateCommission = require('../../utils/calculateCommission');
@@ -121,12 +122,23 @@ function createDashboardProjection(initialState = {}) {
     availableUnits: unitCountByType.get(roomType.id) || 0,
   }));
   const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
+  const { partnerProfile } = require('../../config/partnerProfiles');
   const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
+  function companyPartnerCategory(company = {}) {
+    return normalize(company.partnerCategory || company.settings?.partnerCategory);
+  }
+  function companyPartnerLabel(company = {}) {
+    const profile = partnerProfile(companyPartnerCategory(company));
+    if (profile?.label) return profile.label;
+    return SERVICE_LABELS[company.companyType || company.type || company.serviceType] || company.companyType || company.type || 'Partner';
+  }
   const ROUTED_SERVICE_TYPES = ['bus'];
   const COMPANY_COMMON_DASHBOARD_PAGES = ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'];
   const COMPANY_SERVICE_PAGE_MAP = Object.freeze({
     bus: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
     hotel: ['overview', 'company-profile', 'staff', 'listings', 'hotel-rooms', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+    flight: ['overview', 'company-profile', 'staff', 'flight-search', 'flight-quotes', 'bookings', 'flight-travelers', 'flight-tickets', 'flight-changes', 'flight-refunds', 'support', 'revenue', 'settlement', 'reports'],
+    local_transport: ['overview', 'company-profile', 'staff', 'taxi-fleet', 'taxi-drivers', 'taxi-availability', 'taxi-operations', 'taxi-incidents', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
   });
   const platformDefaultCurrency = String(state.platformSettings?.financeRules?.defaultCurrency || '').toUpperCase();
   function normalize(value) {
@@ -226,7 +238,11 @@ function createDashboardProjection(initialState = {}) {
     if (role === 'admin') return adminDashboardData(bookings);
     if (['company', 'employee', 'driver'].includes(role)) {
       const companyId = requireContextId(context.companyId, 'companyId');
-      const companyBookings = bookings.filter(booking => booking.companyId === companyId);
+      const company = (state.companies || []).find((row) => String(row.id || '') === String(companyId)) || {};
+      const companyType = normalizeCompanyType(company.companyType || company.type || company.serviceType);
+      const companyBookings = bookings.filter((booking) => booking.companyId === companyId
+        || (companyType === 'flight' && booking.agentCompanyId === companyId)
+        || (companyType === 'local_transport' && booking.providerCompanyId === companyId));
       if (role === 'company') {
         const companyListings = state.listings.filter(listing => listing.companyId === companyId);
         return enrichCompanyDashboard(companyDashboardData(companyId, companyListings, companyBookings, context), companyId, companyBookings);
@@ -253,6 +269,14 @@ function createDashboardProjection(initialState = {}) {
     const activeUsers = state.users.filter(user => user.status !== 'suspended');
     const suspendedUsers = state.users.filter(user => user.status === 'suspended');
     const partnerCompanies = state.companies;
+    const busProviders = partnerCompanies.filter(company => normalize(company.companyType) === 'bus');
+    const hotelProviders = partnerCompanies.filter(company => normalize(company.companyType) === 'hotel');
+    const flightAgents = partnerCompanies.filter(company => normalize(company.companyType) === 'flight' || companyPartnerCategory(company) === 'flight_agent');
+    const mobilityPartners = partnerCompanies.filter(company => normalize(company.companyType) === 'local_transport');
+    const bodaRiders = mobilityPartners.filter(company => companyPartnerCategory(company) === 'boda_rider');
+    const carDrivers = mobilityPartners.filter(company => companyPartnerCategory(company) === 'car_driver');
+    const fleetOwners = mobilityPartners.filter(company => companyPartnerCategory(company) === 'fleet_owner');
+    const mobilityCompanies = mobilityPartners.filter(company => companyPartnerCategory(company) === 'taxi_company');
     const activePartners = partnerCompanies.filter(company => ['verified', 'active', 'approved'].includes(normalize(company.verificationStatus || company.status)));
     const suspendedPartners = partnerCompanies.filter(company => normalize(company.status) === 'suspended' || normalize(company.verificationStatus) === 'suspended');
     const activeListings = state.listings.filter(listing => listing.status === 'active');
@@ -296,6 +320,16 @@ function createDashboardProjection(initialState = {}) {
       value: partnerCompanies.length.toLocaleString(),
       icon: 'fa-building',
       hint: `${activePartners.length} active / ${suspendedPartners.length} suspended`
+    }, {
+      label: 'Service providers',
+      value: `${busProviders.length}/${hotelProviders.length}/${flightAgents.length}/${mobilityPartners.length}`,
+      icon: 'fa-layer-group',
+      hint: 'Bus / hotel / flight agent / local mobility'
+    }, {
+      label: 'Mobility network',
+      value: `${bodaRiders.length}/${carDrivers.length}/${fleetOwners.length}/${mobilityCompanies.length}`,
+      icon: 'fa-motorcycle',
+      hint: 'Boda / car / fleet-rental / mobility company'
     }, {
       label: 'Listings / routes / trips',
       value: `${state.listings.length}/${state.routes.length}/${state.schedules.length}`,
@@ -360,7 +394,12 @@ function createDashboardProjection(initialState = {}) {
     });
     const companyRows = state.companies.map(company => {
       const detail = companyDetail(company);
-      return [company.name, company.companyType || company.type || 'partner', company.country || '-', String(detail.performance.totalListings), company.verificationStatus || company.status || 'pending', detail.performance.revenue, `${Number(detail.commercialTerms.commissionPercent || 0).toFixed(2)}%`, dashboardMeta('partner', company.id, company.name, company.verificationStatus || company.status, detail, ['view', 'commission', 'portal', 'suspend', 'invite', 'bookings', 'listings', 'payouts'])];
+      return [company.name, companyPartnerLabel(company), company.country || '-', String(detail.performance.totalListings), company.verificationStatus || company.status || 'pending', detail.performance.revenue, `${Number(detail.commercialTerms.commissionPercent || 0).toFixed(2)}%`, dashboardMeta('partner', company.id, company.name, company.verificationStatus || company.status, {
+        ...detail,
+        partnerCategory: companyPartnerCategory(company),
+        companyType: normalize(company.companyType || company.type || company.serviceType),
+        accountModel: normalize(company.accountModel || company.settings?.accountModel),
+      }, ['view', 'commission', 'portal', 'suspend', 'invite', 'bookings', 'listings', 'payouts'])];
     });
     const listingRows = state.listings.map(listing => {
       const detail = listingDetail(listing);
@@ -595,6 +634,115 @@ function createDashboardProjection(initialState = {}) {
       sale,
       booking: sale.bookingRef ? bookingDetail(findBooking(sale.bookingRef)) : null
     }, ['view', 'booking', 'receipt', 'export'])]);
+    const companyNameById = new Map((state.companies || []).map(company => [String(company.id || ''), company.name || company.id]));
+    const vehicleById = new Map((state.taxiVehicles || []).map(vehicle => [String(vehicle.id || ''), vehicle]));
+    const driverById = new Map((state.taxiDriverProfiles || []).map(driver => [String(driver.id || ''), driver]));
+    const partnerNetwork = {
+      serviceCounts: {
+        bus: busProviders.length,
+        hotel: hotelProviders.length,
+        flight: flightAgents.length,
+        localTransport: mobilityPartners.length,
+        bodaRiders: bodaRiders.length,
+        carDrivers: carDrivers.length,
+        fleetOwners: fleetOwners.length,
+        mobilityCompanies: mobilityCompanies.length,
+      },
+      flightAgents: flightAgents.map(company => ({
+        id: company.id,
+        name: company.name,
+        country: company.country || '-',
+        city: company.city || '-',
+        licenceNumber: company.onboardingProfile?.agencyLicenceNumber || company.complianceProfile?.agencyLicenceNumber || company.registrationNumber || '-',
+        verificationStatus: company.verificationStatus || company.status || 'pending',
+        status: company.status || 'pending',
+        currency: company.operatingCurrency || '-',
+        staffCount: (state.companyEmployees || []).filter(employee => employee.companyId === company.id && employee.status !== 'archived').length,
+        quoteCount: (state.flightAgentQuotes || []).filter(row => row.agentCompanyId === company.id).length,
+        bookingCount: bookings.filter(row => row.agentCompanyId === company.id).length,
+      })),
+      mobilityPartners: mobilityPartners.map(company => ({
+        id: company.id,
+        name: company.name,
+        partnerCategory: companyPartnerCategory(company),
+        partnerLabel: companyPartnerLabel(company),
+        accountModel: company.accountModel || company.settings?.accountModel || 'organization',
+        country: company.country || '-',
+        city: company.city || '-',
+        currency: company.operatingCurrency || '-',
+        verificationStatus: company.verificationStatus || company.status || 'pending',
+        status: company.status || 'pending',
+        vehicleCount: (state.taxiVehicles || []).filter(row => row.companyId === company.id).length,
+        driverCount: (state.taxiDriverProfiles || []).filter(row => row.companyId === company.id).length,
+        activeDriverCount: (state.taxiDriverProfiles || []).filter(row => row.companyId === company.id && ['available','assigned','on_trip'].includes(normalize(row.availabilityStatus))).length,
+        rideCount: (state.taxiRides || []).filter(row => row.providerCompanyId === company.id).length,
+        payoutPercent: ['boda_rider','car_driver'].includes(companyPartnerCategory(company)) ? 100 : Number(company.settings?.driverPayoutPercent ?? 80),
+      })),
+      mobilityDrivers: (state.taxiDriverProfiles || []).map(driver => {
+        const vehicle = vehicleById.get(String(driver.assignedVehicleId || '')) || {};
+        return {
+          id: driver.id,
+          driverNumber: driver.driverNumber,
+          companyId: driver.companyId,
+          partnerName: companyNameById.get(String(driver.companyId || '')) || driver.companyId || '-',
+          partnerCategory: companyPartnerCategory((state.companies || []).find(company => company.id === driver.companyId) || {}),
+          licenceLast4: driver.licenceNumberLast4 || '-',
+          licenceClass: driver.licenceClass || '-',
+          licenceExpiresAt: driver.licenceExpiresAt || null,
+          assignedVehicleId: driver.assignedVehicleId || '',
+          vehicleRegistration: vehicle.registrationNumber || 'Not assigned',
+          identityVerified: driver.identityVerified === true,
+          backgroundCheckStatus: driver.backgroundCheckStatus || 'pending',
+          safetyTrainingCompletedAt: driver.safetyTrainingCompletedAt || null,
+          verificationStatus: driver.verificationStatus || 'pending',
+          availabilityStatus: driver.availabilityStatus || 'offline',
+        };
+      }),
+      mobilityVehicles: (state.taxiVehicles || []).map(vehicle => ({
+        id: vehicle.id,
+        companyId: vehicle.companyId,
+        partnerName: companyNameById.get(String(vehicle.companyId || '')) || vehicle.companyId || '-',
+        registrationNumber: vehicle.registrationNumber,
+        makeModel: [vehicle.make, vehicle.model].filter(Boolean).join(' ') || '-',
+        year: vehicle.year || '-',
+        vehicleClassId: vehicle.vehicleClassId || '-',
+        passengerCapacity: Number(vehicle.passengerCapacity || 0),
+        inspectionExpiresAt: vehicle.inspectionExpiresAt || null,
+        insuranceExpiresAt: vehicle.insuranceExpiresAt || null,
+        registrationExpiresAt: vehicle.registrationExpiresAt || null,
+        verificationStatus: vehicle.verificationStatus || 'pending',
+        operationalStatus: vehicle.operationalStatus || 'offline',
+        reviewNotes: vehicle.reviewNotes || '',
+      })),
+      dispatch: (state.taxiRides || []).map(ride => {
+        const assignment = (state.rideAssignments || []).find(row => row.rideId === ride.id && !['cancelled','expired'].includes(normalize(row.status))) || {};
+        const driver = driverById.get(String(assignment.driverProfileId || ride.driverProfileId || '')) || {};
+        const vehicle = vehicleById.get(String(assignment.vehicleId || ride.vehicleId || '')) || {};
+        return {
+          id: ride.id,
+          rideRef: ride.rideRef || ride.bookingRef || ride.id,
+          pickup: ride.pickup?.address || 'Pickup',
+          destination: ride.destination?.address || 'Destination',
+          partnerName: companyNameById.get(String(ride.providerCompanyId || assignment.providerCompanyId || '')) || 'Unassigned',
+          driverNumber: driver.driverNumber || 'Unassigned',
+          vehicleRegistration: vehicle.registrationNumber || 'Unassigned',
+          scheduledFor: ride.scheduledFor || ride.requestedPickupAt || null,
+          status: ride.status || 'pending',
+          amount: Number(ride.pricing?.total || 0),
+          currency: ride.pricing?.currency || platformDefaultCurrency,
+        };
+      }),
+      safetyIncidents: (state.taxiIncidents || []).map(incident => ({
+        id: incident.id,
+        rideId: incident.rideId || '-',
+        partnerName: companyNameById.get(String(incident.companyId || incident.providerCompanyId || '')) || incident.companyId || '-',
+        category: incident.category || incident.incidentType || 'safety',
+        severity: incident.severity || 'medium',
+        description: incident.description || incident.title || '-',
+        status: incident.status || 'open',
+        createdAt: incident.createdAt || null,
+      })),
+    };
     return {
       overviewStats,
       liveActivity: [['Bookings today', bookings.length.toLocaleString()], ['Seats / rooms on hold', state.seats.filter(seat => seat.status === 'locked').length.toLocaleString()], ['Pending partner approvals', partnerCompanies.filter(company => /pending|review/.test(normalize(company.verificationStatus))).length.toLocaleString()], ['Open disputes', openSupport.length.toLocaleString()]],
@@ -609,6 +757,47 @@ function createDashboardProjection(initialState = {}) {
         message: `${log.actorId} ${log.action}`,
         at: log.createdAt
       }))],
+      partnerNetwork,
+      travelSupply: {
+        mobility: {
+          listing: (state.listings || []).find(row => row.companyId === 'platform' && row.serviceType === 'local_transport') || null,
+          vehicleClasses: (state.vehicleClasses || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          zones: (state.taxiServiceZones || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          fareRules: (state.taxiFareRules || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          partners: (state.companies || []).filter(row => row.companyType === 'local_transport' && ['boda_rider', 'car_driver', 'fleet_owner', 'taxi_company'].includes(companyPartnerCategory(row))).map(row => ({
+            id: row.id,
+            name: row.name,
+            partnerCategory: companyPartnerCategory(row),
+            accountModel: row.accountModel,
+            status: row.status,
+            verificationStatus: row.verificationStatus,
+            driverPayoutPercent: ['boda_rider', 'car_driver'].includes(companyPartnerCategory(row)) ? 100 : Number(row.settings?.driverPayoutPercent ?? 80),
+            payoutPolicyReviewedAt: row.settings?.driverPayoutPolicy?.reviewedAt || null,
+          })),
+          vehicles: (state.taxiVehicles || []).map(row => ({ ...row })),
+          drivers: (state.taxiDriverProfiles || []).map(row => ({ ...row, licenceNumberEncrypted: undefined })),
+          availability: (state.driverAvailabilities || []).map(row => ({ ...row })),
+          rides: (state.taxiRides || []).map(row => ({ ...row, pickupPinEncrypted: undefined })),
+          assignments: (state.rideAssignments || []).map(row => ({ ...row })),
+          incidents: (state.taxiIncidents || []).map(row => ({ ...row })),
+        },
+        flight: {
+          listing: (state.listings || []).find(row => row.companyId === 'platform' && row.serviceType === 'flight') || null,
+          airlines: (state.airlines || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          suppliers: (state.flightSuppliers || []).filter(row => row.companyId === 'platform').map(row => ({ ...row, credentialSecretRef: row.credentialSecretRef ? 'configured' : '', webhookSecretRef: row.webhookSecretRef ? 'configured' : '' })),
+          aircraft: (state.aircraft || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          seatMaps: (state.flightSeatMapVersions || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          routes: (state.flightRoutes || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          fareFamilies: (state.flightFareFamilies || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          departures: (state.flightDepartures || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          ancillaries: (state.flightAncillaries || []).filter(row => row.companyId === 'platform').map(row => ({ ...row })),
+          agentQuotes: (state.flightAgentQuotes || []).map(row => ({ ...row, publicTokenHash: undefined, publicTokenEncrypted: undefined, offerTokenEncrypted: undefined })),
+          changeRequests: (state.flightChangeRequests || []).map(row => ({ ...row })),
+          refundRequests: (state.flightRefundRequests || []).map(row => ({ ...row })),
+          airports: (state.airports || []).filter(row => row.status !== 'archived').map(row => ({ ...row })),
+          aircraftTypes: (state.aircraftTypes || []).map(row => ({ ...row })),
+        },
+      },
       systemHealth: {
         appStatus: 'Online',
         databaseStatus: 'MongoDB repositories are the runtime source of truth',
@@ -720,16 +909,24 @@ function createDashboardProjection(initialState = {}) {
     const listingTypes = Array.from(new Set((listings || []).map((listing) => normalizeCompanyType(listing.serviceType || listing.type)).filter(Boolean)));
     const fallbackType = listingTypes[0]
       || (((assets.hotelProperties || []).length || (assets.roomTypes || []).length || (assets.roomUnits || []).length) ? 'hotel' : '')
-      || (((assets.vehicles || []).length || (assets.schedules || []).length) ? 'bus' : '');
+      || (((assets.vehicles || []).length || (assets.schedules || []).length) ? 'bus' : '')
+      || (((assets.airlines || []).length || (assets.flightDepartures || []).length || (assets.aircraft || []).length) ? 'flight' : '')
+      || (((assets.taxiVehicles || []).length || (assets.taxiDrivers || []).length || (assets.taxiRides || []).length) ? 'local_transport' : '');
     const primaryServiceType = companyType || fallbackType;
     const serviceTypes = primaryServiceType ? [primaryServiceType] : [];
     const supportsHotel = primaryServiceType === 'hotel';
     const supportsBus = primaryServiceType === 'bus';
     const supportsBusOperations = supportsBus;
-    const primaryLabel = SERVICE_LABELS[primaryServiceType] || 'Company';
-    const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : 'Inventory';
-    const dashboardLabel = supportsBus ? 'Bus Operations Dashboard' : supportsHotel ? 'Hotel Operations Dashboard' : `${primaryLabel} · Coming Soon`;
+    const supportsFlight = primaryServiceType === 'flight';
+    const supportsTaxi = primaryServiceType === 'local_transport';
+    const partnerCategory = normalize(company.partnerCategory || company.settings?.partnerCategory);
+    const primaryLabel = supportsFlight ? 'Flight agency' : supportsTaxi && ['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver' : supportsTaxi ? 'Mobility partner' : (SERVICE_LABELS[primaryServiceType] || 'Company');
+    const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : supportsFlight ? 'Customer quotes' : supportsTaxi ? 'My vehicle availability' : 'Inventory';
+    const dashboardLabel = supportsBus ? 'Bus Operations Dashboard' : supportsHotel ? 'Hotel Operations Dashboard' : supportsFlight ? 'Flight Agent Dashboard' : supportsTaxi ? (['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver Dashboard' : 'Mobility Partner Dashboard') : `${primaryLabel} Operations Dashboard`; 
     const visiblePages = new Set(COMPANY_SERVICE_PAGE_MAP[primaryServiceType] || COMPANY_COMMON_DASHBOARD_PAGES);
+    if (supportsTaxi && ['boda_rider','car_driver'].includes(partnerCategory)) {
+      visiblePages.delete('staff');
+    }
     visiblePages.add('setup-guide');
     const pageMeta = {
       overview: [dashboardLabel, `Manage only this company's ${primaryLabel.toLowerCase()} operations, bookings, inventory, team work, support, revenue, and settlement.`],
@@ -742,6 +939,17 @@ function createDashboardProjection(initialState = {}) {
       seatrooms: [inventoryLabel, supportsBus ? 'Control persisted live departure inventory and blocked, held, or booked seats.' : 'Control room types, units, room-night inventory, housekeeping, and booked stays.'],
       'seat-maps': ['Live Departure Seat Maps', 'Control persisted live departure inventory generated from a published vehicle seat-map version.'],
       'hotel-rooms': ['Rooms & Inventory', 'Control hotel properties, room types, room units, room-night inventory, housekeeping, and booked stays.'],
+      'flight-search': ['Search Live Flights', 'Search platform-approved airline and supplier offers for a customer. Agents cannot create airline schedules or seat inventory.'],
+      'flight-quotes': ['Customer Flight Quotes', 'Create protected, time-limited quotes from live supplier prices without changing the customer fare.'],
+      'flight-travelers': ['Flight Travelers', 'Review traveler and document-status summaries for bookings created by this agency.'],
+      'flight-tickets': ['Tickets & Booking References', 'Track confirmed supplier references and issued e-tickets for this agency’s customers.'],
+      'flight-changes': ['Flight Change Requests', 'Submit date, route, name, seat and baggage changes for platform review and supplier processing.'],
+      'flight-refunds': ['Flight Refund Requests', 'Submit policy-controlled cancellation and refund requests without directly editing supplier records.'],
+      'taxi-fleet': [partnerCategory === 'boda_rider' ? 'My Boda' : partnerCategory === 'car_driver' ? 'My Car' : 'My Fleet', 'Submit and maintain only vehicles owned by this account. Vehicle classes and approval rules are controlled by Super Admin.'],
+      'taxi-drivers': [['boda_rider','car_driver'].includes(partnerCategory) ? 'My Rider / Driver Profile' : 'My Drivers', ['boda_rider','car_driver'].includes(partnerCategory) ? 'Maintain your own identity, licence, safety-training and assigned-vehicle record for Super Admin review.' : 'Maintain your own driver records. Super Admin controls verification, background review and platform activation.'],
+      'taxi-availability': ['Go Online & Availability', 'Set verified riders and drivers online or offline and keep location heartbeats current for automatic dispatch.'],
+      'taxi-operations': ['Assigned Rides', 'View only rides automatically assigned to your verified drivers and update permitted ride states.'],
+      'taxi-incidents': ['Safety & Incidents', 'Report SOS, accident, conduct, vehicle and lost-item cases for restricted platform review.'],
       manifests: ['Manifests', supportsHotel ? 'Print hotel arrival, departure, and in-house lists.' : 'Print passenger manifests and operational lists.'],
       revenue: ['Revenue', 'View company revenue, booking splits, pending earnings, and refunds.'],
       settlement: ['Settlement', 'Request payout and track pending, available, and paid-out earnings.'],
@@ -755,8 +963,14 @@ function createDashboardProjection(initialState = {}) {
       inventoryLabel,
       supportsBus,
       supportsHotel,
+      supportsFlight,
+      supportsTaxi,
       supportsBusOperations,
       supportsMultiple: false,
+      partnerCategory,
+      accountModel: normalize(company.accountModel || company.settings?.accountModel),
+      capabilityPolicy: company.capabilityPolicy || company.settings?.capabilityPolicy || {},
+      companyName: company.name || company.companyName || '',
       commercialTerms: {
         model: company.commercialTerms?.model || 'percentage_commission',
         commissionPercent: Number(company.commercialTerms?.commissionPercent ?? cachedPlatformConfig.partnerCommissionPercent ?? 0),
@@ -919,13 +1133,71 @@ function createDashboardProjection(initialState = {}) {
     const roomAssignments = Array.isArray(state.roomAssignments) ? state.roomAssignments.filter(assignment => assignment.companyId === companyId) : [];
     const housekeepingTasks = Array.isArray(state.housekeepingTasks) ? state.housekeepingTasks.filter(task => task.companyId === companyId) : [];
     const maintenanceBlocks = Array.isArray(state.maintenanceBlocks) ? state.maintenanceBlocks.filter(block => block.companyId === companyId) : [];
+    const airlines = Array.isArray(state.airlines) ? state.airlines.filter(row => row.companyId === companyId) : [];
+    const flightSuppliers = Array.isArray(state.flightSuppliers) ? state.flightSuppliers.filter(row => row.companyId === companyId) : [];
+    const aircraft = Array.isArray(state.aircraft) ? state.aircraft.filter(row => row.companyId === companyId) : [];
+    const flightSeatMapVersions = Array.isArray(state.flightSeatMapVersions) ? state.flightSeatMapVersions.filter(row => row.companyId === companyId) : [];
+    const flightRoutes = Array.isArray(state.flightRoutes) ? state.flightRoutes.filter(row => row.companyId === companyId) : [];
+    const flightFareFamilies = Array.isArray(state.flightFareFamilies) ? state.flightFareFamilies.filter(row => row.companyId === companyId) : [];
+    const flightDepartures = Array.isArray(state.flightDepartures) ? state.flightDepartures.filter(row => row.companyId === companyId) : [];
+    const flightSeatInventories = Array.isArray(state.flightSeatInventories) ? state.flightSeatInventories.filter(row => row.companyId === companyId) : [];
+    const flightOrders = Array.isArray(state.flightOrders) ? state.flightOrders.filter(row => row.agentCompanyId === companyId) : [];
+    const flightTravelers = Array.isArray(state.flightTravelers) ? state.flightTravelers.filter(row => row.agentCompanyId === companyId) : [];
+    const flightTickets = Array.isArray(state.flightTickets) ? state.flightTickets.filter(row => row.agentCompanyId === companyId) : [];
+    const flightAncillaries = Array.isArray(state.flightAncillaries) ? state.flightAncillaries.filter(row => row.companyId === companyId) : [];
+    const flightScheduleChanges = Array.isArray(state.flightScheduleChanges) ? state.flightScheduleChanges.filter(row => row.companyId === companyId) : [];
+    const flightAgentQuotes = Array.isArray(state.flightAgentQuotes) ? state.flightAgentQuotes
+      .filter(row => row.agentCompanyId === companyId)
+      .map(row => {
+        const token = sensitiveFieldService.decrypt(row.publicTokenEncrypted, 'flight-agent-share-token');
+        return {
+          ...row,
+          offerTokenEncrypted: undefined,
+          publicTokenHash: undefined,
+          publicTokenEncrypted: undefined,
+          sharePath: token ? `/api/v1/flights/agent-quotes/${encodeURIComponent(row.quoteRef)}?token=${encodeURIComponent(token)}` : '',
+        };
+      }) : [];
+    const flightChangeRequests = Array.isArray(state.flightChangeRequests) ? state.flightChangeRequests.filter(row => row.agentCompanyId === companyId) : [];
+    const flightRefundRequests = Array.isArray(state.flightRefundRequests) ? state.flightRefundRequests.filter(row => row.agentCompanyId === companyId) : [];
+    const vehicleClasses = Array.isArray(state.vehicleClasses) ? state.vehicleClasses.filter(row => row.companyId === 'platform' && row.status === 'active') : [];
+    const taxiVehicles = Array.isArray(state.taxiVehicles) ? state.taxiVehicles.filter(row => row.companyId === companyId) : [];
+    const taxiDrivers = Array.isArray(state.taxiDriverProfiles) ? state.taxiDriverProfiles.filter(row => row.companyId === companyId) : [];
+    const taxiZones = []; // Platform zones are not editable or exposed in partner workspaces.
+    const taxiFareRules = []; // Platform fare rules remain Super Admin-only.
+    const driverAvailabilities = Array.isArray(state.driverAvailabilities) ? state.driverAvailabilities.filter(row => row.companyId === companyId) : [];
+    const driverLocations = Array.isArray(state.driverLocations) ? state.driverLocations.filter(row => row.companyId === companyId) : [];
+    const taxiRides = Array.isArray(state.taxiRides) ? state.taxiRides.filter(row => row.providerCompanyId === companyId) : [];
+    const rideAssignments = Array.isArray(state.rideAssignments) ? state.rideAssignments.filter(row => row.providerCompanyId === companyId) : [];
+    const taxiIncidents = Array.isArray(state.taxiIncidents) ? state.taxiIncidents.filter(row => row.companyId === companyId) : [];
+    const driverEarnings = Array.isArray(state.driverEarnings) ? state.driverEarnings.filter(row => row.companyId === companyId) : [];
+    const assignedTaxiDriverUsers = new Set(taxiDrivers.map(row => String(row.userId || '')).filter(Boolean));
+    const mobilityDriverCandidates = companyEmployees
+      .filter(row => String(row.status || '').toLowerCase() === 'active' && row.userId && !assignedTaxiDriverUsers.has(String(row.userId)))
+      .map(row => {
+        const user = (state.users || []).find(item => String(item.id || item._id || '') === String(row.userId || '')) || {};
+        return {
+          id: row.id,
+          userId: row.userId,
+          label: `${user.fullName || row.fullName || row.email || row.userId}${row.roleTitle ? ` · ${row.roleTitle}` : ''}`,
+          roleTitle: row.roleTitle || '',
+        };
+      });
+    const airports = Array.isArray(state.airports) ? state.airports : [];
+    const aircraftTypes = Array.isArray(state.aircraftTypes) ? state.aircraftTypes : [];
     const serviceProfile = buildCompanyServiceProfile(company, listings, {
       hotelProperties,
       roomTypes,
       roomUnits,
       rooms,
       vehicles,
-      schedules
+      schedules,
+      airlines,
+      aircraft,
+      flightDepartures,
+      taxiVehicles,
+      taxiDrivers,
+      taxiRides
     });
     const listingSupportsVisibleService = listingId => {
       const listing = findListing(listingId) || {};
@@ -1847,7 +2119,11 @@ function createDashboardProjection(initialState = {}) {
         vehicleCount: visibleVehicles.filter(vehicle => vehicle.status !== 'archived').length.toLocaleString(),
         roomTypes: (visibleRoomTypes.length || visibleRooms.length).toLocaleString(),
         blockedSeats: blockedSeats.toLocaleString(),
-        checkedIn: checkedInBookings.length.toLocaleString()
+        checkedIn: checkedInBookings.length.toLocaleString(),
+        upcomingFlights: flightDepartures.filter(row => ['published','scheduled','check_in_open','boarding'].includes(normalize(row.publicationStatus || row.operationalStatus))).length.toLocaleString(),
+        availableFlightSeats: flightSeatInventories.filter(row => normalize(row.status) === 'available').length.toLocaleString(),
+        activeTaxiDrivers: driverAvailabilities.filter(row => ['available','offered','assigned','on_trip'].includes(normalize(row.status))).length.toLocaleString(),
+        pendingTaxiDispatch: taxiRides.filter(row => ['scheduled','dispatch_pending','offering'].includes(normalize(row.status))).length.toLocaleString()
       },
       serviceProfile,
       options: {
@@ -1929,6 +2205,23 @@ function createDashboardProjection(initialState = {}) {
             status: night.status
           };
         }),
+        flightListings: listings.filter(listing => listing.serviceType === 'flight').map(listingOption),
+        taxiListings: listings.filter(listing => listing.serviceType === 'local_transport').map(listingOption),
+        airports: airports.map(row => ({ id: row.id, value: row.id, label: `${row.iataCode || row.icaoCode || ''} - ${row.name || row.id}`, iataCode: row.iataCode || '', city: row.city || '', country: row.country || '', timezone: row.timezone || '' })),
+        airlines: airlines.map(row => ({ id: row.id, value: row.id, label: `${row.iataCode || row.icaoCode || ''} - ${row.name || row.id}`, status: row.status })),
+        flightSuppliers: flightSuppliers.map(row => ({ id: row.id, value: row.id, label: row.name || row.code || row.id, mode: row.mode, status: row.status })),
+        aircraftTypes: aircraftTypes.map(row => ({ id: row.id, value: row.id, label: `${row.manufacturer || ''} ${row.model || row.name || row.id}`.trim(), seatCapacity: row.seatCapacity || row.maxSeats || 0 })),
+        aircraft: aircraft.map(row => ({ id: row.id, value: row.id, label: `${row.registrationNumber || row.tailNumber || row.id} - ${row.name || row.modelName || 'Aircraft'}`, status: row.status, seatMapVersionId: row.activeSeatMapVersionId || '' })),
+        flightSeatMaps: flightSeatMapVersions.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.layoutName || 'Seat map'} v${row.version || 1}`, aircraftId: row.aircraftId, status: row.status, totalSeats: row.totalSeats || (row.seats || []).length })),
+        flightRoutes: flightRoutes.map(row => ({ id: row.id, value: row.id, label: `${row.routeCode || ''} ${row.originAirportCode || row.originAirportId || ''} → ${row.destinationAirportCode || row.destinationAirportId || ''}`.trim(), listingId: row.listingId, status: row.status })),
+        flightFareFamilies: flightFareFamilies.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.code || 'Fare'} - ${row.cabinClass || 'economy'}`, routeId: row.routeId, status: row.status })),
+        flightDepartures: flightDepartures.map(row => ({ id: row.id, value: row.id, label: `${row.flightNumber || row.id} - ${dateValue(row.departAt)}`, routeId: row.routeId, aircraftId: row.aircraftId, status: row.operationalStatus || row.publicationStatus })),
+        flightAncillaries: flightAncillaries.map(row => ({ id: row.id, value: row.id, label: row.name || row.code || row.id, type: row.type, price: row.price, currency: row.currency, status: row.status })),
+        vehicleClasses: vehicleClasses.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.code || row.id} (${row.passengerCapacity || 0} passengers)`, status: row.status })),
+        taxiVehicles: taxiVehicles.map(row => ({ id: row.id, value: row.id, label: `${row.registrationNumber || row.id} - ${row.make || ''} ${row.model || ''}`.trim(), vehicleClassId: row.vehicleClassId, status: row.operationalStatus || row.verificationStatus })),
+        taxiDrivers: taxiDrivers.map(row => ({ id: row.id, value: row.id, label: `${row.driverNumber || row.id} - ${row.verificationStatus || 'pending'}`, vehicleId: row.assignedVehicleId || '', status: row.availabilityStatus || row.verificationStatus })),
+        taxiZones: taxiZones.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.code || row.id} - ${row.country || ''}`, status: row.status })),
+        taxiFareRules: taxiFareRules.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.serviceType || 'Fare rule'} - ${row.currency || companyCurrency}`, vehicleClassId: row.vehicleClassId, zoneId: row.zoneId, status: row.status })),
         staff: activeStaffEmployees.map(employee => {
           const user = userIndex.get(String(employee.userId || '')) || {};
           return {
@@ -2068,6 +2361,36 @@ function createDashboardProjection(initialState = {}) {
       hotelDepartures: hotelDepartureRows,
       hotelInHouse: hotelInHouseRows,
       hotelManifestHistory: hotelHistoryRows,
+      airports,
+      aircraftTypes,
+      airlines,
+      flightSuppliers,
+      aircraft,
+      flightSeatMapVersions,
+      flightRoutes,
+      flightFareFamilies,
+      flightDepartures,
+      flightSeatInventories,
+      flightOrders,
+      flightTravelers,
+      flightTickets,
+      flightAncillaries,
+      flightScheduleChanges,
+      flightAgentQuotes,
+      flightChangeRequests,
+      flightRefundRequests,
+      vehicleClasses,
+      taxiVehicles,
+      taxiDrivers,
+      taxiZones,
+      taxiFareRules,
+      driverAvailabilities,
+      driverLocations,
+      taxiRides,
+      rideAssignments,
+      taxiIncidents,
+      driverEarnings,
+      mobilityDriverCandidates,
       financeSummary: companyFinance.summary,
       revenueDrilldown: companyFinance.revenueRows,
       settlementBatches: companyFinance.settlementRows,
@@ -3386,6 +3709,9 @@ function createDashboardProjection(initialState = {}) {
         name: company.name,
         slug: company.slug,
         businessType: company.companyType || company.type,
+        partnerCategory: company.partnerCategory || company.settings?.partnerCategory || '',
+        accountModel: company.accountModel || company.settings?.accountModel || '',
+        capabilityPolicy: company.capabilityPolicy || {},
         status: company.status || company.verificationStatus,
         verificationStatus: company.verificationStatus,
         country: company.country,

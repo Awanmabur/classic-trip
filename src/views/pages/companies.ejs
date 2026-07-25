@@ -1,46 +1,65 @@
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
-<main class="container" style="padding:16px 0 30px">
-  <section class="card heroCard">
-    <span class="badge badgeInfo"><i class="fa-solid fa-building"></i> Partner profiles</span>
-    <h1 class="heroTitle">Verified companies, promoter-ready campaigns, and public profiles.</h1>
-    <p class="heroSub">Each profile shows services, routes, active listings, support contacts, verification, sponsored campaigns, referral assets, and booking links.</p>
-    <div class="actions" style="margin-top:14px">
-      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
-      <a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
+<main class="container partnersDirectoryPage marketingPage">
+  <section class="card heroCard partnersDirectoryHero partnersDirectoryBanner">
+    <span class="badge badgeInfo"><i class="fa-solid fa-shield-halved"></i> Trusted travel partners</span>
+    <h1 class="heroTitle">Meet verified partners serving travellers across East Africa.</h1>
+    <p class="heroSub">Explore established bus operators, accommodation providers, accredited flight agents and approved mobility partners—all connected through one secure booking platform.</p>
+    <div class="actions heroActionsRow">
+      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-handshake"></i> Join as a partner</a>
+      <a class="btn btnGhost" href="/services"><i class="fa-solid fa-compass"></i> Explore services</a>
     </div>
-    <div class="metricRow" style="margin-top:14px">
-      <div class="stat"><b><%= companies.length %></b><span>Total partners</span></div>
-      <div class="stat"><b><%= stats.verified %></b><span>Verified</span></div>
+    <div class="metricRow heroMetricsRow">
+      <div class="stat"><b><%= companies.length %></b><span>Listed partners</span></div>
+      <div class="stat"><b><%= stats.verified %></b><span>Verified partners</span></div>
       <div class="stat"><b><%= stats.bookable %></b><span>Bookable services</span></div>
-      <div class="stat"><b><%= stats.campaigns %></b><span>Campaigns</span></div>
+      <div class="stat"><b><%= stats.campaigns %></b><span>Active campaigns</span></div>
     </div>
   </section>
-  <section class="gridCards" style="margin-top:14px">
-    <% companies.forEach(company => { %>
-      <article class="listing">
-        <a href="/companies/<%= company.slug %>">
+
+  <section class="gridCards partnerDirectoryGrid" aria-label="Classic Trip partners">
+    <% if (!companies.length) { %>
+      <article class="card marketplaceEmptyCard partnerDirectoryEmpty">
+        <i class="fa-solid fa-building-circle-check" style="font-size:34px;color:var(--accent)"></i>
+        <h2 style="margin:10px 0 0">Verified partner profiles are being prepared.</h2>
+        <p class="muted">Approved partners will appear here as soon as their public services are ready for booking.</p>
+      </article>
+    <% } %>
+    <% companies.forEach(company => { const coverUrl = company.coverImage && company.coverImage.url; const logoUrl = company.logo && company.logo.url; %>
+      <article class="listing marketplaceListingCard partnerDirectoryCard">
+        <a class="listingThumbLink" href="/companies/<%= company.slug %>" aria-label="View <%= company.name %>">
           <div class="thumb">
-            <% if (company.coverImage.url) { %><img src="<%= company.coverImage.url %>" alt="<%= company.name %>"><% } else { %><div class="empty" style="height:100%;display:grid;place-items:center"><i class="fa-solid fa-building" style="font-size:38px"></i></div><% } %>
-            <div class="cornerBadge <%= company.verificationStatus === 'verified' ? 'available' : 'promo' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus %></div>
-          </div>
-          <div class="listingBody">
-            <div style="display:flex;align-items:center;gap:10px">
-              <% if (company.logo.url) { %><img class="profileLogo" style="width:46px;height:46px;border-radius:16px" src="<%= company.logo.url %>" alt="<%= company.name %> logo"><% } else { %><span class="profileLogo" style="width:46px;height:46px;border-radius:16px;display:grid;place-items:center"><i class="fa-solid fa-bus"></i></span><% } %>
-              <div>
-                <h3 class="listingTitle"><%= company.name %></h3>
-                <div class="small"><%= company.city %>, <%= company.country %> - <%= company.companyType %></div>
-              </div>
-            </div>
-            <p class="desc"><%= company.description %></p>
-            <div class="meta">
-              <span><%= company.activeListingsCount %> active</span>
-              <span><%= company.bookableListingsCount %> bookable</span>
-              <span><%= company.sponsoredListingsCount %> sponsored</span>
-              <span><i class="fa-solid fa-star"></i> <%= company.ratingAverage %></span>
-            </div>
+            <% if (coverUrl) { %>
+              <img src="<%= coverUrl %>" alt="<%= company.name %> travel services" loading="lazy" decoding="async">
+            <% } else { %>
+              <div class="empty" style="height:100%;display:grid;place-items:center"><i class="fa-solid fa-building" style="font-size:38px"></i></div>
+            <% } %>
+            <div class="cornerBadge <%= company.verificationStatus === 'verified' ? 'available' : 'promo' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus === 'verified' ? 'Verified' : 'Under review' %></div>
           </div>
         </a>
+        <div class="listingBody">
+          <div class="partnerCardIdentity">
+            <% if (logoUrl) { %>
+              <img class="profileLogo" src="<%= logoUrl %>" alt="<%= company.name %> logo" loading="lazy" decoding="async">
+            <% } else { %>
+              <span class="profileLogo" style="display:grid;place-items:center"><i class="fa-solid fa-route"></i></span>
+            <% } %>
+            <div>
+              <h2 class="listingTitle"><a href="/companies/<%= company.slug %>"><%= company.name %></a></h2>
+              <div class="small"><%= company.city || 'East Africa' %><%= company.country ? `, ${company.country}` : '' %></div>
+            </div>
+          </div>
+          <p class="partnerCardSummary"><%= company.description || 'A verified Classic Trip partner committed to reliable service, clear pricing and traveller support.' %></p>
+          <div class="partnerCardTags" aria-label="Partner information">
+            <span><i class="fa-solid fa-briefcase"></i> <%= String(company.companyType || 'travel partner').replaceAll('_', ' ') %></span>
+            <span><i class="fa-solid fa-circle-check"></i> <%= company.bookableListingsCount %> bookable</span>
+            <span><i class="fa-solid fa-star"></i> <%= Number(company.ratingAverage || 0).toFixed(1) %></span>
+          </div>
+          <div class="partnerCardActions">
+            <a class="btn btnGhost" href="/companies/<%= company.slug %>"><i class="fa-regular fa-eye"></i> View profile</a>
+            <a class="btn btnPrimary" href="/search?company=<%= encodeURIComponent(company.slug) %>"><i class="fa-solid fa-ticket"></i> Book service</a>
+          </div>
+        </div>
       </article>
     <% }) %>
   </section>

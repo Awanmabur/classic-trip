@@ -4,6 +4,8 @@ const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
 
 const COMPANY_SCOPED = new Set([
   'companyEmployees','companyBranches','companyPolicies','listings','routes','routeStops','routeSegments','vehicles','seatMapTemplates','seatMapVersions','fareProducts','busSegmentFares','serviceAddons','schedules','seats','busSeatSegmentInventories',
+  'places','airlines','flightSuppliers','aircraft','flightSeatMapVersions','flightRoutes','flightFareFamilies','flightDepartures','flightSeatInventories','flightOffers','flightOrders','flightTravelers','flightSeatAssignments','flightTickets','flightAncillaries','flightScheduleChanges','flightAgentQuotes','flightChangeRequests','flightRefundRequests',
+  'vehicleClasses','taxiVehicles','taxiDriverProfiles','taxiServiceZones','taxiFareRules','driverAvailabilities','driverLocations','rideQuotes','rideRequests','taxiRides','rideAssignments','rideEvents','taxiIncidents','driverEarnings',
   'driverAssignments','driverIncidents','tripStatusUpdates','hotelProperties','roomTypes','roomUnits','roomNightInventories','ratePlans','hotelReservations','hotelGuests','roomAssignments','housekeepingTasks','maintenanceBlocks',
   'stayRules','bookings','bookingItems','busReservations','busSeatAssignments','busTickets','bookingGroups','payments','supportTickets','refundRequests','promotionCampaigns','reviews','notifications',
   'shiftHandovers','ticketScans','financeStatements','financeRiskReviews','settlementBatches','reconciliationReports','offlineSales',
@@ -108,6 +110,8 @@ async function companySnapshot(companyId) {
   await Promise.all(relatedTasks.map(async ([entity, filter, limit]) => {
     if (repositories[entity]) snapshot[entity] = await list(entity, filter, limit);
   }));
+  snapshot.airports = await list('airports', { status: 'active' }, 2000);
+  snapshot.aircraftTypes = await list('aircraftTypes', { status: 'active' }, 500);
   snapshot.platformSettings = await one('platformSettings', {}) || {};
   return snapshot;
 }

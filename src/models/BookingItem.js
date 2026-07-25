@@ -5,8 +5,11 @@ const bookingItemSchema = new Schema({
   bookingId: { type: String, required: true, index: true },
   bookingRef: { type: String, required: true, index: true },
   companyId: { type: String, required: true, index: true },
+  agentCompanyId: { type: String, index: true },
+  providerCompanyId: { type: String, index: true },
+  supplierId: { type: String, index: true },
   listingId: { type: String, required: true, index: true },
-  serviceType: { type: String, required: true, enum: ['bus', 'hotel'], index: true },
+  serviceType: { type: String, required: true, enum: ['bus', 'hotel', 'flight', 'local_transport'], index: true },
   domainReservationId: { type: String, index: true },
   quantity: { type: Number, default: 1, min: 1 },
   pricing: moneySchema,
@@ -21,4 +24,6 @@ const bookingItemSchema = new Schema({
 }, { timestamps: true });
 
 bookingItemSchema.index({ bookingId: 1, serviceType: 1 });
+bookingItemSchema.index({ agentCompanyId: 1, serviceType: 1, createdAt: -1 });
+bookingItemSchema.index({ providerCompanyId: 1, serviceType: 1, createdAt: -1 });
 module.exports = model('BookingItem', bookingItemSchema);

@@ -17,6 +17,7 @@
   
   <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260724-hotel-ui-final-1">
   <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+  <link rel="stylesheet" href="/css/dashboard-final-polish.css?v=20260725-dashboard-spacing-final-1" />
 </head>
 
 <body>
@@ -40,6 +41,8 @@
     const companySupportsBus = Boolean(companyServiceProfile.supportsBus || companyServiceType === 'bus');
     const companySupportsHotel = Boolean(companyServiceProfile.supportsHotel || companyServiceType === 'hotel');
     const companySupportsBusOperations = Boolean(companyServiceProfile.supportsBusOperations || companySupportsBus);
+    const companySupportsFlight = Boolean(companyServiceProfile.supportsFlight || companyServiceType === 'flight');
+    const companySupportsTaxi = Boolean(companyServiceProfile.supportsTaxi || companyServiceType === 'local_transport');
     const companyVisiblePages = new Set(companyServiceProfile.visiblePages || []);
     function companyCanShow(page){ return !isCompanyDashboard || companyVisiblePages.has(page); }
     const dashboardFeatureLabel = isCompanyDashboard ? (companyServiceProfile.dashboardLabel || dashboardShell?.label || 'Company Dashboard') : null;
@@ -60,7 +63,7 @@
     const employeeProfileBranch = employeeProfileData.branch || employeeCompanyName;
     const employeeProfileShift = employeeProfileData.shift || 'Current shift';
     const defaultCreateType = isCompanyDashboard
-      ? (companySupportsHotel ? 'room night inventory' : companySupportsBus ? 'schedule' : 'listing')
+      ? (companySupportsHotel ? 'room night inventory' : companySupportsBus ? 'schedule' : companySupportsFlight ? 'customer flight quote' : companySupportsTaxi ? 'vehicle' : 'listing')
       : (isEmployeeDashboard ? 'booking' : 'partner');
     const dashboardCopy = isCompanyDashboard ? {
       title: companyServiceProfile.dashboardLabel || 'Company Dashboard',
@@ -125,6 +128,8 @@
       companySupportsBus,
       companySupportsHotel,
       companySupportsBusOperations,
+      companySupportsFlight,
+      companySupportsTaxi,
       companyVisiblePages,
       companyCanShow,
       dashboardFeatureLabel,
@@ -350,7 +355,7 @@
             <div class="cardHead">
               <div class="cardTitle">
                 <h3>Recent bookings</h3>
-                <p>Latest customer orders across bus and hotel services.</p>
+                <p>Latest customer orders across bus, hotel, flight and local mobility services.</p>
               </div>
               <button class="btn" data-jump="bookings"><i class="fa-regular fa-eye"></i> View all</button>
             </div>
@@ -381,6 +386,18 @@
                 <button class="quickCard" data-modal="create" data-type="room type"><div class="quickIcon"><i class="fa-solid fa-bed"></i></div><strong>Add room type</strong><span>Create a room type, then add room units and dated night inventory.</span></button>
                 <button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Hotel bookings</strong><span>Review stays, holds, guests, and payment status.</span></button>
                 <button class="quickCard" data-jump="checkins"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Guest check-ins</strong><span>Open arrival and in-house guest workflow.</span></button>
+                <% } else if(isCompanyDashboard && companySupportsFlight){ %>
+                <a class="quickCard" href="/company/dashboard/flight-search"><div class="quickIcon"><i class="fa-solid fa-magnifying-glass"></i></div><strong>Search flights</strong><span>Search live platform-approved supplier offers for a customer.</span></a>
+                <a class="quickCard" href="/company/dashboard/flight-quotes"><div class="quickIcon"><i class="fa-solid fa-file-invoice-dollar"></i></div><strong>Customer quotes</strong><span>Prepare protected flight quotes without changing supplier prices.</span></a>
+                <a class="quickCard" href="/company/bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Agency bookings</strong><span>Review bookings created by this verified travel agency.</span></a>
+                <a class="quickCard" href="/company/dashboard/flight-tickets"><div class="quickIcon"><i class="fa-solid fa-plane-circle-check"></i></div><strong>Tickets</strong><span>Support travelers with issued ticket and itinerary records.</span></a>
+                <a class="quickCard" href="/company/dashboard/flight-changes"><div class="quickIcon"><i class="fa-solid fa-right-left"></i></div><strong>Changes & refunds</strong><span>Submit customer requests for Super Admin and supplier review.</span></a>
+                <% } else if(isCompanyDashboard && companySupportsTaxi){ %>
+                <a class="quickCard" href="/company/dashboard/taxi-fleet"><div class="quickIcon"><i class="fa-solid fa-motorcycle"></i></div><strong>My vehicles</strong><span>Submit and maintain only your own boda, car or fleet vehicles.</span></a>
+                <a class="quickCard" href="/company/dashboard/taxi-drivers"><div class="quickIcon"><i class="fa-solid fa-id-card"></i></div><strong>My drivers</strong><span>Submit your own drivers for identity, background and safety review.</span></a>
+                <a class="quickCard" href="/company/dashboard/taxi-availability"><div class="quickIcon"><i class="fa-solid fa-toggle-on"></i></div><strong>Go online</strong><span>Share availability only after driver and vehicle approval.</span></a>
+                <a class="quickCard" href="/company/dashboard/taxi-operations"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Assigned rides</strong><span>View platform-dispatched trips assigned to your verified team.</span></a>
+                <a class="quickCard" href="/company/dashboard/taxi-incidents"><div class="quickIcon"><i class="fa-solid fa-shield-halved"></i></div><strong>Safety</strong><span>Report an incident without exposing restricted safety records.</span></a>
                 <% } else if(isEmployeeDashboard){ %>
                 <button class="quickCard" data-jump="checkin"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Check in ticket</strong><span>Open the shared check-in workspace for manual or QR validation.</span></button>
                 <button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Record a desk booking for the assigned company.</span></button>
@@ -411,6 +428,9 @@
       <%- include('sections/bookings', sectionLocals) %>
 
       <%- include('sections/partners', sectionLocals) %>
+      <% if(dashboardRoleKey === 'admin'){ %>
+      <%- include('sections/admin-partner-network', sectionLocals) %>
+      <% } %>
 
       <%- include('sections/listings', sectionLocals) %>
 
@@ -434,6 +454,9 @@
       <% } %>
       <% if(companyCanShow('hotel-rooms')){ %>
       <%- include('sections/hotel-rooms', sectionLocals) %>
+      <% } %>
+      <% if(isCompanyDashboard && (companySupportsFlight || companySupportsTaxi)){ %>
+      <%- include('sections/flight-taxi', sectionLocals) %>
       <% } %>
       <%- include('sections/manifests', sectionLocals) %>
       <%- include('sections/checkins', sectionLocals) %>
@@ -565,7 +588,9 @@
           'ticket','saved','passengers','receipts','wallet','security',
           'links','share','campaigns','performance','offline-sales','fraud','commissions','withdrawals','payouts',
           'driver-ops','driver-manifest','driver-incidents',
-          'bus-dashboard','hotel-dashboard'
+          'bus-dashboard','hotel-dashboard','flight-dashboard','taxi-dashboard',
+          'flight-setup','flight-routes','flight-seat-maps','flight-fares','flight-departures','flight-manifests','flight-operations',
+          'taxi-fleet','taxi-drivers','taxi-zones','taxi-fares','taxi-dispatch','taxi-operations','taxi-incidents'
         ]);
         const seenDynamicDashboardPages = new Set();
         const dynamicDashboardItems = [];
@@ -611,7 +636,7 @@
         <%- include('sections/dynamic-page', Object.assign({}, sectionLocals, { item, employeeDynamicAction, employeeDynamicLabel, dynamicActionHref })) %>
       <% }) %>
 
-  <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {} }) %></script>
+  <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
 <script src="/js/dashboard-workspace.js?v=20260724-hotel-ui-final-1" defer></script>
 </body>
 </html>

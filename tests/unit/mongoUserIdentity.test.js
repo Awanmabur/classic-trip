@@ -26,12 +26,12 @@ describe('MongoDB user identity contract', () => {
 });
 
 describe('service roadmap contract', () => {
-  test('only bus and hotel are operational now', () => {
-    expect(ACTIVE_SERVICE_TYPES).toEqual(['bus', 'hotel']);
+  test('the four completed travel verticals are operational', () => {
+    expect(ACTIVE_SERVICE_TYPES).toEqual(['bus', 'hotel', 'flight', 'local_transport']);
   });
 
   test('future categories remain visible but non-bookable', () => {
-    expect(COMING_SOON_SERVICE_TYPES).toEqual(expect.arrayContaining(['flight', 'train', 'local_transport', 'tour', 'car_rental', 'cargo', 'ferry']));
-    expect(serviceDefinition('flight')).toMatchObject({ status: 'coming_soon', bookable: false });
+    expect(COMING_SOON_SERVICE_TYPES).toEqual(['tour', 'car_rental', 'cargo']);
+    expect(serviceDefinition('flight')).toMatchObject({ status: 'active', bookable: true });
   });
 });

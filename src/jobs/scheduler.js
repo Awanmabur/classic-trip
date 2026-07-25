@@ -35,6 +35,14 @@ const jobs = {
     schedule: () => env.jobs.materializeSchedules,
     module: () => require('./materializeSchedules'),
   },
+  dispatchTaxiRides: {
+    schedule: () => env.jobs.dispatchTaxiRides,
+    module: () => require('./dispatchTaxiRides'),
+  },
+  expireFlightHolds: {
+    schedule: () => env.jobs.expireFlightHolds,
+    module: () => require('./expireFlightHolds'),
+  },
 };
 
 const scheduledTasks = new Map();

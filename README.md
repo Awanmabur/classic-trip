@@ -1,6 +1,6 @@
-# Classic Trip — Final Bus and Hotel Platform
+# Classic Trip — Bus, Accommodation, Flight Agents and Safe Local Mobility
 
-Production-oriented Node.js, Express and MongoDB marketplace for **bus travel and hotel stays**. The current release exposes only service types completed end to end: `bus` and `hotel`.
+Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, hotel stays, flights plus simple platform-dispatched boda and car rides**. The operational service registry exposes `bus`, `hotel`, `flight` and `local_transport`; unfinished future categories remain explicitly non-bookable.
 
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
@@ -34,7 +34,7 @@ There is one rendered authentication/onboarding page:
 - Login
 - Customer signup
 - Promoter signup
-- Partner/company-owner onboarding
+- Intelligent service-aware partner onboarding for bus operators, hotels, flight agents, boda riders, car drivers and fleet/rental owners
 - Password recovery
 - Email verification
 - Phone verification
@@ -53,26 +53,57 @@ Role rules:
 
 ## Partner commission model
 
-Partner companies do not purchase a platform package. Any eligible bus or hotel company may create an owner account and enter the restricted verification workspace immediately.
+Partners do not purchase a platform package. Eligible bus operators, hotel operators, accredited flight agents, individual boda/car drivers and fleet or rental owners may create the appropriate account and enter the restricted verification workspace immediately.
 
 The commercial flow is:
 
 ```text
 Customer booking total
-  -> one partner commission percentage retained by Classic Trip
-  -> partner receives the remainder
+  -> service-specific immutable split calculated by the backend
+  -> bus/hotel operator, verified flight agent or assigned mobility provider receives only its configured earning
+  -> flight supplier payable remains separate from the agent commission
+  -> mobility driver/fleet payout follows the Super Admin policy
   -> when a promoter referred the booking, the promoter reward comes from Classic Trip's commission
 ```
 
 - The default percentage is managed in **Super Admin → Platform Settings**.
 - Super Admin may set a partner-specific percentage from **Partners / Companies**.
-- A company accepts its percentage contract during onboarding.
-- Every bus or hotel booking stores an immutable contract and split snapshot.
+- Bus and hotel companies accept their commission contract during onboarding; flight-agent and mobility earnings use their own approved policies.
+- Every booking stores an immutable contract and split snapshot.
 - Later percentage changes affect only new bookings.
 - Verification, not a payment package, controls publishing, operational payments and payouts.
 - There are no partner renewals, recurring charges or commercial feature tiers.
 
 The fresh-install default is 10% commission. Promoters receive 30% of Classic Trip's commission on an eligible referral, producing the former 90% partner / 7% platform net / 3% promoter result without charging the partner twice. Super Admin can change both percentages.
+
+## Complete dashboard service coverage
+
+The Super Admin console and role dashboards expose all four production services and the correct partner models. Dashboard records are projections of the canonical MongoDB entities; no dashboard keeps an isolated copy of operational data.
+
+Super Admin service and partner workspaces include:
+
+- Bus Providers and Hotel Providers
+- Flight Agents plus platform-owned airline, airport, supplier, route, seat-map, fare and departure controls
+- Local Mobility supply, including platform ride classes, zones, fare rules and automatic dispatch
+- Individual Boda Riders and Car Drivers
+- Fleet and Rental Owners
+- Mobility Companies
+- Driver/rider identity, licence, background-check and safety-training verification
+- Vehicle insurance, inspection, registration and operational-compliance review
+- Live/scheduled dispatch monitoring, private tracking status and pickup-PIN safeguards
+- Restricted mobility safety and incident records
+- Payments, immutable splits, agent commission, supplier payable, mobility earnings, settlements and payouts
+
+Dashboard intelligence is partner-specific:
+
+- A boda rider sees **My Boda**, **My Rider Profile**, availability, assigned rides, safety, earnings and payouts. They do not receive team or fleet-management controls.
+- An individual car driver sees **My Car**, **My Driver Profile** and the same individual-only operational flow.
+- Fleet/rental owners and mobility companies retain staff, fleet and driver-management screens, but cannot change platform fares, zones or dispatch rules.
+- Flight partners receive the travel-agent sales and support workspace, not airline-operation controls.
+- Bus and hotel partners keep their existing complete service-specific workspaces.
+- Employee and driver menus remain permission-scoped to their assigned service, company and work.
+
+A dedicated release gate, `npm run check:dashboard-service-coverage`, verifies this menu, projection, rendering, form-contract and role-specific behaviour.
 
 ## Canonical bus architecture
 
@@ -164,6 +195,109 @@ The Partner/Employee dashboard uses the same shared design for:
 
 Hotel manifests can cover one selected listing/property or the company’s complete hotel portfolio. They include guest identity masking, nationality, contact, emergency contact, occupancy, assigned rooms, payment, actual arrival/departure times, special requests and stay status.
 
+## Canonical flight-agent architecture
+
+```text
+Super Admin / platform flight supply
+  -> Approved airlines and certified supplier adapters
+  -> Airports, routes, aircraft references and versioned seat maps
+  -> Fare families, baggage, meals, add-ons and dated offers
+  -> Verified travel agent account
+      -> Search supplier inventory
+      -> Prepare customer quote
+      -> Capture traveler documents
+      -> Sell and support the booking
+  -> Backend reprice and signed offer validation
+  -> Flight order and atomic seat claim
+  -> Payment authorization
+  -> Supplier/native confirmation
+  -> E-ticket, ticket coupons and QR
+  -> Agent-assisted changes, cancellation/refund and support
+  -> Separate agent commission, supplier payable and platform fee
+```
+
+Flight rules:
+
+- Flight partners are travel agents, not airline-company operators.
+- Only Super Admin and certified supplier integrations manage airline references, aircraft, routes, departures, seat maps and live inventory.
+- Agents can search, quote, create customer bookings, collect required traveler information, view only their own sales, deliver tickets and assist with changes or support.
+- One-way and return search are supported; a return selection becomes one protected order and one payment.
+- External inventory fails closed unless an active certified adapter implements the requested capability.
+- Payment alone never confirms a flight; supplier/native confirmation and ticket issuance must succeed.
+- Travel-document values are encrypted and masked in operational and public views.
+- Seat claims use versioned database compare-and-set updates; failed or expired payments release held seats.
+- Agent company, flight supplier and platform tenant are stored separately for authorization and settlement.
+- Agent commission, supplier payable, platform fee and promoter reward are separate immutable ledger movements.
+
+## Canonical SafeBoda-style local mobility architecture
+
+```text
+Super Admin / platform mobility control
+  -> Ride classes
+  -> Countries, cities, districts and service zones
+  -> Upfront fare rules and safety policy
+  -> Verification and dispatch policy
+  -> Individual boda rider / car driver / fleet or rental owner
+      -> Identity and compliance documents
+      -> Approved vehicle or managed fleet
+      -> Availability and current location
+      -> Assigned rides only
+      -> Ride-status updates, incidents and earnings
+  -> Customer one-screen request
+      -> Current, Home, Work, Airport or manual pickup
+      -> Destination and optional stops
+      -> Boda or car class
+      -> Now or scheduled ride
+  -> Backend quote and immutable fare snapshot
+  -> Payment
+  -> Atomic platform dispatch
+  -> Driver and vehicle assignment
+  -> Pickup PIN and private live tracking
+  -> Completion telemetry
+  -> Platform-calculated driver/fleet earning and settlement
+```
+
+Mobility rules:
+
+- The customer flow stays simple: choose pickup, destination, ride class and time, then confirm the upfront fare.
+- Super Admin controls vehicle classes, coverage, fares, surge limits, verification standards, safety rules and dispatch configuration.
+- Individual riders/drivers and fleet owners cannot create platform zones, change customer prices, manually choose customer jobs or submit their own payout amount.
+- Partners manage only their approved identity, staff where applicable, compliant vehicles, online availability, assigned rides, operational status, incidents and earnings.
+- Signup fields change by service type: boda/car drivers provide licence and vehicle compliance data; fleet/rental owners provide business and fleet data; flight agents provide agency accreditation and ticketing credentials.
+- Only approved drivers, compliant vehicles and fresh locations are eligible for dispatch.
+- Driver offers expire; the first valid atomic acceptance wins and all competing offers are cancelled.
+- The passenger pickup PIN is hashed; the raw PIN is shown only to the authorized customer.
+- The accepted fare remains locked. Distance and waiting submitted by the driver are telemetry, not authority to add charges.
+- Driver/fleet payout percentage is set by Super Admin; individual drivers default to their full provider share, while fleet policies remain configurable.
+- Failed payment creates no booking earning, and completed rides are settled only to the verified assigned provider.
+
+## Intelligent partner onboarding
+
+The single onboarding page progressively renders only the fields required for the chosen account:
+
+| Partner type | Required operational information | Access after approval |
+|---|---|---|
+| Bus operator | Legal company, operating licence, branches and contacts | Own bus setup and operations |
+| Hotel operator | Legal property/business data, accommodation licence and contacts | Own hotel inventory and operations |
+| Flight agent | Agency registration, accreditation/TIDS/IATA or approved supplier credentials, ticketing and support contacts | Search, quote, sell and support platform flight inventory |
+| Boda rider | Identity, rider licence, expiry, background/safety review and motorcycle details | Availability, assigned rides and earnings |
+| Car driver | Identity, driving licence, expiry, insurance and vehicle details | Availability, assigned rides and earnings |
+| Fleet/rental owner | Business verification, fleet contact, vehicles, approved driver staff and payout account | Own fleet, drivers, assigned rides and earnings |
+
+No onboarding form asks applicants to type internal database IDs. Related staff, vehicles and service records use filtered selectors.
+
+## Flight and mobility reference setup
+
+```bash
+npm run seed:travel-reference:dry
+npm run seed:travel-reference
+npm run migrate:flight-taxi:dry
+npm run migrate:flight-taxi
+npm run check:flight-taxi
+```
+
+The reference seed adds major East African airports, common aircraft references and platform-owned mobility classes, coverage zones and fare rules. It does not grant partners control of platform pricing or flight inventory. Always back up production data and review the dry run before applying migrations.
+
 ## Payments and finance
 
 - Prices and totals are never trusted from the browser.
@@ -194,23 +328,32 @@ No software can honestly be guaranteed permanently vulnerability-proof. Producti
 
 ## Existing-database migration
 
-Back up the database first. Run the commercial migration before the hotel-domain migration.
+Back up the database first. Run the commercial migration, then the hotel-domain migration, then the flight-agent/platform-mobility migration, followed by the country/currency integrity migration.
 
 ```bash
 npm run migrate:commission-only:dry
 npm run migrate:commission-only
 npm run migrate:hotel-domain:dry
 npm run migrate:hotel-domain
+npm run migrate:flight-taxi:dry
+npm run migrate:flight-taxi
+npm run migrate:country-currency:dry
+npm run migrate:country-currency
+npm run seed:travel-reference:dry
+npm run seed:travel-reference
 ```
 
-The commission migration removes retired partner billing fields and collections, creates one percentage contract for every company and preserves the previous effective split. The hotel migration normalizes legacy hotel bookings and setup records, consolidates duplicate properties safely and rewires dependent room/rate/inventory/reservation records. Inspect dry-run output before applying.
+The commission migration removes retired partner billing fields and collections, creates the applicable commercial contract for each partner and preserves previous effective splits. The hotel migration normalizes legacy hotel bookings and setup records, consolidates duplicate properties safely and rewires dependent room/rate/inventory/reservation records. The flight/mobility migration converts legacy flight companies into agent accounts, moves airline inventory and mobility configuration under platform governance, persists agent/provider/supplier attribution, archives partner-owned fare/zone controls and applies safe driver-payout defaults. The country/currency migration automatically repairs only partners without financial history; active financial mismatches are flagged for Super Admin review without rewriting historic money. Inspect every dry-run output before applying.
 
 ## Verification commands
 
 ```bash
 npm run check
+npm run check:platform-final
+npm run check:platform-layout-admin
 npm run check:runtime
 npm run check:production
+npm run check:flight-taxi
 npm run check:bus
 npm run check:bus-forms
 npm run check:smart-bus-forms
@@ -265,6 +408,6 @@ Also verify:
 - Payment failure, retry, refund and reconciliation tests
 - Provider sandbox certification and penetration testing
 
-## Final bus and hotel UI organization
+## Final spacing and Super Admin repair
 
-The hotel workspace now follows one ordered setup journey from public listing through dated inventory, with daily hotel operations separated from setup. Dashboard brand links return to the marketplace, notices and empty table states use consistent spacing and rounded surfaces, and all public marketplace listing pages share one card implementation. See `FINAL_BUS_HOTEL_UI_ORGANIZATION_REPORT_2026-07-24.md`.
+The public site, authentication/onboarding screens and all role dashboards load final shared spacing styles. The Super Admin Flight and Local Mobility dynamic sections use explicit nested EJS locals and are protected by an executable render smoke. When an Atlas connection string omits a database path, the application now selects `classic-trip` unless `MONGO_DB_NAME` explicitly overrides it.

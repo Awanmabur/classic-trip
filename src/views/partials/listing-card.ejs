@@ -1,18 +1,21 @@
 <%
   const listingType = String(listing.serviceType || listing.type || listing.group || 'service').toLowerCase();
   const isBusListing = listingType === 'bus';
+  const isHotelListing = listingType === 'hotel';
+  const isFlightListing = listingType === 'flight';
+  const isTaxiListing = listingType === 'local_transport';
   const listingIdentifier = listing.slug || listing.id || listing.publicId || '';
   const listingHref = listing.url || `/listings/${listingType}/${listingIdentifier}`;
-  const bookingHref = listing.bookingUrl || listingHref;
+  const bookingHref = isFlightListing ? `/flights?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : isTaxiListing ? `/taxi?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : (listing.bookingUrl || listingHref);
   const listingImage = listing.img || listing.image || listing.media?.[0]?.url || '';
   const listingPartner = listing.partner || listing.companyName || 'Service partner';
   const listingRoute = listing.routeLabel || [listing.from, listing.to].filter(Boolean).join(' → ');
-  const listingPlace = isBusListing ? (listingRoute || 'Route information') : (listing.location || listing.city || listingRoute || 'Property location');
-  const listingDescription = listing.sub || listing.shortDescription || listing.description || (isBusListing ? 'Public bus service with live departure and seat availability.' : 'Verified hotel property with dated room availability and secure booking.');
+  const listingPlace = (isBusListing || isFlightListing) ? (listingRoute || listing.location || 'Route information') : (listing.location || listing.city || listingRoute || (isTaxiListing ? 'Service zone' : 'Property location'));
+  const listingDescription = listing.sub || listing.shortDescription || listing.description || (isBusListing ? 'Public bus service with live departure and seat availability.' : isHotelListing ? 'Verified hotel property with dated room availability and secure booking.' : isFlightListing ? 'Published flight offer with baggage, seat options and verified agent support.' : isTaxiListing ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : 'Verified travel service.');
   const listingAmount = Number(listing.priceFrom ?? listing.price ?? 0);
   const listingRating = Number(listing.ratingAverage || listing.rating || 0);
   const listingRatingLabel = listingRating > 0 ? listingRating.toFixed(1) : 'New';
-  const listingIcon = isBusListing ? 'fa-bus' : listingType === 'hotel' ? 'fa-hotel' : 'fa-ticket';
+  const listingIcon = isBusListing ? 'fa-bus' : isHotelListing ? 'fa-hotel' : isFlightListing ? 'fa-plane' : isTaxiListing ? 'fa-taxi' : 'fa-ticket';
   const remaining = Number(listing.remainingInventory ?? listing.availability);
   const availabilityText = listing.isSponsored ? 'Sponsored' : listing.bookable ? (Number.isFinite(remaining) ? `${remaining} available` : 'Available') : remaining <= 0 ? 'No inventory' : 'View service';
   const availabilityClass = listing.isSponsored ? 'promo' : listing.bookable ? 'available' : remaining <= 0 ? 'full' : 'promo';
@@ -23,18 +26,18 @@
     <div class="thumb">
       <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.title || 'Service image' %>"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
       <div class="cornerBadge <%= availabilityClass %>"><i class="fa-solid <%= availabilityIcon %>"></i> <%= availabilityText %></div>
-      <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= listingRatingLabel %></span><span class="badge badgeInfo"><i class="fa-solid <%= listingIcon %>"></i> <%= listing.typeLabel || (isBusListing ? 'Bus' : listingType === 'hotel' ? 'Hotel' : 'Service') %></span></div>
+      <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= listingRatingLabel %></span><span class="badge badgeInfo"><i class="fa-solid <%= listingIcon %>"></i> <%= listing.typeLabel || (isBusListing ? 'Bus' : isHotelListing ? 'Hotel' : isFlightListing ? 'Flight' : isTaxiListing ? 'Local ride' : 'Service') %></span></div>
     </div>
   </a>
   <div class="listingBody">
     <h3 class="listingTitle"><a href="<%= listingHref %>"><%= listing.title || 'Untitled service' %></a></h3>
     <div class="meta">
-      <span><i class="fa-solid <%= isBusListing ? 'fa-route' : 'fa-location-dot' %>"></i> <%= listingPlace %></span>
+      <span><i class="fa-solid <%= (isBusListing || isFlightListing) ? 'fa-route' : 'fa-location-dot' %>"></i> <%= listingPlace %></span>
       <span><i class="fa-solid fa-building"></i> <%= listingPartner %></span>
     </div>
     <p class="desc"><%= listingDescription %></p>
     <div class="priceRow">
-      <div><div class="price"><%= listingAmount > 0 ? money(listingAmount, listing.currency) : 'Price pending' %></div><div class="small"><%= listing.bookable ? (isBusListing ? 'Starting fare · choose boarding and drop-off' : 'Starting price · per available room night') : 'Open service details' %></div></div>
+      <div><div class="price"><%= listingAmount > 0 ? money(listingAmount, listing.currency) : 'Price pending' %></div><div class="small"><%= listing.bookable ? (isBusListing ? 'Starting fare · choose boarding and drop-off' : isHotelListing ? 'Starting price · per available room night' : isFlightListing ? 'Starting airfare · live dated departure' : isTaxiListing ? 'Estimated fare · request an exact quote' : 'Starting price') : 'Open service details' %></div></div>
       <div class="actions"><a class="btn btnGhost" href="<%= listingHref %>"><i class="fa-regular fa-eye"></i> View</a><% if (listing.bookable) { %><a class="btn btnPrimary" href="<%= bookingHref %>"><i class="fa-solid fa-ticket"></i> Book</a><% } %></div>
     </div>
   </div>

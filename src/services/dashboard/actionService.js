@@ -1,4 +1,5 @@
 const { platformCurrency } = require('../../utils/currency');
+const { currencyForCountry, normalizeCountry } = require('../../config/countryMarkets');
 const bookingService = require('../booking/bookingService');
 const paymentSettlementService = require('../booking/paymentSettlementService');
 const companyService = require('../company/companyService');
@@ -165,7 +166,16 @@ async function updateCompanySettings(companyId, payload = {}, actorId = 'company
   }
   if (payload.name) company.name = cleanText(payload.name, 180);
   if (payload.city) company.city = cleanText(payload.city, 120);
-  if (payload.country) company.country = cleanText(payload.country, 120);
+  if (payload.country) {
+    const nextCountry = normalizeCountry(payload.country);
+    if (!nextCountry) throw httpError('Select a supported operating country', 422);
+    const countryChanged = nextCountry !== company.country;
+    if (countryChanged && ['active', 'verified'].includes(String(company.verificationStatus || company.status || '').toLowerCase())) {
+      throw httpError('A verified partner country can be changed only by Super Admin because it affects currency, compliance and settlement records.', 409);
+    }
+    company.country = nextCountry;
+    company.operatingCurrency = currencyForCountry(nextCountry) || company.operatingCurrency;
+  }
   if (payload.description !== undefined) company.description = cleanText(payload.description, 3000);
   if (payload.legalName !== undefined) company.legalName = cleanText(payload.legalName || company.name, 200);
   if (payload.registrationNumber !== undefined) company.registrationNumber = cleanText(payload.registrationNumber, 120);

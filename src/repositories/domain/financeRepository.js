@@ -20,6 +20,7 @@ const financeRepository = {
   bookings: new MongoCollection('bookings'),
   refunds: new MongoCollection('refundRequests'),
   companies: new MongoCollection('companies'),
+  flightSuppliers: new MongoCollection('flightSuppliers'),
   users: new MongoCollection('users'),
   auditLogs: new MongoCollection('auditLogs'),
 };

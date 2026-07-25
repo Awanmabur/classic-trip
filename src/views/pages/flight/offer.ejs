@@ -1,0 +1,65 @@
+<%- include('../../partials/site-head', { seo }) %>
+<%- include('../../partials/site-header') %>
+<% const departureDateValue = new Date(offer.schedule.departureAt).toISOString().slice(0,10); const latestBirthDate = new Date(new Date(offer.schedule.departureAt).getTime() - 24*60*60*1000).toISOString().slice(0,10); %>
+<main class="container paymentPage" style="padding:16px 0 30px">
+  <section class="sheet directPaymentSheet">
+    <div class="sheetTop">
+      <div><span class="badge badgeOk"><i class="fa-solid fa-plane"></i> Live flight offer</span><div class="sheetTitle"><%= offer.schedule.flightNumber %> · <%= offer.origin.iataCode %> to <%= offer.destination.iataCode %></div><div class="sheetSub"><%= offer.company.name %> · <%= offer.fare.name %> · <%= String(offer.fare.cabinClass).replaceAll('_',' ') %></div></div>
+      <div class="sheetTopActions"><a class="iconbtn" href="/flights"><i class="fa-solid fa-arrow-left"></i></a></div>
+    </div>
+    <form action="/bookings/flight" method="post" id="flightBookingForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+      <input type="hidden" name="scheduleId" value="<%= offer.schedule.id %>">
+      <input type="hidden" name="fareId" value="<%= offer.fare.id %>">
+      <input type="hidden" name="passengerCount" value="<%= passengerCount %>">
+      <div class="directPaymentGrid">
+        <div class="directPassengerColumn">
+          <div class="summaryCard directInfoHeader"><h3>Traveler information</h3><div class="checkoutNotice">Names and travel documents must match the documents used at airport check-in.</div></div>
+          <% for (let index = 0; index < passengerCount; index += 1) { %>
+            <section class="passengerRow directPassengerCard">
+              <div class="directPassengerTop"><h4>Traveler <%= index + 1 %></h4><span class="badge badgeInfo"><i class="fa-solid fa-passport"></i> Required</span></div>
+              <div class="bookingForm directPassengerForm">
+                <input class="full" name="travelers[<%= index %>][fullName]" placeholder="Full legal name" required>
+                <select name="travelers[<%= index %>][passengerType]" required><option value="adult">Adult</option><option value="child">Child</option><option value="infant">Infant</option></select>
+                <label>Date of birth<input name="travelers[<%= index %>][dateOfBirth]" type="date" max="<%= latestBirthDate %>" required></label>
+                <select name="travelers[<%= index %>][sex]" required><option value="">Sex</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select>
+                <input name="travelers[<%= index %>][nationality]" placeholder="Nationality" required>
+                <select name="travelers[<%= index %>][documentType]" required><option value="passport">Passport</option><option value="national_id">National ID where accepted</option></select>
+                <input name="travelers[<%= index %>][documentNumber]" placeholder="Document number" required>
+                <label>Document expiry<input name="travelers[<%= index %>][documentExpiry]" type="date" min="<%= departureDateValue %>" required></label>
+                <input name="travelers[<%= index %>][issuingCountry]" placeholder="Issuing country" required>
+                <label class="full">Special assistance requests
+                  <select name="travelers[<%= index %>][specialServiceRequests][]" multiple size="4">
+                    <option value="wheelchair_assistance">Wheelchair / mobility assistance</option>
+                    <option value="visual_assistance">Visual assistance</option>
+                    <option value="hearing_assistance">Hearing assistance</option>
+                    <option value="unaccompanied_minor">Unaccompanied minor handling</option>
+                    <option value="infant_on_lap">Infant on lap</option>
+                    <option value="special_meal">Special meal request</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+          <% } %>
+          <div class="summaryCard" style="margin-top:12px"><h3>Booking contact</h3><div class="bookingForm"><input name="contactName" placeholder="Contact full name" required><input name="phone" placeholder="Phone / WhatsApp" required><input class="full" type="email" name="email" placeholder="Email for tickets" required></div></div>
+        </div>
+        <aside class="summaryCard directTicketPreview">
+          <h3>Flight and seats preview</h3>
+          <div class="row"><span>Departure</span><b><%= new Date(offer.schedule.departureAt).toLocaleString('en-UG') %></b></div>
+          <div class="row"><span>Arrival</span><b><%= new Date(offer.schedule.arrivalAt).toLocaleString('en-UG') %></b></div>
+          <div class="row"><span>Route</span><b><%= offer.origin.city %> (<%= offer.origin.iataCode %>) → <%= offer.destination.city %> (<%= offer.destination.iataCode %>)</b></div>
+          <div class="row"><span>Baggage</span><b><%= offer.fare.checkedBaggageKg || 0 %>kg checked · <%= offer.fare.cabinBaggageKg || 0 %>kg cabin</b></div>
+          <div class="row"><span>Policy</span><b><%= offer.fare.refundable ? 'Refundable' : 'Non-refundable' %> · <%= offer.fare.changeable ? 'Changes allowed' : 'No changes' %></b></div>
+          <div class="selector" style="margin-top:12px"><div class="selectorTop"><div><b>Choose <%= passengerCount %> seat(s)</b><div class="muted">Leave all unselected for automatic seat assignment.</div></div></div><div class="seatRows">
+            <% offer.seats.forEach(function(seat){ %><label class="seat <%= seat.status !== 'available' ? 'taken' : '' %>" title="<%= seat.seatNumber %> · <%= seat.seatType %>"><input type="checkbox" name="selectedSeats" value="<%= seat.seatNumber %>" <%= seat.status !== 'available' ? 'disabled' : '' %>><span><%= seat.seatNumber %></span></label><% }) %>
+          </div></div>
+          <div class="priceBreakdown" style="margin-top:14px"><div class="row"><span>Fare × <%= passengerCount %></span><b><%= money((offer.fare.baseFare || 0) * passengerCount, offer.fare.currency) %></b></div><div class="row"><span>Taxes and fees</span><b><%= money(((offer.fare.taxes || 0) + (offer.fare.serviceFee || 0)) * passengerCount, offer.fare.currency) %></b></div><div class="row total"><span>Total</span><b><%= money(((offer.fare.baseFare || 0) + (offer.fare.taxes || 0) + (offer.fare.serviceFee || 0)) * passengerCount, offer.fare.currency) %></b></div></div>
+          <button class="btn btnPrimary" type="submit" style="width:100%;margin-top:14px"><i class="fa-solid fa-lock"></i> Continue to secure payment</button>
+          <div class="notice" style="margin-top:10px">Seats are held for 15 minutes. A flight ticket is issued only after trusted payment confirmation.</div>
+        </aside>
+      </div>
+    </form>
+  </section>
+</main>
+<script nonce="<%= cspNonce %>">document.getElementById('flightBookingForm')?.addEventListener('submit',function(event){const selected=[...this.querySelectorAll('input[name="selectedSeats"]:checked')];const required=Number(this.querySelector('input[name="passengerCount"]')?.value||1);if(selected.length&&selected.length!==required){event.preventDefault();alert(`Select exactly ${required} seat(s), or leave all seats unselected for automatic assignment.`);}});</script>
+<%- include('../../partials/site-footer') %>

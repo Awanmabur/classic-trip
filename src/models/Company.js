@@ -1,5 +1,6 @@
 const { Schema, mediaSchema, model } = require('./_helpers');
 const { ALL_SERVICE_TYPES } = require('../config/serviceRegistry');
+const { PARTNER_PROFILE_KEYS } = require('../config/partnerProfiles');
 
 const companySchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
@@ -7,6 +8,18 @@ const companySchema = new Schema({
   name: { type: String, required: true, trim: true },
   slug: { type: String, required: true, unique: true, index: true },
   companyType: { type: String, index: true, enum: ALL_SERVICE_TYPES },
+  partnerCategory: { type: String, index: true, enum: PARTNER_PROFILE_KEYS },
+  accountModel: { type: String, enum: ['organization', 'agency', 'individual_driver', 'fleet'], index: true },
+  onboardingProfile: Schema.Types.Mixed,
+  complianceProfile: Schema.Types.Mixed,
+  capabilityPolicy: Schema.Types.Mixed,
+  onboardingProgress: {
+    currentStep: { type: String, default: 'identity' },
+    completedSteps: [String],
+    missingFields: [String],
+    submittedAt: Date,
+    approvedAt: Date,
+  },
   country: String,
   city: String,
   legalName: String,

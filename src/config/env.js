@@ -150,6 +150,8 @@ const env = {
     expirePromotions: process.env.JOB_EXPIRE_PROMOTIONS || '*/30 * * * *',
     payoutReports: process.env.JOB_PAYOUT_REPORTS || '0 6 * * *',
     materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '0 3 * * *',
+    dispatchTaxiRides: process.env.JOB_DISPATCH_TAXI_RIDES || '* * * * *',
+    expireFlightHolds: process.env.JOB_EXPIRE_FLIGHT_HOLDS || '*/2 * * * *',
   },
 };
 

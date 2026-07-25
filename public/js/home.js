@@ -20,11 +20,15 @@
   const groupConfig = {
     bus: { container: 'cards', section: 'bus', label: 'bus services' },
     hotel: { container: 'hotelCards', section: 'hotel', label: 'hotels' },
+    flight: { container: 'flightCards', section: 'flight', label: 'flights' },
+    local_transport: { container: 'taxiCards', section: 'local-transport', label: 'local rides' },
   };
 
   const serviceIcons = {
     bus: 'fa-bus',
     hotel: 'fa-hotel',
+    flight: 'fa-plane',
+    local_transport: 'fa-taxi',
   };
 
   const initialLimit = () => (window.matchMedia('(max-width: 680px)').matches ? 3 : 6);
@@ -176,11 +180,14 @@
     const group = String(item.group || item.serviceType || 'more');
     const type = String(item.serviceType || item.type || group || 'service').toLowerCase();
     const isBus = type === 'bus';
+    const isHotel = type === 'hotel';
+    const isFlight = type === 'flight';
+    const isTaxi = type === 'local_transport';
     const icon = serviceIcons[type] || 'fa-ticket';
     const badge = availabilityBadge(item);
     const image = safeImageUrl(item.img || item.image || item.media?.[0]?.url || '');
     const route = item.routeLabel || [item.from, item.to].filter(Boolean).join(' → ');
-    const place = isBus ? (route || 'Route information') : (item.location || item.city || route || 'Property location');
+    const place = (isBus || isFlight) ? (route || item.location || 'Route information') : (item.location || item.city || route || (isTaxi ? 'Service zone' : 'Property location'));
     const rating = Number(item.ratingAverage || item.rating);
     const ratingText = Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : 'New';
     const partner = item.partner || item.companyName || 'Service partner';
@@ -188,9 +195,11 @@
     const price = amount > 0 ? money(amount, item.currency) : 'Price pending';
     const description = item.sub || item.shortDescription || item.description || (isBus
       ? 'Public bus service with live departure and seat availability.'
-      : 'Verified hotel property with dated room availability and secure booking.');
+      : isHotel ? 'Verified hotel property with dated room availability and secure booking.'
+        : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
+          : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : 'Verified travel service.');
     const priceHint = item.bookable
-      ? (isBus ? 'Starting fare · choose boarding and drop-off' : 'Starting price · per available room night')
+      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available room night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : 'Starting price')
       : 'Open service details';
 
     return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
@@ -198,12 +207,12 @@
         <div class="thumb">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
           <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
-          <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : type === 'hotel' ? 'Hotel' : 'Service'))}</span></div>
+          <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Hotel' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : 'Service'))}</span></div>
         </div>
       </a>
       <div class="listingBody">
         <h3 class="listingTitle"><a href="${escapeHtml(listingUrl(item))}">${escapeHtml(item.title || 'Untitled service')}</a></h3>
-        <div class="meta"><span><i class="fa-solid ${isBus ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
+        <div class="meta"><span><i class="fa-solid ${(isBus || isFlight) ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
         <p class="desc">${escapeHtml(description)}</p>
         <div class="priceRow"><div><div class="price">${price}</div><div class="small">${escapeHtml(priceHint)}</div></div><div class="actions"><a class="btn btnGhost" href="${escapeHtml(listingUrl(item))}"><i class="fa-regular fa-eye"></i> View</a>${item.bookable ? `<a class="btn btnPrimary" href="${escapeHtml(bookingUrl(item))}"><i class="fa-solid fa-ticket"></i> Book</a>` : ''}</div></div>
       </div>
@@ -320,12 +329,14 @@
     if (serviceType === 'hotel') {
       const city = $('#cityInput')?.value.trim();
       if (city) params.set('city', city);
-    } else {
-      const origin = $('#fromInput')?.value.trim();
-      const destination = $('#toInput')?.value.trim();
-      if (origin) params.set('origin', origin);
-      if (destination) params.set('destination', destination);
+      return window.location.assign(`/search?${params.toString()}`);
     }
+    const origin = $('#fromInput')?.value.trim();
+    const destination = $('#toInput')?.value.trim();
+    if (origin) params.set('origin', origin);
+    if (destination) params.set('destination', destination);
+    if (serviceType === 'flight') return window.location.assign(`/flights?${params.toString()}`);
+    if (serviceType === 'local_transport') return window.location.assign(`/taxi?${params.toString()}`);
     window.location.assign(`/search?${params.toString()}`);
   }
 
@@ -379,10 +390,16 @@
     const tab = event.target.closest('.tab');
     if (!tab) return;
     $$('.tab', $('#searchTabs')).forEach((item) => item.classList.toggle('active', item === tab));
-    const hotel = tab.dataset.type === 'hotel';
+    const type = tab.dataset.type || 'bus';
+    const hotel = type === 'hotel';
     $('#cityField')?.classList.toggle('hide', !hotel);
     $('#fromField')?.classList.toggle('hide', hotel);
     $('#toField')?.classList.toggle('hide', hotel);
+    const fromInput = $('#fromInput'); const toInput = $('#toInput');
+    if (fromInput) fromInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Pickup address' : 'From city';
+    if (toInput) toInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Destination' : 'To city';
+    const dateLabel = $('#dateLabel'); if (dateLabel) dateLabel.textContent = type === 'hotel' ? 'Check-in' : type === 'local_transport' ? 'Pickup date' : 'Date';
+    const peopleLabel = $('#peopleLabel'); if (peopleLabel) peopleLabel.textContent = type === 'hotel' ? 'Guests / rooms' : type === 'local_transport' ? 'Passengers' : 'Travelers / seats';
   });
 
   document.addEventListener('click', (event) => {

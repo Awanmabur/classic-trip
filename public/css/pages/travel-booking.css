@@ -1,0 +1,62 @@
+.travelPage{padding-top:26px;padding-bottom:48px}.travelHero{display:grid;gap:16px}.travelHero .heroCard{padding:22px}.travelShell{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr);gap:16px;align-items:start}.travelStack{display:grid;gap:16px}.travelPanel{padding:18px;border-radius:28px;background:linear-gradient(180deg,var(--cardA),var(--cardB));border:1px solid var(--line);box-shadow:var(--shadow2);min-width:0}.travelPanel h2,.travelPanel h3{margin:0}.travelPanelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}.travelForm{display:grid;gap:13px}.travelFormGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.travelFormGrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.travelField{display:grid;gap:7px;min-width:0}.travelField.full{grid-column:1/-1}.travelField label{font-size:12px;font-weight:900;color:var(--muted)}.travelControl{display:flex;align-items:center;gap:9px;min-height:46px;padding:0 13px;border:1px solid var(--line);border-radius:18px;background:var(--field);min-width:0}.travelControl i{color:var(--accent)}.travelControl input,.travelControl select,.travelControl textarea{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750}.travelControl textarea{min-height:84px;padding:12px 0;resize:vertical}.travelActions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.travelActions .btn{justify-content:center}.travelMessage{display:none;padding:12px 14px;border-radius:18px;border:1px solid var(--line);font-weight:800;line-height:1.5}.travelMessage.show{display:block}.travelMessage.error{border-color:rgba(255,80,80,.35);background:rgba(255,80,80,.1);color:#ff9b9b}.travelMessage.success{border-color:rgba(56,211,159,.35);background:rgba(56,211,159,.1);color:#85f1cb}.tripTypeRow,.shortcutRow{display:flex;gap:8px;flex-wrap:wrap}.travelChip{border:1px solid var(--line);background:var(--field);color:var(--text);border-radius:999px;padding:10px 13px;font-weight:900;cursor:pointer}.travelChip.active{border-color:rgba(255,183,3,.45);background:rgba(255,183,3,.13);color:var(--accent)}.offerList,.quoteList,.timeline{display:grid;gap:12px}.offerCard,.quoteCard{padding:15px;border:1px solid var(--line);border-radius:24px;background:var(--soft);display:grid;gap:12px}.offerTop,.quoteTop{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.offerRoute{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:1000;font-size:18px}.offerRoute i{color:var(--accent)}.offerMeta,.quoteMeta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:800}.offerPrice,.quotePrice{font-size:22px;font-weight:1000;color:var(--accent);white-space:nowrap}.seatMap{display:grid;grid-template-columns:repeat(6,minmax(42px,1fr));gap:8px;padding:14px;border-radius:22px;background:var(--soft);border:1px solid var(--line)}.flightSeat{position:relative;display:grid;place-items:center;min-height:44px;border-radius:14px;border:1px solid var(--line);background:var(--field);font-size:12px;font-weight:1000;cursor:pointer}.flightSeat input{position:absolute;opacity:0;pointer-events:none}.flightSeat.selected{background:linear-gradient(135deg,var(--accent),var(--hot));color:#091126;border-color:transparent}.flightSeat.unavailable{opacity:.35;cursor:not-allowed;text-decoration:line-through}.travelerCard{padding:14px;border:1px solid var(--line);border-radius:22px;background:var(--soft);display:grid;gap:12px}.travelerTitle{display:flex;align-items:center;justify-content:space-between;gap:10px}.routePreview{min-height:250px;border-radius:26px;border:1px solid var(--line);background:radial-gradient(circle at 25% 25%,rgba(79,140,255,.18),transparent 34%),radial-gradient(circle at 75% 72%,rgba(255,183,3,.16),transparent 35%),var(--soft);position:relative;overflow:hidden;padding:22px;display:grid;align-content:space-between}.routePreview:before{content:"";position:absolute;left:18%;right:18%;top:49%;height:3px;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--accent));transform:rotate(-8deg)}.routePoint{position:relative;z-index:1;display:flex;gap:10px;align-items:flex-start;max-width:76%}.routePoint:last-child{justify-self:end;text-align:right;flex-direction:row-reverse}.routeDot{width:18px;height:18px;flex:0 0 18px;border:4px solid var(--cardA);border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px rgba(255,183,3,.35)}.routePoint b{display:block}.routePoint span{display:block;color:var(--muted);font-size:12px;font-weight:800;margin-top:3px}.locationStatus{font-size:12px;font-weight:850;color:var(--muted)}.trackingGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.trackingMetric{padding:13px;border-radius:19px;background:var(--soft);border:1px solid var(--line)}.trackingMetric b{display:block;font-size:16px;margin-bottom:4px}.trackingMetric span{font-size:12px;color:var(--muted);font-weight:800}.timelineItem{display:grid;grid-template-columns:18px 1fr;gap:10px}.timelineMark{width:12px;height:12px;border-radius:50%;background:var(--accent);margin-top:5px;box-shadow:0 0 0 4px rgba(255,183,3,.12)}.timelineItem b{display:block}.timelineItem span{color:var(--muted);font-size:12px;font-weight:800}.secureNote{display:flex;gap:10px;align-items:flex-start;padding:13px;border-radius:20px;background:rgba(79,140,255,.09);border:1px solid rgba(79,140,255,.22);font-size:12px;font-weight:800;line-height:1.5}.secureNote i{color:var(--primary);margin-top:2px}.hidden{display:none!important}@media(max-width:980px){.travelShell{grid-template-columns:1fr}.travelPanel.sticky{position:static!important}.trackingGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:680px){.travelPage{padding-top:18px}.travelPanel{padding:14px;border-radius:24px}.travelFormGrid,.travelFormGrid.three{grid-template-columns:1fr}.travelField.full{grid-column:auto}.offerTop,.quoteTop{flex-direction:column}.offerPrice,.quotePrice{white-space:normal}.seatMap{grid-template-columns:repeat(4,minmax(42px,1fr));padding:10px}.trackingGrid{grid-template-columns:1fr}.travelActions .btn{flex:1}.routePreview{min-height:220px}}
+/* Safe, simple ride-booking refinements. These extend the existing Classic Trip design system. */
+.safeRideShell{margin-top:16px}.safeRidePanel{overflow:visible}.safeRideRouteFields{display:grid;gap:11px;position:relative}.safeRideControl{min-height:54px;border-radius:22px}.safeRideControl input{font-size:15px}.inputIconBtn{width:36px;height:36px;display:grid;place-items:center;flex:0 0 36px;border:0;border-radius:50%;background:var(--soft);color:var(--accent);cursor:pointer}.placeField{position:relative}.placeSuggestions{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 6px);display:grid;padding:7px;border-radius:22px;background:var(--cardA);border:1px solid var(--line);box-shadow:var(--shadow2);max-height:310px;overflow:auto}.placeSuggestion{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;text-align:left;border:0;border-radius:16px;padding:10px;background:transparent;color:var(--text);cursor:pointer}.placeSuggestion:hover,.placeSuggestion:focus{background:var(--soft);outline:0}.placeSuggestion>i{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(255,183,3,.13);color:var(--accent)}.placeSuggestion b,.placeSuggestion small{display:block}.placeSuggestion small{margin-top:3px;color:var(--muted);font-weight:750}.placeEmpty{padding:13px;color:var(--muted);font-weight:800}.safeRideTiming{margin-top:2px}.rideDetails{border:1px solid var(--line);border-radius:22px;background:var(--soft);padding:0 14px}.rideDetails summary{padding:13px 0;cursor:pointer;font-weight:900;list-style:none}.rideDetails summary::-webkit-details-marker{display:none}.rideDetails summary i{margin-right:7px;color:var(--accent)}.rideDetailsGrid{padding:0 0 14px}.safeRideAction .btn{min-height:48px;border-radius:18px;padding-inline:20px}.safeRideSummary{position:sticky;top:88px}.safeRideMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.safeRideClass{display:flex;align-items:center;gap:12px}.rideClassIcon{width:48px;height:48px;display:grid;place-items:center;border-radius:18px;background:rgba(255,183,3,.13);color:var(--accent);font-size:20px}.safeFareLabel{text-align:right;font-size:12px;font-weight:850}.safeRideQuote .btn{width:100%;border-radius:18px}.safeRideCheckout{margin-top:14px}.safeRideShortcuts .travelChip,.safeRideTiming .travelChip{border-radius:999px}.safeRideSafety .timelineItem span{line-height:1.45}@media(max-width:680px){.safeRideControl{min-height:52px}.placeSuggestions{position:fixed;left:12px;right:12px;top:auto;bottom:12px;max-height:48vh;border-radius:24px}.safeRideAction .btn{width:100%}.safeRideSummary{position:static}.safeRideShortcuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.safeRideShortcuts .travelChip{padding:9px 6px;font-size:11px;display:grid;gap:4px;place-items:center}.rideClassIcon{width:44px;height:44px}}
+
+
+/* Final compact travel polish — inherits the existing Classic Trip design system. */
+.travelPage{padding-top:16px;padding-bottom:38px}
+.travelHero{gap:12px}
+.travelHero .heroCard,.travelPage>.heroCard{padding:16px;border-radius:26px}
+.travelHero .heroTitle{font-size:clamp(22px,2.7vw,32px);line-height:1.08;margin-top:6px}
+.travelHero .heroSub{font-size:13px;line-height:1.55;max-width:70ch}
+.travelShell{gap:14px}
+.travelStack{gap:14px}
+.travelPanel{padding:15px;border-radius:24px}
+.travelPanelHead{gap:10px;margin-bottom:11px}
+.travelForm{gap:11px}
+.travelFormGrid{gap:10px}
+.travelField{gap:6px}
+.travelControl,.safeRideControl{min-height:42px;height:auto;padding:0 12px;border-radius:999px}
+.travelControl textarea{min-height:78px;padding:11px 2px;border-radius:20px}
+.travelField:has(textarea) .travelControl{border-radius:20px}
+.travelActions{gap:8px}
+.travelActions .btn,.safeRideAction .btn{min-height:40px;height:40px;border-radius:999px;padding:0 16px}
+.travelChip{min-height:36px;padding:7px 12px;border-radius:999px}
+.inputIconBtn{width:32px;height:32px;flex-basis:32px}
+.offerCard,.quoteCard,.travelerCard{padding:13px;border-radius:21px;gap:10px}
+.offerPrice,.quotePrice{font-size:20px}
+.seatMap{padding:12px;border-radius:20px}
+.flightSeat{min-height:40px;border-radius:13px}
+.routePreview{min-height:220px;border-radius:22px;padding:18px}
+.rideDetails{border-radius:20px;padding:0 12px}
+.rideDetails summary{padding:11px 0}
+.safeRideShell{margin-top:12px}
+.safeRideAction .btn{padding-inline:16px}
+.safeRideQuote .btn{min-height:40px;border-radius:999px}
+.rideClassIcon{width:42px;height:42px;border-radius:15px}
+.placeSuggestions{border-radius:20px}
+.placeSuggestion{border-radius:14px;padding:9px}
+.secureNote{padding:11px 12px;border-radius:18px}
+@media(max-width:680px){
+  .travelPage{padding-top:10px;padding-bottom:28px}
+  .travelHero .heroCard,.travelPage>.heroCard{padding:13px;border-radius:22px}
+  .travelHero .heroTitle{display:block!important;font-size:22px;margin:4px 0 0}
+  .travelHero .heroSub{display:block!important;font-size:12px;margin-top:6px}
+  .travelShell,.travelStack{gap:11px}
+  .travelPanel{padding:12px;border-radius:21px}
+  .travelPanelHead{margin-bottom:9px}
+  .travelForm{gap:9px}
+  .travelFormGrid,.travelFormGrid.three{gap:9px}
+  .travelControl,.safeRideControl{min-height:40px;border-radius:999px}
+  .travelActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .travelActions .btn,.safeRideAction .btn{width:100%;min-height:38px;height:38px;padding-inline:10px;font-size:11px}
+  .travelActions .btn:only-child,.safeRideAction .btn:only-child{grid-column:1/-1}
+  .tripTypeRow,.shortcutRow{gap:6px}
+  .travelChip{min-height:34px;padding:6px 10px;font-size:11px}
+  .safeRideShortcuts{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .safeRideShortcuts .travelChip{padding:7px 4px;font-size:10px}
+  .offerCard,.quoteCard,.travelerCard{padding:11px;border-radius:19px}
+  .seatMap{padding:9px;border-radius:18px}
+  .routePreview{min-height:190px;padding:15px}
+  .placeSuggestions{left:10px;right:10px;bottom:10px;border-radius:20px}
+}

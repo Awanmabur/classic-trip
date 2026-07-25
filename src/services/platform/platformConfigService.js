@@ -5,7 +5,7 @@ const platformSettingsRepository = require('../../repositories/domain/platformSe
 const SYSTEM_DEFAULTS = Object.freeze({
   platformName: 'Classic Trip',
   defaultCurrency: 'UGX',
-  supportedCurrencies: ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'USD'],
+  supportedCurrencies: ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'CDF', 'SOS', 'USD'],
   partnerCommissionPercent: 10,
   promoterSharePercent: 30,
   customerServiceFeePercent: 0,

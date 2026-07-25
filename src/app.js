@@ -9,6 +9,7 @@ const passport = require('./config/passport');
 const { env } = require('./config/env');
 const { getCachedPlatformConfig } = require('./services/platform/platformConfigService');
 const { SERVICE_REGISTRY, ACTIVE_SERVICE_TYPES, COMING_SOON_SERVICE_TYPES } = require('./config/serviceRegistry');
+const { publicMarkets } = require('./config/countryMarkets');
 const { attachUser } = require('./middlewares/auth');
 const { attachReferral } = require('./middlewares/referral');
 const { csrfToken } = require('./middlewares/csrf');
@@ -75,7 +76,8 @@ app.use((req, res, next) => {
   res.locals.serviceCatalog = SERVICE_REGISTRY;
   res.locals.activeServiceTypes = ACTIVE_SERVICE_TYPES;
   res.locals.comingSoonServiceTypes = COMING_SOON_SERVICE_TYPES;
-  res.locals.money = (amount, currency = platformConfig.defaultCurrency) => `${currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+  res.locals.countryMarkets = publicMarkets();
+  res.locals.money = (amount, currency = platformConfig.defaultCurrency) => `${String(currency || platformConfig.defaultCurrency).toUpperCase()} ${Math.round(Number(amount) || 0).toLocaleString('en-GB')}`;
   // Escapes `<` so JSON embedded inside <script> tags (via <%- %>) can't be broken out of
   // with a `</script>` payload in user-controlled data.
   res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/</g, '\\u003c');
@@ -87,13 +89,21 @@ app.use('/', require('./routes/web/public'));
 app.use('/', require('./routes/web/auth'));
 app.use('/', require('./routes/web/customer'));
 app.use('/', require('./routes/web/company'));
+app.use('/', require('./modules/flight/routes/partnerFlightRoutes'));
+app.use('/', require('./modules/flight/routes/adminFlightRoutes'));
+app.use('/', require('./modules/taxi/routes/partnerTaxiRoutes'));
+app.use('/', require('./modules/taxi/routes/adminTaxiRoutes'));
 app.use('/', require('./routes/web/employee'));
 app.use('/', require('./routes/web/promoter'));
 app.use('/', require('./routes/web/admin'));
 
 app.use('/api/search', require('./routes/api/search'));
 app.use('/api/listings', require('./routes/api/listings'));
+app.use('/api/v1/places', require('./routes/api/places'));
 app.use('/api/v1/bus', require('./modules/bus/routes/publicBusRoutes'));
+app.use('/api/v1/flights', require('./modules/flight/routes/publicFlightRoutes'));
+app.use('/api/v1/taxi', require('./modules/taxi/routes/publicTaxiRoutes'));
+app.use('/api/v1/taxi/driver', require('./modules/taxi/routes/driverTaxiRoutes'));
 app.use('/api/bookings', require('./routes/api/bookings'));
 app.use('/api/payments', require('./routes/api/payments'));
 app.use('/api/dashboards', require('./routes/api/dashboards'));

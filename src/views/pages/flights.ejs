@@ -1,0 +1,88 @@
+<%- include('../partials/site-head', { seo }) %>
+<link rel="stylesheet" href="/css/pages/travel-booking.css?v=20260725-final-polish-1">
+<%- include('../partials/site-header') %>
+<main class="container travelPage" id="flightBookingApp">
+  <section class="travelHero">
+    <div class="card heroCard">
+      <div class="heroTop">
+        <div>
+          <span class="badge badgeInfo"><i class="fa-solid fa-plane-departure"></i> Flights with verified availability</span>
+          <h1 class="heroTitle">Compare flights and book with confidence.</h1>
+          <p class="heroSub">Search verified offers, compare complete fare conditions, choose available seats and receive clear booking support from accredited flight agents.</p>
+        </div>
+        <div class="secureNote"><i class="fa-solid fa-shield-halved"></i><span>Availability and prices are rechecked before payment. A booking becomes confirmed only after the supplier issues the ticket.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="travelShell" style="margin-top:16px">
+    <section class="travelStack">
+      <div class="travelPanel">
+        <div class="travelPanelHead"><div><h2>Find flights</h2><p class="muted">One-way or return, up to nine travelers.</p></div><span class="badge badgeOk"><i class="fa-solid fa-chair"></i> Seat map</span></div>
+        <form id="flightSearchForm" class="travelForm" autocomplete="off">
+          <div class="tripTypeRow" role="group" aria-label="Trip type">
+            <button class="travelChip active" type="button" data-trip-type="one_way">One way</button>
+            <button class="travelChip" type="button" data-trip-type="round_trip">Return</button>
+          </div>
+          <input type="hidden" name="tripType" id="flightTripType" value="one_way">
+          <div class="travelFormGrid">
+            <div class="travelField"><label for="flightOrigin">From airport</label><div class="travelControl"><i class="fa-solid fa-plane-departure"></i><input id="flightOrigin" name="origin" list="airportOptions" placeholder="EBB or Entebbe" required></div></div>
+            <div class="travelField"><label for="flightDestination">To airport</label><div class="travelControl"><i class="fa-solid fa-plane-arrival"></i><input id="flightDestination" name="destination" list="airportOptions" placeholder="JUB or Juba" required></div></div>
+            <datalist id="airportOptions"></datalist>
+            <div class="travelField"><label for="flightDepartureDate">Departure</label><div class="travelControl"><i class="fa-regular fa-calendar"></i><input id="flightDepartureDate" type="date" name="departureDate" required></div></div>
+            <div class="travelField hidden" id="returnDateField"><label for="flightReturnDate">Return</label><div class="travelControl"><i class="fa-regular fa-calendar-check"></i><input id="flightReturnDate" type="date" name="returnDate"></div></div>
+            <div class="travelField"><label for="flightCabin">Cabin</label><div class="travelControl"><i class="fa-solid fa-couch"></i><select id="flightCabin" name="cabinClass"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div></div>
+            <div class="travelField"><label>Travelers</label><div class="travelControl"><i class="fa-solid fa-user-group"></i><span id="travelerCountLabel">1 adult</span></div></div>
+          </div>
+          <div class="travelFormGrid three">
+            <div class="travelField"><label for="flightAdults">Adults</label><div class="travelControl"><input id="flightAdults" type="number" name="adults" min="1" max="9" value="1"></div></div>
+            <div class="travelField"><label for="flightChildren">Children</label><div class="travelControl"><input id="flightChildren" type="number" name="children" min="0" max="8" value="0"></div></div>
+            <div class="travelField"><label for="flightInfants">Infants</label><div class="travelControl"><input id="flightInfants" type="number" name="infants" min="0" max="9" value="0"></div></div>
+          </div>
+          <div class="travelActions"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search flights</button><span class="locationStatus" id="flightSearchStatus">Airport data loads from the platform database.</span></div>
+          <div class="travelMessage" id="flightMessage" role="status"></div>
+        </form>
+      </div>
+
+      <div class="travelPanel hidden" id="flightResultsPanel">
+        <div class="travelPanelHead"><div><h2>Available flights</h2><p class="muted" id="flightResultSummary"></p></div><span class="badge badgeInfo" id="flightOfferCount">0 offers</span></div>
+        <div class="offerList" id="flightOffers"></div>
+      </div>
+
+      <div class="travelPanel hidden" id="flightCheckoutPanel">
+        <div class="travelPanelHead"><div><h2>Passengers and seats</h2><p class="muted">The selected offer is repriced again before seats are held.</p></div><span class="badge badgeWarn"><i class="fa-solid fa-clock"></i> Offer expires</span></div>
+        <div id="selectedFlightSummary" class="offerCard"></div>
+        <div id="flightSeatMaps" class="travelStack" style="margin-top:14px"></div>
+        <form id="flightOrderForm" class="travelForm" style="margin-top:16px">
+          <div id="flightTravelers" class="travelStack"></div>
+          <div class="travelPanelHead" style="margin:4px 0 0"><div><h3>Booking contact</h3><p class="muted">Ticket and schedule updates are sent here.</p></div></div>
+          <div class="travelFormGrid">
+            <div class="travelField"><label>Contact name</label><div class="travelControl"><i class="fa-regular fa-user"></i><input name="contactName" required></div></div>
+            <div class="travelField"><label>Email</label><div class="travelControl"><i class="fa-regular fa-envelope"></i><input type="email" name="email" required></div></div>
+            <div class="travelField"><label>Phone</label><div class="travelControl"><i class="fa-solid fa-phone"></i><input name="phone" required></div></div>
+            <div class="travelField"><label>Emergency phone</label><div class="travelControl"><i class="fa-solid fa-kit-medical"></i><input name="emergencyPhone"></div></div>
+            <div class="travelField"><label>Payment</label><div class="travelControl"><i class="fa-solid fa-wallet"></i><select name="paymentProvider"><option value="pesapal">Pesapal</option><option value="mtn_momo">MTN Mobile Money</option><option value="airtel_money">Airtel Money</option><option value="flutterwave">Flutterwave</option><option value="paystack">Paystack</option><option value="dpo">DPO</option></select></div></div>
+          </div>
+          <div class="travelActions"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Continue securely</button><button class="btn btnGhost" type="button" id="backToFlightResults"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
+          <div class="travelMessage" id="flightOrderMessage" role="status"></div>
+        </form>
+      </div>
+    </section>
+
+    <aside class="travelStack">
+      <div class="travelPanel sticky" style="position:sticky;top:88px">
+        <div class="travelPanelHead"><div><h3>Flight booking flow</h3><p class="muted">One protected order from search to ticket.</p></div></div>
+        <div class="timeline">
+          <div class="timelineItem"><span class="timelineMark"></span><div><b>1. Search verified inventory</b><span>Platform-managed inventory or certified supplier offers.</span></div></div>
+          <div class="timelineItem"><span class="timelineMark"></span><div><b>2. Reprice and choose seats</b><span>Backend checks current fare and inventory.</span></div></div>
+          <div class="timelineItem"><span class="timelineMark"></span><div><b>3. Enter traveler documents</b><span>Document numbers are encrypted and masked.</span></div></div>
+          <div class="timelineItem"><span class="timelineMark"></span><div><b>4. Pay and issue tickets</b><span>Failed payment releases seats; confirmed payment proceeds to ticket issuance.</span></div></div>
+        </div>
+      </div>
+      <div class="travelPanel"><h3>Baggage, meals and rules</h3><p class="muted">Each offer displays the fare family’s checked baggage, cabin baggage, refundability, changes, meal inclusion and seat-selection policy.</p></div>
+    </aside>
+  </div>
+</main>
+<script nonce="<%= cspNonce %>" id="flightPageBootstrap" type="application/json"><%- toScriptJson({ query: initialQuery }) %></script>
+<script src="/js/flights.js?v=20260725-final-polish-1" defer></script>
+<%- include('../partials/site-footer') %>

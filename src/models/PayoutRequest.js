@@ -2,7 +2,7 @@ const { Schema, model } = require('./_helpers');
 
 const payoutRequestSchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
-  ownerType: { type: String, index: true, enum: ['company', 'promoter'] },
+  ownerType: { type: String, index: true, enum: ['company', 'promoter', 'flight_supplier'] },
   ownerId: { type: String, index: true },
   walletId: String,
   transactionId: { type: String, index: true },

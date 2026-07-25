@@ -20,22 +20,41 @@ async function releaseCompletedBooking(bookingRef) {
   const currency = booking.pricing?.currency || platformCurrency();
   const commissions = await financeRepository.commissions.list({ bookingId: booking.id, status: 'pending' });
   for (const commission of commissions) {
-    await walletService.movePendingToAvailable('company', commission.companyId, currency, commission.companyAmount, {
-      transactionType: 'company_earning_released', referenceType: 'booking', referenceId: booking.id,
-    });
+    if (commission.companyId && Number(commission.companyAmount || 0) > 0) {
+      const existingCompanyRelease=await financeRepository.transactions.findOne({ ownerType:'company', ownerId:commission.companyId, transactionType:'company_earning_released', referenceType:'booking', referenceId:booking.id });
+      if (!existingCompanyRelease) await walletService.movePendingToAvailable('company', commission.companyId, currency, commission.companyAmount, {
+        transactionType: 'company_earning_released', referenceType: 'booking', referenceId: booking.id,
+      });
+    }
     if (commission.promoterId && commission.promoterAmount > 0) {
-      await walletService.movePendingToAvailable('promoter', commission.promoterId, currency, commission.promoterAmount, {
+      const existingPromoterRelease=await financeRepository.transactions.findOne({ ownerType:'promoter', ownerId:commission.promoterId, transactionType:'promoter_commission_released', referenceType:'booking', referenceId:booking.id });
+      if (!existingPromoterRelease) await walletService.movePendingToAvailable('promoter', commission.promoterId, currency, commission.promoterAmount, {
         transactionType: 'promoter_commission_released', referenceType: 'booking', referenceId: booking.id,
       });
     }
-    await ledgerService.updateTransactions({ referenceType: 'booking', referenceId: booking.id, status: 'pending' }, { status: 'completed' });
+    await ledgerService.updateTransactions({ referenceType: 'booking', referenceId: booking.id, status: 'pending', ownerType: { $ne: 'flight_supplier' } }, { status: 'completed' });
     Object.assign(commission, { status: 'released', releasedAt: new Date().toISOString() });
     await financeRepository.commissions.save(commission, { id: commission.id });
+  }
+  const supplierPayable=Number(booking.pricing?.split?.supplierPayable || 0);
+  let supplierReleased=false;
+  if (serviceType === 'flight' && supplierPayable > 0 && !booking.supplierPayableReleasedAt) {
+    const supplierId=booking.supplierId || 'platform-flight-supply';
+    const existingSupplierRelease=await financeRepository.transactions.findOne({ ownerType:'flight_supplier', ownerId:supplierId, transactionType:'flight_supplier_payable_released', referenceType:'booking', referenceId:booking.id });
+    if (!existingSupplierRelease) await walletService.movePendingToAvailable('flight_supplier', supplierId, currency, supplierPayable, {
+      transactionType: 'flight_supplier_payable_released', referenceType: 'booking', referenceId: booking.id,
+    });
+    await ledgerService.updateTransactions({ referenceType: 'booking', referenceId: booking.id, status: 'pending', ownerType: 'flight_supplier' }, { status: 'completed' });
+    supplierReleased=true;
   }
   const now = new Date().toISOString();
   let bookingChanged = false;
   if (commissions.length && !booking.earningsReleasedAt) {
     booking.earningsReleasedAt = now;
+    bookingChanged = true;
+  }
+  if (supplierReleased) {
+    booking.supplierPayableReleasedAt = now;
     bookingChanged = true;
   }
   if (serviceType === 'hotel' && !['settled', 'refunded'].includes(String(booking.settlementStatus || '').trim().toLowerCase())) {

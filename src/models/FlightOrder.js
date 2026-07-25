@@ -1,0 +1,35 @@
+const { Schema, moneySchema, model } = require('./_helpers');
+const flightOrderSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  orderRef: { type: String, required: true, unique: true, index: true },
+  bookingId: { type: String, required: true, unique: true, index: true },
+  bookingRef: { type: String, required: true, unique: true, index: true },
+  bookingItemId: { type: String, required: true, index: true },
+  companyId: { type: String, required: true, index: true },
+  agentCompanyId: { type: String, index: true },
+  agentUserId: { type: String, index: true },
+  agentQuoteId: { type: String, index: true },
+  supplierId: { type: String, index: true },
+  supplierOrderRef: { type: String, index: true },
+  supplierBookingReference: { type: String, index: true },
+  listingId: { type: String, required: true, index: true },
+  offerId: { type: String, required: true, index: true },
+  idempotencyKey: { type: String, required: true },
+  customerUserId: { type: String, index: true },
+  contactSnapshot: Schema.Types.Mixed,
+  segmentSnapshot: [Schema.Types.Mixed],
+  pricing: moneySchema,
+  priceSnapshot: Schema.Types.Mixed,
+  policySnapshot: Schema.Types.Mixed,
+  status: { type: String, enum: ['awaiting_payment', 'payment_authorized', 'supplier_pending', 'confirmed', 'ticketed', 'check_in_open', 'checked_in', 'boarded', 'completed', 'change_pending', 'cancellation_pending', 'cancelled', 'refunded', 'failed', 'reconciliation_required'], default: 'awaiting_payment', index: true },
+  paymentStatus: { type: String, enum: ['pending', 'successful', 'failed', 'expired', 'refunded'], default: 'pending', index: true },
+  ticketingStatus: { type: String, enum: ['not_requested', 'pending', 'issued', 'partial', 'failed', 'voided'], default: 'not_requested', index: true },
+  settlementStatus: { type: String, enum: ['pending_payment', 'pending_fulfillment', 'eligible', 'settled', 'reconciliation_required', 'refunded'], default: 'pending_payment', index: true },
+  confirmedAt: Date,
+  ticketedAt: Date,
+  cancelledAt: Date,
+  cancellationReason: String,
+}, { timestamps: true });
+flightOrderSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+flightOrderSchema.index({ offerId: 1, idempotencyKey: 1 }, { unique: true });
+module.exports = model('FlightOrder', flightOrderSchema);

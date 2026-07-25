@@ -7,7 +7,7 @@ const listingSchema = new Schema({
   companyName: String,
   branchId: { type: String, index: true },
   branchName: String,
-  serviceType: { type: String, index: true, enum: ['bus', 'hotel'] },
+  serviceType: { type: String, index: true, enum: ['bus', 'hotel', 'flight', 'local_transport'] },
   group: String,
   type: String,
   title: { type: String, required: true, text: true },

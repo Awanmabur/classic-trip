@@ -8,7 +8,13 @@
                 <p><%= service.overview %></p>
               </div>
               <div class="heroActions">
+                <% if(dashboardRoleKey === 'admin' && service.serviceType === 'flight'){ %>
+                <button class="btn btnPrimary" type="button" data-scroll-target="flightSupplyControl"><i class="fa-solid fa-sliders"></i> Configure flight supply</button>
+                <% } else if(dashboardRoleKey === 'admin' && service.serviceType === 'local_transport'){ %>
+                <button class="btn btnPrimary" type="button" data-scroll-target="mobilitySupplyControl"><i class="fa-solid fa-shield-halved"></i> Configure ride supply</button>
+                <% } else { %>
                 <button class="btn btnPrimary" data-modal="create" data-type="<%= service.serviceType %> listing" data-label="<%= service.label %>"><i class="fa-solid fa-plus"></i> Add <%= service.label %> inventory</button>
+                <% } %>
                 <button class="btn" data-jump="bookings"><i class="fa-solid fa-ticket"></i> View bookings</button>
                 <button class="btn" data-jump="reports"><i class="fa-solid fa-file-lines"></i> Reports</button>
               </div>
@@ -46,4 +52,7 @@
           <div class="cardHead"><div class="cardTitle"><h3><%= service.label %> records</h3><p>Only database records belonging to this production service are shown.</p></div></div>
           <div class="tableWrap"><table><thead><tr><th>Record</th><th>Type</th><th>Partner</th><th>Inventory</th><th>Status</th><th>Rule</th><th></th></tr></thead><tbody id="<%= service.key.replace(/-/g, '') %>Table"></tbody></table></div>
         </div>
+        <% if(dashboardRoleKey === 'admin' && ['flight','local_transport'].includes(service.serviceType)){ %>
+          <%- include('admin-travel-supply-controls', { service, dashboardData, platformConfig, csrfToken, cspNonce }) %>
+        <% } %>
       </section>

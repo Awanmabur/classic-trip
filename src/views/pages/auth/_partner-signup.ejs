@@ -1,49 +1,231 @@
 <div class="formCard partnerFormCard">
   <div class="authTop partnerAuthTop">
-    <div><h2>Register your bus or hotel company</h2><p>Create the owner account and continue directly to company verification. There is no registration charge.</p></div>
-    <span class="badge warn"><i class="fa-solid fa-building-circle-check"></i>Partner</span>
-  </div>
-  <div class="notice"><strong>One percentage only:</strong> Classic Trip retains <%= platformConfig.partnerCommissionPercent %>% from completed bookings and the partner receives <%= platformConfig.partnerPayoutPercent %>%. A promoter reward, when applicable, comes from Classic Trip’s commission.</div>
-  <form class="form active" id="partnerOnboardingForm" action="/partner/onboarding" method="post">
-    <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
-    <div class="partnerSectionTitle"><span>Owner account</span><small>Used to sign in and complete verification</small></div>
-    <div class="row2">
-      <div class="field"><label>Contact person</label><div class="control"><i class="fa-regular fa-user"></i><input name="contactName" value="<%= partnerForm?.contactName || '' %>" autocomplete="name" required></div></div>
-      <div class="field"><label>Phone / WhatsApp</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input name="phone" value="<%= partnerForm?.phone || '' %>" autocomplete="tel" required></div></div>
+    <div>
+      <h2>Grow with Classic Trip</h2>
+      <p>Select your service and operating model. The application reveals only the information required for a secure, professional approval.</p>
     </div>
-    <div class="field"><label>Work email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" name="email" value="<%= partnerForm?.email || '' %>" autocomplete="email" required></div></div>
+    <span class="badge warn"><i class="fa-solid fa-shield-halved"></i>Verified partner</span>
+  </div>
+
+  <div class="notice"><strong>Clear commercial model:</strong> registration is free. Classic Trip retains <%= platformConfig.partnerCommissionPercent %>% only after a completed service, while the verified partner receives <%= platformConfig.partnerPayoutPercent %>%.</div>
+
+  <form class="form active" id="partnerOnboardingForm" action="/partner/onboarding" method="post" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+    <input type="hidden" name="companyType" id="partnerCompanyType" value="<%= partnerForm?.companyType || '' %>">
+
+    <div class="partnerSectionTitle"><span>Choose your service</span><small>The application changes automatically</small></div>
+    <div class="row2 partnerTypeGrid">
+      <div class="field">
+        <label>Primary service</label>
+        <div class="control"><i class="fa-solid fa-layer-group"></i>
+          <select id="partnerService" required>
+            <option value="">Choose service</option>
+            <option value="bus" <%= partnerForm?.companyType === 'bus' ? 'selected' : '' %>>Bus travel</option>
+            <option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Hotels & stays</option>
+            <option value="local_transport" <%= partnerForm?.companyType === 'local_transport' ? 'selected' : '' %>>Boda, car & local rides</option>
+            <option value="flight" <%= partnerForm?.companyType === 'flight' ? 'selected' : '' %>>Flight travel services</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>How will you work?</label>
+        <div class="control"><i class="fa-solid fa-user-tag"></i>
+          <select name="partnerCategory" id="partnerCategory" required data-selected="<%= partnerForm?.partnerCategory || '' %>">
+            <option value="">Choose partner type</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="partnerProfileHint" id="partnerProfileHint"><i class="fa-solid fa-circle-info"></i><span>Select a service and partner type to continue.</span></div>
+
+    <div class="partnerSectionTitle"><span>Secure account</span><small>Used to sign in and follow approval</small></div>
+    <div class="row2">
+      <div class="field"><label>Full name</label><div class="control"><i class="fa-regular fa-user"></i><input name="contactName" id="partnerContactName" value="<%= partnerForm?.contactName || '' %>" autocomplete="name" required></div></div>
+      <div class="field"><label>Phone / WhatsApp</label><div class="control"><i class="fa-brands fa-whatsapp"></i><input id="partnerPhone" name="phone" value="<%= partnerForm?.phone || '' %>" autocomplete="tel" inputmode="tel" placeholder="Select a country first" required></div></div>
+    </div>
+    <div class="field"><label>Email</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="email" name="email" value="<%= partnerForm?.email || '' %>" autocomplete="email" required></div></div>
     <div class="row2">
       <div class="field"><label>Password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,72}" placeholder="8–72 characters" required><button type="button" class="passwordToggle" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
       <div class="field"><label>Confirm password</label><div class="control"><i class="fa-solid fa-lock"></i><input type="password" name="confirmPassword" autocomplete="new-password" maxlength="72" placeholder="Repeat password" required></div></div>
     </div>
-    <div class="partnerSectionTitle"><span>Company identity</span><small>One account operates one primary service type</small></div>
+
+    <div class="partnerSectionTitle"><span id="partnerIdentityTitle">Partner identity</span><small id="partnerIdentityHelp">Basic operating information</small></div>
     <div class="row2">
-      <div class="field"><label>Trading / brand name</label><div class="control"><i class="fa-solid fa-signature"></i><input name="name" value="<%= partnerForm?.name || '' %>" required></div></div>
-      <div class="field"><label>Registered legal name</label><div class="control"><i class="fa-solid fa-building"></i><input name="legalName" value="<%= partnerForm?.legalName || '' %>" required></div></div>
+      <div class="field"><label id="partnerNameLabel">Business / public profile name</label><div class="control"><i class="fa-solid fa-signature"></i><input name="name" id="partnerDisplayName" value="<%= partnerForm?.name || '' %>" required></div></div>
+      <div class="field" data-profile-field="organization agency fleet"><label>Registered legal name</label><div class="control"><i class="fa-solid fa-building"></i><input name="legalName" value="<%= partnerForm?.legalName || '' %>"></div></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Primary service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select name="companyType" required><option value="">Choose service</option><option value="bus" <%= partnerForm?.companyType === 'bus' ? 'selected' : '' %>>Bus operator</option><option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Hotel / stay partner</option></select></div></div>
-      <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-coins"></i><select name="operatingCurrency" required><% platformConfig.supportedCurrencies.forEach(function(code){ %><option value="<%= code %>" <%= (partnerForm?.operatingCurrency || platformConfig.defaultCurrency) === code ? 'selected' : '' %>><%= code %></option><% }) %></select></div></div>
+      <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" id="partnerCountry" required><% countryMarkets.forEach(function(market){ %><option value="<%= market.name %>" data-currency="<%= market.currency %>" data-calling-code="<%= market.callingCode %>" <%= (partnerForm?.country || 'Uganda') === market.name ? 'selected' : '' %>><%= market.name %></option><% }) %></select></div></div>
+      <div class="field"><label>Operating city / town</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" value="<%= partnerForm?.city || '' %>" placeholder="City, town or district" required></div></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Registration number</label><div class="control"><i class="fa-solid fa-file-signature"></i><input name="registrationNumber" value="<%= partnerForm?.registrationNumber || '' %>" placeholder="Optional during first step"></div></div>
-      <div class="field"><label>Tax / TIN number</label><div class="control"><i class="fa-solid fa-receipt"></i><input name="taxNumber" value="<%= partnerForm?.taxNumber || '' %>" placeholder="Optional during first step"></div></div>
+      <div class="field"><label>Operating currency <span class="optional">Set automatically</span></label><div class="control currencyControl"><i class="fa-solid fa-coins"></i><input id="partnerCurrencyDisplay" value="" readonly aria-readonly="true"><input type="hidden" name="operatingCurrency" id="partnerCurrencyInput" value=""></div><small class="fieldHint">Your settlement, listing and dashboard currency follows the selected operating country.</small></div>
+      <div class="field"><label>Preferred operating areas</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input name="preferredOperatingAreas" value="<%= partnerForm?.preferredOperatingAreas || '' %>" placeholder="Kampala, Entebbe, Juba…"></div></div>
     </div>
-    <div class="row2">
-      <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><% ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','DR Congo','Burundi','Somalia'].forEach(function(country){ %><option value="<%= country %>" <%= (partnerForm?.country || 'Uganda') === country ? 'selected' : '' %>><%= country %></option><% }) %></select></div></div>
-      <div class="field"><label>Head-office city</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" value="<%= partnerForm?.city || '' %>" required></div></div>
-    </div>
-    <div class="field"><label>Head-office address</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input name="headOfficeAddress" value="<%= partnerForm?.headOfficeAddress || '' %>"></div></div>
-    <div class="field"><label>Company website</label><div class="control"><i class="fa-solid fa-globe"></i><input type="url" name="website" value="<%= partnerForm?.website || '' %>" placeholder="https://example.com"></div></div>
-    <div class="field"><label>Service description</label><div class="control partnerTextarea"><i class="fa-regular fa-message"></i><textarea name="description" placeholder="Describe the bus or hotel service you will operate."><%= partnerForm?.description || '' %></textarea></div></div>
-    <div class="checkLine"><label><input type="checkbox" name="termsAccepted" required> I accept partner terms, privacy rules, verification requirements, the <%= platformConfig.partnerCommissionPercent %>% commission rate, and operating responsibilities.</label></div>
-    <button class="submit" type="submit"><i class="fa-solid fa-building-circle-check"></i>Create partner account</button>
-    <div class="notice"><strong>After signup:</strong> sign in immediately, complete company verification, then create bus or hotel setup. Publishing, live bookings, payment operations, and payouts stay blocked until approval.</div>
+
+    <section class="partnerDynamicSection" data-profile-section="organization">
+      <div class="row2">
+        <div class="field"><label>Registration number</label><div class="control"><i class="fa-solid fa-file-signature"></i><input name="registrationNumber" value="<%= partnerForm?.registrationNumber || '' %>"></div></div>
+        <div class="field"><label>Tax / TIN number</label><div class="control"><i class="fa-solid fa-receipt"></i><input name="taxNumber" value="<%= partnerForm?.taxNumber || '' %>"></div></div>
+      </div>
+      <div class="field"><label>Office / property address</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input name="headOfficeAddress" value="<%= partnerForm?.headOfficeAddress || '' %>"></div></div>
+      <div class="field"><label>Website</label><div class="control"><i class="fa-solid fa-globe"></i><input type="url" name="website" value="<%= partnerForm?.website || '' %>" placeholder="https://example.com"></div></div>
+    </section>
+
+    <section class="partnerDynamicSection" data-profile-section="agency">
+      <div class="partnerSectionTitle compact"><span>Flight agency credentials</span><small>Airlines and live inventory are controlled by approved platform suppliers</small></div>
+      <div class="row2">
+        <div class="field"><label>Agency licence / accreditation</label><div class="control"><i class="fa-solid fa-certificate"></i><input name="agencyLicenceNumber" value="<%= partnerForm?.agencyLicenceNumber || '' %>"></div></div>
+        <div class="field"><label>IATA / TIDS number</label><div class="control"><i class="fa-solid fa-plane-circle-check"></i><input name="iataTidsNumber" value="<%= partnerForm?.iataTidsNumber || '' %>" placeholder="Optional when not applicable"></div></div>
+      </div>
+      <div class="field"><label>Agency specialities</label><div class="control"><i class="fa-solid fa-route"></i><input name="agencySpecialities" value="<%= partnerForm?.agencySpecialities || '' %>" placeholder="Corporate travel, regional tickets, groups…"></div></div>
+      <div class="partnerProfileHint"><i class="fa-solid fa-lock"></i><span>Agents can search supplier offers, book customers, manage travelers, tickets, changes and refunds. They cannot create airlines, aircraft, seat maps or flight schedules.</span></div>
+    </section>
+
+    <section class="partnerDynamicSection" data-profile-section="driver">
+      <div class="partnerSectionTitle compact"><span>Driver verification</span><small>Your documents stay private and require Super Admin approval</small></div>
+      <div class="row2">
+        <div class="field"><label>National ID / passport number</label><div class="control"><i class="fa-solid fa-id-card"></i><input name="nationalIdNumber" value="<%= partnerForm?.nationalIdNumber || '' %>" autocomplete="off"></div></div>
+        <div class="field"><label>Driving licence number</label><div class="control"><i class="fa-solid fa-address-card"></i><input name="driverLicenceNumber" value="<%= partnerForm?.driverLicenceNumber || '' %>" autocomplete="off"></div></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Licence expiry</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" name="driverLicenceExpiry" value="<%= partnerForm?.driverLicenceExpiry || '' %>"></div></div>
+        <div class="field"><label>Vehicle type</label><div class="control"><i class="fa-solid fa-motorcycle"></i><select name="vehicleType"><option value="">Choose vehicle</option><option value="motorcycle">Motorcycle / boda</option><option value="car">Car</option><option value="van">Van</option></select></div></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Registration number</label><div class="control"><i class="fa-solid fa-car-rear"></i><input name="vehicleRegistrationNumber" value="<%= partnerForm?.vehicleRegistrationNumber || '' %>"></div></div>
+        <div class="field"><label>Insurance expiry</label><div class="control"><i class="fa-solid fa-shield"></i><input type="date" name="insuranceExpiry" value="<%= partnerForm?.insuranceExpiry || '' %>"></div></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Vehicle make</label><div class="control"><i class="fa-solid fa-industry"></i><input name="vehicleMake" value="<%= partnerForm?.vehicleMake || '' %>" placeholder="Bajaj, Toyota…"></div></div>
+        <div class="field"><label>Vehicle model / year</label><div class="control"><i class="fa-solid fa-car-side"></i><input name="vehicleModel" value="<%= partnerForm?.vehicleModel || '' %>" placeholder="Model"><input type="number" name="vehicleYear" value="<%= partnerForm?.vehicleYear || '' %>" min="1980" max="<%= new Date().getFullYear() + 1 %>" placeholder="Year"></div></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Vehicle colour</label><div class="control"><i class="fa-solid fa-palette"></i><input name="vehicleColor" value="<%= partnerForm?.vehicleColor || '' %>" placeholder="Black, white, red…"></div></div>
+        <div class="field"><label>Inspection expiry <span class="optional">Optional where applicable</span></label><div class="control"><i class="fa-solid fa-screwdriver-wrench"></i><input type="date" name="inspectionExpiry" value="<%= partnerForm?.inspectionExpiry || '' %>"></div></div>
+      </div>
+      <div class="partnerProfileHint"><i class="fa-solid fa-shield-halved"></i><span>Classic Trip controls ride classes, coverage, fares, safety policy and dispatch. A rider or driver manages only their profile, approved vehicle, availability, assigned trips and earnings.</span></div>
+    </section>
+
+    <section class="partnerDynamicSection" data-profile-section="fleet">
+      <div class="partnerSectionTitle compact"><span>Fleet information</span><small>Vehicles and drivers are approved individually</small></div>
+      <div class="row2">
+        <div class="field"><label>Current fleet size</label><div class="control"><i class="fa-solid fa-hashtag"></i><input type="number" name="fleetSize" min="1" max="100000" value="<%= partnerForm?.fleetSize || '' %>"></div></div>
+        <div class="field"><label>Vehicle types</label><div class="control"><i class="fa-solid fa-car-side"></i><input name="vehicleTypes" value="<%= partnerForm?.vehicleTypes || '' %>" placeholder="Bodas, cars, vans"></div></div>
+      </div>
+      <div class="partnerProfileHint"><i class="fa-solid fa-sliders"></i><span>Fleet partners manage their own approved vehicles, drivers, availability, trips and earnings. Platform pricing, vehicle classes, service zones and dispatch rules remain controlled by Super Admin.</span></div>
+    </section>
+
+    <div class="field"><label>About your service</label><div class="control partnerTextarea"><i class="fa-regular fa-message"></i><textarea name="description" placeholder="Describe your experience, service quality, operating area and what travelers can expect."><%= partnerForm?.description || '' %></textarea></div></div>
+
+    <div class="checkLine"><label><input type="checkbox" name="termsAccepted" required> I accept partner terms, privacy rules, verification requirements, the <%= platformConfig.partnerCommissionPercent %>% commission rate and service-specific operating responsibilities.</label></div>
+    <button class="submit" type="submit"><i class="fa-solid fa-user-shield"></i>Submit partner application</button>
+    <div class="notice" id="partnerAfterSignup"><strong>What happens next:</strong> sign in, upload the required evidence and complete verification. Super Admin activates only the capabilities approved for your service and partner type.</div>
   </form>
 </div>
+
 <div class="partnerSteps">
-  <div class="stat"><strong>1</strong><span>Direct partner signup</span></div>
-  <div class="stat"><strong>2</strong><span>Company verification</span></div>
-  <div class="stat"><strong>3</strong><span>Service setup</span></div>
-  <div class="stat"><strong>4</strong><span>Publish and earn</span></div>
+  <div class="stat"><strong>1</strong><span>Choose partner type</span></div>
+  <div class="stat"><strong>2</strong><span>Submit correct details</span></div>
+  <div class="stat"><strong>3</strong><span>Super Admin verifies</span></div>
+  <div class="stat"><strong>4</strong><span>Operate and earn</span></div>
 </div>
+
+<script nonce="<%= cspNonce %>">
+(() => {
+  const form = document.getElementById('partnerOnboardingForm');
+  if (!form) return;
+  const service = document.getElementById('partnerService');
+  const category = document.getElementById('partnerCategory');
+  const companyType = document.getElementById('partnerCompanyType');
+  const hint = document.getElementById('partnerProfileHint');
+  const nameLabel = document.getElementById('partnerNameLabel');
+  const displayName = document.getElementById('partnerDisplayName');
+  const contactName = document.getElementById('partnerContactName');
+  const country = document.getElementById('partnerCountry');
+  const currencyDisplay = document.getElementById('partnerCurrencyDisplay');
+  const currencyInput = document.getElementById('partnerCurrencyInput');
+  const phone = document.getElementById('partnerPhone');
+  const selected = category.dataset.selected || '';
+  const profiles = {
+    bus: [{ value: 'bus_operator', label: 'Bus operator', model: 'organization', description: 'Licensed bus company managing its own routes, buses, departures, seats and staff.' }],
+    hotel: [{ value: 'hotel_partner', label: 'Hotel or stay partner', model: 'organization', description: 'Hotel, lodge, apartment, guesthouse or other accommodation provider.' }],
+    flight: [{ value: 'flight_agent', label: 'Flight travel agent', model: 'agency', description: 'Travel agency selling approved supplier inventory and supporting travelers. Not an airline account.' }],
+    local_transport: [
+      { value: 'boda_rider', label: 'Boda rider', model: 'driver', description: 'Individual motorcycle rider using platform-controlled fares, zones, safety and dispatch.' },
+      { value: 'car_driver', label: 'Car driver', model: 'driver', description: 'Individual car driver using platform-controlled fares, zones, safety and dispatch.' },
+      { value: 'fleet_owner', label: 'Vehicle, rental or fleet owner', model: 'fleet', description: 'Owner of one or more vehicles and approved drivers.' },
+      { value: 'taxi_company', label: 'Taxi or mobility company', model: 'organization fleet', description: 'Registered company managing its own approved fleet and staff.' },
+    ],
+  };
+  const fieldNames = {
+    organization: ['legalName', 'registrationNumber'],
+    agency: ['legalName', 'agencyLicenceNumber'],
+    driver: ['nationalIdNumber', 'driverLicenceNumber', 'driverLicenceExpiry', 'vehicleType', 'vehicleRegistrationNumber', 'insuranceExpiry', 'vehicleMake', 'vehicleModel', 'vehicleYear', 'vehicleColor'],
+    fleet: ['legalName', 'fleetSize', 'vehicleTypes'],
+  };
+
+  function updateMarket() {
+    const option = country?.selectedOptions?.[0];
+    const currency = option?.dataset.currency || '';
+    const callingCode = option?.dataset.callingCode || '';
+    if (currencyDisplay) currencyDisplay.value = currency ? `${currency} · ${country.value}` : '';
+    if (currencyInput) currencyInput.value = currency;
+    if (phone && !phone.value) phone.placeholder = callingCode ? `${callingCode} …` : 'Phone / WhatsApp';
+  }
+  function setRequired(model) {
+    const all = new Set(Object.values(fieldNames).flat());
+    all.forEach((name) => form.elements[name] && (form.elements[name].required = false));
+    String(model || '').split(' ').forEach((key) => (fieldNames[key] || []).forEach((name) => form.elements[name] && (form.elements[name].required = true)));
+  }
+  function showModel(model) {
+    document.querySelectorAll('[data-profile-section]').forEach((section) => {
+      const visible = String(model || '').split(' ').some((token) => section.dataset.profileSection.split(' ').includes(token));
+      section.hidden = !visible;
+      section.querySelectorAll('input,select,textarea').forEach((input) => { input.disabled = !visible; });
+    });
+    document.querySelectorAll('[data-profile-field]').forEach((field) => {
+      const visible = String(model || '').split(' ').some((token) => field.dataset.profileField.split(' ').includes(token));
+      field.hidden = !visible;
+      field.querySelectorAll('input,select,textarea').forEach((input) => { input.disabled = !visible; });
+    });
+    setRequired(model);
+  }
+  function updateCategoryOptions() {
+    const choices = profiles[service.value] || [];
+    const current = category.value || selected;
+    category.innerHTML = '<option value="">Choose partner type</option>' + choices.map((item) => `<option value="${item.value}">${item.label}</option>`).join('');
+    if (choices.some((item) => item.value === current)) category.value = current;
+    else if (choices.length === 1) category.value = choices[0].value;
+    companyType.value = service.value;
+    updateProfile();
+  }
+  function updateProfile() {
+    const choice = (profiles[service.value] || []).find((item) => item.value === category.value);
+    showModel(choice?.model || '');
+    if (!choice) {
+      hint.innerHTML = '<i class="fa-solid fa-circle-info"></i><span>Select a service and partner type to continue.</span>';
+      return;
+    }
+    hint.innerHTML = `<i class="fa-solid fa-circle-check"></i><span><strong>${choice.label}:</strong> ${choice.description}</span>`;
+    const individual = ['boda_rider', 'car_driver'].includes(choice.value);
+    nameLabel.textContent = individual ? 'Public driver name' : 'Business / public profile name';
+    if (individual && !displayName.value && contactName.value) displayName.value = contactName.value;
+    const vehicleType = form.elements.vehicleType;
+    if (vehicleType && choice.value === 'boda_rider') vehicleType.value = 'motorcycle';
+    if (vehicleType && choice.value === 'car_driver') vehicleType.value = 'car';
+  }
+  service.addEventListener('change', updateCategoryOptions);
+  country?.addEventListener('change', updateMarket);
+  category.addEventListener('change', updateProfile);
+  contactName.addEventListener('input', () => {
+    if (['boda_rider', 'car_driver'].includes(category.value) && !displayName.dataset.userEdited) displayName.value = contactName.value;
+  });
+  displayName.addEventListener('input', () => { displayName.dataset.userEdited = '1'; });
+  if (!service.value && selected) {
+    for (const [key, choices] of Object.entries(profiles)) if (choices.some((item) => item.value === selected)) service.value = key;
+  }
+  updateMarket();
+  updateCategoryOptions();
+})();
+</script>

@@ -13,9 +13,13 @@ async function llms(req, res, next) {
   try { res.type('text/plain; charset=utf-8').send(await seoService.llmsTxt()); } catch (error) { next(error); }
 }
 
+async function llmsFull(req, res, next) {
+  try { res.type('text/plain; charset=utf-8').send(await seoService.llmsFullTxt()); } catch (error) { next(error); }
+}
+
 function indexNowKey(req, res, next) {
   if (!env.seo.indexNowKey || req.params.key !== env.seo.indexNowKey) return next();
   return res.type('text/plain; charset=utf-8').send(env.seo.indexNowKey);
 }
 
-module.exports = { robots, sitemap, llms, indexNowKey };
+module.exports = { robots, sitemap, llms, llmsFull, indexNowKey };

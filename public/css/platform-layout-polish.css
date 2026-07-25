@@ -1,0 +1,307 @@
+/* Final platform-wide public layout and spacing pass.
+   This file only normalises the existing Classic Trip design language. */
+:root{
+  --ct-space-1:6px;
+  --ct-space-2:8px;
+  --ct-space-3:10px;
+  --ct-space-4:12px;
+  --ct-space-5:14px;
+  --ct-space-6:16px;
+  --ct-space-7:20px;
+  --ct-control-h:40px;
+  --ct-control-r:20px;
+  --ct-card-r:24px;
+}
+
+/* Predictable page rhythm from marketing through checkout and account pages. */
+main.container:not(.homePage):not(.ticketPage):not(.paymentPage):not(.listingPreviewPage){
+  padding-top:16px!important;
+  padding-bottom:38px!important;
+}
+.marketingPage,
+.partnersDirectoryPage,
+.partnerCommissionPage{
+  display:grid;
+  gap:16px;
+}
+.marketingPage>.section,
+.partnersDirectoryPage>.section,
+.partnerCommissionPage>.section{
+  margin:0!important;
+}
+main.container>.heroCard:first-child,
+main.container>.pageIntro:first-child,
+main.container>.travelPanel:first-child{
+  margin-top:0;
+}
+main.container>.heroCard+*,
+main.container>.pageIntro+*,
+main.container>.travelPanel+*{
+  margin-top:16px;
+}
+.marketingPage>*,
+.partnersDirectoryPage>*,
+.partnerCommissionPage>*{
+  margin-top:0!important;
+}
+
+/* Requested breathing room under the Partners banner. */
+.partnersDirectoryBanner{
+  margin-bottom:8px!important;
+}
+.partnersDirectoryPage{
+  gap:14px;
+}
+.partnersDirectoryPage>.partnerDirectoryGrid{
+  margin-top:0!important;
+}
+
+/* Shared hero spacing. */
+.marketingHero,
+.partnersDirectoryHero,
+.pageIntro,
+.heroCard{
+  overflow:hidden;
+}
+.heroActionsRow,
+.heroMetricsRow{
+  margin-top:14px;
+}
+.heroActionsRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+/* Forms and controls use one compact rounded proportion. */
+.field{min-width:0}
+.field+.field{min-width:0}
+.field label{line-height:1.3}
+.control,
+.travelControl,
+.bookingForm input,
+.bookingForm select,
+.bookingForm textarea,
+.formCard input,
+.formCard select,
+.formCard textarea{
+  border-radius:var(--ct-control-r)!important;
+}
+.control,
+.travelControl{
+  min-height:var(--ct-control-h)!important;
+}
+.control input,
+.control select,
+.travelControl input,
+.travelControl select{
+  min-height:22px;
+}
+.control textarea,
+.travelControl textarea,
+.bookingForm textarea,
+.formCard textarea{
+  min-height:88px;
+  resize:vertical;
+}
+.formGrid,
+.row2,
+.bookingForm,
+.travelFormGrid,
+.forms,
+.formBlock{
+  gap:12px!important;
+}
+
+/* Buttons remain compact, rounded and aligned without crowding. */
+.btn,
+.iconbtn,
+.tab,
+.chip{
+  border-radius:999px;
+}
+.btn{
+  min-height:38px;
+}
+.actions,
+.navActions,
+.ticketActions,
+.travelActions,
+.sheetTopActions{
+  gap:8px!important;
+}
+.actions form,
+.ticketActions form,
+.travelActions form{
+  margin:0;
+}
+.actions>.btn,
+.actions>form>.btn{
+  align-self:center;
+}
+
+/* Consistent content padding and internal card gaps. */
+.card>.sectionHead:first-child,
+.card>.routeList:first-child,
+.card>.formBlock:first-child{
+  margin-top:0;
+}
+.sectionHead{
+  margin-bottom:12px;
+}
+.sectionHead h2,
+.sectionHead h3,
+.card h2,
+.card h3{
+  overflow-wrap:anywhere;
+}
+.routeList,
+.timeline,
+.faqList,
+.travelStack{
+  gap:10px!important;
+}
+.routeItem,
+.timelineItem,
+.faqItem,
+.summaryCard,
+.travelPanel,
+.formCard,
+.marketplaceEmptyCard{
+  border-radius:22px;
+}
+.notice,
+.empty{
+  margin-block:0;
+}
+
+/* Catalog cards: View and Book stay together in one row. */
+.marketplaceListingCard .actions,
+.marketplaceListingCard .listingActions,
+.partnerDirectoryCard .partnerCardActions{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  width:100%;
+}
+.marketplaceListingCard .actions .btn,
+.marketplaceListingCard .listingActions .btn,
+.partnerDirectoryCard .partnerCardActions .btn{
+  min-height:38px!important;
+  height:38px!important;
+  width:100%;
+  min-width:0;
+  padding-inline:9px!important;
+}
+
+/* Flights and local rides keep the established compact banner/control scale. */
+.travelPage,
+.travelShell{
+  display:grid;
+  gap:14px;
+}
+.travelPage .heroCard,
+.travelPage .travelPanel,
+.travelShell .heroCard,
+.travelShell .travelPanel{
+  border-radius:24px;
+}
+.travelPage .heroCard,
+.travelShell .heroCard{
+  padding:14px!important;
+  margin-bottom:0!important;
+}
+.travelPage .travelPanel,
+.travelShell .travelPanel{
+  padding:14px!important;
+}
+.travelPage .btn,
+.travelShell .btn{
+  min-height:38px!important;
+  height:38px!important;
+}
+
+/* Tables and printable/lookup surfaces should never touch their container edges. */
+.tableWrap{border-radius:18px}
+.sheetBody,
+.ticketPaper,
+.detailGrid{
+  gap:14px;
+}
+
+@media(max-width:900px){
+  .marketingPage,
+  .partnersDirectoryPage,
+  .partnerCommissionPage{gap:14px}
+  main.container>.heroCard+*,
+  main.container>.pageIntro+*,
+  main.container>.travelPanel+*{margin-top:14px}
+  .marketingPage>*,
+  .partnersDirectoryPage>*,
+  .partnerCommissionPage>*{margin-top:0!important}
+}
+
+@media(max-width:680px){
+  :root{--ct-control-h:38px;--ct-control-r:18px}
+  main.container:not(.homePage):not(.ticketPage):not(.paymentPage):not(.listingPreviewPage){
+    width:min(100% - 20px,520px)!important;
+    padding-top:10px!important;
+    padding-bottom:28px!important;
+  }
+  .marketingPage,
+  .partnersDirectoryPage,
+  .partnerCommissionPage{gap:12px}
+  .partnersDirectoryBanner{margin-bottom:4px!important}
+  .heroActionsRow,
+  .heroMetricsRow{margin-top:11px}
+  .heroActionsRow .btn{flex:1 1 150px}
+  .heroCard,
+  .marketingHero,
+  .partnersDirectoryHero,
+  .pageIntro{padding:13px!important;border-radius:22px!important}
+  .sectionHead{gap:8px;margin-bottom:10px}
+  .formGrid,
+  .row2,
+  .bookingForm,
+  .travelFormGrid,
+  .forms,
+  .formBlock{gap:10px!important}
+  .routeList,
+  .timeline,
+  .faqList,
+  .travelStack{gap:8px!important}
+  .routeItem,
+  .timelineItem,
+  .faqItem,
+  .summaryCard,
+  .travelPanel,
+  .formCard,
+  .marketplaceEmptyCard{border-radius:20px}
+  .marketplaceListingCard .actions,
+  .marketplaceListingCard .listingActions,
+  .partnerDirectoryCard .partnerCardActions{gap:7px!important}
+  .marketplaceListingCard .actions .btn,
+  .marketplaceListingCard .listingActions .btn,
+  .partnerDirectoryCard .partnerCardActions .btn{
+    min-height:36px!important;
+    height:36px!important;
+    font-size:11px!important;
+    padding-inline:7px!important;
+  }
+  .travelPage,
+  .travelShell{gap:11px}
+  .travelPage .heroCard,
+  .travelShell .heroCard,
+  .travelPage .travelPanel,
+  .travelShell .travelPanel{padding:12px!important;border-radius:21px!important}
+}
+
+@media(max-width:390px){
+  main.container:not(.homePage):not(.ticketPage):not(.paymentPage):not(.listingPreviewPage){width:min(100% - 16px,390px)!important}
+  .heroActionsRow{display:grid;grid-template-columns:1fr}
+  .heroActionsRow .btn{width:100%}
+  .marketplaceListingCard .actions .btn,
+  .marketplaceListingCard .listingActions .btn,
+  .partnerDirectoryCard .partnerCardActions .btn{font-size:10.5px!important}
+}

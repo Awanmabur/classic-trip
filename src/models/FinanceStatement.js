@@ -3,7 +3,7 @@ const { Schema, model } = require('./_helpers');
 const financeStatementSchema = new Schema({
   id: { type: String, unique: true, sparse: true, index: true },
   statementRef: { type: String, index: true },
-  ownerType: { type: String, index: true, enum: ['company', 'platform', 'promoter'] },
+  ownerType: { type: String, index: true, enum: ['company', 'platform', 'promoter', 'flight_supplier'] },
   ownerId: { type: String, index: true },
   settlementBatchId: { type: String, index: true },
   payoutBatchId: { type: String, index: true },
@@ -13,6 +13,7 @@ const financeStatementSchema = new Schema({
   gross: Number,
   platformFee: Number,
   companyEarning: Number,
+  supplierPayable: Number,
   promoterCommission: Number,
   refundDebits: Number,
   payoutTotal: Number,

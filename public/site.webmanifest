@@ -1,7 +1,7 @@
 {
   "name": "Classic Trip",
   "short_name": "Classic Trip",
-  "description": "Classic Trip travel marketplace for East Africa bookings.",
+  "description": "Book buses, accommodation, flights and safe local rides across East Africa with verified partners and secure payments.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

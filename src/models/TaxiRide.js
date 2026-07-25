@@ -1,0 +1,42 @@
+const { Schema, moneySchema, model } = require('./_helpers');
+const taxiRideSchema = new Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  rideRef: { type: String, required: true, unique: true, index: true },
+  requestId: { type: String, required: true, unique: true, index: true },
+  quoteId: { type: String, required: true, index: true },
+  idempotencyKey: { type: String, required: true },
+  bookingId: { type: String, required: true, unique: true, index: true },
+  bookingRef: { type: String, required: true, unique: true, index: true },
+  bookingItemId: { type: String, required: true, index: true },
+  companyId: { type: String, required: true, index: true },
+  providerCompanyId: { type: String, index: true },
+  platformManaged: { type: Boolean, default: true, index: true },
+  listingId: { type: String, required: true, index: true },
+  customerUserId: { type: String, index: true },
+  driverProfileId: { type: String, index: true },
+  vehicleId: { type: String, index: true },
+  vehicleClassId: { type: String, required: true, index: true },
+  serviceType: { type: String, required: true, index: true },
+  pickup: { type: Schema.Types.Mixed, required: true },
+  destination: { type: Schema.Types.Mixed, required: true },
+  stops: [Schema.Types.Mixed],
+  scheduledPickupAt: { type: Date, required: true, index: true },
+  acceptedAt: Date,
+  driverArrivedAt: Date,
+  startedAt: Date,
+  completedAt: Date,
+  pickupPinHash: String,
+  pickupPinEncrypted: String,
+  pricing: moneySchema,
+  estimateSnapshot: Schema.Types.Mixed,
+  finalFareSnapshot: Schema.Types.Mixed,
+  paymentStatus: { type: String, enum: ['pending', 'successful', 'failed', 'expired', 'refunded'], default: 'pending', index: true },
+  settlementStatus: { type: String, enum: ['pending_payment', 'pending_fulfillment', 'eligible', 'settled', 'reconciliation_required', 'refunded'], default: 'pending_payment', index: true },
+  status: { type: String, enum: ['awaiting_payment', 'scheduled', 'dispatch_pending', 'offering', 'assigned', 'driver_arriving', 'driver_arrived', 'pickup_verified', 'in_progress', 'completed', 'customer_no_show', 'driver_no_show', 'cancelled', 'refunded', 'failed', 'safety_hold'], default: 'awaiting_payment', index: true },
+  cancellation: Schema.Types.Mixed,
+  safetyState: Schema.Types.Mixed,
+}, { timestamps: true });
+taxiRideSchema.index({ companyId: 1, status: 1, scheduledPickupAt: 1 });
+taxiRideSchema.index({ quoteId: 1, idempotencyKey: 1 }, { unique: true });
+taxiRideSchema.index({ driverProfileId: 1, status: 1, scheduledPickupAt: 1 });
+module.exports = model('TaxiRide', taxiRideSchema);

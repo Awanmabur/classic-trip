@@ -43,7 +43,7 @@ const notificationTemplateSchema = new Schema({
 
 const platformSettingSchema = new Schema({
   platformName: { type: String, default: 'Classic Trip' },
-  supportedCurrencies: { type: [String], default: () => ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'USD'] },
+  supportedCurrencies: { type: [String], default: () => ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'CDF', 'SOS', 'USD'] },
   supportEmail: String,
   supportMessage: String,
   maintenanceMode: { type: Boolean, default: false, index: true },

@@ -21,10 +21,10 @@ check('Registration does not allocate nextId user', !/nextId\(['"]user['"]\)/.te
 check('Super Admin seed has no hardcoded user id', !/user-super-admin|\bid:\s*existing\?\.id/.test(seed));
 check('User repository translates id to Mongo _id', /objectIdIdentity/.test(repo) && /normalized\._id/.test(repo));
 check('Partner registration may create incomplete pending company', /allowIncompleteProfile:\s*true/.test(auth) && /!city && !payload\.allowIncompleteProfile/.test(company));
-check('Future service registry exists', /local_transport/.test(registry) && /flight/.test(registry) && /train/.test(registry) && /cargo/.test(registry));
-check('Partner signup exposes only completed bus and hotel verticals', /value="bus"/.test(partnerSignup) && /value="hotel"/.test(partnerSignup) && !/value="(?:flight|train|cargo|local_transport)"/.test(partnerSignup));
+check('Service registry keeps only the four live verticals plus approved roadmap categories', /local_transport/.test(registry) && /flight/.test(registry) && /tour/.test(registry) && /cargo/.test(registry));
+check('Partner signup exposes the four completed verticals and profile-specific partner types', /value="bus"/.test(partnerSignup) && /value="hotel"/.test(partnerSignup) && /value="flight"/.test(partnerSignup) && /value="local_transport"/.test(partnerSignup) && /flight_agent/.test(partnerSignup) && /boda_rider/.test(partnerSignup) && /car_driver/.test(partnerSignup) && /fleet_owner/.test(partnerSignup));
 check('Partner onboarding uses one canonical POST service and the shared approved visual template', /id="partnerPanel"/.test(login) && /data-open-panel="partner"/.test(login) && !/partnerOnly/.test(login) && !/href="\/partner\/onboarding/.test(login) && publicRoutes.includes("router.post('/partner/onboarding'") && publicRoutes.includes("router.get('/partner/onboarding', (req, res) => res.redirect(303, '/register?role=partner#partner'))") && /createOnboarding/.test(partnerController));
-check('Services page renders coming-soon roadmap', /comingSoon/.test(services) && /Coming soon/.test(services));
+check('Services page renders only the approved roadmap', /comingSoon/.test(services) && /Coming soon/.test(services));
 const failed = checks.filter((row) => !row.ok);
 console.log(`Partner registration and identity checks: ${checks.length - failed.length}/${checks.length} passed`);
 if (failed.length) process.exit(1);

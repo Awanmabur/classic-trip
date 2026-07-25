@@ -88,6 +88,14 @@ const EMPLOYEE_ROLE_DEFAULTS = Object.freeze({
   finance: ['booking.view', 'payment.record', 'refund.request', 'reports.view'],
   support: ['booking.view', 'support.manage', 'support.note', 'customer.note', 'refund.request', 'reports.view'],
   report_viewer: ['reports.view'],
+  flight_sales_agent: ['booking.view', 'booking.create_manual', 'payment.record', 'refund.request', 'support.manage', 'customer.note', 'handover.create', 'reports.view', 'profile.update'],
+  flight_ticketing_agent: ['booking.view', 'booking.create_manual', 'payment.record', 'refund.request', 'support.manage', 'customer.note', 'reports.view', 'profile.update'],
+  flight_customer_support: ['booking.view', 'refund.request', 'support.manage', 'support.note', 'customer.note', 'handover.create', 'reports.view', 'profile.update'],
+  agency_finance: ['booking.view', 'payment.record', 'refund.request', 'reports.view', 'profile.update'],
+  mobility_fleet_manager: ['booking.view', 'inventory.update', 'incident.create', 'reports.view', 'profile.update'],
+  mobility_driver_coordinator: ['booking.view', 'trip.status.update', 'incident.create', 'support.manage', 'customer.note', 'handover.create', 'reports.view', 'profile.update'],
+  mobility_customer_support: ['booking.view', 'refund.request', 'support.manage', 'support.note', 'customer.note', 'reports.view', 'profile.update'],
+  safety_officer: ['booking.view', 'support.manage', 'support.note', 'customer.note', 'incident.create', 'reports.view', 'profile.update'],
   driver: ['manifest.view', 'checkin.assist', 'trip.status.update', 'incident.create'],
 });
 

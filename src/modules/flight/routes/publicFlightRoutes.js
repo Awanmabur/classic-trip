@@ -1,0 +1,20 @@
+'use strict';
+const express=require('express');
+const {publicReadLimiter,publicWriteLimiter,paymentLimiter,ticketLimiter}=require('../../../middlewares/rateLimit');
+const searchService=require('../services/flightSearchService');
+const bookingService=require('../services/flightBookingService');
+const agentService=require('../services/flightAgentService');
+const travelPayment=require('../../../services/payment/travelDomainPaymentService');
+const router=express.Router();
+function actor(req){return{userId:req.session?.user?.id||'',id:req.session?.user?.id||'guest',bookingChannel:'web',referralCode:req.referral?.code||'',idempotencyKey:req.headers['idempotency-key']||req.body?.idempotencyKey||''};}
+router.get('/airports',publicReadLimiter,async(req,res,next)=>{try{res.json({airports:await searchService.listAirports(req.query.q)});}catch(e){next(e);}});
+router.get('/agent-quotes/:reference',publicReadLimiter,async(req,res,next)=>{try{res.json(await agentService.readPublicQuote(req.params.reference,req.query.token));}catch(e){next(e);}});
+router.post('/search',publicWriteLimiter,async(req,res,next)=>{try{res.json(await searchService.search(req.body));}catch(e){next(e);}});
+router.get('/offers/:offerId',publicReadLimiter,async(req,res,next)=>{try{res.json({offer:await searchService.readOffer(req.params.offerId,req.query.token||req.headers['x-offer-token'])});}catch(e){next(e);}});
+router.post('/offers/:offerId/reprice',publicWriteLimiter,async(req,res,next)=>{try{res.json({offer:await searchService.reprice(req.params.offerId,req.body.offerToken||req.headers['x-offer-token'])});}catch(e){next(e);}});
+router.get('/departures/:departureId/seat-map',publicReadLimiter,async(req,res,next)=>{try{res.json(await searchService.seatMap(req.params.departureId,req.query.cabinClass));}catch(e){next(e);}});
+router.post('/orders',paymentLimiter,async(req,res,next)=>{try{const result=await bookingService.createOrder({...req.body,idempotencyKey:req.headers['idempotency-key']||req.body.idempotencyKey},actor(req));res.status(result.replayed?200:201).json(result);}catch(e){next(e);}});
+router.post('/orders/:bookingRef/payment',paymentLimiter,async(req,res,next)=>{try{res.json(await travelPayment.initiate('flight',req.params.bookingRef,{...req.body,idempotencyKey:req.headers['idempotency-key']||req.body.idempotencyKey},actor(req)));}catch(e){next(e);}});
+router.get('/orders/:reference',ticketLimiter,async(req,res,next)=>{try{res.json(await bookingService.getPublicOrder(req.params.reference,req.query.lookupCode,actor(req)));}catch(e){next(e);}});
+router.post('/orders/:reference/cancel',publicWriteLimiter,async(req,res,next)=>{try{res.json({booking:await bookingService.cancelOrder(req.params.reference,req.body.reason,{...actor(req),lookupCode:req.body.lookupCode})});}catch(e){next(e);}});
+module.exports=router;

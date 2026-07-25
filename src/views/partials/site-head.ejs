@@ -15,17 +15,35 @@
     const title = pageSeo.title || cfg.defaultTitle || appLabel;
     const description = pageSeo.description || cfg.defaultDescription || 'Classic Trip multi-tenant travel marketplace.';
     const imageUrl = pageSeo.image || cfg.defaultImage || '';
-    const schema = pageSeo.schema || {
-      '@context': 'https://schema.org',
-      '@type': 'Organization',
+    const organizationSchema = {
+      '@type': 'TravelAgency',
+      '@id': `${rootUrl || canonicalUrl}#organization`,
       name: appLabel,
       url: rootUrl || canonicalUrl,
       logo: imageUrl || undefined,
+      areaServed: ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','Burundi','Somalia','Democratic Republic of the Congo'],
     };
+    const websiteSchema = {
+      '@type': 'WebSite',
+      '@id': `${rootUrl || canonicalUrl}#website`,
+      name: appLabel,
+      url: rootUrl || canonicalUrl,
+      publisher: { '@id': `${rootUrl || canonicalUrl}#organization` },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${rootUrl || ''}/search?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    };
+    const suppliedSchema = pageSeo.schema || { '@type': 'WebPage', name: title, description, url: canonicalUrl };
+    const pageSchema = suppliedSchema['@context'] ? Object.fromEntries(Object.entries(suppliedSchema).filter(([key]) => key !== '@context')) : suppliedSchema;
+    const schema = { '@context': 'https://schema.org', '@graph': [organizationSchema, websiteSchema, pageSchema] };
     const schemaJson = toScriptJson(schema);
   %>
   <title><%= title %></title>
   <meta name="description" content="<%= description %>" />
+  <meta name="author" content="Classic Technologies" />
+  <meta name="application-name" content="<%= appLabel %>" />
   <link rel="canonical" href="<%= canonicalUrl %>" />
   <meta name="robots" content="<%= pageSeo.robots || 'index,follow,max-image-preview:large' %>" />
   <% if (cfg.googleSiteVerification) { %><meta name="google-site-verification" content="<%= cfg.googleSiteVerification %>" /><% } %>
@@ -43,11 +61,13 @@
   <meta name="theme-color" content="#070a12" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="manifest" href="/site.webmanifest" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
+  <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="/css/pages/home.css?v=20260724-hotel-ui-final-1">
+  <link rel="stylesheet" href="/css/pages/home.css?v=20260725-final-polish-1">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/pages/search.css">
@@ -56,5 +76,6 @@
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+  <link rel="stylesheet" href="/css/platform-layout-polish.css?v=20260725-platform-spacing-final-1" />
 </head>
 <body>

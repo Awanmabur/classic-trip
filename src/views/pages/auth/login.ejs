@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
-  <meta name="description" content="Login, create a traveler or promoter account, or onboard a verified bus or hotel company from one secure page." />
+  <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, hotel partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,7 +88,7 @@
     .authFooter strong{color:var(--text)}.footerLinks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.footerLinks a{height:34px;padding:0 11px;border:1px solid var(--line);border-radius:999px;background:var(--input);display:inline-flex;align-items:center;gap:7px;color:var(--text);font-weight:900}
     .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(7,10,18,.92);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:12px 16px;box-shadow:var(--shadow2);font-size:13px;font-weight:900;z-index:100;transition:.18s ease}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-    .partnerFormCard{padding:18px}.partnerAuthTop{margin-bottom:14px}.partnerAuthTop h2{font-size:22px;margin:0;letter-spacing:-.45px}.partnerAuthTop p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.5}
+    .partnerFormCard{padding:18px;display:grid;gap:14px}.partnerAuthTop{margin-bottom:0}.partnerAuthTop h2{font-size:22px;margin:0;letter-spacing:-.45px}.partnerAuthTop p{margin:5px 0 0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.5}.partnerDynamicSection{display:grid;gap:11px;padding:13px;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.025)}.partnerDynamicSection[hidden],[data-profile-field][hidden]{display:none!important}.partnerSectionTitle.compact{margin-top:0}.partnerProfileHint{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border:1px solid rgba(79,140,255,.22);border-radius:18px;background:rgba(79,140,255,.08);color:var(--muted);font-size:12px;font-weight:800;line-height:1.5}.partnerProfileHint i{color:var(--primary);margin-top:2px}.partnerTypeGrid{align-items:end}.partnerTextarea{height:auto!important;min-height:108px!important;border-radius:22px!important;align-items:flex-start!important;padding-top:12px!important;padding-bottom:12px!important}.partnerTextarea textarea{width:100%;min-height:82px;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750;resize:vertical}.partnerFormCard .control,.partnerFormCard .submit,.partnerFormCard .social{border-radius:20px}.partnerFormCard .control:has(textarea){border-radius:22px}.partnerFormCard .row2{gap:12px}.partnerFormCard .form{gap:13px}
     .partnerPlanGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.partnerPlan{position:relative;display:grid;gap:5px;border:1px solid var(--line);background:var(--input);border-radius:20px;padding:12px;cursor:pointer;min-height:126px}.partnerPlan:hover,.partnerPlan:has(input:checked){border-color:rgba(255,183,3,.58);background:rgba(255,183,3,.09)}.partnerPlan input{position:absolute;top:12px;right:12px;accent-color:var(--accent)}.partnerPlan strong{font-size:14px}.partnerPlan small{color:var(--muted);font-size:11px;font-weight:750;line-height:1.4}.partnerPlan b{font-size:12px;color:var(--accent);margin-top:auto}.partnerPlan .badge{justify-self:start}
     .partnerSectionTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:13px;margin-top:3px}.partnerSectionTitle span{font-weight:950}.partnerSectionTitle small{color:var(--muted);font-weight:750;text-align:right}.partnerTextarea{height:auto;min-height:92px;border-radius:22px;align-items:flex-start;padding:12px 14px}.partnerTextarea i{margin-top:4px}.partnerTextarea textarea{width:100%;min-height:66px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750}.partnerSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.partnerSteps .stat{min-height:72px}.partnerSteps .stat strong{font-size:18px;color:var(--accent)}
     @media(max-width:980px){.navLinks{display:none}.grid{grid-template-columns:1fr}.leftHero{min-height:auto}.authShell{min-height:auto}.heroText h1{font-size:30px}.roleGrid{grid-template-columns:repeat(2,1fr)}}
@@ -100,8 +100,31 @@
   
     @media(max-width:760px){.partnerPlanGrid{grid-template-columns:1fr}.partnerSteps{grid-template-columns:1fr 1fr}.partnerSectionTitle{align-items:flex-start;flex-direction:column}.partnerSectionTitle small{text-align:left}}
     @media(max-width:460px){.partnerSteps{grid-template-columns:1fr}}
+
+    /* Final auth/onboarding polish: compact, rounded and consistent with the public site. */
+    .authShell{padding:15px;gap:12px;border-radius:26px}
+    .authTop{gap:5px}
+    .authTop p{margin:0;line-height:1.5}
+    form{gap:12px}
+    .field{gap:6px}
+    .control{height:42px;min-height:42px;border-radius:999px;padding:0 12px}
+    textarea.control{height:auto;min-height:82px;border-radius:20px;padding:11px 12px}
+    .btn{min-height:40px;height:40px;border-radius:999px;padding:0 15px}
+    .roleCard,.miniCard,.supportCard,.partnerServiceCard{border-radius:20px}
+    .fieldHint{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-weight:750;line-height:1.45}
+    .currencyControl input[readonly]{cursor:not-allowed;color:var(--text);font-weight:900}
+    .currencyControl{background:var(--field)}
+    .partnerStep{gap:11px}
+    .partnerDynamicPanel{border-radius:20px;padding:12px}
+    @media(max-width:640px){
+      .grid{gap:11px}.authShell{padding:11px;gap:10px;border-radius:21px}.authTop h2{font-size:19px}.authTop p{font-size:12px}
+      form{gap:10px}.field{gap:5px}.control{height:40px;min-height:40px}.btn{height:38px;min-height:38px;font-size:12px}
+      .row2{gap:9px}.roleGrid{gap:8px}.partnerStep{gap:9px}.partnerDynamicPanel{padding:10px;border-radius:18px}
+    }
+
 </style>
   <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+  <link rel="stylesheet" href="/css/auth-layout-polish.css?v=20260725-auth-spacing-final-1" />
 </head>
 <body>
   <div class="navWrap">
@@ -319,7 +342,7 @@
       const copy = {
         login:['Welcome back','Login to manage bookings, saved trips, tickets and payments.'],
         signup:['Create your account','Choose customer or promoter access. Staff and drivers use secure invitations.'],
-        partner:['Partner onboarding','Create one verified owner account for a bus or hotel company.'],
+        partner:['Partner onboarding','Apply as a bus operator, hotel partner, flight agent, boda rider, car driver or fleet owner.'],
         support:['Support center','Get help with bookings, payments, refunds, receipts and partner accounts.'],
         forgot:['Recover account','Get a reset link or OTP for your Classic Trip account.']
       };
@@ -363,7 +386,7 @@
         signupForm: 'Creating your account...',
         supportForm: 'Sending your support request...',
         forgotForm: 'Sending your reset link...',
-        partnerOnboardingForm: 'Creating your partner account...'
+        partnerOnboardingForm: 'Submitting your partner application...'
       };
       if (!copy[form.id]) return;
       successBox.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + copy[form.id];

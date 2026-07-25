@@ -18,6 +18,8 @@ const PRIVATE_DISALLOWS = [
 const STATIC_PUBLIC_URLS = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
   { path: '/search', priority: '0.9', changefreq: 'daily' },
+  { path: '/flights', priority: '0.9', changefreq: 'daily' },
+  { path: '/taxi', priority: '0.9', changefreq: 'daily' },
   { path: '/services', priority: '0.9', changefreq: 'weekly' },
   { path: '/routes', priority: '0.8', changefreq: 'daily' },
   { path: '/companies', priority: '0.8', changefreq: 'weekly' },
@@ -148,6 +150,9 @@ function robotsTxt() {
     crawlSection('Bingbot', true),
     crawlSection('OAI-SearchBot', env.seo.allowAiSearch),
     crawlSection('ChatGPT-User', env.seo.allowAiSearch),
+    crawlSection('PerplexityBot', env.seo.allowAiSearch),
+    crawlSection('ClaudeBot', env.seo.allowAiSearch),
+    crawlSection('Claude-SearchBot', env.seo.allowAiSearch),
     crawlSection('GPTBot', env.seo.allowAiTraining),
     crawlSection('CCBot', env.seo.allowAiTraining),
     crawlSection('Google-Extended', env.seo.allowAiTraining),
@@ -171,10 +176,18 @@ async function llmsTxt() {
     `- ${absoluteUrl('/')}`,
     `- ${absoluteUrl('/search')}`,
     `- ${absoluteUrl('/services')}`,
+    `- ${absoluteUrl('/flights')}`,
+    `- ${absoluteUrl('/taxi')}`, 
     `- ${absoluteUrl('/routes')}`,
     `- ${absoluteUrl('/companies')}`,
     `- ${absoluteUrl('/partner-commission')}`,
     `- ${absoluteUrl('/support')}`,
+    '',
+    '## Services',
+    '- Bus journeys with route, stop, seat and fare selection.',
+    '- Accommodation with room, rate-plan and dated inventory.',
+    '- Flight search and booking supported by accredited agents and certified suppliers.',
+    '- Safe local mobility with verified boda and car partners, upfront pricing and platform dispatch.',
     '',
     '## Marketplace Catalog URLs',
     ...(catalog.length ? catalog : ['- Catalog URLs appear here when listings, companies, and posts are published.']),
@@ -188,6 +201,34 @@ async function llmsTxt() {
   ].join('\n');
 }
 
+
+async function llmsFullTxt() {
+  const urls = await buildSitemapUrls();
+  const catalog = urls.slice(0, 500).map((url) => `- ${url.loc} | ${url.changefreq} | priority ${url.priority}`);
+  return [
+    '# Classic Trip — Full Public Reference',
+    '',
+    env.seo.defaultDescription,
+    '',
+    '## Platform scope',
+    '- East Africa travel marketplace for buses, accommodation, flights and safe local mobility.',
+    '- Flight services are sold and supported by accredited agents using platform-managed or certified supplier inventory.',
+    '- Local rides use platform pricing and dispatch; verified riders, drivers and fleet partners cannot alter the accepted customer fare.',
+    '- Public prices, availability and booking conditions are validated by the backend.',
+    '',
+    '## Trust and access',
+    '- Public catalog and editorial pages may be indexed and cited.',
+    '- Account, dashboard, checkout, ticket, private tracking, API and upload paths must not be indexed.',
+    '- Canonical public URL: ' + absoluteUrl('/'),
+    '- Sitemap: ' + absoluteUrl('/sitemap.xml'),
+    '- Robots policy: ' + absoluteUrl('/robots.txt'),
+    '',
+    '## Public URL inventory',
+    ...catalog,
+    '',
+  ].join('\n');
+}
+
 module.exports = {
   siteUrl,
   absoluteUrl,
@@ -195,4 +236,5 @@ module.exports = {
   sitemapXml,
   robotsTxt,
   llmsTxt,
+  llmsFullTxt,
 };

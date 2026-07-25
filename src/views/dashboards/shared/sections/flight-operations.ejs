@@ -1,0 +1,113 @@
+<%
+  const flightListings = dashboardData?.options?.flightListings || [];
+  const aircraftRows = dashboardData?.aircraft || [];
+  const fareRows = dashboardData?.flightFares || [];
+  const flightRows = dashboardData?.flightSchedules || [];
+  const airportOptions = dashboardData?.options?.airports || [];
+  const flightPermissions = new Set(dashboardData?.permissions || []);
+  const canConfigureFlights = isCompanyDashboard;
+  const canUpdateFlightSchedule = isCompanyDashboard || flightPermissions.has('*') || flightPermissions.has('schedule.update');
+  const flightRouteBase = isEmployeeDashboard ? '/employee/flights' : '/company/flights';
+%>
+<section class="section" id="flight-operations">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle"><span class="hotelSectionEyebrow"><i class="fa-solid fa-plane"></i> Flight inventory</span><h3>Aircraft, fare families and dated flights</h3><p>Complete the connected records in order: public listing → aircraft seat map → fare family → dated flight → publish → ticketed manifest.</p></div>
+      <span class="badge info"><%= flightRows.filter(function(row){ return row.status === 'published'; }).length %> published flights</span>
+    </div>
+    <div class="hotelSetupJourney" style="padding:0 16px 16px">
+      <article class="hotelSetupStep <%= flightListings.length ? 'is-ready' : 'is-next' %>"><span class="hotelStepNumber">1</span><div class="hotelStepCopy"><strong>Public flight listing</strong><span>Airline or native flight service profile shown to travelers.</span><b><%= flightListings.length %> listing<%= flightListings.length === 1 ? '' : 's' %></b></div><% if (isCompanyDashboard) { %><a class="tinyBtn" href="/company/listings"><i class="fa-solid fa-arrow-right"></i></a><% } %></article>
+      <article class="hotelSetupStep <%= aircraftRows.length ? 'is-ready' : (flightListings.length ? 'is-next' : '') %>"><span class="hotelStepNumber">2</span><div class="hotelStepCopy"><strong>Aircraft and seat map</strong><span>Physical aircraft, registration, cabin and every selectable seat.</span><b><%= aircraftRows.length %> aircraft</b></div></article>
+      <article class="hotelSetupStep <%= fareRows.length ? 'is-ready' : (aircraftRows.length ? 'is-next' : '') %>"><span class="hotelStepNumber">3</span><div class="hotelStepCopy"><strong>Fare family</strong><span>Cabin, baggage, taxes, refund and change rules.</span><b><%= fareRows.length %> fare<%= fareRows.length === 1 ? '' : 's' %></b></div></article>
+      <article class="hotelSetupStep <%= flightRows.length ? 'is-ready' : (fareRows.length ? 'is-next' : '') %>"><span class="hotelStepNumber">4</span><div class="hotelStepCopy"><strong>Dated flight</strong><span>Airports, times, aircraft, fares and live cabin inventory.</span><b><%= flightRows.length %> flight<%= flightRows.length === 1 ? '' : 's' %></b></div></article>
+    </div>
+  </div>
+
+  <% if (canConfigureFlights) { %>
+  <div class="grid2" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Add aircraft</h3><p>The layout builds the persisted seat map; use a hyphen for the aisle, for example ABC-DEF.</p></div></div>
+      <form class="cardPad" action="/company/flights/aircraft" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="row2"><div class="field"><label>Registration</label><div class="control"><i class="fa-solid fa-id-card"></i><input name="registrationNumber" required placeholder="5X-ABC"></div></div><div class="field"><label>Aircraft type code</label><div class="control"><i class="fa-solid fa-plane-up"></i><input name="aircraftTypeCode" placeholder="B738"></div></div></div>
+        <div class="row2"><div class="field"><label>Manufacturer</label><div class="control"><i class="fa-solid fa-industry"></i><input name="manufacturer" required placeholder="Boeing"></div></div><div class="field"><label>Model</label><div class="control"><i class="fa-solid fa-plane"></i><input name="modelName" required placeholder="737-800"></div></div></div>
+        <div class="row2"><div class="field"><label>Seat rows</label><div class="control"><i class="fa-solid fa-list-ol"></i><input type="number" min="1" max="100" name="seatRows" value="20" required></div></div><div class="field"><label>Columns and aisle</label><div class="control"><i class="fa-solid fa-chair"></i><input name="seatColumns" value="ABC-DEF" required></div></div></div>
+        <div class="field"><label>Cabin class</label><div class="control"><i class="fa-solid fa-couch"></i><select name="cabinClass"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div></div>
+        <button class="btn btnBlue" type="submit"><i class="fa-solid fa-plus"></i> Add aircraft</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Add fare family</h3><p>The backend stores an immutable pricing and policy snapshot when a traveler books.</p></div></div>
+      <form class="cardPad" action="/company/flights/fares" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="row2"><div class="field"><label>Fare name</label><div class="control"><i class="fa-solid fa-tag"></i><input name="name" required placeholder="Economy Flex"></div></div><div class="field"><label>Code</label><div class="control"><i class="fa-solid fa-barcode"></i><input name="code" required placeholder="YFLEX"></div></div></div>
+        <div class="row2"><div class="field"><label>Cabin</label><div class="control"><i class="fa-solid fa-couch"></i><select name="cabinClass"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div></div><div class="field"><label>Currency</label><div class="control"><i class="fa-solid fa-coins"></i><input name="currency" value="<%= dashboardData?.company?.operatingCurrency || platformConfig.defaultCurrency %>" maxlength="3" required></div></div></div>
+        <div class="row2"><div class="field"><label>Base fare</label><div class="control"><i class="fa-solid fa-money-bill"></i><input type="number" min="0" step="0.01" name="baseFare" required></div></div><div class="field"><label>Taxes</label><div class="control"><i class="fa-solid fa-receipt"></i><input type="number" min="0" step="0.01" name="taxes" value="0"></div></div></div>
+        <div class="row2"><div class="field"><label>Service fee</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" min="0" step="0.01" name="serviceFee" value="0"></div></div><div class="field"><label>Checked baggage kg</label><div class="control"><i class="fa-solid fa-suitcase-rolling"></i><input type="number" min="0" name="checkedBaggageKg" value="20"></div></div></div>
+        <div class="checkLine"><label><input type="checkbox" name="refundable"> Refundable</label><label><input type="checkbox" name="changeable"> Changeable</label><label><input type="checkbox" name="mealIncluded"> Meal included</label><label><input type="checkbox" name="seatSelectionIncluded"> Seat selection included</label></div>
+        <div class="field"><label>Policy text</label><div class="control partnerTextarea"><i class="fa-solid fa-file-contract"></i><textarea name="policyText" placeholder="Cancellation, changes, baggage and no-show rules"></textarea></div></div>
+        <button class="btn btnBlue" type="submit"><i class="fa-solid fa-plus"></i> Add fare</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="cardHead"><div class="cardTitle"><h3>Create dated flight</h3><p>Only active aircraft, active public listings and active fares can be published.</p></div></div>
+    <form class="cardPad" action="/company/flights/schedules" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+      <div class="row2"><div class="field"><label>Public flight listing</label><div class="control"><i class="fa-solid fa-layer-group"></i><select name="listingId" required><option value="">Choose listing</option><% flightListings.forEach(function(row){ %><option value="<%= row.id %>"><%= row.label %></option><% }) %></select></div></div><div class="field"><label>Aircraft</label><div class="control"><i class="fa-solid fa-plane"></i><select name="aircraftId" required><option value="">Choose active aircraft</option><% aircraftRows.filter(function(row){ return row.status === 'active'; }).forEach(function(row){ %><option value="<%= row.id %>"><%= row.registrationNumber %> · <%= row.manufacturer %> <%= row.modelName %></option><% }) %></select></div></div></div>
+      <div class="row2"><div class="field"><label>Flight number</label><div class="control"><i class="fa-solid fa-hashtag"></i><input name="flightNumber" required placeholder="CT101"></div></div><div class="field"><label>Fare families</label><div class="control"><i class="fa-solid fa-tags"></i><select name="fareIds" multiple required size="4"><% fareRows.filter(function(row){ return row.status === 'active'; }).forEach(function(row){ %><option value="<%= row.id %>"><%= row.code %> · <%= row.name %> · <%= row.cabinClass %></option><% }) %></select></div></div></div>
+      <div class="row2"><div class="field"><label>Origin airport</label><div class="control"><i class="fa-solid fa-plane-departure"></i><select name="originAirportId" required><option value="">Choose origin</option><% airportOptions.forEach(function(row){ %><option value="<%= row.id %>"><%= row.label %></option><% }) %></select></div></div><div class="field"><label>Destination airport</label><div class="control"><i class="fa-solid fa-plane-arrival"></i><select name="destinationAirportId" required><option value="">Choose destination</option><% airportOptions.forEach(function(row){ %><option value="<%= row.id %>"><%= row.label %></option><% }) %></select></div></div></div>
+      <div class="row2"><div class="field"><label>Departure</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="datetime-local" name="departureAt" required></div></div><div class="field"><label>Arrival</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="datetime-local" name="arrivalAt" required></div></div></div>
+      <div class="row2"><div class="field"><label>Terminal</label><div class="control"><i class="fa-solid fa-building"></i><input name="terminal"></div></div><div class="field"><label>Gate</label><div class="control"><i class="fa-solid fa-door-open"></i><input name="gate"></div></div></div>
+      <button class="btn btnBlue" type="submit"><i class="fa-solid fa-plus"></i> Create flight</button>
+    </form>
+  </div>
+
+  <% } %>
+
+  <div class="grid2" style="margin-top:16px;align-items:start">
+    <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Aircraft</h3><p>Activate only after the seat map and compliance documents are ready.</p></div></div><div class="tableWrap"><table><thead><tr><th>Registration</th><th>Aircraft</th><th>Seats</th><th>Status</th><th></th></tr></thead><tbody><% aircraftRows.forEach(function(row){ %><tr><td><strong><%= row.registrationNumber %></strong></td><td><%= row.manufacturer %> <%= row.modelName %></td><td><%= row.totalSeats %></td><td><span class="badge <%= row.status === 'active' ? 'ok' : 'info' %>"><%= row.status %></span></td><td><% if (canConfigureFlights) { %><form method="post" action="/company/flights/aircraft/<%= encodeURIComponent(row.id) %>/status"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="status" value="<%= row.status === 'active' ? 'maintenance' : 'active' %>"><button class="tinyBtn" type="submit"><i class="fa-solid <%= row.status === 'active' ? 'fa-screwdriver-wrench' : 'fa-circle-check' %>"></i></button></form><% } else { %><span class="muted">Read only</span><% } %></td></tr><% }) %><% if(!aircraftRows.length){ %><tr><td colspan="5" class="empty">No aircraft created.</td></tr><% } %></tbody></table></div></div>
+    <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Fare families</h3><p>Reusable price, baggage and policy rules.</p></div></div><div class="tableWrap"><table><thead><tr><th>Code</th><th>Name</th><th>Cabin</th><th>Base</th><th>Rules</th><th>Status</th></tr></thead><tbody><% fareRows.forEach(function(row){ %><tr><td><strong><%= row.code %></strong></td><td><%= row.name %></td><td><%= row.cabinClass %></td><td><%= row.currency %> <%= Number(row.baseFare || 0).toLocaleString() %></td><td><%= row.refundable ? 'Refundable' : 'Non-refundable' %> · <%= row.checkedBaggageKg %>kg</td><td><span class="badge ok"><%= row.status %></span></td></tr><% }) %><% if(!fareRows.length){ %><tr><td colspan="6" class="empty">No fare families created.</td></tr><% } %></tbody></table></div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="cardHead"><div class="cardTitle"><h3>Dated flights and manifests</h3><p>Publication, delay, boarding, departure, arrival and cancellation are explicit audited states. Payment confirmation alone never marks a passenger flown.</p></div></div>
+    <div class="tableWrap"><table>
+      <thead><tr><th>Flight</th><th>Route</th><th>Departure</th><th>Aircraft</th><th>Inventory</th><th>Status</th><th>Operations</th></tr></thead>
+      <tbody>
+      <% flightRows.forEach(function(row){
+        const origin = airportOptions.find(function(a){return a.id===row.originAirportId;});
+        const destination = airportOptions.find(function(a){return a.id===row.destinationAirportId;});
+        const aircraft = aircraftRows.find(function(a){return a.id===row.aircraftId;});
+        const transitions = row.status === 'draft' ? ['published','cancelled'] : row.status === 'published' ? ['delayed','boarding','cancelled'] : row.status === 'delayed' ? ['published','boarding','cancelled'] : row.status === 'boarding' ? ['departed','cancelled'] : row.status === 'departed' ? ['arrived'] : [];
+      %>
+        <tr>
+          <td><strong><%= row.flightNumber %></strong><br><small><%= row.terminal ? `Terminal ${row.terminal}` : '' %> <%= row.gate ? `· Gate ${row.gate}` : '' %></small></td>
+          <td><%= origin?.label || row.originAirportId %> → <%= destination?.label || row.destinationAirportId %></td>
+          <td><%= new Date(row.departureAt).toLocaleString() %><% if(row.delayMinutes){ %><br><small class="statusWarn">Delayed <%= row.delayMinutes %> min</small><% } %></td>
+          <td><%= aircraft?.registrationNumber || row.aircraftId %></td>
+          <td><%= (row.inventory || []).map(function(i){return i.cabinClass+': '+Math.max(0,i.totalSeats-i.heldSeats-i.bookedSeats);}).join(' · ') %></td>
+          <td><span class="badge <%= ['published','arrived'].includes(row.status) ? 'ok' : row.status === 'cancelled' ? 'danger' : 'info' %>"><%= row.status %></span></td>
+          <td>
+            <div class="rowActions">
+              <a class="tinyBtn" href="<%= flightRouteBase %>/schedules/<%= encodeURIComponent(row.id) %>/manifest" title="Passenger manifest"><i class="fa-solid fa-file-lines"></i></a>
+              <% if (canUpdateFlightSchedule && transitions.length) { %>
+                <form method="post" action="<%= flightRouteBase %>/schedules/<%= encodeURIComponent(row.id) %>/status" class="inlineOpsForm">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+                  <select name="status" required><option value="">Next state</option><% transitions.forEach(function(status){ %><option value="<%= status %>"><%= status.replaceAll('_',' ') %></option><% }) %></select>
+                  <input type="number" name="delayMinutes" min="1" max="1440" placeholder="Delay min" title="Required only when selecting delayed">
+                  <input name="reason" maxlength="500" placeholder="Reason / operation note">
+                  <button class="tinyBtn" type="submit" title="Apply audited transition"><i class="fa-solid fa-arrow-right"></i></button>
+                </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+      <% }) %>
+      <% if(!flightRows.length){ %><tr><td colspan="7" class="empty">No dated flights created. Create aircraft, fares and a dated flight in that dependency order.</td></tr><% } %>
+      </tbody>
+    </table></div>
+  </div>
+</section>

@@ -1,3 +1,4 @@
+const { currencyForCountry, normalizeCountry } = require('../../config/countryMarkets');
 const crypto = require('crypto');
 const toSlug = require('../../utils/slugify');
 const { ENABLED_BOOKING_TYPES, COMPANY_STATUS, LISTING_STATUS } = require('../../config/constants');
@@ -11,6 +12,7 @@ const busSetupService = require('../../modules/bus/services/busSetupService');
 const busDepartureService = require('../../modules/bus/services/busDepartureService');
 const { getPlatformConfig } = require('../platform/platformConfigService');
 const { SERVICE_REGISTRY, normalizeServiceType } = require('../../config/serviceRegistry');
+const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
 const { evaluateDriverAssignment, evaluateDriverEligibility, evaluatePartnerDriverActivation } = require('./driverEligibilityService');
 
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
@@ -164,11 +166,12 @@ function listingRouteLabel(payload) { return payload.from || payload.to ? [paylo
 
 async function createCompany(payload = {}) {
   const platformConfig = await getPlatformConfig();
-  const requestedCurrency = cleanText(payload.operatingCurrency || payload.currency || platformConfig.defaultCurrency, 8).toUpperCase();
+  const normalizedCountry = normalizeCountry(payload.country);
+  const requestedCurrency = cleanText(currencyForCountry(normalizedCountry), 8).toUpperCase();
   if (!platformConfig.supportedCurrencies.includes(requestedCurrency)) throw validation('Select an operating currency supported by the platform');
   const name = cleanText(payload.name, 180);
   if (!name) throw validation('Company name is required');
-  if (!cleanText(payload.country, 100)) throw validation('Company country is required');
+  if (!normalizedCountry) throw validation('Select a supported operating country');
   const city = cleanText(payload.city || payload.headOfficeCity || payload.locationCity || '', 140);
   if (!city && !payload.allowIncompleteProfile) throw validation('Company city is required');
   if (!cleanText(payload.phone, 60)) throw validation('Company support phone is required');
@@ -179,7 +182,13 @@ async function createCompany(payload = {}) {
       id: attempt > 5 ? `company-${crypto.randomUUID()}` : await nextId('company'), ownerId: cleanText(payload.ownerId, 180) || null, name,
       slug: await uniqueSlug(payload.slug || name, companyRepository.companies),
       companyType: (() => { const type = normalizeServiceType(payload.companyType || payload.type); if (!type) throw validation('Select a valid company service type'); return type; })(),
-      country: cleanText(payload.country, 100), city,
+      partnerCategory: (() => { const profile = partnerProfile(payload.partnerCategory); return profile?.key || ''; })(),
+      accountModel: (() => { const profile = partnerProfile(payload.partnerCategory); return cleanText(payload.accountModel || profile?.accountModel || 'organization', 40); })(),
+      onboardingProfile: payload.onboardingProfile && typeof payload.onboardingProfile === 'object' ? payload.onboardingProfile : {},
+      complianceProfile: payload.complianceProfile && typeof payload.complianceProfile === 'object' ? payload.complianceProfile : {},
+      capabilityPolicy: payload.capabilityPolicy && typeof payload.capabilityPolicy === 'object' ? payload.capabilityPolicy : capabilityPolicyFor(payload.partnerCategory),
+      onboardingProgress: { currentStep: 'verification', completedSteps: ['account'], missingFields: [], submittedAt: new Date().toISOString() },
+      country: normalizedCountry, city,
       legalName: cleanText(payload.legalName || name, 200), registrationNumber: cleanText(payload.registrationNumber, 120),
       taxNumber: cleanText(payload.taxNumber, 120), headOfficeAddress: cleanText(payload.headOfficeAddress || payload.address, 400),
       website: cleanText(payload.website, 300),
@@ -201,7 +210,7 @@ async function createCompany(payload = {}) {
         updatedAt: new Date().toISOString(),
         updatedBy: cleanText(payload.ownerId || payload.acceptedBy || 'system', 180),
       },
-      settings: { instantConfirmation: false, canPublish: false, profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: 'percentage_commission' }, createdAt: new Date().toISOString(),
+      settings: { instantConfirmation: false, canPublish: false, profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: 'percentage_commission', partnerCategory: cleanText(payload.partnerCategory, 60), accountModel: cleanText(payload.accountModel, 40), platformManagedPricing: normalizeServiceType(payload.companyType || payload.type) === 'local_transport', supplierManagedInventory: normalizeServiceType(payload.companyType || payload.type) === 'flight' }, createdAt: new Date().toISOString(),
     };
     try {
       // Creation must be insert-only. Upsert-by-id could overwrite an existing

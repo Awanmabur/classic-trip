@@ -103,7 +103,7 @@ async function companiesPage(req, res, next) {
     const companies = data.companies
       .map((row) => catalogService.publicCompany(data, row))
       .filter((company) => normalize(company.verificationStatus) === 'verified' && company.activeListingsCount > 0);
-    res.render('pages/companies', { seo: { title: 'Partner companies | Classic Trip' }, companies, stats: { verified: companies.length, bookable: companies.reduce((total, company) => total + Number(company.bookableListingsCount || 0), 0), campaigns: companies.reduce((total, company) => total + Number(company.campaignCount || 0), 0) } });
+    res.render('pages/companies', { seo: { title: 'Verified travel partners across East Africa | Classic Trip', description: 'Discover verified bus operators, accommodation providers, accredited flight agents and approved mobility partners on Classic Trip.', canonicalPath: '/companies', schema: { '@type': 'CollectionPage', name: 'Classic Trip verified partners' } }, companies, stats: { verified: companies.length, bookable: companies.reduce((total, company) => total + Number(company.bookableListingsCount || 0), 0), campaigns: companies.reduce((total, company) => total + Number(company.campaignCount || 0), 0) } });
   } catch (error) { next(error); }
 }
 
@@ -165,6 +165,9 @@ async function bookingForm(req, res, next) {
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
     let context = await catalogContext(req.params.slug, req.params.serviceType, {}); if (!context.listing) return next();
+    const normalizedServiceType = normalize(context.listing.serviceType);
+    if (normalizedServiceType === 'flight') return res.redirect(303, `/flights?listingId=${encodeURIComponent(context.listing.id)}`);
+    if (normalizedServiceType === 'local_transport') return res.redirect(303, `/taxi?listingId=${encodeURIComponent(context.listing.id)}`);
 
     let source = req.query || {};
     let bookingDraftId = '';
@@ -236,6 +239,13 @@ async function bookingForm(req, res, next) {
 function ticketIsReady(booking = {}) { return String(booking.paymentStatus || '').toLowerCase() === 'successful' && !['cancelled','refunded','failed','expired'].includes(String(booking.bookingStatus || '').toLowerCase()); }
 function attachTicketLinks(booking = {}) { if (booking?.bookingRef) { booking.publicTicketUrl = ticketAccessService.ticketUrl(booking); if (ticketIsReady(booking)) booking.publicTicketPdfUrl = ticketAccessService.ticketUrl(booking, '.pdf'); else delete booking.publicTicketPdfUrl; } return booking; }
 function ticketLookupRedirect(bookingRef = '') { return `/tickets${bookingRef ? `?bookingRef=${encodeURIComponent(bookingRef)}` : ''}`; }
+function domainBookingUrl(booking = {}, lookupCode = '') {
+  const ref = encodeURIComponent(booking.bookingRef || booking.id || '');
+  const code = lookupCode ? `?lookupCode=${encodeURIComponent(lookupCode)}` : '';
+  if (booking.serviceType === 'flight') return `/flights/orders/${ref}${code}`;
+  if (booking.serviceType === 'local_transport') return `/taxi/rides/${ref}${code}`;
+  return '';
+}
 async function findBooking(bookingRef) { return bookingRef ? commerceRepository.bookings.findOne({ bookingRef }) : null; }
 async function findListingById(listingId) { const data = await catalogService.snapshot(); const raw = catalogService.listingFor(data, listingId); return raw ? catalogService.catalogItem(data, raw) : null; }
 
@@ -287,6 +297,8 @@ async function bookingSuccess(req, res, next) {
     const booking = await findBooking(req.params.bookingRef); if (!booking) return next();
     if (!ticketAccessService.canAccessBooking(req, booking)) return res.redirect(ticketLookupRedirect(booking.bookingRef));
     if (!ticketIsReady(booking)) return res.redirect(ticketLookupRedirect(booking.bookingRef));
+    const domainUrl = domainBookingUrl(booking, req.query?.lookupCode || req.query?.accessCode || req.query?.code || '');
+    if (domainUrl) return res.redirect(303, domainUrl);
     attachTicketLinks(booking); const listing = await findListingById(booking.listingId); const qrDataUrl = await qrService.toDataUrl(booking.qrCodeValue);
     return res.render('pages/booking-success', { seo: { title: 'Booking confirmed | Classic Trip' }, booking, listing, qrDataUrl });
   } catch (error) { return next(error); }
@@ -314,7 +326,8 @@ async function paymentCallback(req, res) {
   const confirmed = await findBooking(booking.bookingRef) || booking;
   if (confirmed.paymentStatus !== 'successful') return res.redirect(ticketLookupRedirect(confirmed.bookingRef));
   ticketAccessService.grantSessionAccess(req, confirmed.bookingRef);
-  return res.redirect(`/booking/success/${encodeURIComponent(confirmed.bookingRef)}`);
+  const domainUrl = domainBookingUrl(confirmed);
+  return res.redirect(domainUrl || `/booking/success/${encodeURIComponent(confirmed.bookingRef)}`);
 }
 
 module.exports = { servicesPage, routesPage, companiesPage, companyProfile, promotersPage, listingDetails, prepareBookingForm, bookingForm, ticketPage, ticketPdf, ticketLookupPage, bookingSuccess, paymentCallback };

@@ -1,3 +1,4 @@
+const { currencyForCountry, normalizeCountry } = require('../../config/countryMarkets');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const identityRepository = require('../../repositories/domain/identityRepository');
@@ -14,6 +15,8 @@ const financeRepository = require('../../repositories/domain/financeRepository')
 const { validatePassword } = require('./passwordPolicy');
 const { cleanEmail, cleanPhone, phoneVariants, identityLookup } = require('./identityContact');
 const { duplicateKeyFields } = require('../../utils/mongoDuplicate');
+const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 
 const DUMMY_PASSWORD_HASH = '$2a$12$MW0.CBMwAw3YYPsCTztILu3yznr0RfMePYZWCM9H6XpBBE7.SWFY6';
 const { isDriverAccountOperational } = require('../company/driverEligibilityService');
@@ -129,11 +132,56 @@ function requestedCompanyName(payload = {}, user = {}) { return cleanText(payloa
 async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
   // Public signup always creates a new organization. Joining an existing
   // organization is allowed only through the signed invitation workflow.
+  const profile = partnerProfile(payload.partnerCategory);
+  if (!profile) {
+    const error = new Error('Choose a valid partner type');
+    error.status = 422;
+    error.code = 'invalid_partner_category';
+    throw error;
+  }
+  const onboardingProfile = {
+    partnerCategory: profile.key,
+    accountModel: profile.accountModel,
+    agency: profile.key === 'flight_agent' ? {
+      licenceNumber: cleanText(payload.agencyLicenceNumber, 120),
+      iataTidsNumber: cleanText(payload.iataTidsNumber, 120),
+      specialities: cleanText(payload.agencySpecialities, 500),
+    } : undefined,
+    driver: ['boda_rider', 'car_driver'].includes(profile.key) ? {
+      nationalIdEncrypted: sensitiveFieldService.encrypt(payload.nationalIdNumber, 'partner-national-id'),
+      nationalIdLast4: sensitiveFieldService.last4(payload.nationalIdNumber),
+      licenceNumberEncrypted: sensitiveFieldService.encrypt(payload.driverLicenceNumber, 'partner-driver-licence'),
+      licenceNumberLast4: sensitiveFieldService.last4(payload.driverLicenceNumber),
+      licenceExpiresAt: payload.driverLicenceExpiry || null,
+      hasOwnVehicle: ['true', '1', 'on', true].includes(payload.hasOwnVehicle),
+    } : undefined,
+    vehicle: ['boda_rider', 'car_driver'].includes(profile.key) ? {
+      registrationNumber: cleanText(payload.vehicleRegistrationNumber, 32).toUpperCase(),
+      type: cleanText(payload.vehicleType, 60),
+      make: cleanText(payload.vehicleMake, 80),
+      model: cleanText(payload.vehicleModel, 80),
+      year: Number(payload.vehicleYear) || null,
+      color: cleanText(payload.vehicleColor, 40),
+      insuranceExpiresAt: payload.insuranceExpiry || null,
+      inspectionExpiresAt: payload.inspectionExpiry || null,
+    } : undefined,
+    fleet: ['fleet_owner', 'taxi_company'].includes(profile.key) ? {
+      fleetSize: Number(payload.fleetSize) || 0,
+      vehicleTypes: cleanText(payload.vehicleTypes, 500),
+    } : undefined,
+    preferredOperatingAreas: cleanText(payload.preferredOperatingAreas, 500),
+    signupSource: cleanText(payload.signupSource || 'partner_onboarding', 80),
+  };
+  Object.keys(onboardingProfile).forEach((key) => onboardingProfile[key] === undefined && delete onboardingProfile[key]);
   const company = await companyService.createCompany({
     ownerId,
     name: requestedCompanyName(payload, user),
-    companyType: cleanText(payload.companyType || payload.businessType || payload.type, 80),
-    country: cleanText(payload.country, 80),
+    companyType: profile.companyType,
+    partnerCategory: profile.key,
+    accountModel: profile.accountModel,
+    onboardingProfile,
+    capabilityPolicy: capabilityPolicyFor(profile.key),
+    country: normalizeCountry(payload.country),
     city: cleanText(payload.city || payload.headOfficeCity || payload.locationCity || '', 120),
     email: normalizeIdentity(payload.email || user.email),
     phone: cleanText(payload.phone || user.phone, 60),
@@ -143,7 +191,7 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
     headOfficeAddress: cleanText(payload.headOfficeAddress || payload.address, 400),
     website: cleanText(payload.website, 300),
     description: cleanText(payload.description || `Auth signup application for ${requestedCompanyName(payload, user)}`, 1000),
-    operatingCurrency: payload.operatingCurrency,
+    operatingCurrency: currencyForCountry(payload.country),
     termsAccepted: payload.termsAccepted,
     acceptedBy: user.id,
     allowIncompleteProfile: true,
@@ -154,6 +202,10 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
     canPublish: false,
     instantConfirmation: false,
     onboardingStep: 'verification',
+    partnerCategory: profile.key,
+    accountModel: profile.accountModel,
+    platformManagedPricing: profile.companyType === 'local_transport',
+    supplierManagedInventory: profile.companyType === 'flight',
   };
   await identityRepository.companies.save(company, { id: company.id });
   return company;

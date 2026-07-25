@@ -1,23 +1,66 @@
+<%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
-<main class="container pagePad">
-  <section class="heroCard">
-    <span class="badge badgeInfo"><i class="fa-solid fa-percent"></i> Commission-only partnership</span>
-    <h1 class="heroTitle">Register directly and pay one percentage.</h1>
-    <p class="heroSub">Any eligible bus operator or hotel business can create a partner account. Classic Trip earns only when a completed booking earns revenue.</p>
-    <div class="heroActions">
-      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Create partner account</a>
-      <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-info"></i> How it works</a>
+<main class="container marketingPage partnerCommissionPage">
+  <section class="card heroCard marketingHero">
+    <span class="badge badgeInfo"><i class="fa-solid fa-percent"></i> Transparent commission partnership</span>
+    <h1 class="heroTitle">Grow your travel business with every completed booking.</h1>
+    <p class="heroSub">Join Classic Trip as a verified bus operator, accommodation provider, flight agent or local mobility partner. There is no registration charge or expiring subscription: the configured commission applies only when a booking is successfully fulfilled.</p>
+    <div class="metricRow heroMetricsRow">
+      <div class="stat"><b><%= platformConfig.partnerCommissionPercent %>%</b><span>Classic Trip commission</span></div>
+      <div class="stat"><b><%= platformConfig.partnerPayoutPercent %>%</b><span>Partner share</span></div>
+      <div class="stat"><b>Free</b><span>Partner registration</span></div>
+      <div class="stat"><b>No expiry</b><span>Verified partner account</span></div>
+    </div>
+    <div class="actions heroActionsRow">
+      <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a verified partner</a>
+      <a class="btn btnGhost" href="/how-it-works"><i class="fa-solid fa-circle-info"></i> See how it works</a>
     </div>
   </section>
-  <section class="statsGrid" style="margin-top:18px">
-    <div class="stat"><b><%= platformConfig.partnerCommissionPercent %>%</b><span>Classic Trip commission</span></div>
-    <div class="stat"><b><%= platformConfig.partnerPayoutPercent %>%</b><span>Partner share</span></div>
-    <div class="stat"><b>0</b><span>Registration charges</span></div>
-    <div class="stat"><b>No expiry</b><span>Partner account</span></div>
+
+  <section class="section detailGrid">
+    <article class="card" style="padding:14px">
+      <div class="sectionHead">
+        <div><h2>How each booking is shared</h2><p>The commercial terms are recorded with the booking for transparent reconciliation.</p></div>
+      </div>
+      <div class="routeList">
+        <div class="routeItem"><div><strong>Customer pays</strong><div class="small">The confirmed booking total shown at checkout.</div></div><span class="badge badgeInfo">100%</span></div>
+        <div class="routeItem"><div><strong>Partner receives</strong><div class="small">Your configured share becomes payable after fulfilment and settlement checks.</div></div><span class="badge badgeOk"><%= platformConfig.partnerPayoutPercent %>%</span></div>
+        <div class="routeItem"><div><strong>Classic Trip retains</strong><div class="small">Funds marketplace operations, secure payment processing and customer support.</div></div><span class="badge badgeWarn"><%= platformConfig.partnerCommissionPercent %>%</span></div>
+      </div>
+      <div class="notice" style="margin-top:12px">When an eligible promoter referred the booking, the promoter reward comes from Classic Trip’s commission. It is not deducted again from the customer or partner share.</div>
+    </article>
+
+    <article class="card" style="padding:14px">
+      <div class="sectionHead">
+        <div><h2>What verified partners receive</h2><p>Each service type gets the tools and permissions appropriate to its real operating model.</p></div>
+      </div>
+      <div class="routeList">
+        <div class="routeItem"><div><strong>Bus and accommodation operations</strong><div class="small">Manage approved listings, schedules or room inventory, bookings, staff and fulfilment.</div></div><i class="fa-solid fa-bus-simple"></i></div>
+        <div class="routeItem"><div><strong>Flight-agent workspace</strong><div class="small">Search approved supplier inventory, prepare quotes, book travellers and support issued tickets.</div></div><i class="fa-solid fa-plane"></i></div>
+        <div class="routeItem"><div><strong>Safe local mobility work</strong><div class="small">Verified riders, drivers and fleet owners manage availability, assigned rides and earnings.</div></div><i class="fa-solid fa-taxi"></i></div>
+        <div class="routeItem"><div><strong>Finance and support</strong><div class="small">Track settlements, payouts, refunds, disputes, reports and auditable activity.</div></div><i class="fa-solid fa-wallet"></i></div>
+      </div>
+    </article>
   </section>
-  <section class="grid2" style="margin-top:18px">
-    <article class="card"><div class="cardHead"><div class="cardTitle"><h3>How the split works</h3><p>One auditable commission percentage is frozen into every booking.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Customer pays</span><strong>100%</strong></div></div><div class="splitItem"><div class="splitTop"><span>Partner receives</span><strong><%= platformConfig.partnerPayoutPercent %>%</strong></div></div><div class="splitItem"><div class="splitTop"><span>Classic Trip retains</span><strong><%= platformConfig.partnerCommissionPercent %>%</strong></div></div><div class="notice">When a promoter referred the booking, the promoter reward comes from Classic Trip’s commission. It is not charged again to the partner or customer.</div></div></article>
-    <article class="card"><div class="cardHead"><div class="cardTitle"><h3>What partners receive</h3><p>All verified partners use the complete bus or hotel workflow.</p></div></div><div class="splitGrid"><div class="splitItem"><span>Listings, inventory and schedules</span></div><div class="splitItem"><span>Bookings, tickets or hotel vouchers</span></div><div class="splitItem"><span>Staff, drivers and operational permissions</span></div><div class="splitItem"><span>Wallet, settlements, payouts and reports</span></div><div class="splitItem"><span>Support, disputes, refunds and audit history</span></div></div></article>
+
+  <section class="section">
+    <div class="sectionHead"><div><h2>A partnership built for East Africa</h2><p>Professional onboarding, clear responsibilities and country-aware settlement information.</p></div></div>
+    <div class="routeCardGrid">
+      <article class="card routeCard" style="padding:14px"><span class="badge badgeInfo"><i class="fa-solid fa-user-shield"></i> Verification</span><h3>Build customer trust</h3><p class="muted">Business, agency, driver, vehicle and payout details are reviewed according to the selected service type.</p></article>
+      <article class="card routeCard" style="padding:14px"><span class="badge badgeOk"><i class="fa-solid fa-coins"></i> Local settlement</span><h3>Use the right currency</h3><p class="muted">Country-aware onboarding links each supported market to its correct operating currency and timezone.</p></article>
+      <article class="card routeCard" style="padding:14px"><span class="badge badgeWarn"><i class="fa-solid fa-headset"></i> Operations</span><h3>Get platform support</h3><p class="muted">Booking, payment, cancellation, dispute and settlement records stay connected from sale to fulfilment.</p></article>
+      <article class="card routeCard" style="padding:14px"><span class="badge badgeHot"><i class="fa-solid fa-chart-line"></i> Growth</span><h3>Reach more travellers</h3><p class="muted">Publish verified services in one marketplace and use accurate availability to convert searches into bookings.</p></article>
+    </div>
+  </section>
+
+  <section class="card" style="padding:14px">
+    <div class="sectionHead">
+      <div><h2>Ready to join Classic Trip?</h2><p>Select your service during signup and the form will request only the relevant business, agency, rider, driver or fleet information.</p></div>
+      <div class="actions">
+        <a class="btn btnPrimary" href="/register?role=partner#partner"><i class="fa-solid fa-arrow-right"></i> Start partner registration</a>
+        <a class="btn btnGhost" href="/support"><i class="fa-solid fa-headset"></i> Contact support</a>
+      </div>
+    </div>
   </section>
 </main>
 <%- include('../partials/site-footer') %>

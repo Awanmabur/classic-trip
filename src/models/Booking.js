@@ -40,11 +40,17 @@ const bookingSchema = new Schema({
   cartRef: { type: String, index: true },
   bookingGroupId: { type: String, index: true },
   bookingGroupRef: { type: String, index: true },
-  serviceType: { type: String, required: true, index: true, enum: ['bus', 'hotel'] },
+  serviceType: { type: String, required: true, index: true, enum: ['bus', 'hotel', 'flight', 'local_transport'] },
   guestSnapshot: Schema.Types.Mixed,
   buyerSnapshot: Schema.Types.Mixed,
   customerUserId: { type: String, index: true },
   companyId: { type: String, index: true },
+  // Marketplace-owned services retain the operating supplier/agent/driver partner
+  // separately from the platform tenant. These fields are required for tenant-safe
+  // agency dashboards, driver assignment, commissions and settlement.
+  supplierId: { type: String, index: true },
+  agentCompanyId: { type: String, index: true },
+  providerCompanyId: { type: String, index: true },
   tenantId: { type: String, index: true },
   tenantSlug: { type: String, index: true },
   listingId: { type: String, index: true },
@@ -103,6 +109,7 @@ const bookingSchema = new Schema({
   cancelledAt: Date,
   completedAt: Date,
   earningsReleasedAt: Date,
+  supplierPayableReleasedAt: Date,
   customerNote: String,
   notes: String,
   auditTrail: [Schema.Types.Mixed],
@@ -110,6 +117,9 @@ const bookingSchema = new Schema({
 
 bookingSchema.index({ bookingRef: 1, 'guestSnapshot.phone': 1 });
 bookingSchema.index({ companyId: 1, bookingStatus: 1, paymentStatus: 1 });
+bookingSchema.index({ agentCompanyId: 1, serviceType: 1, createdAt: -1 });
+bookingSchema.index({ providerCompanyId: 1, serviceType: 1, createdAt: -1 });
+bookingSchema.index({ supplierId: 1, serviceType: 1, createdAt: -1 });
 bookingSchema.index({ companyId: 1, guestLookupCode: 1 });
 bookingSchema.index({ companyId: 1, paymentRef: 1 });
 bookingSchema.index({ customerUserId: 1, createdAt: -1 });

@@ -1,6 +1,7 @@
 const companyService = require('../../services/company/companyService');
 const { COMPANY_STATUS } = require('../../config/constants');
 const uploadService = require('../../services/media/uploadService');
+const partnerMaterializationService = require('../../services/onboarding/partnerMaterializationService');
 
 async function create(req, res, next) {
   try {
@@ -42,7 +43,15 @@ async function updateCommission(req, res, next) {
 
 async function approve(req, res, next) {
   try {
-    await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.VERIFIED, req.session?.user?.id || 'admin-system', req.body);
+    const actorId = req.session?.user?.id || 'admin-system';
+    const company = await companyService.setVerificationStatus(req.params.slug, COMPANY_STATUS.VERIFIED, actorId, req.body);
+    const materialization = await partnerMaterializationService.materializeApprovedPartner(company, { id: actorId, userId: actorId, role: 'super_admin' });
+    if (req.flash) {
+      const needsAction = Array.isArray(materialization?.missing) && materialization.missing.length;
+      req.flash(needsAction ? 'warning' : 'success', needsAction
+        ? `Partner approved, but onboarding still needs: ${materialization.missing.join(', ')}.`
+        : 'Partner approved and the correct service workspace was prepared.');
+    }
     res.redirect('/admin/companies');
   } catch (error) {
     next(error);

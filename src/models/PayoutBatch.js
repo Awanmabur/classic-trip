@@ -5,7 +5,7 @@ const payoutBatchSchema = new Schema({
   batchNumber: { type: String, index: true },
   settlementBatchId: String,
   currency: { type: String, required: true, uppercase: true, trim: true },
-  ownerType: { type: String, enum: ['mixed', 'company', 'promoter', 'platform'] },
+  ownerType: { type: String, enum: ['mixed', 'company', 'promoter', 'platform', 'flight_supplier'] },
   status: { type: String, default: 'exported', index: true, enum: ['exported'] },
   createdBy: String,
   createdAt: Date,
