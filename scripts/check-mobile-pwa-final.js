@@ -32,9 +32,9 @@ check('phone ticket action is removed', () => assert(css.includes('.topTicketAct
 check('blue buttons retain visible hover text', () => assert(css.includes('.btnBlue:hover') && css.includes('color:#eef5ff!important')));
 check('phone statistics remain two per row', () => assert(css.includes('.homePage .stats{display:grid!important;grid-template-columns:repeat(2')));
 check('install prompt carries brand and slogan', () => assert(pwa.includes('Move, stay and fly with confidence.') && pwa.includes('pwaInstallLogo')));
-check('standalone launch splash is fast and session scoped', () => assert(pwa.includes('pwaLaunchSplash') && pwa.includes('620')));
+check('standalone launch splash is single, branded and session scoped', () => assert(pwa.includes('classicTripLaunchSplash') && pwa.includes('SPLASH_DURATION_MS = 2200') && pwa.includes('logo-maskable-512.png') && pwa.includes('SPLASH_KEY')));
 check('service worker is registered', () => assert(pwa.includes("register('/sw.js'")));
-check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.2.1") && sw.includes("'/css/")));
+check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.2.5") && sw.includes("'/css/")));
 check('manifest has separate any and maskable icons', () => {
   assert(manifest.icons.some((icon) => icon.purpose === 'any'));
   assert(manifest.icons.some((icon) => icon.purpose === 'maskable'));

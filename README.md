@@ -586,3 +586,13 @@ Verify this contract with:
 ```bash
 npm run check:mobile-pwa
 ```
+
+## Mobile button and statistics guarantee
+
+- Blue button text stays visible during hover, focus, active and visited states.
+- Phone statistic groups use two equal columns, including dashboard, finance, hotel, manifest, flight and local-mobility summaries.
+- Verify with `npm run check:mobile-button-stats`.
+
+## Installed-app orientation
+
+The installed PWA is locked to portrait-primary on supported browsers so it does not rotate unexpectedly during launch or use. Browsers that do not expose the Screen Orientation API fall back to the manifest and the phone's system rotation setting.

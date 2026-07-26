@@ -440,3 +440,52 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
 }
 
 @media(prefers-reduced-motion:reduce){.bottomNav,.pwaInstallPrompt,.pwaLaunchSplash{transition:none!important}}
+
+/* Final mobile statistics and blue-button text contract — loaded last. */
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:link,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:visited,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:hover,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:focus,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:focus-visible,
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue:active{
+  color:#eef5ff!important;
+  -webkit-text-fill-color:#eef5ff!important;
+}
+:is(a,button,input[type="submit"],input[type="button"]).btnBlue :is(span,strong,b,small,i){
+  color:inherit!important;
+  -webkit-text-fill-color:inherit!important;
+}
+
+@media(max-width:680px){
+  .homePage .stats,
+  .authPage .miniDash,
+  .authPage .partnerSteps,
+  .dashboardBody .statsGrid,
+  .dashboardBody .financeKpis,
+  .dashboardBody .seatPageStats,
+  .dashboardBody .hotelManifestKpis,
+  .dashboardBody .busManifestKpis,
+  .dashboardBody .hotelOpsNudge,
+  .dashboardBody .heroMetricsRow,
+  .safeRideMetrics{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  .homePage .stats>*,
+  .authPage .miniDash>*,
+  .authPage .partnerSteps>*,
+  .dashboardBody .statsGrid>*,
+  .dashboardBody .financeKpis>*,
+  .dashboardBody .seatPageStats>*,
+  .dashboardBody .hotelManifestKpis>*,
+  .dashboardBody .busManifestKpis>*,
+  .dashboardBody .hotelOpsNudge>*,
+  .dashboardBody .heroMetricsRow>*,
+  .safeRideMetrics>*{
+    min-width:0!important;
+    max-width:100%!important;
+    overflow-wrap:anywhere;
+  }
+}

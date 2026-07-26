@@ -79,8 +79,24 @@ app.use((req, res, next) => {
   const publicOrigin = new URL(env.appUrl).origin;
   return res.redirect(308, `${publicOrigin}${req.originalUrl}`);
 });
+app.get('/site.webmanifest', (req, res) => {
+  res.type('application/manifest+json');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  return res.sendFile(path.join(__dirname, '..', 'public', 'site.webmanifest'));
+});
+app.get('/sw.js', (req, res) => {
+  res.type('application/javascript');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  return res.sendFile(path.join(__dirname, '..', 'public', 'sw.js'));
+});
 app.use(compression());
-app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: env.isProduction ? '1d' : 0 }));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: env.isProduction ? '1d' : 0,
+  setHeaders(res, filePath) {
+    if (/\.(?:webmanifest)$/i.test(filePath)) res.setHeader('Content-Type', 'application/manifest+json');
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(cookieParser());

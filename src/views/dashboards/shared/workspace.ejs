@@ -6,6 +6,7 @@
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="/css/pwa.css?v=20260727-3" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -644,7 +645,7 @@
       <% }) %>
 
   <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
-<script src="/js/pwa.js?v=20260727-1" defer></script>
+<script src="/js/pwa.js?v=20260727-3" defer></script>
 <script src="/js/dashboard-workspace.js?v=20260727-1" defer></script>
 </body>
 </html>

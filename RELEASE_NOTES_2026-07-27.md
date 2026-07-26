@@ -1,3 +1,13 @@
+# Classic Trip 1.2.5
+
+## Single app launch splash
+
+- Shows one branded splash when the installed app opens.
+- Displays the logo, Classic Trip name and slogan for about 2.2 seconds.
+- Fades directly into the app without a spinner or second launch panel.
+- Does not repeat while navigating between pages in the same app session.
+- Preserves the approved reference UI.
+
 # Release Notes — Classic Trip 1.2.1
 
 ## Final mobile navigation and PWA update
@@ -20,3 +30,16 @@
 - Added `npm run check:mobile-pwa` to the release verification chain.
 
 See `FINAL_RELEASE_REPORT_2026-07-27.md` for verification results and deployment commands.
+
+## 1.2.2 — Blue button and phone statistics correction
+
+- Blue button text remains visible on hover, focus, active and visited states.
+- Nested button icons and labels inherit the protected light text colour.
+- Homepage, authentication, dashboard, finance, hotel, manifest, flight and local-mobility statistics remain two per row on phones.
+- Added `npm run check:mobile-button-stats`.
+
+## Orientation stability
+
+- Installed PWA now declares `portrait-primary`.
+- Supported browsers re-apply the portrait lock when the app resumes or an orientation event occurs.
+- Unsupported browsers fall back safely to the phone's system rotation setting.
