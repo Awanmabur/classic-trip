@@ -4,11 +4,8 @@
   const APP_NAME = 'Classic Trip';
   const APP_SLOGAN = 'Move, stay and fly with confidence.';
   const DISMISS_KEY = 'classicTripInstallDismissedAt';
-  const SPLASH_KEY = 'classicTripStandaloneSplashSeen';
   const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
   const AUTO_PROMPT_DELAY_MS = 1400;
-  const SPLASH_DURATION_MS = 2200;
-  const SPLASH_FADE_MS = 280;
   const APP_ORIENTATION = 'portrait-primary';
   const silentPaths = ['/checkout', '/payment', '/tickets/', '/taxi/track', '/flights/order/'];
 
@@ -68,13 +65,6 @@
     try { localStorage.removeItem(DISMISS_KEY); } catch (_) { /* Storage may be unavailable. */ }
   }
 
-  function safeSessionGet(key) {
-    try { return sessionStorage.getItem(key); } catch (_) { return null; }
-  }
-
-  function safeSessionSet(key, value) {
-    try { sessionStorage.setItem(key, value); } catch (_) { /* Storage may be unavailable. */ }
-  }
 
   function installState() {
     if (isStandalone()) return 'installed';
@@ -132,35 +122,6 @@
       if (window.location.hostname === 'localhost') console.warn('Classic Trip service worker registration failed:', error.message);
       return false;
     }
-  }
-
-  function showStandaloneSplash() {
-    if (!isStandalone() || safeSessionGet(SPLASH_KEY) || document.getElementById('classicTripLaunchSplash')) return;
-    safeSessionSet(SPLASH_KEY, '1');
-
-    const splash = document.createElement('div');
-    splash.id = 'classicTripLaunchSplash';
-    splash.className = 'pwaLaunchSplash';
-    splash.setAttribute('role', 'status');
-    splash.setAttribute('aria-label', `${APP_NAME}. ${APP_SLOGAN}`);
-    splash.innerHTML = `
-      <div class="pwaLaunchBrand">
-        <img src="/images/logo-maskable-512.png" alt="Classic Trip logo">
-        <strong>${APP_NAME}</strong>
-        <span>${APP_SLOGAN}</span>
-      </div>`;
-
-    document.body.classList.add('pwa-splash-open');
-    document.body.appendChild(splash);
-    requestAnimationFrame(() => splash.classList.add('is-visible'));
-
-    window.setTimeout(() => {
-      splash.classList.remove('is-visible');
-      window.setTimeout(() => {
-        splash.remove();
-        document.body.classList.remove('pwa-splash-open');
-      }, SPLASH_FADE_MS);
-    }, SPLASH_DURATION_MS);
   }
 
   function removePrompt() {
@@ -305,7 +266,6 @@
 
   async function initialise() {
     await keepInstalledAppPortrait();
-    showStandaloneSplash();
     addDrawerInstallAction();
     registerServiceWorker();
 

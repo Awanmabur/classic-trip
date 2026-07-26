@@ -1,9 +1,9 @@
 {
-  "release": "Classic Trip 1.2.7",
+  "release": "Classic Trip 1.2.8",
   "date": "2026-07-27",
-  "uiPolicy": "Approved reference UI preserved; marketing overflow corrections are scoped to public marketing pages",
+  "uiPolicy": "Approved reference UI preserved; duplicate JavaScript splash removed so installed launches use one native PWA splash only",
   "checks": {
-    "javascriptSyntax": "523/523",
+    "javascriptSyntax": "524/524",
     "ejsTemplates": "126/126",
     "marketingMobileOverflow": "27/27",
     "staysHomes": "23/23",
@@ -23,7 +23,8 @@
     "multipartCsrf": "40/40",
     "browserCsrf": "4/4",
     "uiConsistency": "16/16",
-    "finalRegression": "42/42"
+    "finalRegression": "42/42",
+    "singleNativeSplash": "5/5"
   },
   "dependencyBackedRuntimeChecksCompleted": false,
   "connectedEnvironmentRequired": true

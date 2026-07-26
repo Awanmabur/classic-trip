@@ -600,7 +600,7 @@ Use `MONGO_DB_NAME=classic-trip`. Configure real payment, email/SMS, object-stor
 - KPI/stat cards remain two per row on phones.
 - Blue and primary button labels keep readable colours on hover, focus and active states.
 - Classic Trip is installable on supported phones and computers. The install prompt uses the full logo, product name and slogan.
-- Installed launches receive a short, session-only branded splash without delaying normal browser visits.
+- Installed launches use the browser/operating system native PWA splash only, preventing a second duplicate splash screen.
 - The service worker caches only static assets; account, payment, booking and dashboard HTML are never cached.
 
 Verify this contract with:

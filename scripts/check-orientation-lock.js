@@ -16,7 +16,7 @@ const checks = [
   ['orientation is re-applied after orientation change', pwa.includes("window.addEventListener('orientationchange'")],
   ['orientation is re-applied when app resumes', pwa.includes("document.addEventListener('visibilitychange'")],
   ['orientation failure is handled without breaking launch', pwa.includes('Some browsers rely only on the web-app manifest')],
-  ['service-worker cache version is current', sw.includes('classic-trip-static-v1.2.7')],
+  ['service-worker cache version is current', sw.includes('classic-trip-static-v1.2.8')],
 ];
 
 let passed = 0;

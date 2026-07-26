@@ -1,4 +1,4 @@
-# Classic Trip 1.2.7 — Final Marketing Responsiveness Report
+# Classic Trip 1.2.8 — Final Marketing Responsiveness Report
 
 ## Result
 
@@ -31,7 +31,7 @@ Public marketing pages now remain contained at narrow phone widths without chang
 
 ## PWA delivery
 
-`marketing-responsive.css` is included in the versioned static cache. The service-worker cache is now `classic-trip-static-v1.2.7`, ensuring installed apps receive the corrected marketing styles after activation.
+`marketing-responsive.css` is included in the versioned static cache. The service-worker cache is now `classic-trip-static-v1.2.8`, ensuring installed apps receive the corrected marketing styles after activation.
 
 ## Verification completed
 
