@@ -195,11 +195,11 @@
     const price = amount > 0 ? money(amount, item.currency) : 'Price pending';
     const description = item.sub || item.shortDescription || item.description || (isBus
       ? 'Public bus service with live departure and seat availability.'
-      : isHotel ? 'Verified hotel property with dated room availability and secure booking.'
+      : isHotel ? 'Verified stay with dated availability and secure booking.'
         : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
           : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : 'Verified travel service.');
     const priceHint = item.bookable
-      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available room night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : 'Starting price')
+      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : 'Starting price')
       : 'Open service details';
 
     return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-corridor="${escapeHtml(item.corridor || 'regional')}">

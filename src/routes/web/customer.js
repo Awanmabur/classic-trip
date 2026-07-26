@@ -43,7 +43,7 @@ router.get('/saved', requireAuth, requireRole('customer', 'super_admin'), async 
     const userId = req.session?.user?.id;
     const savedListings = userId ? await customerService.savedListingsFor(userId) : [];
     res.render('pages/saved', {
-      seo: { title: 'Saved trips | Classic Trip', description: 'Your saved bus and hotel trips.' },
+      seo: { title: 'Saved trips | Classic Trip', description: 'Your saved bus and stay trips.' },
       csrfToken: req.csrfToken ? req.csrfToken() : '', savedListings,
     });
   } catch (err) { next(err); }

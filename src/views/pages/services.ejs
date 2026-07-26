@@ -1,10 +1,10 @@
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
-<main class="container" style="padding:16px 0 30px">
+<main class="container marketingPage servicesMarketingPage" style="padding:16px 0 30px">
   <section class="card heroCard">
     <span class="badge badgeInfo"><i class="fa-solid fa-layer-group"></i> Service catalog</span>
     <h1 class="heroTitle">All Classic Trip services in one marketplace.</h1>
-    <p class="heroSub">Book buses, hotels, flights and verified local rides today. Carefully reviewed tours, vehicle rentals and cargo services remain on the future roadmap.</p>
+    <p class="heroSub">Book buses, stays, flights and verified local rides today. Carefully reviewed tours, vehicle rentals and cargo services remain on the future roadmap.</p>
     <div class="metricRow" style="margin-top:14px">
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.listingsCount, 0) %></b><span>Total services</span></div>
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.bookableListingsCount, 0) %></b><span>Bookable now</span></div>
@@ -23,7 +23,7 @@
         <div class="actions">
           <span class="badge badgeInfo"><%= group.stats?.activeListingsCount || 0 %> active</span>
           <% if (group.bookable) { %><span class="badge badgeOk"><%= group.stats?.bookableListingsCount || 0 %> bookable</span><% } %>
-          <a class="btn btnGhost" href="/search?serviceType=<%= group.key %>">See all</a>
+          <a class="btn btnGhost" href="<%= group.key === 'hotel' ? '/stays' : '/search?serviceType=' + group.key %>">See all</a>
         </div>
       </div>
       <div class="gridCards">

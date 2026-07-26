@@ -9,7 +9,7 @@ const companySchema = new Schema({
   slug: { type: String, required: true, unique: true, index: true },
   companyType: { type: String, index: true, enum: ALL_SERVICE_TYPES },
   partnerCategory: { type: String, index: true, enum: PARTNER_PROFILE_KEYS },
-  accountModel: { type: String, enum: ['organization', 'agency', 'individual_driver', 'fleet'], index: true },
+  accountModel: { type: String, enum: ['organization', 'agency', 'individual_driver', 'individual_host', 'fleet'], index: true },
   onboardingProfile: Schema.Types.Mixed,
   complianceProfile: Schema.Types.Mixed,
   capabilityPolicy: Schema.Types.Mixed,

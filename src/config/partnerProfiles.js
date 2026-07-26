@@ -13,11 +13,20 @@ const PARTNER_PROFILES = Object.freeze({
   hotel_partner: Object.freeze({
     key: 'hotel_partner',
     companyType: 'hotel',
-    label: 'Hotel or stay partner',
+    label: 'Stay business or property manager',
     accountModel: 'organization',
     ownerLabel: 'Property owner / authorised representative',
-    description: 'Hotel, lodge, apartment, guesthouse or other verified accommodation provider.',
+    description: 'Hotel, lodge, resort, serviced-apartment, guest-house or multi-property accommodation business.',
     requiredFields: ['legalName', 'country', 'city'],
+  }),
+  stay_host: Object.freeze({
+    key: 'stay_host',
+    companyType: 'hotel',
+    label: 'Individual home or room host',
+    accountModel: 'individual_host',
+    ownerLabel: 'Verified host',
+    description: 'Individual host offering an entire home, apartment, villa, cottage, cabin, homestay, private room or shared room.',
+    requiredFields: ['country', 'city'],
   }),
   flight_agent: Object.freeze({
     key: 'flight_agent',
@@ -71,6 +80,7 @@ const PARTNER_PROFILE_KEYS = Object.freeze(Object.keys(PARTNER_PROFILES));
 const PROFILE_CAPABILITIES = Object.freeze({
   bus_operator: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnStaff: true, manageOwnPricing: true, managePlatformPricing: false }),
   hotel_partner: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnStaff: true, manageOwnPricing: true, managePlatformPricing: false }),
+  stay_host: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnStaff: false, manageOwnPricing: true, managePlatformPricing: false }),
   flight_agent: Object.freeze({ searchSupplierOffers: true, createCustomerQuotes: true, createBookings: true, manageTravelers: true, viewTickets: true, requestChangesAndRefunds: true, manageAirlines: false, manageAircraft: false, manageSeatMaps: false, manageSupplierInventory: false }),
   boda_rider: Object.freeze({ manageOwnDriverProfile: true, manageOwnVehicle: true, updateAvailability: true, acceptAssignedRides: true, viewOwnEarnings: true, manageDrivers: false, manageFareRules: false, manageServiceZones: false, manualDispatch: false }),
   car_driver: Object.freeze({ manageOwnDriverProfile: true, manageOwnVehicle: true, updateAvailability: true, acceptAssignedRides: true, viewOwnEarnings: true, manageDrivers: false, manageFareRules: false, manageServiceZones: false, manualDispatch: false }),

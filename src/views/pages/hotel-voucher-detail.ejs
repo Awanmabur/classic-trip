@@ -25,13 +25,13 @@
 %>
   <main class="sheet">
     <section class="hero">
-      <div><h1>Hotel Operational Voucher</h1><p><%= property.propertyName || listing.title || 'Hotel property' %><br><%= property.address || '' %><%= property.city ? ' · ' + property.city : '' %></p></div>
+      <div><h1>Stay Operational Voucher</h1><p><%= property.propertyName || listing.title || 'Stay property' %><br><%= property.address || '' %><%= property.city ? ' · ' + property.city : '' %></p></div>
       <span class="badge"><%= booking.bookingRef %></span>
     </section>
     <nav class="tools">
       <button class="btn primary" type="button" data-page-action="print">Print voucher</button>
       <a class="btn" href="<%= actorBase %>/hotels/bookings/<%= encodeURIComponent(booking.bookingRef) %>/voucher.pdf">Download PDF</a>
-      <a class="btn" href="<%= dashboardPath %>">Back to hotel operations</a>
+      <a class="btn" href="<%= dashboardPath %>">Back to stay operations</a>
     </nav>
 
     <section class="grid">
@@ -94,7 +94,7 @@
         <% } %>
       </section>
     <% } %>
-    <footer class="footer">Authorized hotel operations view. Identity numbers are masked; the live booking and normalized reservation remain the source of truth.</footer>
+    <footer class="footer">Authorized stay operations view. Identity numbers are masked; the live booking and normalized reservation remain the source of truth.</footer>
   </main>
   <script src="/js/page-actions.js" defer></script>
 </body>

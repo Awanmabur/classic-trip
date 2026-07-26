@@ -1,8 +1,30 @@
-# Classic Trip — Bus, Accommodation, Flight Agents and Safe Local Mobility
+# Classic Trip — Bus, Stays & Homes, Flight Agents and Safe Local Mobility
 
-Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, hotel stays, flights plus simple platform-dispatched boda and car rides**. The operational service registry exposes `bus`, `hotel`, `flight` and `local_transport`; unfinished future categories remain explicitly non-bookable.
+Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, verified stays and homes, flights plus simple platform-dispatched boda and car rides**. The operational service registry exposes `bus`, `hotel`, `flight` and `local_transport`; unfinished future categories remain explicitly non-bookable.
 
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
+
+
+## Stays and Airbnb-style hosting
+
+The public marketplace uses **Stays** as the customer-facing category. The internal service key remains `hotel` so existing routes, bookings, collections, payment records and reports remain compatible.
+
+Supported inventory includes hotels, lodges, resorts, guest houses, serviced apartments, apartments, entire homes, private rooms, shared rooms, villas, cottages, cabins, bungalows, homestays, holiday homes, farm stays, bed-and-breakfast properties, hostels and camps.
+
+Both verified accommodation businesses and individual `stay_host` accounts can onboard. Hosts can configure the rental mode, host identity, instant-book preference, maximum guests, bedrooms, bathrooms, kitchens, cleaning fees, refundable deposits, guest access and shared spaces. Classic Trip provides an Airbnb-style hosting model but is not integrated with or affiliated with Airbnb.
+
+Public entry point: `/stays`. The aliases `stay`, `stays`, `home`, `homes` and `accommodation` resolve to the existing accommodation booking engine.
+
+
+## Marketing-page responsiveness
+
+Public marketing pages use a scoped responsive contract that preserves the approved design while preventing CTA, badge, card and footer overflow. Partner Commission, Partners, Services, How It Works, Promoters, Routes, Support, legal pages, blogs and public partner profiles share this contract.
+
+Run the dedicated regression gate with:
+
+```bash
+npm run check:marketing-mobile
+```
 
 ## Requirements
 

@@ -1998,7 +1998,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (companyServiceType === 'hotel') return {
         action: '/employee/bookings', submit: 'Create hotel booking',
         fields: [
-          { name:'listingId', label:'Hotel listing', type:'select', icon:'fa-hotel', options:listings, required:true, value: fieldValue('booking.listingId','listing.id','listingId'), help:'A listing is the public hotel service customers see.' },
+          { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true, value: fieldValue('booking.listingId','listing.id','listingId'), help:'A listing is the public hotel service customers see.' },
           { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, required:true, dependsOn:'listingId', filterKey:'listingId', value: fieldValue('booking.roomTypeId','roomType.id','roomTypeId'), help:'Only room types belonging to the selected hotel listing are shown.' },
           { name:'ratePlanId', label:'Rate plan', type:'select', icon:'fa-tags', options:ratePlans, dependsOn:'roomTypeId', filterKey:'roomTypeId', value: fieldValue('booking.hotelStay.ratePlanId','ratePlanId'), help:'Cancellation, meal, occupancy, and stay rules are frozen from this rate plan.' },
           { name:'roomUnitIds', label:'Preferred room units', type:'multiselect', icon:'fa-door-open', options:roomUnits, dependsOn:'roomTypeId', filterKey:'roomTypeId', value: fieldValue('booking.hotelStay.roomUnitIds','roomUnitIds'), help:'Optional. Leave empty for automatic assignment from available room nights.' },
@@ -2206,9 +2206,22 @@ window.addEventListener('DOMContentLoaded', function () {
     if (isCompanyRole && mode === 'edit' && key === 'hotel_property') return {
       action: editActionFor('hotel_property'), submit: 'Save property',
       fields: [
-        { type:'smart-summary', label:'Hotel property profile', help:'Public identity, guest policies, taxes, contact, accessibility and operational times stay linked to this property and its listing.' },
+        { type:'smart-summary', label:'Stay property profile', help:'Public identity, guest policies, taxes, contact, accessibility and operational times stay linked to this property and its listing.' },
         { name:'propertyName', label:'Property name', icon:'fa-hotel', required:true, value: fieldValue('property.propertyName','propertyName') },
-        { name:'propertyType', label:'Property type', type:'select', icon:'fa-building', options:['hotel','lodge','resort','guest_house','serviced_apartment','hostel','camp'], value: fieldValue('property.propertyType','propertyType') || 'hotel' },
+        { name:'propertyType', label:'Property type', type:'select', icon:'fa-building', options:['hotel','lodge','resort','guest_house','serviced_apartment','apartment','entire_home','private_room','shared_room','villa','cottage','cabin','bungalow','homestay','holiday_home','farm_stay','bed_and_breakfast','hostel','camp'], value: fieldValue('property.propertyType','propertyType') || 'hotel' },
+        { name:'rentalMode', label:'What guests book', type:'select', icon:'fa-key', options:[{value:'room_based',label:'Rooms or units'},{value:'entire_place',label:'Entire place'},{value:'private_room',label:'Private room'},{value:'shared_room',label:'Shared room'}], value: fieldValue('property.rentalMode','rentalMode') || 'room_based' },
+        { name:'hostType', label:'Host type', type:'select', icon:'fa-user-shield', options:[{value:'business',label:'Accommodation business'},{value:'individual',label:'Individual host'}], value: fieldValue('property.hostType','hostType') || 'business' },
+        { name:'hostDisplayName', label:'Public host name', icon:'fa-user', value: fieldValue('property.hostDisplayName','hostDisplayName') },
+        { name:'instantBook', label:'Instant booking', type:'select', icon:'fa-bolt', options:[{value:'false',label:'Request / verify before confirmation'},{value:'true',label:'Instant book when inventory is available'}], value: fieldValue('property.instantBook','instantBook') || 'false' },
+        { name:'hostLivesOnProperty', label:'Host lives on property', type:'select', icon:'fa-house-user', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value: fieldValue('property.hostLivesOnProperty','hostLivesOnProperty') || 'false' },
+        { name:'maxGuests', label:'Maximum guests', type:'number', icon:'fa-users', value: fieldValue('property.maxGuests','maxGuests') || '1' },
+        { name:'bedrooms', label:'Bedrooms', type:'number', icon:'fa-bed', value: fieldValue('property.bedrooms','bedrooms') || '0' },
+        { name:'bathrooms', label:'Bathrooms', type:'number', icon:'fa-bath', value: fieldValue('property.bathrooms','bathrooms') || '0' },
+        { name:'kitchens', label:'Kitchens', type:'number', icon:'fa-kitchen-set', value: fieldValue('property.kitchens','kitchens') || '0' },
+        { name:'cleaningFee', label:'Cleaning fee', type:'number', icon:'fa-broom', value: fieldValue('property.cleaningFee','cleaningFee') || '0' },
+        { name:'securityDepositAmount', label:'Refundable security deposit', type:'number', icon:'fa-shield-halved', value: fieldValue('property.securityDepositAmount','securityDepositAmount') || '0' },
+        { name:'guestAccess', label:'Guest access', type:'textarea', full:true, value: fieldValue('property.guestAccess','guestAccess') },
+        { name:'sharedSpaces', label:'Shared spaces', type:'textarea', full:true, value: fieldValue('property.sharedSpaces','sharedSpaces') },
         { name:'category', label:'Category', type:'select', icon:'fa-star', options:['unrated','budget','standard','premium','luxury'], value: fieldValue('property.category','category') || 'unrated' },
         { name:'starRating', label:'Star rating', type:'number', icon:'fa-star', value: fieldValue('property.starRating','starRating') || '0' },
         { name:'address', label:'Address', icon:'fa-map-pin', value: fieldValue('property.address','address') },
@@ -2408,7 +2421,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (companyServiceType === 'hotel') return {
         action: '/company/hotels/bookings', submit: 'Create hotel booking',
         fields: [
-          { name:'listingId', label:'Hotel listing', type:'select', icon:'fa-hotel', options:listings, required:true, help:'The public hotel service customers see.' },
+          { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true, help:'The public hotel service customers see.' },
           { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, required:true, dependsOn:'listingId', filterKey:'listingId', help:'Only room types belonging to the selected listing are shown.' },
           { name:'ratePlanId', label:'Rate plan', type:'select', icon:'fa-tags', options:ratePlans, dependsOn:'roomTypeId', filterKey:'roomTypeId', help:'Select the cancellation, meal, occupancy, and stay-rule product.' },
           { name:'roomUnitIds', label:'Preferred room units', type:'multiselect', icon:'fa-door-open', options:roomUnits, dependsOn:'roomTypeId', filterKey:'roomTypeId', help:'Optional. Leave empty to let the system assign available rooms.' },
@@ -2683,7 +2696,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (isCompanyRole && key === 'room type') return {
       action: '/company/hotels/room-types', submit: 'Create room type',
       fields: [
-        { name:'listingId', label:'Hotel listing', type:'select', icon:'fa-hotel', options:listings, required:true },
+        { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true },
         { name:'propertyId', label:'Hotel property', type:'select', icon:'fa-building', options:hotelProperties, required:true, dependsOn:'listingId', filterKey:'listingId', help:'Only properties linked to the selected hotel listing are shown.' },
         { name:'name', label:'Room type', icon:'fa-bed', required:true, placeholder:'Deluxe Double' },
         { name:'capacity', label:'Total guest capacity', type:'number', icon:'fa-users', required:true, placeholder:'2' },
@@ -2745,12 +2758,25 @@ window.addEventListener('DOMContentLoaded', function () {
     };
 
     if (isCompanyRole && key === 'hotel property') return {
-      action: '/company/hotels/properties', submit: 'Add hotel property',
+      action: '/company/hotels/properties', submit: 'Add stay property',
       fields: [
-        { type:'smart-summary', label:'Connected hotel property', help:'Select the existing public hotel listing; the property profile becomes the operational source for rooms, policies, taxes, guest manifests and availability.' },
-        { name:'listingId', label:'Hotel listing', type:'select', icon:'fa-hotel', options:listings, required:true },
+        { type:'smart-summary', label:'Connected stay property', help:'Select the existing public hotel listing; the property profile becomes the operational source for rooms, policies, taxes, guest manifests and availability.' },
+        { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true },
         { name:'propertyName', label:'Property name', icon:'fa-hotel', required:true, placeholder:'Classic City Hotel' },
-        { name:'propertyType', label:'Property type', type:'select', icon:'fa-building', options:['hotel','lodge','resort','guest_house','serviced_apartment','hostel','camp'], value:'hotel' },
+        { name:'propertyType', label:'Property type', type:'select', icon:'fa-building', options:['hotel','lodge','resort','guest_house','serviced_apartment','apartment','entire_home','private_room','shared_room','villa','cottage','cabin','bungalow','homestay','holiday_home','farm_stay','bed_and_breakfast','hostel','camp'], value:'hotel' },
+        { name:'rentalMode', label:'What guests book', type:'select', icon:'fa-key', options:[{value:'room_based',label:'Rooms or units'},{value:'entire_place',label:'Entire place'},{value:'private_room',label:'Private room'},{value:'shared_room',label:'Shared room'}], value:'room_based' },
+        { name:'hostType', label:'Host type', type:'select', icon:'fa-user-shield', options:[{value:'business',label:'Accommodation business'},{value:'individual',label:'Individual host'}], value:'business' },
+        { name:'hostDisplayName', label:'Public host name', icon:'fa-user', placeholder:'Host or property manager' },
+        { name:'instantBook', label:'Instant booking', type:'select', icon:'fa-bolt', options:[{value:'false',label:'Request / verify before confirmation'},{value:'true',label:'Instant book when inventory is available'}], value:'false' },
+        { name:'hostLivesOnProperty', label:'Host lives on property', type:'select', icon:'fa-house-user', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:'false' },
+        { name:'maxGuests', label:'Maximum guests', type:'number', icon:'fa-users', value:'1' },
+        { name:'bedrooms', label:'Bedrooms', type:'number', icon:'fa-bed', value:'0' },
+        { name:'bathrooms', label:'Bathrooms', type:'number', icon:'fa-bath', value:'0' },
+        { name:'kitchens', label:'Kitchens', type:'number', icon:'fa-kitchen-set', value:'0' },
+        { name:'cleaningFee', label:'Cleaning fee', type:'number', icon:'fa-broom', value:'0' },
+        { name:'securityDepositAmount', label:'Refundable security deposit', type:'number', icon:'fa-shield-halved', value:'0' },
+        { name:'guestAccess', label:'Guest access', type:'textarea', full:true, placeholder:'Private entrance, shared garden, kitchen access…' },
+        { name:'sharedSpaces', label:'Shared spaces', type:'textarea', full:true, placeholder:'Kitchen, living room, garden…' },
         { name:'category', label:'Category', type:'select', icon:'fa-star', options:['unrated','budget','standard','premium','luxury'], value:'unrated' },
         { name:'starRating', label:'Star rating', type:'number', icon:'fa-star', value:'0' },
         { name:'city', label:'City', icon:'fa-location-dot', required:true, placeholder:'Kampala' },

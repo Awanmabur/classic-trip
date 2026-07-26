@@ -189,7 +189,7 @@
     if (!box) return;
     box.innerHTML = places.length
       ? places.map((place, index) => `<button type="button" class="placeSuggestion" data-place-index="${index}"><i class="fa-solid ${placeIcon(place)}"></i><span><b>${esc(place.name || place.address)}</b><small>${esc([place.city, place.district, place.country].filter(Boolean).join(', '))}</small></span></button>`).join('')
-      : '<div class="placeEmpty">No trusted place found. Try a nearby landmark, office, hotel, airport or town.</div>';
+      : '<div class="placeEmpty">No trusted place found. Try a nearby landmark, office, stay, airport or town.</div>';
     box.classList.remove('hidden');
     $$('[data-place-index]', box).forEach((button) => button.addEventListener('click', () => onSelect(places[Number(button.dataset.placeIndex)])));
   }

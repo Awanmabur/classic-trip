@@ -21,7 +21,7 @@
           <select id="partnerService" required>
             <option value="">Choose service</option>
             <option value="bus" <%= partnerForm?.companyType === 'bus' ? 'selected' : '' %>>Bus travel</option>
-            <option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Hotels & stays</option>
+            <option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Stays</option>
             <option value="local_transport" <%= partnerForm?.companyType === 'local_transport' ? 'selected' : '' %>>Boda, car & local rides</option>
             <option value="flight" <%= partnerForm?.companyType === 'flight' ? 'selected' : '' %>>Flight travel services</option>
           </select>
@@ -149,7 +149,10 @@
   const selected = category.dataset.selected || '';
   const profiles = {
     bus: [{ value: 'bus_operator', label: 'Bus operator', model: 'organization', description: 'Licensed bus company managing its own routes, buses, departures, seats and staff.' }],
-    hotel: [{ value: 'hotel_partner', label: 'Hotel or stay partner', model: 'organization', description: 'Hotel, lodge, apartment, guesthouse or other accommodation provider.' }],
+    hotel: [
+      { value: 'hotel_partner', label: 'Stay business or property manager', model: 'organization', description: 'Hotel, lodge, resort, guest house, serviced apartment or multi-property accommodation business.' },
+      { value: 'stay_host', label: 'Individual home or room host', model: 'host', description: 'Offer an entire home, apartment, villa, cottage, cabin, homestay, private room or shared room.' },
+    ],
     flight: [{ value: 'flight_agent', label: 'Flight travel agent', model: 'agency', description: 'Travel agency selling approved supplier inventory and supporting travelers. Not an airline account.' }],
     local_transport: [
       { value: 'boda_rider', label: 'Boda rider', model: 'driver', description: 'Individual motorcycle rider using platform-controlled fares, zones, safety and dispatch.' },
@@ -163,6 +166,7 @@
     agency: ['legalName', 'agencyLicenceNumber'],
     driver: ['nationalIdNumber', 'driverLicenceNumber', 'driverLicenceExpiry', 'vehicleType', 'vehicleRegistrationNumber', 'insuranceExpiry', 'vehicleMake', 'vehicleModel', 'vehicleYear', 'vehicleColor'],
     fleet: ['legalName', 'fleetSize', 'vehicleTypes'],
+    host: [],
   };
 
   function updateMarket() {
@@ -208,8 +212,8 @@
       return;
     }
     hint.innerHTML = `<i class="fa-solid fa-circle-check"></i><span><strong>${choice.label}:</strong> ${choice.description}</span>`;
-    const individual = ['boda_rider', 'car_driver'].includes(choice.value);
-    nameLabel.textContent = individual ? 'Public driver name' : 'Business / public profile name';
+    const individual = ['boda_rider', 'car_driver', 'stay_host'].includes(choice.value);
+    nameLabel.textContent = choice.value === 'stay_host' ? 'Public host name' : individual ? 'Public driver name' : 'Business / public profile name';
     if (individual && !displayName.value && contactName.value) displayName.value = contactName.value;
     const vehicleType = form.elements.vehicleType;
     if (vehicleType && choice.value === 'boda_rider') vehicleType.value = 'motorcycle';
@@ -219,7 +223,7 @@
   country?.addEventListener('change', updateMarket);
   category.addEventListener('change', updateProfile);
   contactName.addEventListener('input', () => {
-    if (['boda_rider', 'car_driver'].includes(category.value) && !displayName.dataset.userEdited) displayName.value = contactName.value;
+    if (['boda_rider', 'car_driver', 'stay_host'].includes(category.value) && !displayName.dataset.userEdited) displayName.value = contactName.value;
   });
   displayName.addEventListener('input', () => { displayName.dataset.userEdited = '1'; });
   if (!service.value && selected) {

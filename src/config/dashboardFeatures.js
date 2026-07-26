@@ -21,7 +21,7 @@ const SERVICE_DASHBOARDS = [
   },
   {
     key: 'hotel-dashboard',
-    label: 'Hotel Dashboard',
+    label: 'Stays Dashboard',
     serviceType: 'hotel',
     icon: 'fa-hotel',
     status: 'production',
@@ -72,7 +72,7 @@ const SERVICE_DASHBOARDS = [
 const ROLE_DASHBOARD_FEATURES = {
   admin: {
     label: 'Super Admin',
-    features: ['Company and driver verification', 'Bus, hotel, flight, and local taxi operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
+    features: ['Company and driver verification', 'Bus, stays, flight, and local taxi operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
   },
   company: {
     label: 'Company Admin',

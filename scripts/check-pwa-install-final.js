@@ -21,7 +21,7 @@ check('512 icon exists', exists('public/images/logo-symbol-512.png'));
 check('maskable 192 icon exists', exists('public/images/logo-maskable-192.png'));
 check('maskable 512 icon exists', exists('public/images/logo-maskable-512.png'));
 check('apple touch icon exists', exists('public/images/apple-touch-icon.png'));
-check('service worker cache version bumped', sw.includes('classic-trip-static-v1.2.5'));
+check('service worker cache version bumped', sw.includes('classic-trip-static-v1.2.7'));
 check('PWA CSS is pre-cached', sw.includes("'/css/pwa.css'"));
 check('service worker served no-cache', app.includes("app.get('/sw.js'") && app.includes("Service-Worker-Allowed"));
 check('manifest served with manifest MIME', app.includes("app.get('/site.webmanifest'") && app.includes('application/manifest+json'));

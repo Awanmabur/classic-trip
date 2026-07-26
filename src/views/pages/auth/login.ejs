@@ -12,7 +12,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="/css/pwa.css?v=20260727-3" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
-  <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, hotel partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
+  <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,7 +141,7 @@
         <div class="heroText">
           <div class="eyebrow">Classic Trip account access</div>
           <h1>Login or create your travel account.</h1>
-          <p>Customers manage trips, promoters track referral commission, and verified bus, hotel, flight-agent and local-mobility partners onboard through the same secure account page.</p>
+          <p>Customers manage trips, promoters track referral commission, and verified bus, stay, flight-agent and local-mobility partners onboard through the same secure account page.</p>
         </div>
         <div class="benefits">
           <div class="benefit"><i class="fa-solid fa-receipt"></i><strong>Receipts saved</strong><span>Access tickets from Gmail, WhatsApp, or My Bookings.</span></div>
@@ -227,7 +227,7 @@
               <div class="socialGrid"><a class="social" id="googleSignupLink" href="/auth/google?role=customer"><i class="fa-brands fa-google"></i>Google</a><button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button></div>
             </form>
             <div class="notice" style="margin-top:12px"><strong>Staff and drivers:</strong> employee, agent, finance, check-in, support, and driver accounts are created only through a secure company invitation.</div>
-            <a class="partnerOnboardingLink" href="#partner" data-open-panel="partner"><i class="fa-solid fa-building-circle-check"></i><span><strong>Register as a travel or mobility partner</strong><small>Bus operators, hotels, flight agents, boda/car drivers and fleet owners continue here.</small></span><i class="fa-solid fa-arrow-right"></i></a>
+            <a class="partnerOnboardingLink" href="#partner" data-open-panel="partner"><i class="fa-solid fa-building-circle-check"></i><span><strong>Register as a travel or mobility partner</strong><small>Bus operators, stay hosts, flight agents, boda/car drivers and fleet owners continue here.</small></span><i class="fa-solid fa-arrow-right"></i></a>
           </div>
           <div class="miniDash">
             <div class="stat"><strong><%= platformConfig.supportedCurrencies.length %></strong><span>supported currencies</span></div>
@@ -337,7 +337,7 @@
       const copy = {
         login:['Welcome back','Login to manage bookings, saved trips, tickets and payments.'],
         signup:['Create your account','Choose customer or promoter access. Staff and drivers use secure invitations.'],
-        partner:['Partner onboarding','Apply as a bus operator, hotel partner, flight agent, boda rider, car driver or fleet owner.'],
+        partner:['Partner onboarding','Apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner.'],
         support:['Support center','Get help with bookings, payments, refunds, receipts and partner accounts.'],
         forgot:['Recover account','Get a reset link or OTP for your Classic Trip account.']
       };

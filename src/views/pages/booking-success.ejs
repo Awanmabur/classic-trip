@@ -27,7 +27,7 @@
   <section class="detailGrid">
     <div class="ticketPaper">
       <span class="badge badgeOk"><i class="fa-solid fa-circle-check"></i> Booking confirmed</span>
-      <h1 class="heroTitle" style="font-size:30px"><%= isBusBooking ? 'Your ticket is ready.' : 'Your hotel voucher is ready.' %></h1>
+      <h1 class="heroTitle" style="font-size:30px"><%= isBusBooking ? 'Your ticket is ready.' : 'Your stay voucher is ready.' %></h1>
       <div class="ticketLine"><span>Booking ref</span><b><%= booking.bookingRef %></b></div>
       <div class="ticketLine"><span>Service</span><b><%= safeListing.title %></b></div>
       <div class="ticketLine"><span>Customer</span><b><%= guest.fullName || 'Guest customer' %></b></div>
@@ -48,7 +48,7 @@
     <aside class="ticketPaper">
       <h3 style="margin:0">QR preview</h3>
       <div class="qrBox"><% if (qrDataUrl) { %><img src="<%= qrDataUrl %>" alt="QR" style="width:180px;height:180px"><% } else { %><span><%= booking.qrCodeValue %></span><% } %></div>
-      <p class="muted"><%= isBusBooking ? 'Employee scanners validate this QR once. After check-in, the booking moves toward completed and pending earnings can release.' : 'Hotel reception verifies this paid voucher against the live reservation before check-in. Checkout moves the rooms to housekeeping and releases eligible earnings.' %></p>
+      <p class="muted"><%= isBusBooking ? 'Employee scanners validate this QR once. After check-in, the booking moves toward completed and pending earnings can release.' : 'The stay host or reception verifies this paid voucher against the live reservation before check-in. Checkout moves the rooms to housekeeping and releases eligible earnings.' %></p>
     </aside>
   </section>
 </main>

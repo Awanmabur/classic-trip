@@ -114,7 +114,7 @@
           <div class="selector">
             <div class="selectorTop">
               <div>
-                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your room' : listing.serviceType === 'bus' ? 'Choose your seats' : 'Choose your slot' %></b>
+                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your stay option' : listing.serviceType === 'bus' ? 'Choose your seats' : 'Choose your slot' %></b>
                 <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint"><%= listing.serviceType === 'bus' ? 'Select one or many available seats before continuing to payment. Taken items cannot be selected.' : 'Select an available seat, room, or slot before continuing to payment. Taken items cannot be selected.' %></div>
               </div>
               <div class="legend">

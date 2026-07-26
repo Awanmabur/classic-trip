@@ -76,7 +76,7 @@ const support = read('src/views/pages/support.ejs');
 check('Contact and Help use rounded shared cards and complete service topics', includesAll(support, [
   'supportGrid',
   'Bus journey',
-  'Hotel stay',
+  'Stay booking',
   'Flight booking',
   'Local ride or boda'
 ]));

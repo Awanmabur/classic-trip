@@ -21,11 +21,11 @@
   }
 </style>
 <main class="container py-4">
-  <section class="hotelManifestPrint" aria-label="Hotel guest manifest">
+  <section class="hotelManifestPrint" aria-label="Stay guest manifest">
     <header class="hotelManifestPrintHead">
       <div>
-        <h1>Hotel <%= String(mode || 'all').replace(/-/g, ' ') %> manifest</h1>
-        <p class="muted"><strong>Date:</strong> <%= date %> &nbsp; <strong>Scope:</strong> <%= listingId === 'all' ? 'All hotel properties' : listingId %> &nbsp; <strong>Records:</strong> <%= rows.length %></p>
+        <h1>Stay <%= String(mode || 'all').replace(/-/g, ' ') %> manifest</h1>
+        <p class="muted"><strong>Date:</strong> <%= date %> &nbsp; <strong>Scope:</strong> <%= listingId === 'all' ? 'All stay properties' : listingId %> &nbsp; <strong>Records:</strong> <%= rows.length %></p>
       </div>
       <div class="hotelManifestPrintActions">
         <button type="button" data-page-action="print">Print</button>
@@ -38,7 +38,7 @@
         <thead><tr><% columns.forEach((column) => { %><th><%= column.label %></th><% }) %></tr></thead>
         <tbody>
           <% if (!rows.length) { %>
-            <tr><td colspan="<%= columns.length %>">No hotel records match this date and manifest view.</td></tr>
+            <tr><td colspan="<%= columns.length %>">No stay records match this date and manifest view.</td></tr>
           <% } %>
           <% rows.forEach((row) => { %>
             <tr><% columns.forEach((column) => { const value = row[column.key]; %><td><%= Array.isArray(value) ? value.join(', ') : (value || '-') %></td><% }) %></tr>

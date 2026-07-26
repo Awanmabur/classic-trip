@@ -38,20 +38,20 @@ const COMPANY_SERVICE_MENU_CONFIG = {
       { label: 'Company', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
         { page: 'company-profile', label: 'Company Profile', icon: 'fa-building-circle-check' },
-        { page: 'staff', label: 'Hotel Staff', icon: 'fa-user-tie' },
+        { page: 'staff', label: 'Stay Staff', icon: 'fa-user-tie' },
       ] },
-      { label: 'Hotel Setup', items: [
-        { page: 'listings', label: 'Hotel Listings (Public)', icon: 'fa-hotel' },
+      { label: 'Stay Setup', items: [
+        { page: 'listings', label: 'Stay Listings (Public)', icon: 'fa-hotel' },
         { page: 'hotel-rooms', label: 'Properties, Rooms & Inventory', icon: 'fa-bed' },
       ] },
-      { label: 'Hotel Daily Work', items: [
-        { page: 'bookings', label: 'Hotel Bookings', icon: 'fa-ticket' },
+      { label: 'Stay Daily Work', items: [
+        { page: 'bookings', label: 'Stay Bookings', icon: 'fa-ticket' },
         { page: 'manifests', label: 'Arrivals / Departures', icon: 'fa-file-lines' },
         { page: 'checkins', label: 'Guest Check-ins', icon: 'fa-qrcode' },
         { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
         { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
       ] },
-      { label: 'Hotel Finance', items: [
+      { label: 'Stay Finance', items: [
         { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
         { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
@@ -143,13 +143,13 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
   hotel: {
     createLabel: 'Create Booking',
     groups: [
-      { label: 'Hotel Shift', items: [
+      { label: 'Stay Shift', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
         { page: 'checkin', label: 'Guest Check-in', icon: 'fa-qrcode' },
-        { page: 'bookings', label: 'Hotel Bookings', icon: 'fa-ticket' },
+        { page: 'bookings', label: 'Stay Bookings', icon: 'fa-ticket' },
         { page: 'schedule', label: 'Arrivals / Departures', icon: 'fa-calendar-days' },
       ] },
-      { label: 'Hotel Work', items: [
+      { label: 'Stay Work', items: [
         { page: 'inventory', label: 'Room Inventory', icon: 'fa-bed' },
         { page: 'customers', label: 'Guest List', icon: 'fa-users' },
       ] },

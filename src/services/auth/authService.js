@@ -147,6 +147,12 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
       iataTidsNumber: cleanText(payload.iataTidsNumber, 120),
       specialities: cleanText(payload.agencySpecialities, 500),
     } : undefined,
+    host: profile.key === 'stay_host' ? {
+      publicName: cleanText(payload.name || payload.contactName, 180),
+      propertyAddress: cleanText(payload.headOfficeAddress || payload.address, 400),
+      preferredOperatingAreas: cleanText(payload.preferredOperatingAreas, 500),
+      hostingModel: 'individual',
+    } : undefined,
     driver: ['boda_rider', 'car_driver'].includes(profile.key) ? {
       nationalIdEncrypted: sensitiveFieldService.encrypt(payload.nationalIdNumber, 'partner-national-id'),
       nationalIdLast4: sensitiveFieldService.last4(payload.nationalIdNumber),

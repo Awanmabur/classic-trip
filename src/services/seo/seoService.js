@@ -18,6 +18,7 @@ const PRIVATE_DISALLOWS = [
 const STATIC_PUBLIC_URLS = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
   { path: '/search', priority: '0.9', changefreq: 'daily' },
+  { path: '/stays', priority: '0.9', changefreq: 'daily' },
   { path: '/flights', priority: '0.9', changefreq: 'daily' },
   { path: '/taxi', priority: '0.9', changefreq: 'daily' },
   { path: '/services', priority: '0.9', changefreq: 'weekly' },
@@ -96,7 +97,7 @@ async function dynamicUrls() {
   });
 
   listings.filter((listing) => statusAllowsPublic(listing) && (listing.slug || listing.id) && (listing.serviceType || listing.type)).forEach((listing) => {
-    entries.push({ path: `/listings/${slug(listing.serviceType || listing.type)}/${slug(listing.slug || listing.id)}`, priority: listing.bookable === false ? '0.6' : '0.9', changefreq: 'daily', updatedAt: listing.updatedAt || listing.createdAt });
+    entries.push({ path: `/listings/${String(listing.serviceType || listing.type).toLowerCase() === 'hotel' ? 'stays' : slug(listing.serviceType || listing.type)}/${slug(listing.slug || listing.id)}`, priority: listing.bookable === false ? '0.6' : '0.9', changefreq: 'daily', updatedAt: listing.updatedAt || listing.createdAt });
   });
 
   companies.filter((company) => statusAllowsPublic(company) && (company.slug || company.id || company.name)).forEach((company) => {
@@ -176,6 +177,7 @@ async function llmsTxt() {
     `- ${absoluteUrl('/')}`,
     `- ${absoluteUrl('/search')}`,
     `- ${absoluteUrl('/services')}`,
+    `- ${absoluteUrl('/stays')}`,
     `- ${absoluteUrl('/flights')}`,
     `- ${absoluteUrl('/taxi')}`, 
     `- ${absoluteUrl('/routes')}`,
@@ -185,7 +187,7 @@ async function llmsTxt() {
     '',
     '## Services',
     '- Bus journeys with route, stop, seat and fare selection.',
-    '- Accommodation with room, rate-plan and dated inventory.',
+    '- Stays with hotels, apartments, entire homes, private rooms, villas, cottages, homestays, rate plans and dated inventory.',
     '- Flight search and booking supported by accredited agents and certified suppliers.',
     '- Safe local mobility with verified boda and car partners, upfront pricing and platform dispatch.',
     '',
@@ -211,7 +213,7 @@ async function llmsFullTxt() {
     env.seo.defaultDescription,
     '',
     '## Platform scope',
-    '- East Africa travel marketplace for buses, accommodation, flights and safe local mobility.',
+    '- East Africa travel marketplace for buses, stays and homes, flights and safe local mobility.',
     '- Flight services are sold and supported by accredited agents using platform-managed or certified supplier inventory.',
     '- Local rides use platform pricing and dispatch; verified riders, drivers and fleet partners cannot alter the accepted customer fare.',
     '- Public prices, availability and booking conditions are validated by the backend.',

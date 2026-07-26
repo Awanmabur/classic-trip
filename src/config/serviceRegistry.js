@@ -2,7 +2,7 @@
 
 const SERVICE_REGISTRY = Object.freeze({
   bus: Object.freeze({ key: 'bus', label: 'Buses', singular: 'Bus', icon: 'fa-bus', status: 'active', bookable: true, description: 'Intercity and regional bus travel with dated departures and live seats.' }),
-  hotel: Object.freeze({ key: 'hotel', label: 'Hotels & stays', singular: 'Hotel', icon: 'fa-hotel', status: 'active', bookable: true, description: 'Hotels, apartments, rooms and nightly inventory.' }),
+  hotel: Object.freeze({ key: 'hotel', label: 'Stays', singular: 'Stay', icon: 'fa-house', status: 'active', bookable: true, description: 'Hotels, apartments, entire homes, private rooms, villas, cottages, guest houses and nightly inventory.' }),
   flight: Object.freeze({ key: 'flight', label: 'Flights', singular: 'Flight', icon: 'fa-plane', status: 'active', bookable: true, description: 'Platform-approved airline and certified supplier offers sold directly or with verified flight-agent assistance, including baggage, seats, ticketing and post-booking support.' }),
   local_transport: Object.freeze({ key: 'local_transport', label: 'Local rides', singular: 'Local ride', icon: 'fa-taxi', status: 'active', bookable: true, description: 'Simple boda and car rides with upfront platform pricing, verified drivers, automatic dispatch, airport transfers and scheduled trips.' }),
   tour: Object.freeze({ key: 'tour', label: 'Tours & activities', singular: 'Tour', icon: 'fa-map-location-dot', status: 'coming_soon', bookable: false, description: 'Guided tours, activities and destination experiences are coming soon.' }),

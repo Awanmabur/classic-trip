@@ -8,11 +8,13 @@ const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 
-const SERVICE_LABELS = { bus: 'Bus', hotel: 'Hotel', flight: 'Flight', local_transport: 'Local ride' };
+const SERVICE_LABELS = { bus: 'Bus', hotel: 'Stay', flight: 'Flight', local_transport: 'Local ride' };
 const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
+function canonicalPublicServiceType(value) { const key = normalize(value); return ['stay','stays','home','homes','accommodation','accommodations'].includes(key) ? 'hotel' : key; }
+function publicServiceSlug(value) { return canonicalPublicServiceType(value) === 'hotel' ? 'stays' : canonicalPublicServiceType(value); }
 function text(value) { return String(value || '').trim(); }
 function number(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
 function unique(values) { return [...new Set(values.filter(Boolean))]; }
@@ -89,7 +91,7 @@ function companyFor(data, identifier) {
 
 function listingFor(data, identifier, serviceType = '') {
   const key = normalize(identifier);
-  const type = normalize(serviceType);
+  const type = canonicalPublicServiceType(serviceType);
   return data.listings.find((row) => (!type || canonicalServiceType(row, data) === type)
     && [entityId(row), row.slug, row.title].some((value) => normalize(value) === key)) || null;
 }
@@ -278,8 +280,8 @@ function catalogItem(data, listing) {
     bookableReason,
     instantConfirmation: listing.instantConfirmation !== false && bookable,
     refundable: /refund|cancellation/.test(normalize(policy)),
-    url: serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/listings/${serviceType}/${listing.slug || stableId}`,
-    bookingUrl: bookable ? (serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/book/${serviceType}/${listing.slug || stableId}`) : '',
+    url: serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/listings/${publicServiceSlug(serviceType)}/${listing.slug || stableId}`,
+    bookingUrl: bookable ? (serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/book/${publicServiceSlug(serviceType)}/${listing.slug || stableId}`) : '',
     companyUrl: `/companies/${company?.slug || entityId(company || {})}`,
     searchText: normalize([listing.title, listing.description, from, to, listing.city, listing.country, company?.name, serviceType].join(' ')),
   };
@@ -294,7 +296,7 @@ function score(item) {
 
 function applySearch(items, query = {}) {
   const q = normalize(query.q || query.search);
-  const serviceType = normalize(query.serviceType || query.type || '');
+  const serviceType = canonicalPublicServiceType(query.serviceType || query.type || '');
   const city = normalize(query.city);
   const country = normalize(query.country);
   const origin = normalize(query.origin || query.from);

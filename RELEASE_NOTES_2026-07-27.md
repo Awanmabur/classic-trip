@@ -1,45 +1,18 @@
-# Classic Trip 1.2.5
+# Release Notes — Classic Trip 1.2.7
 
-## Single app launch splash
+## Marketing-page mobile overflow correction
 
-- Shows one branded splash when the installed app opens.
-- Displays the logo, Classic Trip name and slogan for about 2.2 seconds.
-- Fades directly into the app without a spinner or second launch panel.
-- Does not repeat while navigating between pages in the same app session.
-- Preserves the approved reference UI.
+- Corrected the Partner Commission **Ready to join Classic Trip?** CTA so its buttons remain inside the card on phones.
+- Added one scoped responsive contract for public marketing pages only. The approved Classic Trip UI, colours, cards and navigation remain unchanged.
+- Applied the contract to Partner Commission, Partners, Services, How It Works, Promoters, Routes, Support, Privacy, Terms, Blogs and public partner profiles.
+- Long CTA labels can wrap without being clipped by fixed button heights.
+- Marketing action groups collapse safely before they exceed the card width.
+- Long badges, headings, descriptions and route rows stay inside their containers.
+- Marketing grids collapse to one column on phones while metric/stat cards remain two per row.
+- The footer becomes one column only on very small phones, preventing long partner/support links from widening the page.
+- Added `npm run check:marketing-mobile` with a permanent 27-point regression gate.
+- Added the new stylesheet to the PWA static cache and bumped the service-worker cache to 1.2.7 so installed apps receive the correction.
 
-# Release Notes — Classic Trip 1.2.1
+## Retained platform capabilities
 
-## Final mobile navigation and PWA update
-
-- Preserved the approved Classic Trip public, authentication and dashboard UI.
-- Made the phone/tablet bottom navigation disappear during active scrolling and return after scrolling stops.
-- Hid the bottom navigation while a form control is active so it does not compete with the phone keyboard.
-- Hid the bottom navigation while the Profile drawer is open and added safe bottom spacing so the last drawer action remains visible.
-- Changed the public **Start** action to open the Sign in page.
-- Removed the top Tickets action on phones while retaining ticket access in the bottom navigation and Profile drawer.
-- Kept Login, Signup and Partner in one three-column row on phones.
-- Kept KPI/stat cards two per row on phones, including narrow dashboard and authentication layouts.
-- Protected blue and primary button text colours on hover, focus and active states.
-- Added an installable PWA experience for supported phones and computers.
-- Added padded maskable icons and an Apple touch icon so the complete logo remains visible.
-- Added a clean install prompt with the Classic Trip logo, name and slogan.
-- Added a brief session-only splash when the installed app launches.
-- Added versioned static-asset caching while excluding account, booking, payment and dashboard HTML from service-worker caches.
-- Removed a duplicate `<main>` opening from the standalone authentication page.
-- Added `npm run check:mobile-pwa` to the release verification chain.
-
-See `FINAL_RELEASE_REPORT_2026-07-27.md` for verification results and deployment commands.
-
-## 1.2.2 — Blue button and phone statistics correction
-
-- Blue button text remains visible on hover, focus, active and visited states.
-- Nested button icons and labels inherit the protected light text colour.
-- Homepage, authentication, dashboard, finance, hotel, manifest, flight and local-mobility statistics remain two per row on phones.
-- Added `npm run check:mobile-button-stats`.
-
-## Orientation stability
-
-- Installed PWA now declares `portrait-primary`.
-- Supported browsers re-apply the portrait lock when the app resumes or an orientation event occurs.
-- Unsupported browsers fall back safely to the phone's system rotation setting.
+Stays & Homes, Bus, Flight Agents, Local Mobility, PWA installation, the single splash, portrait orientation, mobile navigation, dashboards, security controls and the approved reference UI remain intact.

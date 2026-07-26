@@ -23,7 +23,7 @@
 
   <% if (savedListings && savedListings.length) { %>
   <div class="gridCards">
-    <% var typeIcons = {Bus:'fa-bus',Hotel:'fa-hotel'}; %>
+    <% var typeIcons = {Bus:'fa-bus',Hotel:'fa-house',Stay:'fa-house'}; %>
     <% savedListings.forEach(function(l) { %>
     <%
       var cornerCls, cornerIcon, cornerText;
@@ -148,7 +148,7 @@ document.addEventListener('keydown', function(event){
   if(gs) gs.style.display='';
   var cards=document.getElementById('guestSavedCards');if(!cards) return;
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];})}
-  var iconMap={Bus:'fa-bus',Hotel:'fa-hotel'};
+  var iconMap={Bus:'fa-bus',Hotel:'fa-house',Stay:'fa-house'};
   var defaultCurrency=<%- toScriptJson(platformConfig.defaultCurrency) %>;
   function corner(l){if(!l.bookable)return{cls:'promo',icon:'fa-clock',text:'Teaser'};return{cls:'available',icon:'fa-circle-check',text:'Live'};}
   cards.innerHTML=saved.map(function(l){

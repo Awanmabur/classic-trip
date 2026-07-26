@@ -95,7 +95,9 @@ const ROOM_UNIT_STATUSES = new Set(['available', 'occupied', 'maintenance', 'cle
 const HOUSEKEEPING_STATUSES = new Set(['clean', 'dirty', 'cleaning', 'inspected', 'maintenance', 'occupied', 'ready']);
 const HOUSEKEEPING_TASK_STATUSES = new Set(['', 'open', 'in_progress', 'completed', 'cancelled', 'blocked']);
 const BED_TYPES = new Set(['single', 'double', 'twin', 'queen', 'king', 'family', 'suite']);
-const PROPERTY_TYPES = new Set(['hotel', 'lodge', 'resort', 'guest_house', 'serviced_apartment', 'hostel', 'camp']);
+const PROPERTY_TYPES = new Set(['hotel', 'lodge', 'resort', 'guest_house', 'serviced_apartment', 'apartment', 'entire_home', 'private_room', 'shared_room', 'villa', 'cottage', 'cabin', 'bungalow', 'homestay', 'holiday_home', 'farm_stay', 'bed_and_breakfast', 'hostel', 'camp']);
+const RENTAL_MODES = new Set(['room_based', 'entire_place', 'private_room', 'shared_room']);
+const HOST_TYPES = new Set(['business', 'individual']);
 const PROPERTY_CATEGORIES = new Set(['unrated', 'budget', 'standard', 'premium', 'luxury']);
 const MEAL_PLANS = new Set(['room_only', 'breakfast', 'half_board', 'full_board', 'all_inclusive']);
 const RATE_PRICING_MODES = new Set(['fixed', 'nightly_inventory']);
@@ -173,6 +175,19 @@ async function createProperty(companyId, payload = {}, actorId = 'company-admin'
     id: await hotelRepository.nextId('hotel-property'), companyId, listingId: listing.id,
     propertyName, normalizedName: normalizedKey(propertyName),
     propertyType: enumValue(payload.propertyType, PROPERTY_TYPES, 'hotel', 'property type'),
+    rentalMode: enumValue(payload.rentalMode, RENTAL_MODES, 'room_based', 'rental mode'),
+    hostType: enumValue(payload.hostType, HOST_TYPES, 'business', 'host type'),
+    hostDisplayName: clean(payload.hostDisplayName || payload.hostName || ''),
+    hostLivesOnProperty: bool(payload.hostLivesOnProperty, false),
+    instantBook: bool(payload.instantBook, false),
+    maxGuests: Math.max(1, num(payload.maxGuests, 1)),
+    bedrooms: Math.max(0, num(payload.bedrooms, 0)),
+    bathrooms: Math.max(0, num(payload.bathrooms, 0)),
+    kitchens: Math.max(0, num(payload.kitchens, 0)),
+    cleaningFee: Math.max(0, num(payload.cleaningFee, 0)),
+    securityDepositAmount: Math.max(0, num(payload.securityDepositAmount, 0)),
+    guestAccess: clean(payload.guestAccess),
+    sharedSpaces: list(payload.sharedSpaces),
     category: enumValue(payload.category, PROPERTY_CATEGORIES, 'unrated', 'property category'),
     starRating: Math.max(0, Math.min(5, num(payload.starRating, 0))),
     address: clean(payload.address || listing.address), city: clean(payload.city || listing.city), country: clean(payload.country || listing.country),
@@ -187,7 +202,7 @@ async function createProperty(companyId, payload = {}, actorId = 'company-admin'
     taxesAndFees: list(payload.taxesAndFees).map((fee) => ({ label: fee, amount: 0 })),
     status: enumValue(payload.status, new Set(['active', 'paused']), 'active', 'hotel property status'), createdBy: actorId, createdAt: new Date().toISOString(),
   };
-  Object.assign(listing, { title: property.propertyName || listing.title, address: property.address || listing.address, city: property.city || listing.city, country: property.country || listing.country, timezone: property.timezone, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime, amenities: property.amenities });
+  Object.assign(listing, { title: property.propertyName || listing.title, type: property.propertyType, address: property.address || listing.address, city: property.city || listing.city, country: property.country || listing.country, timezone: property.timezone, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime, amenities: property.amenities });
   await hotelRepository.transaction(async (session) => {
     await hotelRepository.hotelProperties.insert(property, { session });
     await hotelRepository.listings.save(listing, { id: listing.id }, { session });
@@ -206,10 +221,15 @@ async function updateProperty(companyId, propertyId, payload = {}, actorId = 'co
     if (duplicate) throw Object.assign(new Error('A property with this name already exists under the selected listing'), { status: 409 });
     property.propertyName = propertyName; property.normalizedName = normalizedName;
   }
-  const stringFields = ['address','city','country','timezone','mapLocation','contactEmail','contactPhone','checkInTime','checkOutTime','childPolicy','petPolicy','smokingPolicy','paymentPolicy','depositPolicy'];
+  const stringFields = ['address','city','country','timezone','mapLocation','contactEmail','contactPhone','checkInTime','checkOutTime','hostDisplayName','guestAccess','childPolicy','petPolicy','smokingPolicy','paymentPolicy','depositPolicy'];
   stringFields.forEach((field) => { if (typeof payload[field] !== 'undefined') property[field] = field === 'contactEmail' ? clean(payload[field]).toLowerCase() : clean(payload[field]); });
   if (typeof payload.mapLocation !== 'undefined') Object.assign(property, parseMapLocation(payload.mapLocation));
   if (payload.propertyType) property.propertyType = enumValue(payload.propertyType, PROPERTY_TYPES, property.propertyType || 'hotel', 'property type');
+  if (payload.rentalMode) property.rentalMode = enumValue(payload.rentalMode, RENTAL_MODES, property.rentalMode || 'room_based', 'rental mode');
+  if (payload.hostType) property.hostType = enumValue(payload.hostType, HOST_TYPES, property.hostType || 'business', 'host type');
+  if (typeof payload.hostLivesOnProperty !== 'undefined') property.hostLivesOnProperty = bool(payload.hostLivesOnProperty, property.hostLivesOnProperty);
+  if (typeof payload.instantBook !== 'undefined') property.instantBook = bool(payload.instantBook, property.instantBook);
+  for (const field of ['maxGuests','bedrooms','bathrooms','kitchens','cleaningFee','securityDepositAmount']) if (typeof payload[field] !== 'undefined') property[field] = Math.max(field === 'maxGuests' ? 1 : 0, num(payload[field], property[field] || (field === 'maxGuests' ? 1 : 0)));
   if (payload.category) property.category = enumValue(payload.category, PROPERTY_CATEGORIES, property.category || 'unrated', 'property category');
   if (typeof payload.starRating !== 'undefined') property.starRating = Math.max(0, Math.min(5, num(payload.starRating, property.starRating || 0)));
   if (typeof payload.taxPercent !== 'undefined') property.taxPercent = Math.max(0, Math.min(100, num(payload.taxPercent, property.taxPercent || 0)));
@@ -217,6 +237,7 @@ async function updateProperty(companyId, propertyId, payload = {}, actorId = 'co
   if (payload.amenities) property.amenities = list(payload.amenities);
   if (payload.accessibilityFeatures) property.accessibilityFeatures = list(payload.accessibilityFeatures);
   if (payload.houseRules) property.houseRules = list(payload.houseRules);
+  if (payload.sharedSpaces) property.sharedSpaces = list(payload.sharedSpaces);
   if (payload.policies) property.policies = list(payload.policies);
   if (payload.status) {
     const nextStatus = enumValue(payload.status, PROPERTY_STATUSES, property.status || 'active', 'hotel property status');
@@ -224,7 +245,7 @@ async function updateProperty(companyId, propertyId, payload = {}, actorId = 'co
     property.status = nextStatus;
   }
   property.updatedBy = actorId; property.updatedAt = new Date().toISOString();
-  if (listing) Object.assign(listing, { title: property.propertyName || listing.title, address: property.address || listing.address, city: property.city || listing.city, country: property.country || listing.country, timezone: property.timezone || listing.timezone, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime, amenities: property.amenities });
+  if (listing) Object.assign(listing, { title: property.propertyName || listing.title, type: property.propertyType, address: property.address || listing.address, city: property.city || listing.city, country: property.country || listing.country, timezone: property.timezone || listing.timezone, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime, amenities: property.amenities });
   await hotelRepository.transaction(async (session) => {
     await hotelRepository.hotelProperties.save(property, { id: property.id }, { session });
     if (listing) await hotelRepository.listings.save(listing, { id: listing.id }, { session });

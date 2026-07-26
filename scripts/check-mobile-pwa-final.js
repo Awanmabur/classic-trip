@@ -34,7 +34,7 @@ check('phone statistics remain two per row', () => assert(css.includes('.homePag
 check('install prompt carries brand and slogan', () => assert(pwa.includes('Move, stay and fly with confidence.') && pwa.includes('pwaInstallLogo')));
 check('standalone launch splash is single, branded and session scoped', () => assert(pwa.includes('classicTripLaunchSplash') && pwa.includes('SPLASH_DURATION_MS = 2200') && pwa.includes('logo-maskable-512.png') && pwa.includes('SPLASH_KEY')));
 check('service worker is registered', () => assert(pwa.includes("register('/sw.js'")));
-check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.2.5") && sw.includes("'/css/")));
+check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.2.7") && sw.includes("'/css/")));
 check('manifest has separate any and maskable icons', () => {
   assert(manifest.icons.some((icon) => icon.purpose === 'any'));
   assert(manifest.icons.some((icon) => icon.purpose === 'maskable'));

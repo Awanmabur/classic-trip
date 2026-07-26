@@ -35,6 +35,7 @@ router.get('/:key.txt', seoController.indexNowKey);
 
 router.get('/', homeController.renderHome);
 router.get('/search', searchController.searchPage);
+router.get('/stays', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'hotel' }).toString(); return res.redirect(302, `/search?${query}`); });
 router.get('/flights', travelController.flightPage);
 router.get('/flights/orders/:reference', travelController.flightOrderPage);
 router.get('/taxi', travelController.taxiPage);
@@ -93,7 +94,7 @@ router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
 router.get('/support', (req, res) => res.render('pages/support', {
   submitted: req.query.submitted === '1',
-  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with bus, hotel, flight-agent and local-mobility bookings, payments, tickets, refunds and partner services.' },
+  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with bus, stay, flight-agent and local-mobility bookings, payments, tickets, refunds and partner services.' },
 }));
 router.post('/support', publicWriteLimiter, supportRules, validateRequest, supportController.create);
 router.get('/how-it-works', (req, res) => res.render('pages/how-it-works', {

@@ -16,7 +16,7 @@
   });
   const isBusTicket = (booking.serviceType || safeListing.serviceType) === 'bus';
   const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful';
-  const documentLabel = isBusTicket ? 'ticket' : 'hotel voucher';
+  const documentLabel = isBusTicket ? 'ticket' : 'stay voucher';
   const hotelStay = booking.hotelStay || {};
   const roomLabels = (booking.passengers || []).map(row => row.roomNumber || row.seatOrRoom || row.roomType).filter(Boolean);
   const guestCount = Number(hotelStay.adults || 0) + Number(hotelStay.children || 0);
@@ -80,11 +80,11 @@
         <% if (booking.scheduleId) { %><div><span>Schedule</span><b><%= booking.scheduleId %></b></div><% } %>
         <% if (booking.bookedAt || booking.createdAt) { %><div><span>Booked</span><b><%= new Date(booking.bookedAt || booking.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) %></b></div><% } %>
       </div>
-      <p class="muted" style="margin:4px 0 0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'Show this ticket to authorised staff at boarding. Staff check-in uses the protected scanner.' : 'Show this confirmed voucher at hotel reception. The hotel verifies it against the protected booking record.') : 'Payment has not been confirmed. Inventory may be temporarily reserved internally, but no valid ticket or hotel voucher is issued until the payment provider confirms success.' %></p>
+      <p class="muted" style="margin:4px 0 0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'Show this ticket to authorised staff at boarding. Staff check-in uses the protected scanner.' : 'Show this confirmed voucher with the stay host or reception. The stay provider verifies it against the protected booking record.') : 'Payment has not been confirmed. Inventory may be temporarily reserved internally, but no valid ticket or stay voucher is issued until the payment provider confirms success.' %></p>
     </section>
 
     <section class="card" style="padding:20px;display:grid;gap:14px;text-align:center">
-      <div class="badge <%= ready ? 'badgeOk' : 'badgeWarn' %>" style="margin:0 auto;width:max-content"><i class="fa-solid <%= ready ? 'fa-qrcode' : 'fa-clock' %>"></i> <%= ready ? (isBusTicket ? 'QR ticket' : 'Hotel voucher QR') : 'Awaiting payment confirmation' %></div>
+      <div class="badge <%= ready ? 'badgeOk' : 'badgeWarn' %>" style="margin:0 auto;width:max-content"><i class="fa-solid <%= ready ? 'fa-qrcode' : 'fa-clock' %>"></i> <%= ready ? (isBusTicket ? 'QR ticket' : 'Stay voucher QR') : 'Awaiting payment confirmation' %></div>
       <% if (ready && qrDataUrl) { %>
         <div style="display:flex;justify-content:center;padding:16px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,183,3,.3);border-radius:18px">
           <img src="<%= qrDataUrl %>" alt="Confirmed booking QR code" style="width:180px;height:180px;border-radius:12px">
@@ -92,7 +92,7 @@
       <% } else { %>
         <div class="qrBox" style="min-height:180px"><span class="muted" style="font-size:12px"><%= ready ? 'QR unavailable. Contact support with ' + booking.bookingRef : 'Your QR and PDF will appear automatically after successful payment confirmation.' %></span></div>
       <% } %>
-      <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'One-time QR code. Valid for boarding. Do not share this screen capture with others.' : 'Confirmed hotel voucher. Reception validates it against the live booking record.') : 'A browser redirect is not accepted as proof of payment. Classic Trip waits for the payment provider’s verified server callback.' %></p>
+      <p class="muted" style="margin:0;font-size:12px;font-weight:780;line-height:1.6"><%= ready ? (isBusTicket ? 'One-time QR code. Valid for boarding. Do not share this screen capture with others.' : 'Confirmed stay voucher. Reception validates it against the live booking record.') : 'A browser redirect is not accepted as proof of payment. Classic Trip waits for the payment provider’s verified server callback.' %></p>
       <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl %>" style="height:44px"><i class="fa-solid fa-file-pdf"></i> Save as PDF</a><% } %>
     </section>
 
@@ -104,7 +104,7 @@
       <div>
         <span class="badge badgeInfo"><i class="fa-solid fa-qrcode"></i> <%= isBusTicket ? 'Ticket legs and QR check-in state' : 'Room vouchers and reception verification' %></span>
         <h2 style="margin:10px 0 4px;font-size:17px"><%= isBusTicket ? 'Issued tickets' : 'Issued room vouchers' %></h2>
-        <p class="muted" style="margin:0;font-size:13px;font-weight:780"><%= isBusTicket ? 'Each leg below has its own one-time QR token, passenger, seat, payment state, and check-in state.' : 'Each reserved room below belongs to this paid stay and is verified against the live hotel booking.' %></p>
+        <p class="muted" style="margin:0;font-size:13px;font-weight:780"><%= isBusTicket ? 'Each leg below has its own one-time QR token, passenger, seat, payment state, and check-in state.' : 'Each reserved room below belongs to this paid stay and is verified against the live stay booking.' %></p>
       </div>
       <span class="ticketCode"><%= legs.length %> ticket<%= legs.length === 1 ? '' : 's' %></span>
     </div>

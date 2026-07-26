@@ -20,9 +20,9 @@
     <div class="card hotelOpsMain">
       <div class="cardHead hotelOpsHeader">
         <div class="cardTitle">
-          <span class="hotelSectionEyebrow"><i class="fa-solid fa-hotel"></i> Hotel inventory</span>
+          <span class="hotelSectionEyebrow"><i class="fa-solid fa-hotel"></i> Stay inventory</span>
           <h3>Properties, rooms and availability</h3>
-          <p>Build each hotel in one safe order. The public listing attracts customers; the property, room types, rate plans, physical rooms and dated inventory make it bookable.</p>
+          <p>Build each stay property in one safe order. The public listing attracts customers; the property, room types, rate plans, physical rooms and dated inventory make it bookable.</p>
         </div>
         <div class="hotelReadinessBadge">
           <span><%= hotelSetupComplete %> of 6 setup stages ready</span>
@@ -32,13 +32,13 @@
 
       <div class="hotelSetupBlock">
         <div class="hotelBlockHeading">
-          <div><h4>Hotel setup journey</h4><p>Complete these connected records in order. A later step always selects the record created before it.</p></div>
+          <div><h4>Stay setup journey</h4><p>Complete these connected records in order. A later step always selects the record created before it.</p></div>
           <a class="btn" href="/company/listings"><i class="fa-solid fa-layer-group"></i> Open public listings</a>
         </div>
         <div class="hotelSetupJourney">
           <article class="hotelSetupStep <%= hotelCounts.listings ? 'is-ready' : 'is-next' %>">
-            <span class="hotelStepNumber">1</span><div class="hotelStepCopy"><strong>Public hotel listing</strong><span>Customer-facing hotel page, media, location and policies.</span><b><%= hotelCounts.listings %> listing<%= hotelCounts.listings === 1 ? '' : 's' %></b></div>
-            <button class="tinyBtn" data-modal="create" data-type="listing" title="Create hotel listing"><i class="fa-solid fa-plus"></i></button>
+            <span class="hotelStepNumber">1</span><div class="hotelStepCopy"><strong>Public stay listing</strong><span>Customer-facing stay page, media, location and policies.</span><b><%= hotelCounts.listings %> listing<%= hotelCounts.listings === 1 ? '' : 's' %></b></div>
+            <button class="tinyBtn" data-modal="create" data-type="listing" title="Create stay listing"><i class="fa-solid fa-plus"></i></button>
           </article>
           <article class="hotelSetupStep <%= hotelCounts.properties ? 'is-ready' : (hotelCounts.listings ? 'is-next' : '') %>">
             <span class="hotelStepNumber">2</span><div class="hotelStepCopy"><strong>Property profile</strong><span>Operational property, check-in rules, taxes and facilities.</span><b><%= hotelCounts.properties %> propert<%= hotelCounts.properties === 1 ? 'y' : 'ies' %></b></div>
@@ -64,7 +64,7 @@
       </div>
 
       <div class="hotelDailyBlock">
-        <div class="hotelBlockHeading compact"><div><h4>Today’s hotel operations</h4><p>Open the operational queue that needs attention.</p></div></div>
+        <div class="hotelBlockHeading compact"><div><h4>Today’s stay operations</h4><p>Open the operational queue that needs attention.</p></div></div>
         <div class="hotelOpsNudge">
           <a class="miniStat miniStatLink" href="/company/arrivals"><span>Arrivals today</span><strong><%= (dashboardData?.hotelArrivals || []).length %></strong><small>Check-in queue</small></a>
           <a class="miniStat miniStatLink" href="/company/in-house-guests"><span>In-house stays</span><strong><%= (dashboardData?.hotelInHouse || []).length %></strong><small>Current guests</small></a>
@@ -84,7 +84,7 @@
       </div>
 
       <div class="tabPane hotelOpsPane <%= hotelSubview === 'properties' ? 'is-open' : '' %>" id="hotel-properties-pane">
-        <div class="hotelPaneHeader"><div><h4>Properties</h4><p>Connect each operational property to one existing public hotel listing.</p></div><button class="btn btnBlue" data-modal="create" data-type="hotel property"><i class="fa-solid fa-plus"></i> Add property</button></div>
+        <div class="hotelPaneHeader"><div><h4>Properties</h4><p>Connect each operational property to one existing public stay listing.</p></div><button class="btn btnBlue" data-modal="create" data-type="hotel property"><i class="fa-solid fa-plus"></i> Add property</button></div>
         <div class="dashboardFilters" data-filter-target="#companyHotelPropertiesTable">
           <div class="field"><label>Search properties</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Property, type, listing, city, amenity"></div></div>
           <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div></div>
@@ -175,22 +175,22 @@
       <div class="seatLegend"><span class="available"><i></i> Available</span><span class="booked"><i></i> Booked / occupied</span><span class="held"><i></i> Held / reserved</span><span class="blocked"><i></i> Maintenance / cleaning</span></div>
       <% const roomMaps = (dashboardData?.roomVisualMaps || []).slice(0,8); %>
       <% if(roomMaps.length){ roomMaps.forEach(function(map){ %>
-        <div class="splitTop hotelRoomMapTitle"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Hotel rooms' %> · <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
+        <div class="splitTop hotelRoomMapTitle"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Stay rooms' %> · <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
         <div class="seatGrid roomGrid"><% (map.rooms || []).slice(0,160).forEach(function(room){ %>
           <% const roomDetail = { entity:'room_unit', id: room.roomUnitId, roomUnit: room, roomType: { id: map.roomTypeId, name: map.roomTypeName }, property: { propertyName: map.propertyName }, listing: { id: map.listingId, title: map.listingTitle } }; %>
           <button class="seat roomTile <%= String(room.status || '').toLowerCase() %> <%= room.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="room unit" data-label="<%= room.unitNumber || room.roomUnitId %>" data-row-id="<%= room.roomUnitId %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(roomDetail)) %>"><%= room.unitNumber || room.roomUnitId %></button>
         <% }) %></div>
-      <% }) } else { %><div class="notice hotelEmptyNotice"><strong>No room map yet.</strong> Complete the setup journey above: public listing, property, room type, rate plan, physical rooms and dated inventory.</div><% } %>
+      <% }) } else { %><div class="notice hotelEmptyNotice"><strong>No stay map yet.</strong> Complete the setup journey above: public listing, property, room type, rate plan, physical rooms and dated inventory.</div><% } %>
     </div>
   </div>
 
   <% if (isCompanyDashboard && companySupportsHotel) { %>
     <div class="card hotelExtrasCard">
       <div class="cardHead">
-        <div class="cardTitle"><h3>Optional hotel extras</h3><p>Breakfast, transfers, parking, late checkout, extra beds, meal plans, spa access and custom extras. Partner-entered prices are recalculated by the server at checkout.</p></div>
+        <div class="cardTitle"><h3>Optional stay extras</h3><p>Breakfast, transfers, parking, late checkout, extra beds, meal plans, spa access and custom extras. Partner-entered prices are recalculated by the server at checkout.</p></div>
         <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-plus"></i> Add hotel extra</button>
       </div>
-      <div class="tableWrap"><table><thead><tr><th>Extra</th><th>Hotel listing</th><th>Category</th><th>Unit price</th><th>Charged</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="companyServiceAddonsTable"></tbody></table></div>
+      <div class="tableWrap"><table><thead><tr><th>Extra</th><th>Stay listing</th><th>Category</th><th>Unit price</th><th>Charged</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="companyServiceAddonsTable"></tbody></table></div>
     </div>
   <% } %>
 </section>

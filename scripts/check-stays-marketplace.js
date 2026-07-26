@@ -1,0 +1,25 @@
+'use strict';
+const fs=require('fs');const path=require('path');const root=path.resolve(__dirname,'..');
+const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');let ok=0;
+function check(cond,msg){if(!cond){console.error('FAIL',msg);process.exitCode=1;}else{ok++;console.log('PASS',msg);}}
+const model=read('src/models/HotelProperty.js');
+const service=read('src/services/hotel/hotelService.js');
+const registry=read('src/config/serviceRegistry.js');
+const home=read('src/views/pages/home.ejs');
+const signup=read('src/views/pages/auth/_partner-signup.ejs');
+const card=read('src/views/partials/listing-card.ejs');
+check(registry.includes("label: 'Stays'"),'public service label is Stays');
+check(home.includes('Stays, homes, apartments & rooms'),'home markets stays and homes');
+check(home.includes('Airbnb-style entire homes'),'home explains Airbnb-style inventory');
+for(const type of ['entire_home','private_room','shared_room','villa','cottage','cabin','homestay','holiday_home','farm_stay','bed_and_breakfast']) check(model.includes(type)&&service.includes(type),`property type ${type} is supported`);
+check(model.includes('rentalMode')&&service.includes('RENTAL_MODES'),'rental mode is persisted and validated');
+check(model.includes('hostType')&&model.includes('instantBook'),'host model and instant booking are persisted');
+check(signup.includes("value: 'stay_host'")||signup.includes("value=\"stay_host\""),'individual stay-host onboarding exists');
+check(card.includes("stayTypeLabels"),'stay subtype is shown on marketplace cards');
+check(read('src/config/partnerProfiles.js').includes('stay_host'),'stay host partner profile is authorised');
+check(read('src/models/Company.js').includes('individual_host'),'individual host account model is persisted');
+check(read('src/services/seo/seoService.js').includes('entire homes'),'AI-readable catalogue describes homes and private stays');
+check(read('src/routes/web/public.js').includes("router.get('/stays'"),'public /stays entry point exists');
+check(read('src/services/marketplace/catalogService.js').includes('canonicalPublicServiceType'),'stay and accommodation URL aliases map to the existing engine');
+check(read('src/services/auth/authService.js').includes("profile.key === 'stay_host'"),'individual host onboarding profile is persisted');
+if(!process.exitCode) console.log(`Stays marketplace checks passed: ${ok}`);

@@ -1,0 +1,192 @@
+/*
+ * Marketing-page responsiveness only.
+ * The approved Classic Trip public design remains authoritative; these rules
+ * only prevent CTA, badge, grid and long-copy overflow on narrow viewports.
+ */
+.sitePage .marketingPage,
+.sitePage .marketingPage > *,
+.sitePage .marketingPage :is(.card,.section,.sectionHead,.actions,.gridCards,.grid2,.grid3,.grid4,.detailGrid,.routeCardGrid,.routeList,.routeItem,.metricRow){
+  min-width:0;
+  max-width:100%;
+}
+
+.sitePage .marketingPage :is(h1,h2,h3,h4,p,strong,span,a){
+  overflow-wrap:anywhere;
+}
+
+.sitePage .marketingPage .sectionHead{
+  align-items:flex-start;
+}
+
+.sitePage .marketingPage .sectionHead > div:first-child{
+  flex:1 1 280px;
+  min-width:0;
+}
+
+.sitePage .marketingPage .sectionHead > .actions{
+  flex:0 1 auto;
+  max-width:100%;
+  min-width:0;
+  margin-left:auto;
+}
+
+.sitePage .marketingPage .actions{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  max-width:100%;
+  min-width:0;
+}
+
+.sitePage .marketingPage .actions .btn,
+.sitePage .marketingPage .sectionHead > .btn,
+.sitePage .marketingPage .marketingTabs .btn{
+  max-width:100%;
+  min-width:0;
+}
+
+.sitePage .marketingPage .badge{
+  width:fit-content;
+  max-width:100%;
+  white-space:normal;
+  line-height:1.25;
+  text-align:left;
+}
+
+.sitePage .marketingPage .routeItem{
+  min-width:0;
+  max-width:100%;
+}
+
+.sitePage .marketingPage .routeItem > div:first-child{
+  min-width:0;
+  flex:1 1 220px;
+}
+
+.sitePage .marketingPage :is(.routeCard,.listing,.stat){
+  min-width:0;
+  overflow:hidden;
+}
+
+.sitePage .marketingPage .marketingTabs{
+  max-width:100%;
+  min-width:0;
+}
+
+.sitePage .partnerCommissionPage .marketingCtaCard{
+  overflow:hidden;
+}
+
+.sitePage .partnerCommissionPage .marketingCtaHead{
+  margin-bottom:0;
+}
+
+@media(max-width:760px){
+  .sitePage .marketingPage{
+    overflow:clip;
+  }
+
+  .sitePage .marketingPage .sectionHead{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    align-items:start;
+    gap:10px;
+  }
+
+  .sitePage .marketingPage .sectionHead > div:first-child,
+  .sitePage .marketingPage .sectionHead > .actions,
+  .sitePage .marketingPage .sectionHead > .btn,
+  .sitePage .marketingPage .sectionHead > .badge{
+    width:100%;
+    max-width:100%;
+    margin-left:0;
+  }
+
+  .sitePage .marketingPage .sectionHead > .badge{
+    justify-self:start;
+    width:fit-content;
+  }
+
+  .sitePage .marketingPage .actions,
+  .sitePage .marketingPage .heroActionsRow,
+  .sitePage .marketingPage .marketingTabs{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .sitePage .marketingPage .actions .btn,
+  .sitePage .marketingPage .sectionHead > .btn,
+  .sitePage .marketingPage .marketingTabs .btn{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    height:auto;
+    min-height:40px;
+    padding:9px 11px;
+    white-space:normal;
+    line-height:1.25;
+    text-align:center;
+  }
+
+  .sitePage .marketingPage .routeItem{
+    width:100%;
+    gap:9px;
+  }
+
+  .sitePage .marketingPage .routeItem > :is(.badge,i,.btn){
+    max-width:100%;
+    flex:0 0 auto;
+  }
+
+  .sitePage .marketingPage .routeCardGrid,
+  .sitePage .marketingPage .gridCards,
+  .sitePage .marketingPage .grid2,
+  .sitePage .marketingPage .grid3,
+  .sitePage .marketingPage .grid4,
+  .sitePage .marketingPage .detailGrid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  .sitePage .marketingPage .metricRow,
+  .sitePage .marketingPage .heroMetricsRow{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .sitePage .marketingPage :is(.card,.heroCard,.routeCard){
+    max-width:100%;
+  }
+}
+
+@media(max-width:520px){
+  .sitePage .marketingPage .actions,
+  .sitePage .marketingPage .heroActionsRow,
+  .sitePage .marketingPage .marketingTabs{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .sitePage .marketingPage .actions .btn,
+  .sitePage .marketingPage .sectionHead > .btn,
+  .sitePage .marketingPage .marketingTabs .btn{
+    justify-content:center;
+  }
+
+  .sitePage .marketingPage .heroTitle{
+    max-width:100%;
+  }
+}
+
+@media(max-width:420px){
+  .siteFooter .footerGrid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .siteFooter .footerBrand{
+    grid-column:auto!important;
+  }
+  .siteFooter :is(.footerCol,.footerBrand,.footerBottom){
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+}

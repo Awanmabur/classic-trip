@@ -252,7 +252,7 @@
                   <label>Children<input name="children" type="number" min="0" max="40" value="<%= requestedChildren %>" data-hotel-occupancy></label>
                   <label>Infants<input name="infants" type="number" min="0" max="20" value="0" data-hotel-occupancy></label>
                   <label>Estimated arrival<input name="estimatedArrivalTime" type="time"></label>
-                  <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the hotel manifest is complete."></textarea>
+                  <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the stay guest list is complete."></textarea>
                   <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, bedding, airport transfer, meal, or other stay request..."></textarea>
                 <% } else { %>
                   <textarea class="full" name="notes" placeholder="Special request or note..."></textarea>
@@ -264,7 +264,7 @@
 
         <aside class="directPaymentSide" aria-label="Ticket and payment preview">
           <div class="summaryCard stickyTicketPreview directTicketPreview">
-            <h3><%= listing.serviceType === 'hotel' ? 'Booking / room preview' : 'Ticket / seats preview' %></h3>
+            <h3><%= listing.serviceType === 'hotel' ? 'Stay / room preview' : 'Ticket / seats preview' %></h3>
             <div class="kv">
               <div><span>Service</span><b><%= listing.title %></b></div>
               <div><span>Selected</span><b><%= selectedLabel %></b></div>

@@ -78,7 +78,7 @@ check('Scheduled room cleanup includes pending hotel checkout expiry', roomReser
 // Dashboard/admin hotel completion.
 check('Partner-managed hotel add-on templates exist', setupService.includes('hotel: Object.freeze({'));
 check('Hotel add-on prices remain manually entered', dashboardJs.includes('enter the unit price yourself') && dashboardJs.includes('Templates never choose or copy a price'));
-check('Hotel add-ons are shown in hotel setup', hotelSection.includes('Optional hotel extras'));
+check('Hotel add-ons are shown in hotel setup', hotelSection.includes('Optional stay extras'));
 check('Company hotel check-in and check-out routes are service-scoped', companyRoutes.includes("requireCompanyService('hotel'), hotelController.checkIn") && companyRoutes.includes("requireCompanyService('hotel'), hotelController.checkOut"));
 check('Employee hotel check-in and check-out routes are permission-scoped', employeeRoutes.includes("/employee/hotels/bookings/:bookingRef/check-in") && employeeRoutes.includes("requirePermission('checkin.manage')") && employeeRoutes.includes("/employee/hotels/bookings/:bookingRef/check-out"));
 check('Employee hotel manifests are permission-scoped', employeeRoutes.includes("/employee/hotels/manifest") && employeeRoutes.includes("requirePermission('manifest.view')"));
