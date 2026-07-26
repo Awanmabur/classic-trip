@@ -116,6 +116,17 @@ const env = {
     businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
     graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v20.0',
   },
+  maps: {
+    tileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    tileAttribution: process.env.MAP_TILE_ATTRIBUTION || '&copy; OpenStreetMap contributors',
+    defaultLatitude: number('MAP_DEFAULT_LATITUDE', 0.3476),
+    defaultLongitude: number('MAP_DEFAULT_LONGITUDE', 32.5825),
+    defaultZoom: number('MAP_DEFAULT_ZOOM', 12),
+    routingApiUrl: configuredValue('TAXI_ROUTING_API_URL') || (process.env.NODE_ENV === 'production' ? '' : 'https://router.project-osrm.org'),
+    routingProfile: process.env.TAXI_ROUTING_PROFILE || 'driving',
+    routingTimeoutMs: number('TAXI_ROUTING_TIMEOUT_MS', 8000),
+    requireLiveRouting: booleanFlag('TAXI_REQUIRE_LIVE_ROUTING', process.env.NODE_ENV === 'production'),
+  },
   push: {
     enabled: booleanFlag('PUSH_ENABLED', false),
     vapidPublicKey: process.env.PUSH_VAPID_PUBLIC_KEY || '',
@@ -185,6 +196,16 @@ function validateEnv() {
     let siteUrl;
     try { siteUrl = new URL(env.seo.siteUrl); } catch (error) { throw new Error('SITE_URL must be a valid absolute URL'); }
     if (siteUrl.protocol !== 'https:') throw new Error('SITE_URL must use HTTPS in production');
+  }
+  if (env.maps.routingApiUrl) {
+    let routingUrl;
+    try { routingUrl = new URL(env.maps.routingApiUrl); } catch (error) { throw new Error('TAXI_ROUTING_API_URL must be a valid absolute URL'); }
+    if (env.isProduction && routingUrl.protocol !== 'https:') throw new Error('TAXI_ROUTING_API_URL must use HTTPS in production');
+    const blockedRoutingHosts = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1']);
+    if (env.isProduction && blockedRoutingHosts.has(routingUrl.hostname.toLowerCase())) throw new Error('TAXI_ROUTING_API_URL cannot target a local address in production');
+  }
+  if (env.isProduction && env.maps.requireLiveRouting && !env.maps.routingApiUrl) {
+    throw new Error('TAXI_ROUTING_API_URL is required when TAXI_REQUIRE_LIVE_ROUTING=true');
   }
   if (env.isProduction && !env.mongoTransactions) {
     throw new Error('MONGO_TRANSACTIONS=true is required in production');

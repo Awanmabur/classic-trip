@@ -101,32 +101,13 @@
     @media(max-width:760px){.partnerPlanGrid{grid-template-columns:1fr}.partnerSteps{grid-template-columns:1fr 1fr}.partnerSectionTitle{align-items:flex-start;flex-direction:column}.partnerSectionTitle small{text-align:left}}
     @media(max-width:460px){.partnerSteps{grid-template-columns:1fr}}
 
-    /* Final auth/onboarding polish: compact, rounded and consistent with the public site. */
-    .authShell{padding:15px;gap:12px;border-radius:26px}
-    .authTop{gap:5px}
-    .authTop p{margin:0;line-height:1.5}
-    form{gap:12px}
-    .field{gap:6px}
-    .control{height:42px;min-height:42px;border-radius:999px;padding:0 12px}
-    textarea.control{height:auto;min-height:82px;border-radius:20px;padding:11px 12px}
-    .btn{min-height:40px;height:40px;border-radius:999px;padding:0 15px}
-    .roleCard,.miniCard,.supportCard,.partnerServiceCard{border-radius:20px}
-    .fieldHint{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-weight:750;line-height:1.45}
-    .currencyControl input[readonly]{cursor:not-allowed;color:var(--text);font-weight:900}
-    .currencyControl{background:var(--field)}
-    .partnerStep{gap:11px}
-    .partnerDynamicPanel{border-radius:20px;padding:12px}
-    @media(max-width:640px){
-      .grid{gap:11px}.authShell{padding:11px;gap:10px;border-radius:21px}.authTop h2{font-size:19px}.authTop p{font-size:12px}
-      form{gap:10px}.field{gap:5px}.control{height:40px;min-height:40px}.btn{height:38px;min-height:38px;font-size:12px}
-      .row2{gap:9px}.roleGrid{gap:8px}.partnerStep{gap:9px}.partnerDynamicPanel{padding:10px;border-radius:18px}
-    }
+
 
 </style>
-  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
-  <link rel="stylesheet" href="/css/auth-layout-polish.css?v=20260725-auth-spacing-final-1" />
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-deep-cleanup-2">
+  <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
-<body>
+<body class="authPage">
   <div class="navWrap">
     <header class="nav">
       <a class="brand" href="/" aria-label="Classic Trip Home"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
@@ -152,12 +133,12 @@
         <div class="heroText">
           <div class="eyebrow">Classic Trip account access</div>
           <h1>Login or create your travel account.</h1>
-          <p>Customers manage trips, promoters track referral commission, and verified bus or hotel partners onboard from the same secure account page.</p>
+          <p>Customers manage trips, promoters track referral commission, and verified bus, hotel, flight-agent and local-mobility partners onboard through the same secure account page.</p>
         </div>
         <div class="benefits">
           <div class="benefit"><i class="fa-solid fa-receipt"></i><strong>Receipts saved</strong><span>Access tickets from Gmail, WhatsApp, or My Bookings.</span></div>
           <div class="benefit"><i class="fa-solid fa-link"></i><strong>Promoter links</strong><span>Share services and track commission referrals.</span></div>
-          <div class="benefit"><i class="fa-solid fa-bus"></i><strong>Partner access</strong><span>Manage routes, rooms, schedules, pricing and ads.</span></div>
+          <div class="benefit"><i class="fa-solid fa-bus"></i><strong>Partner access</strong><span>Manage the service-specific listings, operations, assigned work, support and finance your verified role permits.</span></div>
           <div class="benefit"><i class="fa-solid fa-lock"></i><strong>Secure checkout</strong><span>Protected sessions, account-state checks, and role permissions.</span></div>
         </div>
       </aside>
@@ -235,7 +216,7 @@
               <div class="socialGrid"><a class="social" id="googleSignupLink" href="/auth/google?role=customer"><i class="fa-brands fa-google"></i>Google</a><button class="social" type="button"><i class="fa-brands fa-whatsapp"></i>WhatsApp</button></div>
             </form>
             <div class="notice" style="margin-top:12px"><strong>Staff and drivers:</strong> employee, agent, finance, check-in, support, and driver accounts are created only through a secure company invitation.</div>
-            <a class="partnerOnboardingLink" href="#partner" data-open-panel="partner"><i class="fa-solid fa-building-circle-check"></i><span><strong>Register a bus or hotel company</strong><small>Continue in this same secure account and onboarding page.</small></span><i class="fa-solid fa-arrow-right"></i></a>
+            <a class="partnerOnboardingLink" href="#partner" data-open-panel="partner"><i class="fa-solid fa-building-circle-check"></i><span><strong>Register as a travel or mobility partner</strong><small>Bus operators, hotels, flight agents, boda/car drivers and fleet owners continue here.</small></span><i class="fa-solid fa-arrow-right"></i></a>
           </div>
           <div class="miniDash">
             <div class="stat"><strong><%= platformConfig.supportedCurrencies.length %></strong><span>supported currencies</span></div>

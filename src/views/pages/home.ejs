@@ -4,20 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
-  <title>Classic Trip | Bus, Hotel, Flights and Local Taxi</title>
-  <meta name="description" content="Book buses, hotels, flights, boda rides and car rides across East Africa with live availability and secure checkout." />
+  <%
+    const homeTitle = seo?.title || 'Classic Trip | Bus, Hotel, Flights and Local Taxi';
+    const homeDescription = seo?.description || 'Book verified buses, hotels, agent-supported flights, boda rides and private cars across East Africa.';
+    const homeCanonical = `${String(siteUrl || '').replace(/\/+$/, '') || ''}/`;
+    const homeSchema = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        { '@type': 'TravelAgency', name: 'Classic Trip', url: homeCanonical, areaServed: ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','Burundi','Somalia','Democratic Republic of the Congo'] },
+        { '@type': 'WebSite', name: 'Classic Trip', url: homeCanonical, potentialAction: { '@type': 'SearchAction', target: `${String(siteUrl || '').replace(/\/+$/, '')}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
+        { '@type': 'WebPage', name: homeTitle, description: homeDescription, url: homeCanonical },
+      ],
+    };
+  %>
+  <title><%= homeTitle %></title>
+  <meta name="description" content="<%= homeDescription %>" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="<%= homeCanonical %>" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
+  <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="<%= homeTitle %>" />
+  <meta property="og:description" content="<%= homeDescription %>" />
+  <meta property="og:url" content="<%= homeCanonical %>" />
+  <meta name="twitter:card" content="summary" />
+  <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css?v=20260724-hotel-ui-final-1">
-  <meta name="csrf-token" content="<%= csrfToken %>">
-  <script src="/js/csrf.js?v=20260722-3" defer></script>
+  <link rel="stylesheet" href="/css/pages/home.css?v=20260726-reference-ui-1">
+  <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
+    <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-completion-1">
+  <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -35,6 +60,7 @@
     </div>
   </header>
 
+  <%- include('../partials/site-flash') %>
 
   <div class="drawer" id="drawer">
     <div class="drawerPanel">
@@ -306,7 +332,7 @@
     <div class="footerGrid">
       <div class="footerBrand">
         <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-        <p>Classic Trip is a database-backed marketplace for bus travel and hotel stays.</p>
+        <p>Classic Trip brings verified bus travel, hotel stays, agent-supported flights, boda rides and private cars into one secure East Africa marketplace.</p>
         <span><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
         <span><i class="fa-solid fa-clock"></i> <%= platformConfig.holdMinutes %> minute inventory holds</span>
         <span><i class="fa-solid fa-headset"></i> Customer support</span>
@@ -316,6 +342,8 @@
         <h3>Book & manage</h3>
         <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
         <a href="/search?serviceType=hotel"><i class="fa-solid fa-hotel"></i> Hotels</a>
+        <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
+        <a href="/taxi"><i class="fa-solid fa-motorcycle"></i> Boda & car rides</a>
         <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
         <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
         <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>

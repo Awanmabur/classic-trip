@@ -12,13 +12,12 @@ const assert = (condition, message) => {
   passed += 1;
 };
 
-const css = read('public/css/accessibility.css');
-assert(!/html\[data-theme="dark"\][\s\S]{0,240}background(?:-color)?\s*:/i.test(css.replace(/::selection[\s\S]*?\}/g, '')), 'Dark-mode accessibility layer must not replace page backgrounds');
-assert(!/html\[data-theme="dark"\]\s+\*/.test(css), 'Blanket dark-mode selector is forbidden');
-assert(css.includes('--ct-mobile-control: 50px'), 'Accepted 50px mobile control size must be restored');
-assert(css.includes('--ct-mobile-button: 48px'), 'Accepted 48px mobile button size must be restored');
-assert(!css.includes('--ct-mobile-control: 54px') && !css.includes('--ct-mobile-button: 52px'), 'Oversized regression values must be absent');
-assert(css.includes('color: #f8fafc') && css.includes('color: var(--muted)'), 'Dark mode must improve text contrast');
+const css = read('public/css/accessibility-safe.css');
+assert(css.includes(':focus-visible'), 'Keyboard focus visibility must be restored safely');
+assert(css.includes('prefers-reduced-motion: reduce'), 'Reduced-motion support must remain available');
+assert(css.includes('forced-colors: active'), 'Forced-colours support must remain available');
+assert(!css.includes('min-height:') && !css.includes('font-size:') && !css.includes('border-radius:'), 'Accessibility layer must not resize or reshape the approved UI');
+assert(!css.includes('html[data-theme="dark"]') && !css.includes('body {'), 'Accessibility layer must not replace the approved theme');
 
 const catalog = read('src/services/marketplace/catalogService.js');
 const commerce = read('src/repositories/domain/commerceRepository.js');

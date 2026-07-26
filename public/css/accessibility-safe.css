@@ -1,0 +1,47 @@
+/*
+ * Classic Trip non-destructive accessibility layer.
+ * Loaded last. It intentionally does not change page geometry, spacing,
+ * control dimensions, radii, colours, grids, sidebars, or responsive layout.
+ */
+
+:root {
+  --ct-focus-outline: currentColor;
+}
+
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ct-focus-outline) !important;
+  outline-offset: 2px !important;
+}
+
+:is(input, select, textarea):focus,
+:is(input, select, textarea):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid CanvasText !important;
+  }
+
+  :is(button, .btn, .iconbtn, .iconBtn, .navBtn, input, select, textarea) {
+    forced-color-adjust: auto;
+  }
+}
+
+@media print {
+  :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 0 !important;
+  }
+}

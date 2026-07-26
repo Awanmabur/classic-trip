@@ -5,11 +5,12 @@ const quoteService = require('./taxiQuoteService');
 const securityService = require('../../../services/security/securityService');
 const sensitive = require('../../../services/security/sensitiveFieldService');
 const paymentSettlementService = require('../../../services/booking/paymentSettlementService');
+const refundWorkflowService = require('../../../services/support/workflowService');
 const calculateCommission = require('../../../utils/calculateCommission');
 const generateBookingRef = require('../../../utils/generateBookingRef');
 const { PLATFORM_MOBILITY_OWNER } = require('../domain/taxiGovernance');
 const {
-  cleanText, integerValue, validationError, conflictError, code, randomToken, hashToken,
+  cleanText, integerValue, validationError, conflictError, code, randomToken, hashToken, safeEqual,
   actorId, assertTransition, RIDE_TRANSITIONS,
 } = require('../domain/taxiDomain');
 
@@ -69,7 +70,7 @@ async function createRide(payload = {}, actor = {}) {
       id: requestId, requestRef, companyId: PLATFORM_MOBILITY_OWNER, providerCompanyId: '', platformManaged: true,
       listingId: quote.listingId, quoteId: quote.id, customerUserId, contactSnapshot: contact,
       serviceType: quote.serviceType, requestedPickupAt: quote.scheduledPickupAt, scheduled,
-      pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], vehicleClassId: quote.vehicleClassId,
+      pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], routeSnapshot: quote.routeSnapshot || null, vehicleClassId: quote.vehicleClassId,
       passengerCount: integerValue(payload.passengerCount, 'Passengers', 1, 20, 1),
       luggageCount: integerValue(payload.luggageCount, 'Luggage', 0, 30, 0),
       accessibilityNeeds: Array.isArray(payload.accessibilityNeeds) ? payload.accessibilityNeeds.map((value) => cleanText(value, 120)).filter(Boolean) : [],
@@ -81,10 +82,10 @@ async function createRide(payload = {}, actor = {}) {
       companyId: PLATFORM_MOBILITY_OWNER, providerCompanyId: '', platformManaged: true,
       listingId: quote.listingId, customerUserId,
       vehicleClassId: quote.vehicleClassId, serviceType: quote.serviceType,
-      pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], scheduledPickupAt: quote.scheduledPickupAt,
+      pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], routeSnapshot: quote.routeSnapshot || null, scheduledPickupAt: quote.scheduledPickupAt,
       pickupPinHash: hashToken(pickupPin), pickupPinEncrypted: sensitive.encrypt(pickupPin, `ride-pin:${rideId}`),
       status: 'awaiting_payment', paymentStatus: 'pending', settlementStatus: 'pending_payment',
-      pricing, estimateSnapshot: { distanceKm: quote.distanceKm, durationMinutes: quote.durationMinutes, price: quote.priceSnapshot },
+      pricing, routeSnapshot: quote.routeSnapshot || null, estimateSnapshot: { distanceKm: quote.distanceKm, durationMinutes: quote.durationMinutes, price: quote.priceSnapshot, route: quote.routeSnapshot || null },
       createdAt: now(), updatedAt: now(),
     };
     const booking = {
@@ -92,7 +93,7 @@ async function createRide(payload = {}, actor = {}) {
       customerUserId, companyId: PLATFORM_MOBILITY_OWNER, providerCompanyId: '', tenantId: PLATFORM_MOBILITY_OWNER, listingId: quote.listingId,
       passengers: [{ id: 'primary', fullName: contact.fullName, name: contact.fullName, phone: contact.phone, email: contact.email, pickupPoint: quote.pickup.address, dropoffPoint: quote.destination.address, seatOrRoom: 'Private ride', checkInStatus: 'not_checked' }],
       bookingItems: [{ id: bookingItemId, serviceType: 'local_transport', domainReservationId: rideId, quantity: 1 }],
-      bookingLegs: [{ type: 'taxi', rideRef, pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], scheduledPickupAt: quote.scheduledPickupAt, serviceType: quote.serviceType }],
+      bookingLegs: [{ type: 'taxi', rideRef, pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], routeSnapshot: quote.routeSnapshot || null, scheduledPickupAt: quote.scheduledPickupAt, serviceType: quote.serviceType }],
       ticketLegs: [], quantity: 1, pricing, grossAmount: pricing.total,
       buyerSnapshot: contact, guestSnapshot: contact, paymentStatus: 'pending', refundStatus: 'none',
       bookingChannel: actor.bookingChannel || 'web', bookingStatus: 'awaiting_payment', settlementStatus: 'pending_payment',
@@ -132,7 +133,7 @@ async function confirmPayment(bookingRef, payment = {}) {
       paymentStatus: 'successful', paymentProvider: payment.provider || booking.paymentProvider || '',
       paymentRef: payment.providerReference || booking.paymentRef || '',
       bookingStatus: next === 'scheduled' ? 'confirmed' : 'in_progress', settlementStatus: 'pending_fulfillment',
-      ticketLegs: [{ type: 'local_transport', rideId: ride.id, rideRef: ride.rideRef, pickup: ride.pickup, destination: ride.destination, scheduledPickupAt: ride.scheduledPickupAt, status: next }],
+      ticketLegs: [{ type: 'local_transport', rideId: ride.id, rideRef: ride.rideRef, pickup: ride.pickup, destination: ride.destination, routeSnapshot: ride.routeSnapshot || null, scheduledPickupAt: ride.scheduledPickupAt, status: next }],
       updatedAt: now(),
     });
     await repo.rides.save(ride, { id: ride.id }, opts(session));
@@ -189,7 +190,7 @@ async function transitionRide(rideId, next, actor = {}, metadata = {}) {
 async function verifyPickupPin(rideId, pin, actor = {}) {
   const ride = await repo.oneOrThrow(repo.rides, { id: cleanText(rideId, 180), driverProfileId: actor.driverProfileId }, 'Assigned local ride was not found');
   if (ride.status !== 'driver_arrived') throw conflictError('Driver must arrive before verifying the passenger pickup PIN');
-  if (hashToken(cleanText(pin, 12)) !== ride.pickupPinHash) throw validationError('Pickup PIN is incorrect', 403, 'invalid_pickup_pin');
+  if (!safeEqual(hashToken(cleanText(pin, 12)), ride.pickupPinHash)) throw validationError('Pickup PIN is incorrect', 403, 'invalid_pickup_pin');
   return transitionRide(ride.id, 'pickup_verified', { ...actor, actorType: 'driver' }, { verified: true });
 }
 
@@ -197,19 +198,21 @@ function assertCustomerAccess(booking, lookupCode = '', actor = {}) {
   if (actor.actorType === 'system' || actor.role === 'super_admin') return;
   const authenticatedUserId = cleanText(actor.userId, 180);
   if (authenticatedUserId && String(booking.customerUserId || '') === authenticatedUserId) return;
-  if (!lookupCode || String(lookupCode) !== String(booking.guestLookupCode || '')) throw validationError('Ride booking lookup code is required or invalid', 403);
+  if (!lookupCode || !safeEqual(lookupCode, booking.guestLookupCode || '')) throw validationError('Ride booking lookup code is required or invalid', 403);
 }
 
 async function cancelRide(reference, reason, actor = {}) {
   return repo.withTransaction(async (session) => {
     const ref = cleanText(reference, 180);
     const ride = await repo.oneOrThrow(repo.rides, { $or: [{ id: ref }, { rideRef: ref }, { bookingRef: ref }] }, 'Local ride was not found', opts(session));
+    const cancellationReason = cleanText(reason, 1000);
+    if (cancellationReason.length < 5) throw validationError('Provide a clear cancellation reason');
     const booking = await repo.bookings.findOne({ id: ride.bookingId, companyId: PLATFORM_MOBILITY_OWNER }, opts(session));
     if (actor.companyId || actor.driverProfileId) assertPartnerAccess(ride, actor);
     else if (actor.actorType !== 'system') assertCustomerAccess(booking, actor.lookupCode, actor);
     if (['completed', 'refunded', 'cancelled'].includes(ride.status)) throw conflictError('This local ride cannot be cancelled');
     const from = ride.status; assertTransition(from, 'cancelled', RIDE_TRANSITIONS);
-    ride.status = 'cancelled'; ride.cancellation = { reason: cleanText(reason, 1000), actorId: actorId(actor), actorType: actor.actorType || 'customer', at: now() }; ride.updatedAt = now();
+    ride.status = 'cancelled'; ride.cancellation = { reason: cancellationReason, actorId: actorId(actor), actorType: actor.actorType || 'customer', at: now() }; ride.updatedAt = now();
     await repo.rides.save(ride, { id: ride.id }, opts(session));
     await repo.requests.updateMany({ id: ride.requestId }, { $set: { status: 'cancelled', updatedAt: now() } }, opts(session));
     await repo.assignments.updateMany({ rideId: ride.id, status: { $in: ['offered', 'accepted'] } }, { $set: { status: 'cancelled', updatedAt: now() } }, opts(session));
@@ -217,13 +220,73 @@ async function cancelRide(reference, reason, actor = {}) {
       await repo.availability.updateMany({ driverProfileId: ride.driverProfileId }, { $set: { status: 'available', updatedAt: now() }, $inc: { version: 1 } }, opts(session));
       await repo.vehicles.updateMany({ id: ride.vehicleId }, { $set: { operationalStatus: 'available', updatedAt: now() } }, opts(session));
     }
+    let refund = null;
     if (booking) {
       Object.assign(booking, { bookingStatus: 'cancelled', cancelledAt: now(), cancellationReason: ride.cancellation.reason, refundStatus: booking.paymentStatus === 'successful' ? 'requested' : 'none', updatedAt: now() });
       await repo.bookings.save(booking, { id: booking.id }, opts(session));
       await repo.bookingItems.updateMany({ bookingId: booking.id }, { $set: { status: 'cancelled', updatedAt: now() } }, opts(session));
+      if (booking.paymentStatus === 'successful') {
+        refund = await refundWorkflowService.requestRefundLive({
+          bookingRef: booking.bookingRef,
+          requesterId: actorId(actor),
+          reason: ride.cancellation.reason || 'Customer cancelled local ride',
+          companyId: booking.companyId,
+          actorType: actor.actorType || 'customer',
+          session,
+        });
+        booking.refundIds = [...new Set([...(booking.refundIds || []), refund.id])];
+      }
     }
-    await event({ ride, from, to: 'cancelled', eventType: 'ride_cancelled', actorType: actor.actorType || 'customer', actorIdValue: actorId(actor), metadata: { reason: ride.cancellation.reason }, session });
-    return { ride: { ...ride, pickupPinHash: undefined, pickupPinEncrypted: undefined }, booking: booking ? { ...booking, guestLookupCode: undefined } : null };
+    await event({ ride, from, to: 'cancelled', eventType: 'ride_cancelled', actorType: actor.actorType || 'customer', actorIdValue: actorId(actor), metadata: { reason: ride.cancellation.reason, refundId: refund?.id || '' }, session });
+    return { ride: { ...ride, pickupPinHash: undefined, pickupPinEncrypted: undefined }, booking: booking ? { ...booking, guestLookupCode: undefined } : null, refund: refund ? { id: refund.id, status: refund.status, amount: refund.amount, currency: refund.currency } : null };
+  });
+}
+
+async function reportCustomerIncident(reference, payload = {}, actor = {}) {
+  return repo.withTransaction(async (session) => {
+    const ref = cleanText(reference, 180);
+    const ride = await repo.oneOrThrow(repo.rides, { $or: [{ rideRef: ref }, { bookingRef: ref }, { id: ref }] }, 'Local ride was not found', opts(session));
+    const booking = await repo.oneOrThrow(repo.bookings, { id: ride.bookingId, companyId: PLATFORM_MOBILITY_OWNER }, 'Local ride booking was not found', opts(session));
+    assertCustomerAccess(booking, actor.lookupCode, actor);
+    const category = cleanText(payload.category || 'safety', 40).toLowerCase();
+    const severity = cleanText(payload.severity || 'high', 20).toLowerCase();
+    const description = cleanText(payload.description, 3000);
+    if (!['safety', 'collision', 'harassment', 'lost_item', 'vehicle', 'route', 'payment', 'other'].includes(category)) throw validationError('Incident category is invalid');
+    if (!['low', 'medium', 'high', 'critical'].includes(severity)) throw validationError('Incident severity is invalid');
+    if (description.length < 10) throw validationError('Describe the safety issue in at least 10 characters');
+    const incident = {
+      id: await repo.nextId('taxi-incident'),
+      companyId: PLATFORM_MOBILITY_OWNER,
+      providerCompanyId: ride.providerCompanyId || '',
+      rideId: ride.id,
+      driverProfileId: ride.driverProfileId || '',
+      vehicleId: ride.vehicleId || '',
+      reportedBy: actorId(actor),
+      reporterType: 'customer',
+      category,
+      severity,
+      description,
+      evidence: [],
+      status: 'open',
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    await repo.incidents.save(incident, { id: incident.id }, opts(session));
+    const allowedSafetyHold = Array.isArray(RIDE_TRANSITIONS[String(ride.status || '').toLowerCase()])
+      && RIDE_TRANSITIONS[String(ride.status || '').toLowerCase()].includes('safety_hold');
+    if (severity === 'critical' && allowedSafetyHold) {
+      const from = ride.status;
+      ride.status = 'safety_hold';
+      ride.safetyState = { status: 'open', incidentId: incident.id, openedAt: now(), openedBy: actorId(actor) };
+      ride.updatedAt = now();
+      await repo.rides.save(ride, { id: ride.id }, opts(session));
+      await event({ ride, from, to: 'safety_hold', eventType: 'customer_safety_hold', actorType: 'customer', actorIdValue: actorId(actor), metadata: { incidentId: incident.id }, session });
+    } else {
+      await event({ ride, from: ride.status, to: ride.status, eventType: 'customer_incident_reported', actorType: 'customer', actorIdValue: actorId(actor), metadata: { incidentId: incident.id, category, severity }, session });
+    }
+    await repo.audit({ actorId: actorId(actor), action: 'taxi.customer.incident_reported', targetType: 'taxi_incident', targetId: incident.id, companyId: PLATFORM_MOBILITY_OWNER, metadata: { rideId: ride.id, category, severity }, session });
+    await repo.outbox({ eventType: 'TaxiCustomerIncidentReported', aggregateType: 'taxi_incident', aggregateId: incident.id, companyId: PLATFORM_MOBILITY_OWNER, payload: { rideId: ride.id, bookingRef: ride.bookingRef, category, severity }, session });
+    return { incident: { id: incident.id, category, severity, status: incident.status, createdAt: incident.createdAt }, ride: { id: ride.id, status: ride.status } };
   });
 }
 
@@ -257,4 +320,4 @@ async function getPublicRide(reference, lookupCode = '', actor = {}) {
   };
 }
 
-module.exports = { createRide, confirmPayment, failPayment, transitionRide, verifyPickupPin, cancelRide, getPublicRide, event, assertPartnerAccess };
+module.exports = { createRide, confirmPayment, failPayment, transitionRide, verifyPickupPin, cancelRide, reportCustomerIncident, getPublicRide, event, assertPartnerAccess };

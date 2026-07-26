@@ -14,6 +14,7 @@ const rideQuoteSchema = new Schema({
   scheduledPickupAt: Date,
   distanceKm: { type: Number, required: true, min: 0 },
   durationMinutes: { type: Number, required: true, min: 0 },
+  routeSnapshot: Schema.Types.Mixed,
   priceSnapshot: { type: Schema.Types.Mixed, required: true },
   surgeMultiplier: { type: Number, min: 1, default: 1 },
   status: { type: String, enum: ['quoted', 'accepted', 'expired', 'cancelled'], default: 'quoted', index: true },

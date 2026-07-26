@@ -87,7 +87,7 @@ add('flight hold expiry job',exists('src/jobs/expireFlightHolds.js')&&has('src/c
 add('job env examples',has('.env.example','JOB_DISPATCH_TAXI_RIDES','JOB_EXPIRE_FLIGHT_HOLDS'));
 add('payment providers on flight',has('src/views/pages/flights.ejs','mtn_momo','airtel_money','flutterwave','paystack','dpo'));
 add('payment providers on taxi',has('public/js/taxi.js','mtn_momo','airtel_money','flutterwave','paystack','dpo'));
-add('rounded dashboard controls',has('public/css/dashboard-workspace.css','.adminSupplyControl','.inlineReviewForm','.btn,.tinyBtn,.iconBtn','border-radius:18px'));
+add('rounded dashboard controls',has('public/css/dashboard-service-additions.css','.adminSupplyControl','.inlineReviewForm','border-radius:14px'));
 add('rounded public ride controls',has('public/css/pages/travel-booking.css','border-radius'));
 add('home four-service navigation',has('src/views/pages/home.ejs','/flights','/taxi'));
 add('footer four-service navigation',has('src/views/partials/site-footer.ejs','Flights','Local taxi'));

@@ -8,7 +8,7 @@ function fingerprint(req = {}) { return sha256([req.ip || '', req.headers?.['use
 function sessionHash(req = {}) { return sha256(req.sessionID || req.session?.id || `${Date.now()}-${Math.random()}`).slice(0, 48); }
 function maskValue(value = '') { const text = String(value ?? ''); if (!text) return ''; if (text.includes('@')) { const [name, domain] = text.split('@'); return `${name.slice(0, 2)}***@${domain}`; } if (text.length <= 4) return '***'; return `${text.slice(0, 2)}***${text.slice(-2)}`; }
 function maskSensitive(value) { if (Array.isArray(value)) return value.map(maskSensitive); if (!value || typeof value !== 'object') return value; return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, SENSITIVE_KEYS.test(key) ? maskValue(item) : maskSensitive(item)])); }
-function requestContext(req = {}) { return { ip: req.ip || '', userAgent: req.headers?.['user-agent'] || '', requestId: req.headers?.['x-request-id'] || '' }; }
+function requestContext(req = {}) { return { ip: req.ip || '', userAgent: req.headers?.['user-agent'] || '', requestId: req.id || '' }; }
 
 async function recordAudit({ action, actorId = '', actorRole = '', entityType = '', entityId = '', beforeSummary = null, afterSummary = null, status = 'success', reason = '', metadata = {}, req = null }) {
   const user = req?.session?.user || {}; const ctx = requestContext(req || {});
@@ -22,17 +22,47 @@ async function recordSecurityEvent({ eventType, severity = 'low', actorId = '', 
 }
 async function recentFailedLoginCountLive(identity, windowMs) { if (!identity) return 0; const masked = maskValue(identity); return securityRepository.loginAudits.count({ identity: masked, result: 'failure', createdAt: { $gte: new Date(Date.now() - windowMs) } }); }
 async function recordLoginAttempt({ user = null, identity = '', result = 'failure', reason = '', req = null }) {
-  const ctx = requestContext(req || {}); const deviceFingerprint = fingerprint(req || {}); let deviceSession = null;
+  const ctx = requestContext(req || {});
+  const deviceFingerprint = fingerprint(req || {});
+  const timestamp = nowIso();
+  let deviceSession = null;
+  let deviceWrite = Promise.resolve(null);
+
   if (result === 'success' && user?.id) {
-    const hash = sessionHash(req || {}); deviceSession = await securityRepository.deviceSessions.findOne({ sessionHash: hash, userId: user.id });
-    if (!deviceSession) deviceSession = { id: await nextId('device-session'), userId: user.id, role: user.role || '', sessionHash: hash, deviceFingerprint, ip: ctx.ip, userAgent: ctx.userAgent, firstSeenAt: nowIso(), lastSeenAt: nowIso(), status: 'active', metadata: {}, createdAt: nowIso(), updatedAt: nowIso() };
-    else Object.assign(deviceSession, { lastSeenAt: nowIso(), status: 'active', updatedAt: nowIso() });
-    await securityRepository.deviceSessions.save(deviceSession, { sessionHash: hash });
+    const hash = sessionHash(req || {});
+    deviceSession = await securityRepository.deviceSessions.findOne({ sessionHash: hash, userId: user.id });
+    if (!deviceSession) {
+      deviceSession = {
+        id: await nextId('device-session'), userId: user.id, role: user.role || '', sessionHash: hash,
+        deviceFingerprint, ip: ctx.ip, userAgent: ctx.userAgent, firstSeenAt: timestamp,
+        lastSeenAt: timestamp, status: 'active', metadata: {}, createdAt: timestamp, updatedAt: timestamp,
+      };
+    } else {
+      Object.assign(deviceSession, { lastSeenAt: timestamp, status: 'active', updatedAt: timestamp });
+    }
+    deviceWrite = securityRepository.deviceSessions.save(deviceSession, { sessionHash: hash });
   }
-  const row = { id: await nextId('login-audit'), userId: user?.id || '', identity: maskValue(identity || user?.email || user?.phone || ''), role: user?.role || '', result, reason, ...ctx, deviceFingerprint, deviceSessionId: deviceSession?.id || '', riskScore: result === 'success' ? 0 : 20, metadata: {}, createdAt: nowIso(), updatedAt: nowIso() };
-  await securityRepository.loginAudits.save(row, { id: row.id });
-  await recordAudit({ action: result === 'success' ? 'auth.login.success' : 'auth.login.failure', actorId: user?.id || 'anonymous', actorRole: user?.role || '', entityType: 'user', entityId: user?.id || '', status: result, reason, metadata: { identity: row.identity, deviceSessionId: row.deviceSessionId }, req }); return row;
+
+  const row = {
+    id: await nextId('login-audit'), userId: user?.id || '',
+    identity: maskValue(identity || user?.email || user?.phone || ''), role: user?.role || '',
+    result, reason, ...ctx, deviceFingerprint, deviceSessionId: deviceSession?.id || '',
+    riskScore: result === 'success' ? 0 : 20, metadata: {}, createdAt: timestamp, updatedAt: timestamp,
+  };
+
+  await Promise.all([
+    deviceWrite,
+    securityRepository.loginAudits.save(row, { id: row.id }),
+    recordAudit({
+      action: result === 'success' ? 'auth.login.success' : 'auth.login.failure',
+      actorId: user?.id || 'anonymous', actorRole: user?.role || '', entityType: 'user',
+      entityId: user?.id || '', status: result, reason,
+      metadata: { identity: row.identity, deviceSessionId: row.deviceSessionId }, req,
+    }),
+  ]);
+  return row;
 }
+
 async function closeDeviceSession(req = {}) {
   const user = req.session?.user; if (!user?.id) return null; const hash = sessionHash(req); const session = await securityRepository.deviceSessions.findOne({ userId: user.id, sessionHash: hash, status: 'active' }); if (!session) return null;
   Object.assign(session, { status: 'revoked', revokedAt: nowIso(), updatedAt: nowIso() }); await securityRepository.deviceSessions.save(session, { sessionHash: hash }); await recordAudit({ action: 'auth.logout', actorId: user.id, actorRole: user.role, entityType: 'device_session', entityId: session.id, req }); return session;

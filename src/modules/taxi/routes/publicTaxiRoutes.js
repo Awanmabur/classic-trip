@@ -12,4 +12,5 @@ router.post('/rides/:bookingRef/payment',paymentLimiter,async(req,res,next)=>{tr
 router.get('/rides/:reference',ticketLimiter,async(req,res,next)=>{try{res.json(await rideService.getPublicRide(req.params.reference,req.query.lookupCode,actor(req)));}catch(e){next(e);}});
 router.get('/rides/:reference/tracking',publicReadLimiter,async(req,res,next)=>{try{const result=await rideService.getPublicRide(req.params.reference,req.query.lookupCode,actor(req));res.json({booking:result.booking,ride:result.ride,driver:result.driver,vehicle:result.vehicle,vehicleClass:result.vehicleClass,location:result.location,events:result.events});}catch(e){next(e);}});
 router.post('/rides/:reference/cancel',publicWriteLimiter,async(req,res,next)=>{try{res.json(await rideService.cancelRide(req.params.reference,req.body.reason,{...actor(req),lookupCode:req.body.lookupCode}));}catch(e){next(e);}});
+router.post('/rides/:reference/incidents',publicWriteLimiter,async(req,res,next)=>{try{res.status(201).json(await rideService.reportCustomerIncident(req.params.reference,req.body,{...actor(req),lookupCode:req.body.lookupCode}));}catch(e){next(e);}});
 module.exports=router;

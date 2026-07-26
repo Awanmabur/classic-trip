@@ -20,7 +20,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "jest --runInBand tests/unit",
-    "verify": "npm run check && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
+    "verify": "npm run check && npm run check:reference-ui && npm run check:spacing-flash-final && npm run check:deep-cleanup-final && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -53,7 +53,12 @@
     "migrate:country-currency:dry": "node scripts/migrate-country-market-currency.js",
     "migrate:country-currency": "node scripts/migrate-country-market-currency.js --apply",
     "check:platform-layout-admin": "node scripts/check-full-platform-layout-and-admin.js",
-    "check:dashboard-service-coverage": "node scripts/check-dashboard-service-coverage.js"
+    "check:dashboard-service-coverage": "node scripts/check-dashboard-service-coverage.js",
+    "check:system-completion": "node scripts/check-final-system-completion.js",
+    "check:production-readiness-final": "node scripts/check-production-readiness-final.js",
+    "check:reference-ui": "node scripts/check-reference-ui-merge.js",
+    "check:spacing-flash-final": "node scripts/check-final-spacing-flash.js",
+    "check:deep-cleanup-final": "node scripts/check-deep-cleanup-final.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -62,7 +67,7 @@
     "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
-    "ejs": "^6.0.1",
+    "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",
@@ -80,7 +85,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "jest": "^30.4.2",
+    "jest": "^29.7.0",
     "nodemon": "^3.1.9",
     "supertest": "^7.0.0"
   },

@@ -15,6 +15,7 @@ const rideRequestSchema = new Schema({
   pickup: { type: Schema.Types.Mixed, required: true },
   destination: { type: Schema.Types.Mixed, required: true },
   stops: [Schema.Types.Mixed],
+  routeSnapshot: Schema.Types.Mixed,
   vehicleClassId: { type: String, required: true, index: true },
   passengerCount: { type: Number, min: 1, default: 1 },
   luggageCount: { type: Number, min: 0, default: 0 },

@@ -1,0 +1,58 @@
+/* Scoped visual support for final-only public pages. The approved public UI remains authoritative. */
+.partnersDirectoryPage,.partnerCommissionPage,.supportPage{display:grid;gap:16px;padding-top:26px;padding-bottom:48px;min-width:0}
+.partnersDirectoryBanner{margin-bottom:8px}
+.heroActionsRow,.heroMetricsRow{margin-top:14px}
+.heroActionsRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.partnerDirectoryGrid{margin-top:0}
+.partnerDirectoryCard{min-width:0;overflow:hidden}
+.partnerDirectoryCard .listingBody{display:grid;gap:10px;min-width:0}
+.partnerCardIdentity{display:flex;align-items:center;gap:10px;min-width:0}
+.partnerCardIdentity>div{min-width:0}.partnerCardIdentity .listingTitle{margin:0;overflow-wrap:anywhere}
+.partnerCardSummary{margin:0;color:var(--muted);font-size:12px;font-weight:760;line-height:1.5;overflow-wrap:anywhere}
+.partnerCardTags{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px;font-weight:850}
+.partnerCardTags span{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:var(--field)}
+.partnerCardActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.partnerCardActions .btn{width:100%;min-width:0;padding-inline:9px}
+.partnerDirectoryEmpty{grid-column:1/-1;padding:20px;text-align:center}
+.partnerCommissionPage .detailGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.partnerCommissionPage .routeCardGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.partnerCommissionPage .routeCard{min-width:0}.partnerCommissionPage .routeCard h3{margin:10px 0 0}.partnerCommissionPage .routeCard p{line-height:1.5}
+.supportHero{min-width:0}
+.supportGrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:16px;align-items:start;min-width:0}
+.supportCard{padding:18px;border-radius:var(--r);background:linear-gradient(180deg,var(--cardA),var(--cardB));border:1px solid var(--line);box-shadow:var(--shadow2);min-width:0}
+.supportCard h2,.supportCard h3{margin:0}.supportEyebrow{display:inline-flex;margin-bottom:6px;color:var(--accent);font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}
+.supportForm{display:grid;gap:12px;margin-top:14px}.supportForm .field{display:grid;gap:6px;min-width:0}.supportForm .formGrid{gap:10px}
+.supportForm input,.supportForm select,.supportForm textarea{width:100%;min-width:0;border:1px solid var(--line);background:var(--field);color:var(--text);border-radius:18px;padding:0 13px;outline:0;font:inherit;font-weight:800}
+.supportForm input,.supportForm select{height:42px}.supportForm textarea{min-height:116px;padding-block:11px;resize:vertical}
+.supportAside{display:grid;gap:12px;min-width:0}.supportContactList,.supportLinks{display:grid;gap:10px;margin-top:12px}
+.supportContactItem{display:flex;align-items:flex-start;gap:10px;color:var(--muted);font-size:13px;font-weight:780;line-height:1.45;min-width:0}.supportContactItem i{width:20px;color:var(--accent);margin-top:2px;text-align:center;flex:0 0 20px}.supportContactItem div{min-width:0;overflow-wrap:anywhere}.supportLinks .btn{width:100%;justify-content:flex-start}
+@media(max-width:980px){.partnerCommissionPage .routeCardGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.supportGrid{grid-template-columns:1fr}}
+@media(max-width:680px){
+  .partnersDirectoryPage,.partnerCommissionPage,.supportPage{padding-top:18px;padding-bottom:36px;gap:12px}
+  .partnerCommissionPage .detailGrid,.partnerCommissionPage .routeCardGrid{grid-template-columns:1fr}
+  .partnerCardActions{grid-template-columns:1fr 1fr}
+  .supportCard{padding:14px;border-radius:24px}.supportForm .formGrid.two{grid-template-columns:1fr}.supportForm input,.supportForm select{height:40px}
+  .supportHero .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.supportHero .actions .btn{width:100%;min-width:0;padding-inline:8px}
+}
+@media(max-width:380px){.partnerCardActions,.supportHero .actions{grid-template-columns:1fr}}
+
+/* The reference homepage hides its own large hero copy on phones; final marketing pages keep their page title visible. */
+.heroMetricsRow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:680px){
+  .partnersDirectoryPage .heroTitle,.partnersDirectoryPage .heroSub,
+  .partnerCommissionPage .heroTitle,.partnerCommissionPage .heroSub,
+  .supportPage .heroTitle,.supportPage .heroSub{display:block!important}
+  .partnersDirectoryPage .heroTitle,.partnerCommissionPage .heroTitle,.supportPage .heroTitle{font-size:24px;line-height:1.12;margin-top:10px}
+  .partnersDirectoryPage .heroSub,.partnerCommissionPage .heroSub,.supportPage .heroSub{font-size:12px;line-height:1.5;margin-top:8px}
+  .heroMetricsRow{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+}
+
+/* Functional seat-row extension required by the completed Bus flow. */
+.seatGroup{display:flex;gap:8px;align-items:center}
+@media(max-width:680px){.seatGroup{gap:7px}}
+
+/* Completed Bus checkout alignment added without changing the reference public shell. */
+.paymentPage .directInfoHeader,.paymentPage .directTicketPreview{margin-top:16px!important}
+.paymentPage .directPassengerForm>input,.paymentPage .directPassengerForm>select,.paymentPage .directPassengerForm>label>input{height:44px!important;min-height:44px!important;padding-top:0!important;padding-bottom:0!important}
+.paymentPage .directPassengerForm>select[name="sexes"],.paymentPage .directPassengerForm>input[name="emergencyContactNames"],.paymentPage .directPassengerForm>input[name="emergencyContactPhones"]{height:44px!important;min-height:44px!important}
+@media(max-width:680px){.paymentPage .directInfoHeader,.paymentPage .directTicketPreview{margin-top:12px!important}}

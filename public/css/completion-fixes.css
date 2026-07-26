@@ -1,0 +1,341 @@
+/* Final completion fixes: preserve the approved reference UI and correct only spacing, stacking, empty states and flash feedback. */
+
+/* Public flash feedback shared by marketing, search, booking and account pages. */
+.siteFlashStack{
+  position:fixed;
+  z-index:1200;
+  top:84px;
+  left:50%;
+  width:min(560px,calc(100% - 24px));
+  transform:translateX(-50%);
+  display:grid;
+  gap:8px;
+  pointer-events:none;
+}
+.siteFlash{
+  pointer-events:auto;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  min-width:0;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:linear-gradient(180deg,var(--cardA),var(--cardB));
+  color:var(--text);
+  box-shadow:var(--shadow2);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  transition:opacity .2s ease,transform .2s ease;
+}
+.siteFlash>div{min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:9px}
+.siteFlash i{margin-top:2px}.siteFlash span{font-size:12px;font-weight:850;line-height:1.45;overflow-wrap:anywhere}
+.siteFlash.success{border-color:rgba(34,197,94,.34);background:rgba(34,197,94,.12)}
+.siteFlash.error{border-color:rgba(239,68,68,.34);background:rgba(239,68,68,.12)}
+.siteFlash.warning{border-color:rgba(245,158,11,.36);background:rgba(245,158,11,.12)}
+.siteFlash.info{border-color:rgba(79,140,255,.34);background:rgba(79,140,255,.12)}
+.siteFlash button{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:999px;background:var(--field);color:var(--muted);display:grid;place-items:center;padding:0}
+
+/* Empty marketplace states now have complete internal spacing and occupy their intended row. */
+.homePage .marketplaceEmptyCard{
+  grid-column:1/-1;
+  min-width:0;
+  min-height:132px;
+  padding:20px;
+  display:grid;
+  align-content:center;
+  justify-items:start;
+  gap:8px;
+  overflow-wrap:anywhere;
+}
+.homePage .marketplaceEmptyCard p{margin:0;line-height:1.5}
+.homePage .marketplaceEmptyCard .btn{margin-top:2px}
+.sitePage .empty{
+  min-width:0;
+  min-height:88px;
+  margin-top:12px;
+  padding:18px;
+  display:grid;
+  align-content:center;
+  gap:6px;
+  overflow-wrap:anywhere;
+}
+
+/* Keep marketing cards in their own grid cells and give sequential blocks a reliable gap. */
+.sitePage main,.sitePage main>*,.sitePage .section,.sitePage .gridCards,.sitePage .detailGrid{min-width:0}
+.sitePage .gridCards,.sitePage .detailGrid{align-items:stretch;grid-auto-rows:auto}
+.sitePage .gridCards>*,.sitePage .detailGrid>*{min-width:0;position:relative;height:auto}
+.sitePage .section+.section{margin-top:2px}
+.sitePage .sectionHead{min-width:0}
+.sitePage .sectionHead>div{min-width:0}
+
+/* Dashboard cards and grids: no overlap and no extra nested phone gutter. */
+.dashboardBody .app,.dashboardBody .main,.dashboardBody .section,.dashboardBody .section>*{min-width:0}
+.dashboardBody .section.is-open>*{min-width:0;position:relative}
+.dashboardBody :is(.card,.hero,.statCard,.miniStat,.financeKpi,.splitItem,.detailItem,.quickCard){min-width:0;overflow-wrap:anywhere}
+.dashboardBody :is(.grid2,.grid3,.grid4,.statsGrid,.quickGrid,.reportGrid,.financeHeroGrid,.financeSubgrid,.adminPartnerNetworkGrid,.hotelOpsLayout,.hotelSetupJourney,.hotelOpsNudge,.seatEditorGrid,.busOpsGrid){min-width:0;align-items:stretch;grid-auto-rows:auto}
+.dashboardBody .cardHead>*{min-width:0}
+.dashboardBody .cardHead .cardTitle{flex:1 1 240px}
+.dashboardBody .filterEmpty,.dashboardBody .emptyState,.dashboardBody .busManifestEmpty{
+  min-width:0;
+  padding:15px 16px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.dashboardBody .emptyTableState{min-width:0;padding:16px 18px;overflow-wrap:anywhere}
+
+/* Auth panels: the last help/stat/notice cards no longer touch the previous card. */
+.authPage .authShell,.authPage .panel,.authPage .formCard,.authPage .partnerFormCard,.authPage .partnerSteps,.authPage .miniDash,.authPage .faqList{min-width:0}
+.authPage .panel.active{display:grid;gap:14px;align-content:start}
+.authPage .panel.active>*{min-width:0;margin-top:0!important}
+.authPage .partnerSteps{margin-top:14px}
+.authPage .formCard .notice:last-child,.authPage .partnerFormCard .notice:last-child{margin-bottom:0}
+
+/* Custom document pages remain contained on narrow screens. */
+.standalonePage{overflow-x:hidden}
+.standalonePage :is(main,.page,.sheet,.ticket,.receipt,.manifest,.voucher){max-width:100%;min-width:0}
+.standalonePage :is(.tableWrap,.tableScroll){max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+@media(max-width:760px){
+  .siteFlashStack{top:70px;width:calc(100% - 16px);gap:7px}
+  .siteFlash{padding:11px 12px;border-radius:18px}
+
+  /* Public pages use a modest 8px edge gutter without changing their approved layout. */
+  .sitePage .container,.homePage .container{width:min(100% - 16px,1220px)}
+  .sitePage main.container{padding-left:0!important;padding-right:0!important}
+  .sitePage .section{margin-bottom:14px}
+  .sitePage .sectionHead{margin-left:2px;margin-right:2px;gap:9px}
+  .sitePage .gridCards,.sitePage .detailGrid{grid-template-columns:1fr!important;gap:12px!important}
+  .sitePage .gridCards>*,.sitePage .detailGrid>*{margin:0!important}
+  .sitePage .empty{margin-top:10px;padding:16px;min-height:82px;border-radius:22px}
+  .homePage .marketplaceEmptyCard{padding:17px;min-height:118px;border-radius:22px}
+
+  /* Dashboard phone content aligns close to the same edge as the open menu. */
+  .dashboardBody .app{width:calc(100% - 12px);padding:8px 0 16px}
+  .dashboardBody .main{gap:8px!important}
+  .dashboardBody .topbar{top:6px}
+  .dashboardBody .sidebar{width:calc(100vw - 12px)}
+  .dashboardBody .section.is-open{display:grid;gap:10px;align-content:start}
+  .dashboardBody .section.is-open>*{margin-top:0!important;margin-bottom:0!important}
+  .dashboardBody .section.is-open>:is(.grid2,.grid3,.grid4,.statsGrid,.quickGrid,.reportGrid,.financeHeroGrid,.financeSubgrid,.adminPartnerNetworkGrid,.hotelOpsLayout,.hotelSetupJourney,.hotelOpsNudge,.seatEditorGrid,.busOpsGrid){gap:10px!important}
+  .dashboardBody .cardHead{gap:10px;flex-wrap:wrap}
+  .dashboardBody .cardHead .btn,.dashboardBody .cardHead .badge{max-width:100%}
+  .dashboardBody .actionFlashStack{margin-bottom:8px!important}
+  .dashboardBody .filterEmpty,.dashboardBody .emptyState,.dashboardBody .busManifestEmpty{padding:14px}
+  .dashboardBody .formPanel,.dashboardBody .splitGrid,.dashboardBody .metricList{min-width:0}
+
+  /* Auth phone cards receive the same edge gutter and reliable vertical spacing. */
+  .authPage{overflow-x:hidden}
+  .authPage .container,.authPage .nav,.authPage .authFooter{width:calc(100% - 16px)!important}
+  .authPage .main{padding:8px 0 20px}
+  .authPage .grid{gap:12px}
+  .authPage .authShell{gap:12px}
+  .authPage .panel.active{gap:12px}
+  .authPage .partnerSteps{gap:10px;margin-top:12px}
+}
+
+@media(max-width:520px){
+  /* Preserve two compact KPI cards per row, but collapse content-heavy dashboard grids. */
+  .dashboardBody :is(.grid2,.grid3,.reportGrid,.financeHeroGrid,.financeSubgrid,.adminPartnerNetworkGrid,.hotelOpsLayout,.hotelSetupJourney,.seatEditorGrid,.busOpsGrid){grid-template-columns:1fr!important}
+  .dashboardBody :is(.statsGrid,.grid4,.quickGrid,.seatPageStats,.hotelManifestKpis,.busManifestKpis){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .dashboardBody :is(.statCard,.miniStat,.financeKpi){padding-left:11px;padding-right:11px}
+  .dashboardBody :is(.statNumber,.financeKpi strong){overflow-wrap:anywhere}
+  .authPage .partnerSteps,.authPage .miniDash{grid-template-columns:1fr!important}
+}
+
+@media(max-width:360px){
+  .dashboardBody .app{width:calc(100% - 8px)}
+  .dashboardBody .sidebar{width:calc(100vw - 8px)}
+  .sitePage .container,.homePage .container,.authPage .container,.authPage .nav,.authPage .authFooter{width:calc(100% - 12px)!important}
+}
+
+@media print{.siteFlashStack{display:none!important}}
+
+
+/* Deep final cleanup: dashboard geometry, focus state, dark contrast, partner stacking. */
+/* An old print rule in the reference dashboard stylesheet leaked into screen mode.
+   Restore the actual dashboard body without changing the approved component design. */
+body.dashboardBody{
+  margin:0!important;
+  color:var(--text)!important;
+  background:
+    radial-gradient(700px 440px at 10% -10%,rgba(79,140,255,.012),transparent 72%),
+    radial-gradient(660px 420px at 92% -8%,rgba(255,183,3,.008),transparent 74%),
+    linear-gradient(180deg,var(--bg0),var(--bg1))!important;
+}
+html[data-theme="light"] body.dashboardBody{background:#fff!important;color:var(--text)!important}
+html[data-theme="dark"] body.dashboardBody{color:var(--text)!important}
+html[data-theme="dark"] .dashboardBody :is(.brand,.brandText,.card,.hero,.section,.detailGroup,.detailItem,.splitItem,.liveItem,.quickCard,.formPanel,.tableWrap,table,th,td,button,a,label,strong,h1,h2,h3,h4,h5,h6,span,p,i,small){color:inherit}
+html[data-theme="dark"] .dashboardBody .detailGroup h4{color:var(--text)!important}
+html[data-theme="dark"] .dashboardBody .detailItem{border-color:var(--line2)!important;background:var(--soft)!important}
+html[data-theme="dark"] .dashboardBody .detailItem span{color:var(--muted)!important}
+html[data-theme="dark"] .dashboardBody .detailItem b{color:var(--text)!important}
+html[data-theme="dark"] .dashboardBody :is(.cardTitle p,.welcome p,.profileMeta span,.liveItem span:first-child,.quickCard span,.field label,.muted,small){color:var(--muted)!important}
+html[data-theme="dark"] .dashboardBody :is(.navBtn i,.dashboardHomeIcon,.control>i,.searchBox>i,.topSearch>i){color:var(--muted)!important}
+html[data-theme="dark"] .dashboardBody :is(.navBtn.is-active,.navBtn.is-active i){color:var(--accent)!important}
+
+/* Partner Network cards must occupy separate grid rows and never overlap. */
+.dashboardBody #partners>.grid2{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr)!important;
+  gap:14px!important;
+  align-items:start!important;
+  margin-top:0!important;
+}
+.dashboardBody #partners>.grid2>.card{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  min-width:0!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  align-self:start!important;
+}
+.dashboardBody #partners .splitGrid{display:grid!important;gap:10px!important;grid-auto-rows:auto!important}
+.dashboardBody #partners .splitItem{position:relative!important;inset:auto!important;transform:none!important;min-height:0!important;height:auto!important;margin:0!important}
+
+
+/* Partner Network pages share one stable page and data-card contract. */
+.dashboardBody .adminNetworkPage.is-open{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  align-content:start!important;
+  gap:12px!important;
+  isolation:isolate;
+}
+.dashboardBody .adminNetworkPage>.adminNetworkHero,
+.dashboardBody .adminNetworkPage>.adminNetworkDataCard{
+  position:relative!important;
+  inset:auto!important;
+  float:none!important;
+  clear:both!important;
+  transform:none!important;
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  margin:0!important;
+  z-index:auto!important;
+}
+.dashboardBody .adminNetworkPage .adminNetworkHero{overflow:hidden}
+.dashboardBody .adminNetworkPage .heroGrid{min-width:0;align-items:stretch}
+.dashboardBody .adminNetworkPage .welcome,
+.dashboardBody .adminNetworkPage .adminNetworkSummary{min-width:0;height:100%}
+.dashboardBody .adminNetworkPage .adminNetworkDataCard{
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+.dashboardBody .adminNetworkPage .adminNetworkCardHead{
+  min-height:72px;
+  padding:15px 16px 13px!important;
+  border-bottom:1px solid var(--line2);
+  align-items:center;
+}
+.dashboardBody .adminNetworkPage .adminNetworkCardHead .cardTitle{min-width:0}
+.dashboardBody .adminNetworkPage .adminNetworkCardHead h3{margin:0}
+.dashboardBody .adminNetworkPage .adminNetworkCardHead p{margin:4px 0 0;line-height:1.45}
+.dashboardBody .adminNetworkPage .adminNetworkTableWrap{
+  min-width:0;
+  min-height:188px;
+  margin:0!important;
+  padding:12px 16px 16px!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  -webkit-overflow-scrolling:touch;
+}
+.dashboardBody .adminNetworkPage .adminNetworkTable{width:100%;min-width:820px}
+.dashboardBody .adminNetworkPage .adminNetworkEmpty{
+  min-height:132px;
+  padding:20px!important;
+  justify-content:center;
+}
+.dashboardBody .adminNetworkPage .adminNetworkEmpty>i{
+  width:38px;height:38px;flex:0 0 38px;border-radius:14px;
+  display:grid;place-items:center;background:var(--soft);color:var(--muted);
+}
+.dashboardBody .adminNetworkPage .adminNetworkReviewForm{
+  display:grid!important;
+  grid-template-columns:minmax(120px,1fr) minmax(150px,1.2fr) minmax(170px,1.5fr) 36px!important;
+  gap:7px!important;
+  align-items:center!important;
+  min-width:500px;
+}
+.dashboardBody #mobility-vehicles .adminNetworkReviewForm{
+  grid-template-columns:minmax(120px,1fr) minmax(180px,1.5fr) 36px!important;
+  min-width:380px;
+}
+
+/* Restore the approved neutral input state; do not add a blue typing border. */
+:is(.sitePage,.homePage,.authPage,.dashboardBody) :is(.control,.searchBox,.topSearch):focus-within{
+  border-color:var(--line2,var(--line))!important;
+  background:var(--input,var(--field))!important;
+  box-shadow:none!important;
+}
+:is(.sitePage,.homePage,.authPage,.dashboardBody) :is(.control,.searchBox,.topSearch):focus-within>i{
+  color:inherit!important;
+}
+:is(.sitePage,.homePage,.authPage,.dashboardBody) :is(input,select,textarea):focus,
+:is(.sitePage,.homePage,.authPage,.dashboardBody) :is(input,select,textarea):focus-visible{
+  outline:none!important;
+  box-shadow:none!important;
+  border-color:inherit!important;
+}
+
+/* Authentication feedback must remain visible and readable in both themes. */
+.authPage .flashStack{display:grid!important;gap:9px!important;margin:0 0 2px!important}
+.authPage .flashMessage{display:flex;align-items:flex-start;gap:9px;line-height:1.45;overflow-wrap:anywhere}
+.authPage .flashMessage.error{color:#ff8f8f!important;background:rgba(239,68,68,.12)!important;border-color:rgba(239,68,68,.32)!important}
+html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;background:#fef2f2!important;border-color:#fecaca!important}
+
+@media(max-width:980px){
+  .dashboardBody #partners>.grid2{grid-template-columns:1fr!important;gap:12px!important}
+}
+
+@media(max-width:760px){
+  /* Four-pixel outer gutter: visually aligned with the opened dashboard menu. */
+  body.dashboardBody{margin:0!important;padding:0!important}
+  .dashboardBody .app{width:calc(100% - 8px)!important;margin:0 auto!important;padding:6px 0 12px!important;gap:6px!important}
+  .dashboardBody .main{gap:6px!important}
+  .dashboardBody .sidebar{width:calc(100vw - 8px)!important}
+  .dashboardBody .topbar{top:4px!important}
+  .dashboardBody .section.is-open{gap:8px!important}
+  .dashboardBody #partners>.grid2{gap:10px!important}
+  .dashboardBody #partners .cardHead{padding:12px 12px 0!important}
+  .dashboardBody #partners .innerTabs{padding:10px 12px 0!important;gap:7px!important;flex-wrap:nowrap!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .dashboardBody #partners .tableWrap{padding:10px 12px 12px!important}
+  .dashboardBody #partners .splitGrid{padding:12px!important;gap:9px!important}
+  .dashboardBody #partners .notice{margin:10px 12px 12px!important}
+  .dashboardBody :is(.hero,.card){max-width:100%!important}
+  .dashboardBody .hero{padding:12px!important}
+  .dashboardBody .cardHead{padding-left:12px!important;padding-right:12px!important}
+  .dashboardBody .formPanel{padding:12px!important}
+  .dashboardBody .tableWrap{padding-left:12px;padding-right:12px}
+}
+
+@media(max-width:420px){
+  .dashboardBody .app{width:calc(100% - 6px)!important}
+  .dashboardBody .sidebar{width:calc(100vw - 6px)!important}
+  .dashboardBody #partners>.grid2{gap:8px!important}
+  .dashboardBody #partners .splitGrid{padding:10px!important}
+}
+
+@media(max-width:980px){
+  .dashboardBody .adminNetworkPage .heroGrid{grid-template-columns:1fr!important}
+  .dashboardBody .adminNetworkPage .welcome{min-height:0!important}
+  .dashboardBody .adminNetworkPage .adminNetworkSummary{min-height:0!important}
+}
+@media(max-width:760px){
+  .dashboardBody .adminNetworkPage.is-open{gap:9px!important}
+  .dashboardBody .adminNetworkPage .adminNetworkHero{padding:12px!important}
+  .dashboardBody .adminNetworkPage .adminNetworkHero .heroGrid{gap:10px!important}
+  .dashboardBody .adminNetworkPage .welcome,
+  .dashboardBody .adminNetworkPage .adminNetworkSummary{padding:13px!important;border-radius:22px!important}
+  .dashboardBody .adminNetworkPage .heroActions{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  .dashboardBody .adminNetworkPage .heroActions .btn{width:100%!important;justify-content:center!important}
+  .dashboardBody .adminNetworkPage .adminNetworkCardHead{min-height:0;padding:13px 13px 11px!important;gap:8px!important}
+  .dashboardBody .adminNetworkPage .adminNetworkCardHead>.badge{justify-self:start}
+  .dashboardBody .adminNetworkPage .adminNetworkTableWrap{min-height:160px;padding:10px 12px 12px!important}
+  .dashboardBody .adminNetworkPage .adminNetworkEmpty{min-height:112px;padding:16px!important}
+}

@@ -20,12 +20,12 @@ const head = read('src/views/partials/site-head.ejs');
 const registry = require('../src/config/serviceRegistry');
 const markets = require('../src/config/countryMarkets');
 
-check(/Final compact travel polish/.test(travelCss), 'Flight and mobility pages must use final compact shared controls');
-check(/min-height:42px/.test(travelCss) && /border-radius:999px/.test(travelCss), 'Travel controls must be compact and rounded');
-check(!/\.heroTitle,\.heroSub,[^{]+\{display:none!important\}/.test(homeCss), 'Global mobile CSS must not hide headings outside the homepage');
-check(/marketplaceListingCard \.priceRow\{display:grid/.test(homeCss), 'Marketplace price and action layout must be responsive');
-check(/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(homeCss), 'View and Book actions must stay in one row');
-check(/Final auth\/onboarding polish/.test(auth), 'Authentication and onboarding must use the final shared spacing');
+check(/extend the approved Classic Trip public UI/.test(travelCss), 'Flight and mobility pages must extend the approved UI without replacing it');
+check(/\.travelControl\{[^}]*min-height:38px[^}]*border-radius:999px/.test(travelCss), 'Travel controls must match the compact rounded reference controls');
+check(/\.travelPage \.heroTitle[^}]*display:block!important/.test(travelCss) && /\.partnersDirectoryPage \.heroTitle/.test(read('public/css/four-service-ui.css')), 'New service and marketing pages must restore their titles inside the reference phone layout');
+check(/\.priceRow\{display:flex/.test(homeCss) && /class="actions"/.test(read('src/views/partials/listing-card.ejs')), 'Marketplace price and action layout must preserve the approved responsive reference card');
+check(/View<\/a>/.test(read('src/views/partials/listing-card.ejs')) && /Book<\/a>/.test(read('src/views/partials/listing-card.ejs')), 'View and Book actions must remain together in the shared card');
+check(/\.partnerFormCard\{padding:18px;display:grid;gap:14px/.test(auth) && /\.partnerFormCard \.row2\{gap:12px/.test(auth), 'Authentication and intelligent onboarding must retain the approved scoped spacing');
 check(/countryMarkets\.forEach/.test(signup) && /data-currency/.test(signup), 'Partner signup must derive currency from country');
 check(/partnerDirectoryCard/.test(companies) && /Join as a partner/.test(companies) && /Explore services/.test(companies), 'Partner marketing directory must be styled and persuasive');
 check(/include\('\.\.\/partials\/site-head'/.test(partnerCommission) && /metricRow/.test(partnerCommission) && /detailGrid/.test(partnerCommission), 'Partner commission page must load the shared public styles and responsive layout');

@@ -18,7 +18,7 @@ const departureService = read('src/modules/bus/services/busDepartureService.js')
 const setupService = read('src/modules/bus/services/busSetupService.js');
 const projection = read('src/services/dashboard/dashboardProjectionEngine.js');
 const workspace = read('public/js/dashboard-workspace.js');
-const accessibility = read('public/css/accessibility.css');
+const accessibility = read('public/css/accessibility-safe.css');
 const packageJson = JSON.parse(read('package.json'));
 const siteHeader = read('public/js/site-header.js');
 const homeJs = read('public/js/home.js');
@@ -37,14 +37,11 @@ check(projection.includes('const driverSelectorOptions = activeDriverEmployees.m
 check(projection.includes('driverSelectorOptions'), 'One merged driver selector contract must exist.');
 check(workspace.includes('Only active driver accounts with accepted membership'), 'The UI must describe the strict assignment rule.');
 check(!workspace.includes('Any saved company driver can be assigned regardless'), 'Unsafe any-status driver copy must be absent.');
-check(accessibility.includes('html[data-theme="dark"]'), 'A platform dark-mode accessibility layer must exist.');
-check(accessibility.includes('--muted: #cbd5e1'), 'Dark-mode secondary text must have readable contrast.');
-check(accessibility.includes('font-size: 16px !important'), 'Mobile form text must prevent tiny controls and browser zoom.');
-check(accessibility.includes('min-height: var(--ct-mobile-button)'), 'Mobile buttons must use accessible touch targets.');
-check(accessibility.includes('min-height: var(--ct-mobile-control)'), 'Mobile inputs must use accessible touch targets.');
-check(accessibility.includes('.detailItem span') && accessibility.includes('.row span'), 'Dark-mode secondary data labels must be explicitly readable.');
-check(!accessibility.includes('background-color: var(--input, #111827) !important'), 'Dark-mode contrast fixes must not replace the existing field background.');
-check(accessibility.includes('-webkit-text-fill-color: #f8fafc'), 'Dark-mode fields must use readable light text without changing their backgrounds.');
+check(accessibility.includes(':focus-visible'), 'A keyboard focus accessibility layer must exist.');
+check(accessibility.includes('prefers-reduced-motion: reduce'), 'Reduced-motion support must exist.');
+check(accessibility.includes('forced-colors: active'), 'High-contrast forced-colours support must exist.');
+check(!accessibility.includes('min-height:') && !accessibility.includes('border-radius:') && !accessibility.includes('grid-template-columns:'), 'Accessibility CSS must not alter approved UI geometry.');
+check(!accessibility.includes('html[data-theme="dark"]') && !accessibility.includes('body {'), 'Accessibility CSS must not replace theme or page styling.');
 check(siteHeader.includes("localStorage.getItem('classicTripTheme')"), 'Public pages must use the shared platform theme key.');
 check(homeJs.includes("localStorage.getItem('classicTripTheme')"), 'Homepage must use the shared platform theme key.');
 check(loginView.includes("localStorage.setItem('classicTripTheme'"), 'Authentication pages must use the shared platform theme key.');
@@ -63,6 +60,6 @@ function visit(dir) {
   });
 }
 visit(viewRoot);
-check(interactiveHeads.every(({ content }) => content.includes('/css/accessibility.css')), 'Every full HTML view must load the accessibility layer last.');
+check(interactiveHeads.every(({ content }) => content.includes('/css/accessibility-safe.css')), 'Every full HTML view must load the non-destructive accessibility layer.');
 
 if (!process.exitCode) console.log(`Driver selector and UI accessibility verification passed (${passed}/${passed}).`);

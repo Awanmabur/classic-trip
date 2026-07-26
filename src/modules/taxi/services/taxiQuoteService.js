@@ -3,10 +3,12 @@
 const repo = require('../repositories/taxiRepository');
 const placeService = require('../../../services/location/placeService');
 const setupService = require('./taxiSetupService');
+const roadRoutingService = require('../../../services/location/roadRoutingService');
+const { withinZone } = require('../../../services/location/geoFenceService');
 const { PLATFORM_MOBILITY_OWNER } = require('../domain/taxiGovernance');
 const {
-  cleanText, normalize, integerValue, estimateRoadDistanceKm, estimateDurationMinutes,
-  validationError, randomToken, hashToken,
+  cleanText, normalize, integerValue, estimateRoadDistanceKm,
+  validationError, randomToken, hashToken, safeEqual,
 } = require('../domain/taxiDomain');
 
 function now() { return new Date(); }
@@ -19,18 +21,6 @@ function serviceTypeFor(payload, pickup, destination, distanceKm) {
   if (/airport|international airport|airfield/.test(text)) return 'airport';
   if (distanceKm >= 50 || (pickup.district && destination.district && normalize(pickup.district) !== normalize(destination.district))) return 'intercity';
   return payload.scheduledPickupAt ? 'scheduled' : 'instant';
-}
-
-function withinZone(zone = {}, pickup = {}) {
-  if (zone.countryCode && pickup.countryCode && normalize(zone.countryCode) !== normalize(pickup.countryCode)) return false;
-  if (zone.country && pickup.country && normalize(zone.country) !== normalize(pickup.country)) return false;
-  if (zone.city && pickup.city && normalize(zone.city) !== normalize(pickup.city) && !['national', 'intercity_corridor'].includes(zone.zoneType)) return false;
-  if (zone.district && pickup.district && normalize(zone.district) !== normalize(pickup.district) && zone.zoneType === 'district') return false;
-  if (zone.center?.latitude != null && Number(zone.radiusKm || 0) > 0) {
-    const directKm = estimateRoadDistanceKm(zone.center, pickup, []) / 1.22;
-    if (directKm > Number(zone.radiusKm)) return false;
-  }
-  return true;
 }
 
 async function demandMultiplier(rule, pickupAt) {
@@ -88,9 +78,11 @@ async function createQuotes(payload = {}) {
     resolveStops(payload),
     setupService.platformListing(),
   ]);
-  const distanceKm = Math.round(estimateRoadDistanceKm(pickup, destination, stops) * 100) / 100;
-  const serviceType = serviceTypeFor(payload, pickup, destination, distanceKm);
-  const durationMinutes = estimateDurationMinutes(distanceKm, serviceType);
+  const preliminaryDistanceKm = Math.round(estimateRoadDistanceKm(pickup, destination, stops) * 100) / 100;
+  const serviceType = serviceTypeFor(payload, pickup, destination, preliminaryDistanceKm);
+  const route = await roadRoutingService.planRoute({ pickup, destination, stops, serviceType });
+  const distanceKm = route.distanceKm;
+  const durationMinutes = route.durationMinutes;
   const passengerCount = integerValue(payload.passengerCount, 'Passengers', 1, 20, 1);
   const luggageCount = integerValue(payload.luggageCount, 'Luggage', 0, 30, 0);
   const pickupAt = payload.scheduledPickupAt ? new Date(payload.scheduledPickupAt) : now();
@@ -122,25 +114,25 @@ async function createQuotes(payload = {}) {
       id: await repo.nextId('ride-quote'), publicTokenHash: hashToken(token),
       companyId: PLATFORM_MOBILITY_OWNER, platformManaged: true,
       listingId: listing.id, vehicleClassId: klass.id, fareRuleId: rule.id, serviceType,
-      pickup, destination, stops, scheduledPickupAt: pickupAt, distanceKm, durationMinutes,
+      pickup, destination, stops, scheduledPickupAt: pickupAt, distanceKm, durationMinutes, routeSnapshot: route,
       priceSnapshot, surgeMultiplier: multiplier, status: 'quoted', expiresAt: new Date(Date.now() + 5 * 60 * 1000), createdAt: now(), updatedAt: now(),
     };
     await repo.quotes.save(quote, { id: quote.id });
     quotes.push({
       quoteId: quote.id, quoteToken: token, expiresAt: quote.expiresAt, serviceType,
-      pickup, destination, stops, distanceKm, durationMinutes, scheduledPickupAt: pickupAt,
+      pickup, destination, stops, distanceKm, durationMinutes, route, scheduledPickupAt: pickupAt,
       listing: { id: listing.id, slug: listing.slug, title: listing.title, companyName: listing.companyName, primaryImage: listing.primaryImage || listing.image || null },
       vehicleClass: klass, price: priceSnapshot,
       zone: { id: matchingZone.id, name: matchingZone.name, zoneType: matchingZone.zoneType },
     });
   }
   if (!quotes.length) throw validationError('No approved ride class is configured for this trip yet', 422, 'ride_class_unavailable');
-  return { criteria: { pickup, destination, stops, distanceKm, durationMinutes, serviceType, scheduledPickupAt: pickupAt, passengerCount, luggageCount }, quotes };
+  return { criteria: { pickup, destination, stops, distanceKm, durationMinutes, route, serviceType, scheduledPickupAt: pickupAt, passengerCount, luggageCount }, quotes };
 }
 
 async function readQuote(id, token) {
   const quote = await repo.oneOrThrow(repo.quotes, { id: cleanText(id, 180), companyId: PLATFORM_MOBILITY_OWNER }, 'Ride quote was not found');
-  if (!token || hashToken(token) !== quote.publicTokenHash) throw validationError('Ride quote token is invalid', 403, 'invalid_quote_token');
+  if (!token || !safeEqual(hashToken(token), quote.publicTokenHash)) throw validationError('Ride quote token is invalid', 403, 'invalid_quote_token');
   if (new Date(quote.expiresAt).getTime() <= Date.now()) {
     quote.status = 'expired'; await repo.quotes.save(quote, { id: quote.id });
     throw validationError('Ride quote expired. Request a new estimate.', 409, 'quote_expired');

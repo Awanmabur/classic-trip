@@ -21,10 +21,16 @@
     /* production print polish */
     .signatureGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 28px 22px}.signatureBox{border:1px dashed #94a3b8;border-radius:14px;padding:13px;min-height:54px;font-size:11px;font-weight:900;color:#475569}.signatureLine{display:block;margin-top:18px;border-top:1px solid #94a3b8;padding-top:5px;color:#111827}.printOnly{display:none}.maskablePhone{white-space:nowrap}
     @media print{@page{size:A4 landscape;margin:10mm}.printOnly{display:block}.signatureGrid{break-inside:avoid}.seatGrid{break-inside:avoid}table{font-size:10px}th,td{padding:6px}.footer{break-inside:avoid}.sheet{overflow:visible}.pageBreak{break-before:page}}
-  </style>
-  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
+  
+    .tableScroll{overflow:auto;-webkit-overflow-scrolling:touch}.tableScroll table{min-width:860px}
+    @media(max-width:760px){body{padding:10px}.sheet{border-radius:18px}.hero{padding:18px}.hero h1{font-size:22px}.tools,.summary,.meta,.footer{padding-left:14px;padding-right:14px}.summary,.meta{grid-template-columns:1fr 1fr}.tools>*{flex:1 1 150px}.tableScroll table{width:860px;margin-left:14px;margin-right:14px}.signatureGrid{grid-template-columns:1fr!important}}
+    @media(max-width:420px){.summary,.meta{grid-template-columns:1fr}}
+</style>
+  <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-completion-1">
 </head>
-<body>
+<body class="standalonePage">
+  <%- include('../partials/site-flash') %>
   <main class="sheet">
     <section class="hero">
       <div>
@@ -52,6 +58,7 @@
       <div class="box"><h3>Vehicle / Driver</h3><p><%= manifest.vehicle.name || manifest.schedule.vehicleName || '-' %></p><p class="muted"><%= manifest.vehicle.plateOrCode || '' %> • <%= manifest.driverLabel || manifest.schedule.driverName || 'Driver not set' %></p></div>
       <div class="box"><h3>Route</h3><p><%= manifest.route.origin || manifest.listing.from || '-' %> → <%= manifest.route.destination || manifest.listing.to || '-' %></p><p class="muted"><%= manifest.schedule.gate || manifest.schedule.platform || 'Boarding gate not set' %></p></div>
     </section>
+    <div class="tableScroll">
     <table>
       <thead><tr><th>#</th><th>Booking</th><th>Ticket</th><th>Passenger</th><th>Seat</th><th>Pickup</th><th>Dropoff</th><th>Contact</th><th>Payment</th><th>Check-in</th><th>Notes</th><th>Ticket</th></tr></thead>
       <tbody>
@@ -64,6 +71,7 @@
       <% if(!manifest.passengers.length){ %><tr><td colspan="12">No passengers have booked this schedule yet.</td></tr><% } %>
       </tbody>
     </table>
+    </div>
     <section class="seatGrid">
       <% manifest.seats.forEach(function(seat){ %>
         <a class="seat" href="<%= seat.ticketUrl || '#' %>"><b><%= seat.seat %></b><span><%= seat.status %><% if(seat.bookingRef){ %> • <%= seat.bookingRef %><% } %></span></a>

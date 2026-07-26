@@ -1,4 +1,9 @@
 const repositories = require('../../repositories');
+
+const SNAPSHOT_TTL_MS = Math.max(1000, Number(process.env.DASHBOARD_SNAPSHOT_TTL_MS || 5000));
+const SNAPSHOT_STALE_MS = Math.max(SNAPSHOT_TTL_MS, Number(process.env.DASHBOARD_SNAPSHOT_STALE_MS || 30000));
+const snapshotCache = new Map();
+const snapshotInflight = new Map();
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
   .filter((key) => !['notificationTemplates', 'serviceCategories', 'tripSchedules', 'holds', 'inventoryHolds', 'walletLedgerEntries', 'campaigns', 'refunds', 'blogPosts'].includes(key));
 
@@ -196,7 +201,14 @@ async function promoterSnapshot(context = {}) {
   return snapshot;
 }
 
-async function load(role, context = {}) {
+function cacheKey(role, context = {}) {
+  if (role === 'company' || role === 'employee') return `${role}:${context.companyId || ''}`;
+  if (role === 'customer') return `${role}:${context.customerId || ''}`;
+  if (role === 'promoter') return `${role}:${context.promoterId || ''}`;
+  return role;
+}
+
+async function loadFresh(role, context = {}) {
   if (role === 'admin' || ['support','finance','operations','content'].includes(role)) return adminSnapshot();
   if (role === 'company' || role === 'employee') return companySnapshot(context.companyId);
   if (role === 'customer') return customerSnapshot(context);
@@ -204,4 +216,41 @@ async function load(role, context = {}) {
   return emptySnapshot();
 }
 
-module.exports = { load, emptySnapshot };
+function remember(key, value) {
+  snapshotCache.set(key, { value: clone(value), createdAt: Date.now() });
+  while (snapshotCache.size > 24) snapshotCache.delete(snapshotCache.keys().next().value);
+}
+
+async function refreshKey(key, role, context) {
+  if (snapshotInflight.has(key)) return snapshotInflight.get(key);
+  const promise = loadFresh(role, context)
+    .then((value) => { remember(key, value); return value; })
+    .finally(() => snapshotInflight.delete(key));
+  snapshotInflight.set(key, promise);
+  return promise;
+}
+
+async function load(role, context = {}, options = {}) {
+  const key = cacheKey(role, context);
+  const cached = snapshotCache.get(key);
+  const age = cached ? Date.now() - cached.createdAt : Infinity;
+  if (!options.force && cached && age <= SNAPSHOT_TTL_MS) return clone(cached.value);
+  // Stale-while-revalidate keeps dashboard navigation responsive while a short-lived
+  // snapshot refresh runs in the background. Writes remain authoritative in MongoDB.
+  if (!options.force && cached && age <= SNAPSHOT_STALE_MS) {
+    refreshKey(key, role, context).catch(() => {});
+    return clone(cached.value);
+  }
+  return clone(await refreshKey(key, role, context));
+}
+
+function invalidate(role = '', context = {}) {
+  if (!role) { snapshotCache.clear(); return; }
+  snapshotCache.delete(cacheKey(role, context));
+}
+
+async function prewarm(role = 'admin', context = {}) {
+  return load(role, context, { force: true });
+}
+
+module.exports = { load, emptySnapshot, invalidate, prewarm, cacheKey };

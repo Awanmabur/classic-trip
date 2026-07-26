@@ -29,6 +29,7 @@ const taxiRideSchema = new Schema({
   pickupPinEncrypted: String,
   pricing: moneySchema,
   estimateSnapshot: Schema.Types.Mixed,
+  routeSnapshot: Schema.Types.Mixed,
   finalFareSnapshot: Schema.Types.Mixed,
   paymentStatus: { type: String, enum: ['pending', 'successful', 'failed', 'expired', 'refunded'], default: 'pending', index: true },
   settlementStatus: { type: String, enum: ['pending_payment', 'pending_fulfillment', 'eligible', 'settled', 'reconciliation_required', 'refunded'], default: 'pending_payment', index: true },

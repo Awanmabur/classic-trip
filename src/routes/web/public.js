@@ -23,6 +23,7 @@ const { partnerOnboardingRules } = require('../../validators/partnerValidator');
 const { validateRequest } = require('../../middlewares/validate');
 const { invitationPasswordRules } = require('../../validators/authValidator');
 const { paymentLimiter, ticketLimiter, authLimiter, publicWriteLimiter } = require('../../middlewares/rateLimit');
+const { mongoose } = require('../../config/db');
 
 const router = express.Router();
 
@@ -91,7 +92,8 @@ router.get('/tickets/:bookingRef', ticketLimiter, listingController.ticketPage);
 router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
 router.get('/support', (req, res) => res.render('pages/support', {
-  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with your booking, refund, or any Classic Trip question. Our support team responds within 24 hours.' },
+  submitted: req.query.submitted === '1',
+  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with bus, hotel, flight-agent and local-mobility bookings, payments, tickets, refunds and partner services.' },
 }));
 router.post('/support', publicWriteLimiter, supportRules, validateRequest, supportController.create);
 router.get('/how-it-works', (req, res) => res.render('pages/how-it-works', {
@@ -104,11 +106,21 @@ router.get('/privacy', (req, res) => res.render('pages/privacy', {
   seo: { title: 'Privacy Policy | Classic Trip', description: 'How Classic Trip collects, uses, and protects your personal data. Your rights and our data practices.' },
 }));
 
-router.get('/health', (req, res) => res.json({
-  ok: true,
-  app: 'Classic Trip',
-  time: new Date().toISOString(),
-}));
+router.get('/health', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.json({ ok: true, app: 'Classic Trip', requestId: req.id, time: new Date().toISOString() });
+});
+router.get('/ready', (req, res) => {
+  const databaseReady = mongoose.connection.readyState === 1;
+  res.set('Cache-Control', 'no-store');
+  return res.status(databaseReady ? 200 : 503).json({
+    ok: databaseReady,
+    app: 'Classic Trip',
+    database: databaseReady ? 'ready' : 'unavailable',
+    requestId: req.id,
+    time: new Date().toISOString(),
+  });
+});
 
 module.exports = router;
 

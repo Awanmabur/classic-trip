@@ -47,6 +47,17 @@ function isAuthAction(req) {
 
 function flashMiddleware(req, res, next) {
   req.flash = (type, text) => pushFlash(req, type, text);
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(String(req.method || '').toUpperCase())) {
+    const mutationPath = String(req.originalUrl || req.path || '').split('?')[0];
+    const skipDashboardInvalidation = mutationPath === '/login'
+      || mutationPath === '/logout'
+      || mutationPath.startsWith('/auth/mfa');
+    res.once('finish', () => {
+      if (!skipDashboardInvalidation && res.statusCode < 500) {
+        try { require('../services/dashboard/dashboardSnapshotService').invalidate(); } catch (_) {}
+      }
+    });
+  }
   res.locals.flashMessages = takeFlash(req.session || {});
   res.locals.flash = res.locals.flashMessages;
 

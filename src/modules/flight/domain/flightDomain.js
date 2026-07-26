@@ -17,6 +17,12 @@ function validationError(message, status = 422, code = 'validation_error') { con
 function notFoundError(message) { return validationError(message, 404, 'not_found'); }
 function conflictError(message, code = 'conflict') { return validationError(message, 409, code); }
 function hashToken(token) { return crypto.createHash('sha256').update(String(token || '')).digest('hex'); }
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left == null ? '' : left));
+  const b = Buffer.from(String(right == null ? '' : right));
+  if (a.length !== b.length || a.length === 0) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 function randomToken(bytes = 32) { return crypto.randomBytes(bytes).toString('base64url'); }
 function code(prefix, bytes = 6) { return `${prefix}-${crypto.randomBytes(bytes).toString('hex').toUpperCase()}`; }
 function actorId(actor = {}) { return cleanText(actor.id || actor.userId || actor.actorId || actor.email || 'system', 180); }
@@ -28,4 +34,4 @@ function assertActiveSupplier(supplier = {}, capability = '') {
   if (supplier.mode === 'external_certified' && supplier.failClosed !== false && capability && !(supplier.capabilities || []).includes(capability)) throw conflictError(`Flight supplier is not certified for ${capability}`, 'supplier_capability_unavailable');
   return supplier;
 }
-module.exports = { cleanText, normalize, parseList, numberValue, integerValue, boolValue, dateValue, validationError, notFoundError, conflictError, hashToken, randomToken, code, actorId, immutable, requireEnum, assertCompany, assertActiveSupplier };
+module.exports = { cleanText, normalize, parseList, numberValue, integerValue, boolValue, dateValue, validationError, notFoundError, conflictError, hashToken, safeEqual, randomToken, code, actorId, immutable, requireEnum, assertCompany, assertActiveSupplier };

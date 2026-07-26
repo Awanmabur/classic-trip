@@ -6,10 +6,11 @@ const searchService = require('./flightSearchService');
 const { adapterFor } = require('./flightSupplierRegistry');
 const securityService = require('../../../services/security/securityService');
 const paymentSettlementService = require('../../../services/booking/paymentSettlementService');
+const refundWorkflowService = require('../../../services/support/workflowService');
 const calculateCommission = require('../../../utils/calculateCommission');
 const generateBookingRef = require('../../../utils/generateBookingRef');
 const { env } = require('../../../config/env');
-const { cleanText, normalize, validationError, conflictError, code, randomToken, hashToken, immutable, actorId } = require('../domain/flightDomain');
+const { cleanText, normalize, validationError, conflictError, code, randomToken, hashToken, safeEqual, immutable, actorId } = require('../domain/flightDomain');
 
 function now() { return new Date(); }
 function roundMoney(value) { return Math.round((Number(value) || 0) * 100) / 100; }
@@ -163,13 +164,14 @@ function assertCustomerAccess(booking, lookupCode = '', actor = {}) {
   if (actor.actorType === 'system' || actor.companyId) return;
   const authenticatedUserId = cleanText(actor.userId, 180);
   if (authenticatedUserId && String(booking.customerUserId || '') === authenticatedUserId) return;
-  if (!lookupCode || String(lookupCode) !== String(booking.guestLookupCode || '')) {
+  if (!lookupCode || !safeEqual(lookupCode, booking.guestLookupCode || '')) {
     throw validationError('Flight booking lookup code is required or invalid', 403);
   }
 }
 async function cancelOrder(reference, reason, actor={}) {
   return repo.withTransaction(async(session)=>{
     const ref=cleanText(reference,180);
+    const cancellationReason=cleanText(reason,1000);if(cancellationReason.length<5)throw validationError('Provide a clear cancellation reason');
     const booking=await repo.oneOrThrow(repo.bookings,{serviceType:'flight',$or:[{bookingRef:ref},{id:ref}]},'Flight booking was not found',opts(session));
     assertCustomerAccess(booking, actor.lookupCode, actor);
     const order=await repo.oneOrThrow(repo.orders,{bookingId:booking.id,companyId:booking.companyId},'Flight order was not found',opts(session));
@@ -185,13 +187,18 @@ async function cancelOrder(reference, reason, actor={}) {
     await repo.seatAssignments.updateMany({orderId:order.id,status:{$in:['held','confirmed']}},{$set:{status:'cancelled',updatedAt:now()}},opts(session));
     await repo.seatInventory.updateMany({orderId:order.id,status:{$in:['held','booked']}},{$set:{status:'available',orderId:'',travelerId:'',ticketId:'',heldUntil:null,updatedAt:now()},$inc:{version:1}},opts(session));
     await repo.tickets.updateMany({orderId:order.id,status:{$in:['pending','issued']}},{$set:{status:'voided',voidedAt:now(),updatedAt:now()}},opts(session));
-    order.status='cancelled';order.ticketingStatus='voided';order.cancelledAt=now();order.cancellationReason=cleanText(reason,1000);order.updatedAt=now();
+    order.status='cancelled';order.ticketingStatus='voided';order.cancelledAt=now();order.cancellationReason=cancellationReason;order.updatedAt=now();
     await repo.orders.save(order,{id:order.id},opts(session));
     booking.bookingStatus='cancelled';booking.cancelledAt=now();booking.cancellationReason=order.cancellationReason;booking.refundStatus=booking.paymentStatus==='successful'?'requested':'none';booking.updatedAt=now();
     await repo.bookings.save(booking,{id:booking.id},opts(session));
     await repo.bookingItems.updateMany({bookingId:booking.id},{$set:{status:'cancelled',updatedAt:now()}},opts(session));
-    await repo.audit({actorId:actorId(actor),action:'flight.order.cancelled',targetType:'flight_order',targetId:order.id,companyId:order.companyId,metadata:{reason:order.cancellationReason},session});
-    return booking;
+    let refund=null;
+    if(booking.paymentStatus==='successful'){
+      refund=await refundWorkflowService.requestRefundLive({bookingRef:booking.bookingRef,requesterId:actorId(actor),reason:order.cancellationReason||'Customer cancelled flight order',companyId:booking.companyId,actorType:actor.actorType||'customer',session});
+      booking.refundIds=[...new Set([...(booking.refundIds||[]),refund.id])];
+    }
+    await repo.audit({actorId:actorId(actor),action:'flight.order.cancelled',targetType:'flight_order',targetId:order.id,companyId:order.companyId,metadata:{reason:order.cancellationReason,refundId:refund?.id||''},session});
+    return {...booking,refundRequest:refund?{id:refund.id,status:refund.status,amount:refund.amount,currency:refund.currency}:null};
   });
 }
 async function getPublicOrder(reference, lookupCode='', actor={}) {

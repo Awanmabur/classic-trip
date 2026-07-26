@@ -31,7 +31,7 @@ const migration = read('scripts/migrate-normalized-hotel-domain.js');
 const dashboardController = read('src/controllers/company/dashboardController.js');
 const hotelSection = read('src/views/dashboards/shared/sections/hotel-rooms.ejs');
 const manifests = read('src/views/dashboards/shared/sections/manifests.ejs');
-const dashboardCss = read('public/css/dashboard-workspace.css');
+const dashboardCss = read('public/css/dashboard-workspace.css') + '\n' + read('public/css/dashboard-service-additions.css');
 const dashboardJs = read('public/js/dashboard-workspace.js');
 const driverEligibility = read('src/services/company/driverEligibilityService.js');
 

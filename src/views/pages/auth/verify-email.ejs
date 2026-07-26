@@ -11,7 +11,7 @@
         <a class="btn btnPrimary" href="<%= dashboardUrl %>" style="height:46px"><i class="fa-solid fa-arrow-right"></i> Go to my account</a>
         <form action="/account/resend-verification" method="post" style="margin:0">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button class="btn btnGhost" type="submit" style="width:100%;height:46px"><i class="fa-solid fa-envelope"></i> Resend verification email</button>
+          <button class="btn btnGhost" type="submit" style="width:100%"><i class="fa-solid fa-envelope"></i> Resend verification email</button>
         </form>
         <a class="btn btnGhost" href="/login" style="height:46px"><i class="fa-regular fa-user"></i> Back to login</a>
       </div>

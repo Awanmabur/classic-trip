@@ -1,10 +1,17 @@
 <%- include('../partials/site-head', { seo }) %>
-<link rel="stylesheet" href="/css/pages/travel-booking.css?v=20260724-flight-taxi-1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/css/pages/travel-booking.css?v=20260726-mobility-final-1">
+<link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 <%- include('../partials/site-header') %>
 <main class="container travelPage" id="taxiTrackApp">
-  <section class="travelPanel"><div class="travelPanelHead"><div><span class="badge badgeInfo"><i class="fa-solid fa-location-dot"></i> Protected ride tracking</span><h1 class="heroTitle" style="font-size:32px;margin-top:10px"><%= reference %></h1><p class="heroSub">Use the private lookup code issued at checkout unless this ride belongs to your signed-in account.</p></div><a class="btn btnGhost" href="/taxi"><i class="fa-solid fa-taxi"></i> Book another ride</a></div><form id="taxiLookupForm" class="travelActions"><div class="travelControl" style="flex:1;min-width:220px"><i class="fa-solid fa-key"></i><input id="taxiLookupCode" value="<%= lookupCode %>" placeholder="Private lookup code"></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-location-crosshairs"></i> Track ride</button></form><div class="travelMessage" id="taxiTrackMessage"></div></section>
-  <section id="taxiTrackDetails" class="travelStack hidden" style="margin-top:16px"></section>
+  <section class="travelPanel rideLookupPanel">
+    <div class="travelPanelHead"><div><span class="badge badgeInfo"><i class="fa-solid fa-location-dot"></i> Protected ride tracking</span><h1 class="rideReference"><%= reference %></h1><p class="heroSub">Use the private lookup code issued at checkout unless this ride belongs to your signed-in account.</p></div><a class="btn btnGhost" href="/taxi"><i class="fa-solid fa-taxi"></i> Book another ride</a></div>
+    <form id="taxiLookupForm" class="lookupForm"><div class="travelControl lookupControl"><i class="fa-solid fa-key"></i><input id="taxiLookupCode" value="<%= lookupCode %>" placeholder="Private lookup code"></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-location-crosshairs"></i> Track ride</button></form>
+    <div class="travelMessage" id="taxiTrackMessage" role="status" aria-live="polite"></div>
+  </section>
+  <section id="taxiTrackDetails" class="travelStack taxiTrackDetails hidden"></section>
 </main>
-<script nonce="<%= cspNonce %>" id="taxiTrackBootstrap" type="application/json"><%- toScriptJson({ reference, lookupCode }) %></script>
-<script src="/js/taxi-track.js?v=20260724-flight-taxi-1" defer></script>
+<script nonce="<%= cspNonce %>" id="taxiTrackBootstrap" type="application/json"><%- toScriptJson({ reference, lookupCode, map: mapConfig }) %></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="/js/taxi-track.js?v=20260726-mobility-final-1" defer></script>
 <%- include('../partials/site-footer') %>

@@ -129,6 +129,22 @@ async function roleDashboard(role, context = {}) {
   return restrictRoleDashboard(role, data);
 }
 
+
+async function prewarmRoleDashboard(role, context = {}) {
+  const dataRole = ['support', 'finance', 'operations', 'content'].includes(role) ? 'admin' : role;
+  return snapshotService.prewarm(dataRole, context);
+}
+
+function prewarmForUser(user = {}) {
+  const role = String(user.role || '');
+  if (['super_admin', 'admin', 'finance_admin', 'support_admin', 'operations_admin', 'content_admin'].includes(role)) return prewarmRoleDashboard('admin');
+  if (role === 'company_admin') return prewarmRoleDashboard('company', { companyId: user.companyId });
+  if (role === 'company_employee' || role === 'driver') return prewarmRoleDashboard('employee', { companyId: user.companyId });
+  if (role === 'customer') return prewarmRoleDashboard('customer', { customerId: user.id });
+  if (role === 'promoter') return prewarmRoleDashboard('promoter', { promoterId: user.id });
+  return Promise.resolve(null);
+}
+
 module.exports = {
   listEntity,
   countEntity,
@@ -137,4 +153,6 @@ module.exports = {
   restrictEmployeeDashboard,
   ROLE_DATA_KEYS,
   EMPLOYEE_DATA_PERMISSIONS,
+  prewarmRoleDashboard,
+  prewarmForUser,
 };

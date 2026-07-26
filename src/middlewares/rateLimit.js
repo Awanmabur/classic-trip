@@ -11,6 +11,22 @@ function productionStore(scope) {
   return env.isProduction && env.mongoUri ? new MongoRateLimitStore(scope) : undefined;
 }
 
+function wantsJson(req) {
+  return String(req.originalUrl || req.path || '').startsWith('/api/')
+    || req.xhr
+    || String(req.headers.accept || '').includes('application/json');
+}
+
+function safeRateLimitRedirect(req, scope) {
+  if (scope === 'auth' || scope === 'password_reset') return '/login?error=rate_limited';
+  const referer = String(req.get('referer') || '');
+  try {
+    const url = new URL(referer);
+    if (url.host === req.get('host')) return `${url.pathname}${url.search || ''}`;
+  } catch (_) {}
+  return '/';
+}
+
 function createLimiter(scope, { windowMs, limit, message }) {
   return rateLimit({
     windowMs,
@@ -21,6 +37,11 @@ function createLimiter(scope, { windowMs, limit, message }) {
     passOnStoreError: false,
     store: productionStore(scope),
     message: { error: message },
+    handler: (req, res) => {
+      if (wantsJson(req)) return res.status(429).json({ error: message });
+      if (req.flash) req.flash('error', message);
+      return res.redirect(safeRateLimitRedirect(req, scope));
+    },
   });
 }
 

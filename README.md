@@ -12,6 +12,7 @@ The existing visual design is preserved across public pages, authentication, par
 - Cloudinary or another configured production media adapter
 - At least one configured payment provider before accepting live payments
 - Email/SMS/push credentials for real notification delivery
+- A production road-routing service (OSRM, Valhalla, Mapbox-compatible adapter) and permitted map tile provider for Local Mobility
 
 Production refuses transaction-sensitive flows when MongoDB transaction support is unavailable.
 
@@ -26,6 +27,62 @@ npm start
 ```
 
 Use strong independent secrets for sessions, MFA encryption, payment webhooks and the Super Admin. Do not commit `.env`.
+
+
+## Final spacing, stacking and feedback completion
+
+This release keeps the approved reference UI byte-for-byte and adds one narrowly scoped completion layer for issues found after the reference merge:
+
+- smaller, consistent dashboard phone gutters aligned with the mobile menu;
+- reliable grid gaps so dashboard, marketing and authentication cards cannot overlap;
+- padded empty-listing and empty-table states;
+- separated final cards and notices in authentication/onboarding panels;
+- shared dismissible flash feedback on public, authentication, dashboard and standalone document pages;
+- secure logout and password-reset success feedback after redirect;
+- responsive containment for manifests, tickets, receipts and vouchers.
+
+The completion layer does not redefine the approved global body, navigation, sidebar, card, button, colour or typography systems. Run `npm run check:spacing-flash-final` to verify this contract.
+
+## Approved reference UI contract
+
+This release uses the UI from the user-provided reference archive as the visual source of truth. The six core stylesheets are hash-locked and must not be replaced by global polish or override files.
+
+- Public navigation, cards, banners, forms, search, booking and phone breakpoints come directly from the approved reference UI.
+- Dashboard rail, topbar, cards, navigation, forms and mobile drawer come directly from the approved reference UI.
+- Flight, Local Mobility, partner-directory, support and final Hotel/Bus operational elements use narrowly scoped additions only.
+- No scoped addition may redefine `body`, the global container, the dashboard sidebar, the dashboard main shell or generic card/button geometry.
+- The accessibility layer restores keyboard focus, reduced-motion and forced-colour support without changing dimensions, radii, colours or layout.
+- Dynamic seat groups, checkout alignment, manifests and completed operation panels are added through feature-specific selectors rather than edits to the reference CSS.
+
+Run `npm run check:reference-ui` to verify the exact reference hashes, absence of destructive global styles, scoped extension boundaries and all four active services.
+
+## Runtime health and deployment lifecycle
+
+- `GET /health` is the process liveness endpoint.
+- `GET /ready` returns HTTP 200 only while MongoDB is connected; it returns HTTP 503 when the application is not ready to receive traffic.
+- Every request receives a server-generated `X-Request-ID` for protected log correlation.
+- SIGTERM/SIGINT perform graceful HTTP shutdown and MongoDB disconnect, with a bounded forced-exit timeout.
+
+## Security and release position
+
+No responsible engineering process can guarantee that any application is permanently “zero vulnerability.” This project is built to prevent known classes of defects, fail closed for sensitive operations, isolate tenants, protect booking access, use CSRF and rate-limit controls, keep money operations idempotent and require production verification before launch. A live release still requires dependency installation, vulnerability scanning, MongoDB transaction tests, payment/map/supplier sandbox tests, DAST and an independent penetration test.
+
+## Real Local Mobility maps and routing
+
+Local Mobility no longer uses a decorative route card. The customer booking and protected tracking pages use a real Leaflet map, backend road-routing geometry, stored route snapshots, current driver position, geofenced pickup validation and private lookup access.
+
+Production configuration:
+
+```env
+MAP_TILE_URL=https://your-approved-tile-provider/{z}/{x}/{y}.png
+MAP_TILE_ATTRIBUTION=Your map attribution
+TAXI_ROUTING_API_URL=https://your-routing-service
+TAXI_ROUTING_PROFILE=driving
+TAXI_ROUTING_TIMEOUT_MS=8000
+TAXI_REQUIRE_LIVE_ROUTING=true
+```
+
+The public demo OSRM endpoint in `.env.example` is suitable for development only. Production should use a contracted or self-hosted service with capacity, uptime and data-processing terms appropriate for customer location data. When `TAXI_REQUIRE_LIVE_ROUTING=true`, quote creation fails closed rather than silently charging from an estimated straight-line distance.
 
 ## Unified authentication and onboarding
 
@@ -411,3 +468,20 @@ Also verify:
 ## Final spacing and Super Admin repair
 
 The public site, authentication/onboarding screens and all role dashboards load final shared spacing styles. The Super Admin Flight and Local Mobility dynamic sections use explicit nested EJS locals and are protected by an executable render smoke. When an Atlas connection string omits a database path, the application now selects `classic-trip` unless `MONGO_DB_NAME` explicitly overrides it.
+
+## Final deep cleanup (26 July 2026)
+
+The final cleanup preserves the approved reference UI while fixing Super Admin Partner Network overlap, phone dashboard gutters, focused-input feedback, auth errors, dark-mode contrast and slow login/dashboard reads. See `FINAL_DEEP_CLEANUP_2026-07-26.md` and `FINAL_VERIFICATION_2026-07-26.json`.
+
+Optional dashboard cache settings:
+
+```env
+DASHBOARD_SNAPSHOT_TTL_MS=5000
+DASHBOARD_SNAPSHOT_STALE_MS=30000
+```
+
+## Partner Network uniform page contract
+
+The nine Super Admin Partner Network destinations use one scoped structure: a separate hero, a separate data card, a standard card header, a contained table area and a padded empty state. The layout is isolated from generic dashboard positioning so cards cannot overlap. Driver and vehicle review forms scroll inside their own data surface on narrow screens.
+
+The temporary light-blue input focus treatment has been removed. Form controls keep the approved neutral focus appearance.

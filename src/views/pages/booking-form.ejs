@@ -220,7 +220,7 @@
                     <input name="emergencyContactNames" placeholder="Emergency contact name">
                     <input name="emergencyContactPhones" placeholder="Emergency contact phone">
                     <label>Luggage items<input name="luggageCounts" type="number" min="0" max="20" value="0"></label>
-                    <textarea class="full" name="specialNotes" placeholder="Accessibility need, luggage note, or special request..." style="border-radius:22px;min-height:90px"></textarea>
+                    <textarea class="full" name="specialNotes" placeholder="Accessibility need, luggage note, or special request..."></textarea>
                   </div>
                 </section>
               <% }) %>
@@ -252,10 +252,10 @@
                   <label>Children<input name="children" type="number" min="0" max="40" value="<%= requestedChildren %>" data-hotel-occupancy></label>
                   <label>Infants<input name="infants" type="number" min="0" max="20" value="0" data-hotel-occupancy></label>
                   <label>Estimated arrival<input name="estimatedArrivalTime" type="time"></label>
-                  <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the hotel manifest is complete." style="border-radius:22px;min-height:90px"></textarea>
-                  <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, bedding, airport transfer, meal, or other stay request..." style="border-radius:22px;min-height:90px"></textarea>
+                  <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the hotel manifest is complete."></textarea>
+                  <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, bedding, airport transfer, meal, or other stay request..."></textarea>
                 <% } else { %>
-                  <textarea class="full" name="notes" placeholder="Special request or note..." style="border-radius:22px;min-height:90px"></textarea>
+                  <textarea class="full" name="notes" placeholder="Special request or note..."></textarea>
                 <% } %>
               </div>
             </section>

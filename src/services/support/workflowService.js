@@ -10,14 +10,15 @@ function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
 }
 
-async function requestRefundLive({ bookingRef, requesterId = 'guest', amount, reason = 'Customer requested refund', companyId = '', actorType = 'customer' } = {}) {
-  const booking = await supportRepository.bookings.findOne({ $or: [{ bookingRef }, { id: bookingRef }] });
+async function requestRefundLive({ bookingRef, requesterId = 'guest', amount, reason = 'Customer requested refund', companyId = '', actorType = 'customer', session = null } = {}) {
+  const readOptions = session ? { session } : {};
+  const booking = await supportRepository.bookings.findOne({ $or: [{ bookingRef }, { id: bookingRef }] }, readOptions);
   if (!booking || (companyId && String(booking.companyId) !== String(companyId))) {
     const error = new Error('Booking not found');
     error.status = 404;
     throw error;
   }
-  const existing = await supportRepository.refunds.findOne({ bookingRef: booking.bookingRef, status: { $in: ['pending', 'reviewing'] } });
+  const existing = await supportRepository.refunds.findOne({ bookingRef: booking.bookingRef, status: { $in: ['pending', 'reviewing'] } }, readOptions);
   if (existing) return existing;
   const cleanReason = cleanText(reason) || 'Customer requested refund';
   const bookingTotal = Number(booking.pricing?.total || 0);
@@ -35,35 +36,39 @@ async function requestRefundLive({ bookingRef, requesterId = 'guest', amount, re
     amount: safeAmount, currency: booking.pricing?.currency || platformCurrency(), reason: cleanReason,
     status: 'pending', requestedAt: now, createdAt: now, metadata: { actorType },
   };
+  const companyActor = ['employee', 'company', 'partner', 'flight_agent', 'admin'].includes(actorType);
   const ticket = {
-    id: await nextId('support'), ownerType: actorType === 'employee' ? 'company' : 'customer',
-    ownerId: actorType === 'employee' ? booking.companyId : requesterId, userId: booking.customerUserId || requesterId,
+    id: await nextId('support'), ownerType: companyActor ? 'company' : 'customer',
+    ownerId: companyActor ? booking.companyId : requesterId, userId: booking.customerUserId || requesterId,
     companyId: booking.companyId, bookingId: booking.id, bookingRef: booking.bookingRef,
     subject: `Refund request ${booking.bookingRef}`, category: 'Refund request', message: cleanReason,
-    priority: safeAmount > 500000 ? 'high' : 'medium', status: 'open', assignedTo: actorType === 'employee' ? requesterId : '',
+    priority: safeAmount > 500000 ? 'high' : 'medium', status: 'open', assignedTo: companyActor ? requesterId : '',
     createdBy: requesterId, createdAt: now,
   };
   const timeline = {
     id: await nextId('timeline'), bookingId: booking.id, bookingRef: booking.bookingRef, companyId: booking.companyId,
     customerUserId: booking.customerUserId || requesterId, entityType: 'refund_request', entityId: refund.id,
     action: 'refund.requested', title: `Refund requested for ${booking.bookingRef}`, message: cleanReason, status: 'pending',
-    actorType: ['employee', 'company', 'admin', 'promoter', 'customer'].includes(actorType) ? actorType : 'system', actorId: requesterId,
+    actorType: ['employee', 'company', 'partner', 'flight_agent', 'admin', 'promoter', 'customer'].includes(actorType) ? actorType : 'system', actorId: requesterId,
     metadata: { amount: safeAmount, currency: refund.currency }, createdAt: now,
   };
-  await supportRepository.withTransaction(async (session) => {
-    await supportRepository.refunds.save(refund, { id: refund.id }, { session });
-    await supportRepository.tickets.save(ticket, { id: ticket.id }, { session });
-    await supportRepository.timelineEvents.save(timeline, { id: timeline.id }, { session });
+  const persist = async (activeSession) => {
+    const options = activeSession ? { session: activeSession } : {};
+    await supportRepository.refunds.save(refund, { id: refund.id }, options);
+    await supportRepository.tickets.save(ticket, { id: ticket.id }, options);
+    await supportRepository.timelineEvents.save(timeline, { id: timeline.id }, options);
     booking.refundStatus = 'requested';
     booking.refundIds = [...new Set([...(booking.refundIds || []), refund.id])];
-    await supportRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session });
+    await supportRepository.bookings.save(booking, { bookingRef: booking.bookingRef }, options);
     if (booking.serviceType === 'hotel') {
       await hotelRepository.hotelReservations.updateOne({ bookingRef: booking.bookingRef, companyId: booking.companyId }, {
         $set: { refundStatus: 'requested', updatedAt: new Date() },
         $addToSet: { refundIds: refund.id },
-      }, { session });
+      }, options);
     }
-  });
+  };
+  if (session) await persist(session);
+  else await supportRepository.withTransaction(persist);
   return refund;
 }
 

@@ -19,7 +19,7 @@ const busRepository = read('src/modules/bus/repositories/busRepository.js');
 const verification = read('src/controllers/admin/verificationController.js');
 const workspace = read('public/js/dashboard-workspace.js');
 const staffView = read('src/views/dashboards/shared/sections/staff.ejs');
-const css = read('public/css/accessibility.css');
+const css = read('public/css/accessibility-safe.css');
 
 check(!adminRoutes.includes('driver-requests/:id/approve'), 'Super Admin driver approval routes must be removed.');
 check(!adminRoutes.includes('driver-requests/:id/reject'), 'Super Admin driver rejection routes must be removed.');
@@ -38,7 +38,7 @@ check(company.includes('schedule.listingId') && company.includes('schedule.route
 check(busRepository.includes('function identityClauses'), 'Bus entities must accept app IDs and MongoDB ObjectIds.');
 check(workspace.includes('Super Admin approves only the partner company'), 'Dashboard must explain final approval ownership.');
 check(staffView.includes('Partner Admin creates, invites, activates, suspends, assigns'), 'Staff page must explain Partner Admin employee ownership.');
-check(css.includes('color: #f8fafc !important') && css.includes('-webkit-text-fill-color: #f8fafc'), 'Dark mode must force readable light text without replacing page backgrounds.');
-check(css.includes('font-size: 16px !important') && css.includes('--ct-mobile-control: 50px') && css.includes('--ct-mobile-button: 48px'), 'Previously accepted phone typography and control sizes must be restored.');
+check(css.includes(':focus-visible') && css.includes('prefers-reduced-motion: reduce'), 'Accessibility support must remain without changing the approved UI.');
+check(!css.includes('min-height:') && !css.includes('border-radius:') && !css.includes('grid-template-columns:'), 'Accessibility support must not resize controls or alter layouts.');
 
 if (!process.exitCode) console.log(`Final partner ownership and visibility verification passed (${passed}/${passed}).`);

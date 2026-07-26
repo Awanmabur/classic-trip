@@ -12,7 +12,7 @@ function assert(condition, message) {
 
 const hotel = read('src/views/dashboards/shared/sections/hotel-rooms.ejs');
 const workspace = read('src/views/dashboards/shared/workspace.ejs');
-const dashboardCss = read('public/css/dashboard-workspace.css');
+const dashboardCss = read('public/css/dashboard-workspace.css') + '\n' + read('public/css/dashboard-service-additions.css');
 const dashboardJs = read('public/js/dashboard-workspace.js');
 const home = read('src/views/pages/home.ejs');
 const homeJs = read('public/js/home.js');

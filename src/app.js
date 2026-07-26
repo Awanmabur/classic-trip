@@ -18,13 +18,40 @@ const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
+app.disable('x-powered-by');
+
+function cspOrigin(value) {
+  try { return new URL(String(value || '').replace('{s}', 'a').replace('{z}', '0').replace('{x}', '0').replace('{y}', '0')).origin; }
+  catch (_) { return ''; }
+}
+const configuredMapTileOrigin = cspOrigin(env.maps?.tileUrl);
 
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  const startedAt = process.hrtime.bigint();
+  res.setHeader('X-Request-ID', req.id);
+  res.locals.requestId = req.id;
   res.locals.cspNonce = crypto.randomBytes(18).toString('base64');
+  const originalEnd = res.end;
+  res.end = function timedEnd(...args) {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${durationMs.toFixed(1)}`);
+    if (durationMs >= 1200) {
+      require('./config/logger').warn('Slow request', {
+        requestId: req.id,
+        method: req.method,
+        path: req.originalUrl,
+        status: res.statusCode,
+        durationMs: Math.round(durationMs),
+        role: req.session?.user?.role || 'guest',
+      });
+    }
+    return originalEnd.apply(this, args);
+  };
   next();
 });
 
@@ -34,7 +61,7 @@ const cspDirectives = {
   scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
-  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com'],
+  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
   connectSrc: ["'self'"],
   frameSrc: ["'none'"],
   objectSrc: ["'none'"],

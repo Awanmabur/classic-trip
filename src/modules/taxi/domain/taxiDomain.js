@@ -12,6 +12,12 @@ function conflictError(message, code = 'conflict') { return validationError(mess
 function code(prefix, bytes = 6) { return `${prefix}-${crypto.randomBytes(bytes).toString('hex').toUpperCase()}`; }
 function randomToken(bytes = 24) { return crypto.randomBytes(bytes).toString('base64url'); }
 function hashToken(token) { return crypto.createHash('sha256').update(String(token || '')).digest('hex'); }
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left == null ? '' : left));
+  const b = Buffer.from(String(right == null ? '' : right));
+  if (a.length !== b.length || a.length === 0) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 function actorId(actor = {}) { return cleanText(actor.id || actor.userId || actor.actorId || actor.email || 'system', 180); }
 function requireEnum(value, allowed, field) { const v = normalize(value); if (!allowed.includes(v)) throw validationError(`${field} is invalid`); return v; }
 function point(payload = {}, prefix = '') {
@@ -30,4 +36,4 @@ function estimateRoadDistanceKm(a, b, stops = []) { const chain=[a,...stops,b]; 
 function estimateDurationMinutes(distanceKm, serviceType = 'instant') { const speed = serviceType === 'intercity' ? 55 : serviceType === 'airport' ? 40 : 28; return Math.max(5, Math.ceil((distanceKm/speed)*60)); }
 function assertTransition(current, next, map) { const allowed=map[normalize(current)]||[]; if(!allowed.includes(normalize(next))) throw conflictError(`Cannot move ride from ${current} to ${next}`, 'invalid_ride_transition'); return normalize(next); }
 const RIDE_TRANSITIONS=Object.freeze({ awaiting_payment:['scheduled','dispatch_pending','cancelled','failed'], scheduled:['dispatch_pending','cancelled','failed'], dispatch_pending:['offering','assigned','cancelled','failed'], offering:['assigned','dispatch_pending','cancelled','failed'], assigned:['driver_arriving','cancelled','driver_no_show','safety_hold'], driver_arriving:['driver_arrived','cancelled','driver_no_show','safety_hold'], driver_arrived:['pickup_verified','customer_no_show','cancelled','safety_hold'], pickup_verified:['in_progress','cancelled','safety_hold'], in_progress:['completed','cancelled','safety_hold'], safety_hold:['assigned','driver_arriving','driver_arrived','in_progress','cancelled'], completed:['refunded'], customer_no_show:['refunded'], driver_no_show:['dispatch_pending','cancelled'], cancelled:['refunded'], refunded:[], failed:[] });
-module.exports={ cleanText,normalize,numberValue,integerValue,boolValue,parseList,validationError,notFoundError,conflictError,code,randomToken,hashToken,actorId,requireEnum,point,haversineKm,estimateRoadDistanceKm,estimateDurationMinutes,assertTransition,RIDE_TRANSITIONS };
+module.exports={ cleanText,normalize,numberValue,integerValue,boolValue,parseList,validationError,notFoundError,conflictError,code,randomToken,hashToken,safeEqual,actorId,requireEnum,point,haversineKm,estimateRoadDistanceKm,estimateDurationMinutes,assertTransition,RIDE_TRANSITIONS };

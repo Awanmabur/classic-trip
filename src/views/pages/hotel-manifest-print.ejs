@@ -3,11 +3,13 @@
   .hotelManifestPrint{padding:28px;border-radius:24px;background:#fff;box-shadow:0 14px 40px rgba(15,23,42,.08)}
   .hotelManifestPrintHead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
   .hotelManifestPrintActions{display:flex;gap:8px;flex-wrap:wrap}
-  .hotelManifestPrintActions a,.hotelManifestPrintActions button{border:0;border-radius:999px;padding:10px 15px;text-decoration:none;background:#111827;color:#fff;font:inherit;cursor:pointer}
+  .hotelManifestPrintActions a,.hotelManifestPrintActions button{border:0;border-radius:999px;padding:9px 14px;min-height:40px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;background:#111827;color:#fff;font:inherit;cursor:pointer}
   .hotelManifestTableWrap{overflow:auto;border:1px solid #e5e7eb;border-radius:18px}
   .hotelManifestTable{width:100%;border-collapse:collapse;min-width:1700px;font-size:12px}
   .hotelManifestTable th,.hotelManifestTable td{padding:12px 14px;text-align:left;border-bottom:1px solid #e5e7eb;vertical-align:top;white-space:normal}
   .hotelManifestTable th{background:#f8fafc;position:sticky;top:0}
+  @media(max-width:760px){.hotelManifestPrint{padding:14px;border-radius:20px}.hotelManifestPrintHead{display:grid;grid-template-columns:1fr;gap:10px}.hotelManifestPrintActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.hotelManifestPrintActions a,.hotelManifestPrintActions button{width:100%}.hotelManifestTableWrap{border-radius:18px}}
+  @media(max-width:420px){.hotelManifestPrintActions{grid-template-columns:1fr}}
   @media print{
     header,footer,.hotelManifestPrintActions{display:none!important}
     body{background:#fff!important}

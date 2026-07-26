@@ -246,9 +246,15 @@ async function provisionRoleArtifacts(user, payload = {}) {
 
 const LOGIN_LOCKOUT_THRESHOLD = 5; const LOGIN_LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 async function verifyLogin(identity, password) {
-  const failed = securityService.recentFailedLoginCountLive ? await securityService.recentFailedLoginCountLive(identity, LOGIN_LOCKOUT_WINDOW_MS) : securityService.recentFailedLoginCount(identity, LOGIN_LOCKOUT_WINDOW_MS);
+  // These reads are independent. Running them together removes one full Atlas
+  // round trip from every login without weakening lockout or password checks.
+  const [failed, user] = await Promise.all([
+    securityService.recentFailedLoginCountLive
+      ? securityService.recentFailedLoginCountLive(identity, LOGIN_LOCKOUT_WINDOW_MS)
+      : securityService.recentFailedLoginCount(identity, LOGIN_LOCKOUT_WINDOW_MS),
+    findUserByIdentity(identity),
+  ]);
   if (failed >= LOGIN_LOCKOUT_THRESHOLD) { const error = new Error('Too many failed login attempts for this account. Please try again in 15 minutes.'); error.status = 429; error.code = 'account_locked'; throw error; }
-  const user = await findUserByIdentity(identity);
   if (!user) {
     await bcrypt.compare(String(password || ''), DUMMY_PASSWORD_HASH);
     return null;

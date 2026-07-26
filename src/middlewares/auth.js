@@ -16,7 +16,7 @@ async function requireAuth(req, res, next) {
   try {
     const user = req.session?.user;
     if (!user) return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
-    const current = await accountStateService.refreshSessionUser(req);
+    const current = await accountStateService.refreshSessionUser(req, { force: req.method !== 'GET' });
     if (!current || !sessionAccountIsActive(current)) {
       if (req.session) req.session.user = null;
       const state = current?.status || 'inactive';

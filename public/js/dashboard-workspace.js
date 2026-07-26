@@ -1170,11 +1170,12 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   function placePageUnderTopNav(behavior = 'auto') {
-    const app = $('.app');
-    const top = Math.max(0, app ? app.offsetTop : 0);
-    window.scrollTo({ top, behavior });
-    document.documentElement.scrollTop = top;
-    document.body.scrollTop = top;
+    const main = $('.main') || $('.app');
+    if (!main) return;
+    const topbar = $('.topbar');
+    const offset = (topbar ? topbar.getBoundingClientRect().height : 0) + 12;
+    const top = Math.max(0, window.scrollY + main.getBoundingClientRect().top - offset);
+    if (Math.abs(window.scrollY - top) > 8) window.scrollTo({ top, behavior });
   }
 
   function canonicalPage(page) {
@@ -1196,13 +1197,11 @@ window.addEventListener('DOMContentLoaded', function () {
     $$('.section').forEach(section => section.classList.remove('is-open'));
     let target = $('#' + page);
     if (!target) {
-      const label = (pageMeta[page] && pageMeta[page][0]) || page.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      const main = $('.main');
-      target = document.createElement('section');
-      target.className = 'section';
-      target.id = page;
-      target.innerHTML = `<div class="card"><div class="cardHead"><div class="cardTitle"><h3>${escapeHtml(label)}</h3><p>${escapeHtml((pageMeta[page] && pageMeta[page][1]) || 'This page uses the shared admin dashboard shell and should be wired to role-scoped backend data.')}</p></div><span class="badge warn">Configured</span></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Route/menu exists</span><span class="badge ok">Yes</span></div></div><div class="splitItem"><div class="splitTop"><span>Uses shared admin UI</span><span class="badge ok">Yes</span></div></div><div class="splitItem"><div class="splitTop"><span>Backend data needed</span><span class="badge warn">Wire service</span></div></div></div></div>`;
-      main.appendChild(target);
+      console.error(`[Classic Trip dashboard] Missing real section for configured page: ${page}`);
+      toast('This dashboard section is unavailable. The issue has been logged.');
+      page = 'overview';
+      target = $('#overview');
+      if (!target) return;
     }
     if (target) target.classList.add('is-open');
     const navButtons = $$('.navBtn');
@@ -1212,12 +1211,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (els.pageHeading) els.pageHeading.textContent = meta[0];
     if (els.pageSub) els.pageSub.textContent = meta[1];
     closeMenu();
-    placePageUnderTopNav('auto');
-    requestAnimationFrame(() => {
-      placePageUnderTopNav('auto');
-      requestAnimationFrame(() => placePageUnderTopNav('auto'));
-    });
-    setTimeout(() => placePageUnderTopNav('auto'), 40);
+    requestAnimationFrame(() => placePageUnderTopNav('auto'));
   }
 
   function toast(text) {
@@ -2936,7 +2930,7 @@ window.addEventListener('DOMContentLoaded', function () {
       action: '/promoter/offline-sales', submit: 'Issue canonical cash booking',
       fields: [
         { type:'smart-summary', label:'Verified offline sale', help:'Choose live inventory already linked to your promoter account. The server recalculates the total, creates the canonical reservation and ticket/voucher, and records cash only after validation.' },
-        { name:'listingId', label:'Linked bus or hotel listing', type:'select', icon:'fa-layer-group', options:listings, required:true, help:'Only active listings represented by your referral links are available.' },
+        { name:'listingId', label:'Linked travel service listing', type:'select', icon:'fa-layer-group', options:listings, required:true, help:'Only active listings represented by your referral links are available.' },
         { name:'scheduleId', label:'Outbound departure', type:'select', icon:'fa-calendar-days', options:schedules, required:true, dependsOn:'listingId', filterKey:'listingId', showFor:'bus' },
         { name:'originStopId', label:'Boarding stop', type:'select', icon:'fa-person-walking-luggage', options:routeStops, required:true, dependsOn:'scheduleId', filterKey:'routeId', parentMetaKey:'routeId', showFor:'bus' },
         { name:'destinationStopId', label:'Drop-off stop', type:'select', icon:'fa-location-dot', options:routeStops, required:true, dependsOn:'scheduleId', filterKey:'routeId', parentMetaKey:'routeId', showFor:'bus' },
@@ -3435,6 +3429,12 @@ window.addEventListener('DOMContentLoaded', function () {
 
     if (els.openMenu) els.openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
     if (els.sideBackdrop) els.sideBackdrop.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && document.body.classList.contains('menu-open')) closeMenu();
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 900 && document.body.classList.contains('menu-open')) closeMenu();
+    }, { passive: true });
 
     const savedDashboardTheme = (() => {
       try { return localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme'); } catch (_) { return null; }

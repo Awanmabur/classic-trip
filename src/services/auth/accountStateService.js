@@ -90,14 +90,20 @@ function applyToSession(req, user = {}, context = {}) {
   return req.session.user;
 }
 
-async function refreshSessionUser(req) {
+async function refreshSessionUser(req, options = {}) {
   const sessionUser = req?.session?.user;
   if (!sessionUser) return null;
+  const force = Boolean(options.force);
+  const maxAgeMs = Math.max(0, Number(options.maxAgeMs ?? 15_000));
+  const checkedAt = Date.parse(String(sessionUser.authCheckedAt || ''));
+  if (!force && Number.isFinite(checkedAt) && Date.now() - checkedAt < maxAgeMs) return sessionUser;
   const fresh = await currentUser(sessionUser);
   if (!fresh) return null;
   if (authVersion(sessionUser) !== authVersion(fresh)) return null;
   const context = await accessContext(fresh);
-  return applyToSession(req, fresh, context);
+  const applied = applyToSession(req, fresh, context);
+  applied.authCheckedAt = new Date().toISOString();
+  return applied;
 }
 
 module.exports = { currentUser, accountIsActive, applyToSession, refreshSessionUser, accessContext, verifiedForRole, authVersion };

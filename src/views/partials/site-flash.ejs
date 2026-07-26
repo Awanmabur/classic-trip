@@ -1,0 +1,13 @@
+<% if (Array.isArray(flashMessages) && flashMessages.length) { %>
+  <div class="siteFlashStack" data-site-flash-stack role="status" aria-live="polite" aria-atomic="true">
+    <% flashMessages.forEach(function(message){ const type = ['success','error','warning','info'].includes(message.type) ? message.type : 'info'; %>
+      <div class="siteFlash <%= type %>" data-site-flash>
+        <div>
+          <i class="fa-solid <%= type === 'error' ? 'fa-circle-exclamation' : type === 'warning' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i>
+          <span><%= message.text %></span>
+        </div>
+        <button type="button" data-dismiss-site-flash aria-label="Dismiss message"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    <% }); %>
+  </div>
+<% } %>

@@ -15,12 +15,13 @@
   <script src="/js/notifications.js" defer></script>
 
   
-  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260724-hotel-ui-final-1">
-  <link rel="stylesheet" href="/css/accessibility.css?v=20260723-design-fares-payments-final-1" />
-  <link rel="stylesheet" href="/css/dashboard-final-polish.css?v=20260725-dashboard-spacing-final-1" />
+  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260726-reference-ui-1">
+  <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-deep-cleanup-2">
+  <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 
-<body>
+<body class="dashboardBody">
   <%
     const dashboardRoleKey = dashboardShell?.currentRole || 'admin';
     const companyServiceProfile = dashboardData?.serviceProfile || {};

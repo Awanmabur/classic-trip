@@ -1,5 +1,7 @@
 'use strict';
 
+const roadRoutingService = require('../../services/location/roadRoutingService');
+
 function flightPage(req, res) {
   return res.render('pages/flights', {
     seo: {
@@ -33,6 +35,7 @@ function taxiPage(req, res) {
       schema: { '@type': 'Service', name: 'Safe local mobility', serviceType: 'Boda, car, airport and intercity rides', areaServed: 'East Africa' },
     },
     initialQuery: req.query || {},
+    mapConfig: roadRoutingService.publicMapConfig(),
   });
 }
 
@@ -45,6 +48,7 @@ function taxiRidePage(req, res) {
     },
     reference: String(req.params.reference || '').trim(),
     lookupCode: String(req.query.lookupCode || req.query.code || '').trim(),
+    mapConfig: roadRoutingService.publicMapConfig(),
   });
 }
 

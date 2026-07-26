@@ -1,0 +1,62 @@
+/* New Flight Agent and Local Mobility dashboard surfaces only.
+   Shared dashboard geometry is inherited unchanged from the uploaded UI reference. */
+.adminSupplyControl{display:grid;gap:14px;margin-top:14px;scroll-margin-top:90px}
+.supplyNoticeCard{border-color:rgba(255,183,3,.28)}
+.adminSupplyControl .formPanel{margin:0 16px 16px;border-radius:22px}
+.inlineReviewForm{display:grid;gap:6px;min-width:220px}
+.inlineReviewForm select,.inlineReviewForm input{width:100%;min-height:36px;padding:0 10px;border:1px solid var(--line2);border-radius:14px;background:var(--field);color:var(--text);font-weight:800}
+.inlineReviewForm .tinyBtn{justify-self:end}
+.adminSupplyControl textarea{min-height:86px}
+.travelActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.travelMessage{padding:11px 12px;border:1px solid var(--line2);border-radius:18px;background:var(--soft);color:var(--muted);font-size:12px;font-weight:800;line-height:1.45}
+.adminPartnerNetworkGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.adminMobilityReview{min-width:0}
+@media(max-width:980px){.adminPartnerNetworkGrid{grid-template-columns:1fr}}
+@media(max-width:760px){.adminSupplyControl .formPanel{margin:0 12px 12px}.inlineReviewForm{min-width:180px}.travelActions{display:grid;grid-template-columns:1fr}.travelActions .btn,.travelActions form,.travelActions form .btn{width:100%}}
+
+/* Scoped additions required by the final hotel and manifest workflows. */
+.dashboardHomeLink{color:var(--text);text-decoration:none;transition:.16s ease}
+.dashboardHomeLink:hover{background:rgba(79,140,255,.07)}
+.dashboardHomeLink .brandText{flex:1}.dashboardHomeIcon{margin-left:auto;color:var(--muted);font-size:11px}
+.hotelOpsLayout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.72fr);gap:14px;align-items:start}
+.hotelOpsLayoutSingle{grid-template-columns:1fr!important}
+.hotelOpsMain,.hotelRoomMapCard,.hotelExtrasCard{overflow:hidden}
+.hotelOpsHeader{padding:16px 16px 14px;border-bottom:1px solid var(--line2);align-items:flex-start}
+.hotelOpsHeader .cardTitle{max-width:720px}.hotelOpsActions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.hotelSectionEyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:7px;color:var(--accent);font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.09em}
+.hotelReadinessBadge{min-width:190px;padding:11px 13px;border:1px solid var(--line2);border-radius:18px;background:var(--soft);text-align:right}
+.hotelReadinessBadge span{display:block;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.hotelReadinessBadge strong{display:block;margin-top:4px;font-size:12px}
+.hotelSetupBlock,.hotelDailyBlock{padding:14px 16px;border-bottom:1px solid var(--line2)}
+.hotelBlockHeading,.hotelPaneHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}.hotelBlockHeading.compact{margin-bottom:10px}
+.hotelBlockHeading h4,.hotelPaneHeader h4,.hotelCalendarTop h4{margin:0;font-size:14px;letter-spacing:-.2px}.hotelBlockHeading p,.hotelPaneHeader p{margin:4px 0 0;color:var(--muted);font-size:11.5px;font-weight:800;line-height:1.5}
+.hotelSetupJourney{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hotelSetupStep{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;min-width:0;padding:12px;border:1px solid var(--line2);border-radius:18px;background:var(--table)}
+.hotelSetupStep.is-ready{border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.065)}.hotelSetupStep.is-next{border-color:rgba(255,183,3,.36);background:rgba(255,183,3,.08)}
+.hotelStepNumber{width:29px;height:29px;border-radius:11px;display:grid;place-items:center;background:var(--soft);border:1px solid var(--line2);font-size:11px;font-weight:1000;color:var(--muted)}
+.hotelSetupStep.is-ready .hotelStepNumber{color:#22c55e;background:rgba(34,197,94,.11);border-color:rgba(34,197,94,.26)}.hotelSetupStep.is-next .hotelStepNumber{color:var(--accent);background:rgba(255,183,3,.12);border-color:rgba(255,183,3,.28)}
+.hotelStepCopy{min-width:0}.hotelStepCopy strong{display:block;font-size:12px;line-height:1.25}.hotelStepCopy span{display:block;margin-top:3px;color:var(--muted);font-size:10.5px;font-weight:800;line-height:1.4}.hotelStepCopy b{display:block;margin-top:7px;color:var(--text);font-size:10.5px}
+.hotelDailyBlock .hotelOpsNudge{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.hotelOpsNudge .miniStat small{display:block;margin-top:4px;color:var(--muted);font-size:10px;font-weight:800}
+.hotelOpsSectionPad{margin:0 16px 12px}.hotelSummary{padding-top:14px}.hotelOpsNudge{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.hotelOpsNudge .miniStat,.hotelOpsNudge .metricTile{min-height:76px;border:1px solid var(--line2);border-radius:18px;padding:12px;background:var(--table)}
+.miniStatLink{color:inherit;text-decoration:none;transition:.16s ease}.miniStatLink:hover{transform:translateY(-1px);border-color:rgba(79,140,255,.35);background:rgba(79,140,255,.08)}
+.hotelOpsTabs{margin:0;padding:0 16px 12px;border-bottom:1px solid var(--line2);display:flex;gap:7px;overflow:auto}.hotelOpsTabs .tabBtn{white-space:nowrap}.hotelOpsTabs .tabBtn em{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px;border-radius:999px;background:var(--table);border:1px solid var(--line2);font-style:normal;font-size:9px;color:var(--muted)}.hotelOpsTabs .tabBtn.is-on em{background:rgba(255,183,3,.16);border-color:rgba(255,183,3,.28);color:var(--accent)}
+.hotelOpsPane{padding:14px 16px 16px}.hotelOpsPane>.dashboardFilters{margin:0 0 12px}.hotelOpsPane>.tableWrap{margin:0;border:1px solid var(--line2);border-radius:18px;overflow:auto}.hotelOpsPane>.filterEmpty{margin-top:10px}
+.hotelPaneHeader{padding:0 0 12px;margin:0 0 12px;border-bottom:1px solid var(--line2)}.hotelPaneHeader .btn{white-space:nowrap}
+.hotelRoomMapCard>.cardHead,.hotelExtrasCard>.cardHead{padding:16px;border-bottom:1px solid var(--line2)}.hotelRoomMapCard>.seatLegend{padding:12px 16px 0}.hotelRoomMapTitle{margin:12px 16px 8px;padding:10px 12px;border:1px solid var(--line2);border-radius:16px;background:var(--soft)}.hotelRoomMapCard>.seatGrid{margin:0 16px 16px}.hotelEmptyNotice{margin:12px 16px 16px}.hotelExtrasCard{margin-top:14px}.hotelExtrasCard>.tableWrap{border-top:1px solid var(--line2)}
+.housekeepingStats{margin-bottom:12px}.housekeepingStats .metricTile strong{display:block;font-size:20px;letter-spacing:-.4px}.housekeepingStats .metricTile span{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:900}.hotelNightFilters{margin-top:12px!important}
+.busManifestCard,.hotelManifestCard{overflow:hidden}.busManifestHeader,.hotelManifestHeader{padding:16px;border-bottom:1px solid var(--line2);margin:0}.busManifestHeader h3,.hotelManifestHeader h3{margin:0;font-size:22px;letter-spacing:-.5px}.busManifestHeader p,.hotelManifestHeader p{margin:5px 0 0;color:var(--muted);line-height:1.5;font-size:13px;font-weight:780}
+.busManifestSectionHead{padding:14px 16px 12px}.busManifestKpis{padding:0 16px 14px;margin:0}.busManifestFilters{margin:0 16px 12px}.busManifestTableWrap{margin:0 16px;border:1px solid var(--line2);border-radius:18px;overflow:auto}.busManifestEmpty{margin:10px 16px 14px}.busManifestPassengerBlock{padding:0 0 16px;border-top:1px solid var(--line2);margin-top:16px}.busManifestPassengerBlock>.cardHead{padding:14px 16px 12px}.busManifestPassengerBlock>.busManifestTableWrap{margin-bottom:0}
+.hotelManifestKpis{padding:14px 16px 0;margin:0}.hotelManifestFilters{margin:14px 16px 12px}.hotelManifestTabs{padding:0 16px 12px;border-bottom:1px solid var(--line2);overflow:auto;white-space:nowrap}.hotelManifestPane{padding:14px 16px 16px}.hotelManifestPane>.tableWrap{border:1px solid var(--line2);border-radius:18px;overflow:auto}.hotelManifestPane .filterEmpty{margin-top:10px}.hotelManifestToolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap}.hotelManifestToolbar .field{min-width:180px;margin:0}.hotelManifestToolbar .btn{white-space:nowrap}.hotelManifestDateNote{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;font-weight:900}
+.card>.notice:not(.hotelEmptyNotice),.tabPane>.notice,.seatMapGridCard>.notice,.compactSeatTools>.notice,.cardHead+.notice,.tableWrap+.notice,.dashboardFilters+.notice{margin:12px 16px 16px}.splitGrid>.notice,.formPanel .notice,.field>.notice{margin:0}
+.emptyTableRow td{padding:0!important;border:1px solid var(--line2)!important;border-radius:18px!important;background:var(--table)!important;white-space:normal!important;overflow:hidden;background-clip:padding-box!important}.emptyTableState{display:flex;align-items:center;gap:12px;padding:16px 18px;min-height:72px}.emptyTableState strong{display:block;font-size:12px}.emptyTableState span{display:block;margin-top:3px;color:var(--muted);font-size:11px;font-weight:800;line-height:1.45}html[data-theme="light"] .emptyTableRow td{background:#f8fafc!important}
+@media(max-width:1180px){.hotelOpsLayout{grid-template-columns:1fr}.hotelOpsNudge{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px){.hotelSetupJourney{grid-template-columns:repeat(2,minmax(0,1fr))}.hotelDailyBlock .hotelOpsNudge{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.hotelReadinessBadge{width:100%;text-align:left;min-width:0}.hotelOpsHeader,.hotelBlockHeading,.hotelPaneHeader{display:grid;grid-template-columns:1fr}.hotelSetupBlock,.hotelDailyBlock{padding:12px}.hotelSetupJourney{grid-template-columns:1fr}.hotelDailyBlock .hotelOpsNudge{grid-template-columns:1fr 1fr}.hotelBlockHeading .btn,.hotelPaneHeader .btn{width:100%;justify-content:center}.hotelOpsHeader,.hotelRoomMapCard>.cardHead,.hotelExtrasCard>.cardHead,.hotelManifestHeader,.busManifestHeader{padding:14px}.hotelOpsActions{justify-content:flex-start}.hotelOpsActions .btn{flex:1;min-width:145px}.hotelOpsSectionPad{margin-left:12px;margin-right:12px}.hotelOpsTabs,.hotelManifestTabs{padding-left:12px;padding-right:12px}.hotelOpsPane,.hotelManifestPane{padding:12px}.hotelOpsNudge{grid-template-columns:1fr 1fr}.hotelRoomMapTitle,.hotelRoomMapCard>.seatGrid{margin-left:12px;margin-right:12px}.hotelManifestKpis,.busManifestKpis{padding-left:12px;padding-right:12px;grid-template-columns:1fr 1fr}.hotelManifestFilters,.busManifestFilters,.busManifestTableWrap,.busManifestEmpty{margin-left:12px;margin-right:12px}}
+@media(max-width:520px){.hotelOpsNudge,.hotelManifestKpis,.busManifestKpis,.hotelDailyBlock .hotelOpsNudge{grid-template-columns:1fr}.hotelOpsActions .btn{min-width:100%}}
+
+/* Functional seat-row extension required by dynamic partner seat templates. */
+.busSeatGroup{display:flex;gap:12px;align-items:center}
+@media(max-width:760px){.busSeatGroup{gap:8px}}
+
+/* Keep clicked dashboard inputs visually neutral; keyboard focus is restored by accessibility-safe.css. */
+.control:focus-within,.searchBox:focus-within,.topSearch:focus-within{background:var(--input)!important;border-color:var(--line)!important;box-shadow:none!important}
+.control :is(input,select,textarea):focus,.searchBox input:focus,.topSearch input:focus{box-shadow:none!important}

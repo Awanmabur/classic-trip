@@ -7,6 +7,7 @@ const { verifiedSessionIsFresh } = require('../../middlewares/mfa');
 const QRCode = require('qrcode');
 const { env } = require('../../config/env');
 const { isDriverAccountOperational } = require('../../services/company/driverEligibilityService');
+const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 
 function welcomeName(user = {}) {
   return String(user.fullName || user.name || user.email || 'there').trim().split(/\s+/)[0] || 'there';
@@ -27,12 +28,35 @@ function registrationRedirect(user = {}) {
   return authService.redirectForRole(user.role);
 }
 
+function authQueryMessage(query = {}) {
+  const code = String(query.error || '').toLowerCase();
+  const messages = {
+    invalid: 'The email, phone number, or password is incorrect. Please check your details and try again.',
+    invalid_credentials: 'The email, phone number, or password is incorrect. Please check your details and try again.',
+    locked: 'Too many unsuccessful login attempts. Please wait 15 minutes, then try again or reset your password.',
+    account_locked: 'Too many unsuccessful login attempts. Please wait 15 minutes, then try again or reset your password.',
+    pending: 'This account is awaiting approval. You can review its onboarding status after approval.',
+    inactive: 'This account is not active. Contact Classic Trip support if you believe this is a mistake.',
+    mfa_required: 'Sign in again and complete multi-factor verification.',
+    validation: 'Please correct the highlighted account details and try again.',
+    rate_limited: 'Too many attempts were submitted. Please wait a few minutes before trying again.',
+  };
+  if (messages[code]) return { type: 'error', text: messages[code] };
+  if (String(query.pending || '').toLowerCase() === 'approval') return { type: 'info', text: 'Your account was created and is awaiting activation.' };
+  return null;
+}
+
 async function showLogin(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, max-age=0');
+    const queryMessage = authQueryMessage(req.query || {});
+    const flashMessages = Array.isArray(res.locals.flashMessages) ? [...res.locals.flashMessages] : [];
+    if (queryMessage && !flashMessages.length) flashMessages.push(queryMessage);
     return res.render('pages/auth/login', {
       seo: { title: 'Login, signup or partner onboarding | Classic Trip' },
       next: req.query.next || '',
       partnerForm: { ...req.query },
+      flashMessages,
     });
   } catch (error) {
     return next(error);
@@ -82,9 +106,13 @@ async function login(req, res, next) {
         reason: 'invalid_credentials',
         req,
       });
+      if (req.flash) req.flash('error', 'The email, phone number, or password is incorrect. Please check your details and try again.');
       return res.redirect('/login?error=invalid');
     }
     const nextUrl = safeRedirectUrl(req.body.next || req.query.next, authService.redirectAfterAuthentication(user));
+    // Start the first dashboard projection while the secure session and audit records are prepared.
+    // The request that follows the redirect reuses the same in-flight snapshot instead of repeating all reads.
+    mongoDashboardService.prewarmForUser(user).catch(() => {});
     if (env.platformMfaEnabled && mfaService.isPlatformAdmin(user.role) && user.mfaConfigured) {
       await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
       req.session.mfaChallenge = {
@@ -108,8 +136,14 @@ async function login(req, res, next) {
     if (req.flash) req.flash('success', `Welcome back, ${welcomeName(user)}. Your dashboard is ready.`);
     return res.redirect(nextUrl);
   } catch (error) {
-    if (error.code === 'account_locked') return res.redirect('/login?error=locked');
-    if (error.code === 'account_pending') return res.redirect('/login?error=pending');
+    if (error.code === 'account_locked') {
+      if (req.flash) req.flash('error', 'Too many unsuccessful login attempts. Please wait 15 minutes, then try again or reset your password.');
+      return res.redirect('/login?error=locked');
+    }
+    if (error.code === 'account_pending') {
+      if (req.flash) req.flash('warning', 'This account is awaiting approval.');
+      return res.redirect('/login?error=pending');
+    }
     return next(error);
   }
 }
@@ -286,15 +320,20 @@ async function verifyMfaChallenge(req, res, next) {
 async function logout(req, res, next) {
   try {
     await securityService.closeDeviceSession(req);
-    req.session.destroy(() => res.redirect('/'));
+    return req.session.regenerate((error) => {
+      if (error) return next(error);
+      if (req.flash) req.flash('success', 'You have been signed out securely.');
+      return res.redirect('/');
+    });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }
 
 async function forgotPassword(req, res, next) {
   try {
     await authService.requestPasswordReset(req.body.identity);
+    if (req.flash) req.flash('success', 'Password reset instructions were sent when the account details matched.');
     return res.redirect('/login#forgot');
   } catch (error) {
     return next(error);
@@ -309,6 +348,7 @@ async function resetPassword(req, res, next) {
       throw error;
     }
     await authService.resetPassword(req.body.token || req.params.token, req.body.password);
+    if (req.flash) req.flash('success', 'Password reset completed. Sign in with your new password.');
     return res.redirect('/login');
   } catch (error) {
     return next(error);
