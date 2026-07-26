@@ -339,3 +339,104 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
   .dashboardBody .adminNetworkPage .adminNetworkTableWrap{min-height:160px;padding:10px 12px 12px!important}
   .dashboardBody .adminNetworkPage .adminNetworkEmpty{min-height:112px;padding:16px!important}
 }
+
+
+/* Final Super Admin phone-flow repair: these six destinations share one stable vertical page contract. */
+.dashboardBody .dashboardFlowPage.is-open{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  align-content:start!important;
+  gap:14px!important;
+  isolation:isolate;
+}
+.dashboardBody .dashboardFlowPage.is-open>*{
+  position:relative!important;
+  inset:auto!important;
+  float:none!important;
+  clear:both!important;
+  transform:none!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  align-self:start!important;
+  z-index:auto!important;
+}
+.dashboardBody .dashboardFlowPage :is(.heroGrid,.grid2,.grid3,.grid4,.statsGrid,.quickGrid,.splitGrid,.metricList){min-width:0}
+.dashboardBody .dashboardFlowPage :is(.card,.hero,.welcome,.livePanel,.statCard,.splitItem,.metricRow){position:relative!important;inset:auto!important;transform:none!important;min-width:0!important;height:auto!important}
+.dashboardBody .dashboardFlowPage .tableWrap{max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.dashboardBody .dashboardFlowPage .rowActions{min-width:0;align-items:stretch}
+.dashboardBody .serviceDashboardPage>.grid2{margin-top:0!important}
+.dashboardBody .serviceDashboardPage>.card{margin-top:0!important}
+.dashboardBody .dashboardSchedulePage>.grid2,
+.dashboardBody .dashboardSchedulePage>.card{margin-top:0!important}
+
+/* Standalone authentication flash messages use the same close behaviour as public pages. */
+.authPage .flashMessage{justify-content:space-between;min-width:0;transition:opacity .2s ease,transform .2s ease}
+.authPage .flashMessageBody{display:flex;align-items:flex-start;gap:9px;min-width:0;flex:1 1 auto}
+.authPage .flashMessageBody span{min-width:0;overflow-wrap:anywhere}
+.authPage .flashDismiss{flex:0 0 30px;width:30px;height:30px;padding:0;border:0;border-radius:999px;background:var(--input);color:var(--muted);display:grid;place-items:center}
+
+@media(max-width:760px){
+  .dashboardBody .dashboardFlowPage.is-open{gap:10px!important}
+  .dashboardBody .dashboardFlowPage .heroGrid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+  .dashboardBody .dashboardFlowPage .welcome,
+  .dashboardBody .dashboardFlowPage .livePanel{min-height:0!important;padding:13px!important}
+  .dashboardBody .dashboardOverviewPage .statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .dashboardBody .dashboardOverviewPage .quickGrid{grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .dashboardBody .dashboardSchedulePage>.grid2,
+  .dashboardBody .serviceDashboardPage>.grid2{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+  .dashboardBody .dashboardSchedulePage .rowActions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;width:100%!important}
+  .dashboardBody .dashboardSchedulePage .rowActions .btn{width:100%!important;min-width:0!important;justify-content:center!important;white-space:normal!important;text-align:center!important}
+  .dashboardBody .serviceDashboardPage .heroActions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important;width:100%!important}
+  .dashboardBody .serviceDashboardPage .heroActions :is(.btn,a){width:100%!important;min-width:0!important;justify-content:center!important}
+  .dashboardBody .serviceDashboardPage .splitGrid{grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .dashboardBody .serviceDashboardPage .metricRow{align-items:flex-start!important;gap:8px!important}
+}
+@media(max-width:420px){
+  .dashboardBody .dashboardOverviewPage .statsGrid{grid-template-columns:minmax(0,1fr)!important}
+  .dashboardBody .dashboardSchedulePage .rowActions{grid-template-columns:minmax(0,1fr)!important}
+}
+
+/* Final mobile navigation and install experience: scoped additions only. */
+.bottomNav{transition:transform .22s ease,opacity .22s ease,visibility .22s ease!important;will-change:transform,opacity}
+.bottomNav.is-scroll-hidden,.site-drawer-open .bottomNav,.site-input-active .bottomNav{transform:translate(-50%,calc(100% + 34px))!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.drawer.open .drawerPanel{padding-bottom:calc(20px + env(safe-area-inset-bottom))!important;scroll-padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.drawer.open .drawerPanel>:last-child{margin-bottom:8px!important}
+.drawerFinalActions,.pwaDrawerInstallAction{min-width:0}
+.pwaDrawerInstallAction{width:100%;justify-content:flex-start;gap:10px;margin-top:10px}
+.btnBlue:hover,.btnBlue:focus-visible,.btnBlue:active{color:#eef5ff!important}
+.btnPrimary:hover,.btnPrimary:focus-visible,.btnPrimary:active{color:#091126!important}
+.authPage .btnPrimary:hover,.authPage .btnPrimary:focus-visible,.authPage .btnPrimary:active{color:#061027!important}
+
+.pwaInstallPrompt{position:fixed;right:20px;bottom:20px;z-index:180;width:min(390px,calc(100% - 24px));display:grid;gap:13px;padding:14px;border:1px solid var(--line,rgba(255,255,255,.14));border-radius:24px;background:linear-gradient(180deg,var(--cardA,#111827),var(--cardB,#0b1220));box-shadow:0 24px 70px rgba(0,0,0,.32);color:var(--text,#f8fafc);opacity:0;transform:translateY(18px) scale(.98);visibility:hidden;transition:opacity .2s ease,transform .2s ease,visibility .2s ease}
+.pwaInstallPrompt.is-visible{opacity:1;transform:translateY(0) scale(1);visibility:visible}
+.pwaInstallClose{position:absolute;top:9px;right:9px;width:32px;height:32px;border:1px solid var(--line,rgba(255,255,255,.14));border-radius:999px;background:var(--field,rgba(255,255,255,.06));color:var(--muted,#94a3b8);display:grid;place-items:center}
+.pwaInstallIdentity{display:flex;align-items:center;gap:12px;min-width:0;padding-right:28px}
+.pwaInstallLogo{width:66px;height:66px;flex:0 0 66px;display:grid;place-items:center;border-radius:20px;background:#070a12;border:1px solid rgba(255,255,255,.12);overflow:hidden}
+.pwaInstallLogo img{width:56px;height:56px;object-fit:contain}
+.pwaInstallCopy{display:grid;gap:2px;min-width:0}.pwaInstallCopy strong{font-size:17px;letter-spacing:-.3px}.pwaInstallCopy b{font-size:12px;color:var(--accent,#ffb703)}.pwaInstallCopy small{font-size:11px;line-height:1.45;color:var(--muted,#94a3b8);font-weight:750}
+.pwaInstallActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pwaInstallActions .btn{width:100%;min-width:0}
+.pwaLaunchSplash{position:fixed;inset:0;z-index:240;background:#070a12;display:grid;place-items:center;opacity:0;visibility:hidden;transition:opacity .18s ease,visibility .18s ease}
+.pwaLaunchSplash.is-visible{opacity:1;visibility:visible}.pwaLaunchBrand{display:grid;justify-items:center;gap:7px;text-align:center;color:#f8fafc;padding:24px}.pwaLaunchBrand img{width:112px;height:112px;object-fit:contain}.pwaLaunchBrand strong{font-size:25px;letter-spacing:-.65px}.pwaLaunchBrand span{font-size:12px;color:#ffb703;font-weight:850}
+
+@media(max-width:680px){
+  .topTicketAction{display:none!important}
+  .drawer.open{padding-bottom:calc(12px + env(safe-area-inset-bottom))!important}
+  .pwaInstallPrompt{left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));width:auto;border-radius:22px;padding:13px}
+  .site-drawer-open .pwaInstallPrompt{bottom:12px}
+  .authPage .toggle{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;width:100%!important}
+  .authPage .toggle button{min-width:0!important;padding:0 7px!important;font-size:12px!important;white-space:nowrap!important}
+  .homePage .stats{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-top:10px!important}
+  .authPage .miniDash,.authPage .partnerSteps{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .dashboardBody :is(.statsGrid,.grid4,.quickGrid,.seatPageStats,.hotelManifestKpis,.busManifestKpis){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+@media(max-width:380px){
+  .pwaInstallIdentity{align-items:flex-start}.pwaInstallLogo{width:58px;height:58px;flex-basis:58px;border-radius:18px}.pwaInstallLogo img{width:50px;height:50px}
+  .pwaInstallActions{grid-template-columns:1fr}.authPage .toggle button{font-size:11px!important;padding:0 5px!important}
+  .dashboardBody .dashboardOverviewPage .statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+@media(prefers-reduced-motion:reduce){.bottomNav,.pwaInstallPrompt,.pwaLaunchSplash{transition:none!important}}

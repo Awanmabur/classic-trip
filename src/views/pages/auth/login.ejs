@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
+  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Classic Trip" />
+  <link rel="manifest" href="/site.webmanifest" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, hotel partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -13,6 +19,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
+  <script src="/js/page-actions.js" defer></script>
   <style>
     :root{
       --container:min(1160px,92%);
@@ -92,7 +99,7 @@
     .partnerPlanGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.partnerPlan{position:relative;display:grid;gap:5px;border:1px solid var(--line);background:var(--input);border-radius:20px;padding:12px;cursor:pointer;min-height:126px}.partnerPlan:hover,.partnerPlan:has(input:checked){border-color:rgba(255,183,3,.58);background:rgba(255,183,3,.09)}.partnerPlan input{position:absolute;top:12px;right:12px;accent-color:var(--accent)}.partnerPlan strong{font-size:14px}.partnerPlan small{color:var(--muted);font-size:11px;font-weight:750;line-height:1.4}.partnerPlan b{font-size:12px;color:var(--accent);margin-top:auto}.partnerPlan .badge{justify-self:start}
     .partnerSectionTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:13px;margin-top:3px}.partnerSectionTitle span{font-weight:950}.partnerSectionTitle small{color:var(--muted);font-weight:750;text-align:right}.partnerTextarea{height:auto;min-height:92px;border-radius:22px;align-items:flex-start;padding:12px 14px}.partnerTextarea i{margin-top:4px}.partnerTextarea textarea{width:100%;min-height:66px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750}.partnerSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.partnerSteps .stat{min-height:72px}.partnerSteps .stat strong{font-size:18px;color:var(--accent)}
     @media(max-width:980px){.navLinks{display:none}.grid{grid-template-columns:1fr}.leftHero{min-height:auto}.authShell{min-height:auto}.heroText h1{font-size:30px}.roleGrid{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:640px){:root{--container:min(100% - 24px,520px);--navH:58px}.navWrap{top:8px}.nav{padding:8px 10px}.brand span:last-child{display:none}.mark{width:38px;height:38px;border-radius:14px}.navActions .btn{display:none}.main{padding-top:8px}.leftHero{padding:15px;border-radius:22px}.badgeRow{display:none}.heroText h1{font-size:24px;line-height:1.12;letter-spacing:-.6px}.heroText p{font-size:12px}.benefits{display:none}.authShell{padding:12px;border-radius:22px}.authTop h2{font-size:20px}.toggle{width:100%;display:grid;grid-template-columns:1fr 1fr}.row2,.socialGrid,.miniDash,.pageGrid,.supportOptions{grid-template-columns:1fr}.roleGrid{grid-template-columns:repeat(2,1fr)}.control{height:44px}.checkLine{display:grid}.drawer{padding-top:78px}}
+    @media(max-width:640px){:root{--container:min(100% - 24px,520px);--navH:58px}.navWrap{top:8px}.nav{padding:8px 10px}.brand span:last-child{display:none}.mark{width:38px;height:38px;border-radius:14px}.navActions .btn{display:none}.main{padding-top:8px}.leftHero{padding:15px;border-radius:22px}.badgeRow{display:none}.heroText h1{font-size:24px;line-height:1.12;letter-spacing:-.6px}.heroText p{font-size:12px}.benefits{display:none}.authShell{padding:12px;border-radius:22px}.authTop h2{font-size:20px}.toggle{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.toggle button{min-width:0;padding:0 8px;font-size:12px}.row2,.socialGrid,.miniDash,.pageGrid,.supportOptions{grid-template-columns:1fr}.roleGrid{grid-template-columns:repeat(2,1fr)}.control{height:44px}.checkLine{display:grid}.drawer{padding-top:78px}}
     /* No glassmorphism in light mode - flat white surfaces, no tinted background decoration. */
     html[data-theme="light"] body::before{display:none}
     html[data-theme="light"] .nav,html[data-theme="light"] .card,html[data-theme="light"] .drawerPanel{backdrop-filter:none;-webkit-backdrop-filter:none}
@@ -104,7 +111,7 @@
 
 
 </style>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-deep-cleanup-2">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-release-3">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="authPage">
@@ -114,7 +121,7 @@
       <div class="navActions">
         <a class="btn" href="/"><i class="fa-solid fa-house"></i><span style="font-size:13px">Home</span></a>
         <a class="btn" href="/search"><i class="fa-solid fa-magnifying-glass"></i><span style="font-size:13px">Search</span></a>
-        <a class="btn" href="/tickets"><i class="fa-solid fa-ticket"></i><span style="font-size:13px">Tickets</span></a>
+        <a class="btn topTicketAction" href="/tickets"><i class="fa-solid fa-ticket"></i><span style="font-size:13px">Tickets</span></a>
         <button class="iconBtn" id="themeBtn" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
         <button class="iconBtn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
       </div>
@@ -157,9 +164,12 @@
         </div>
 
         <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
-          <div class="flashStack" role="status" aria-live="polite">
-            <% flashMessages.forEach(function(message){ %>
-              <div class="flashMessage <%= message.type || 'info' %>"><i class="fa-solid <%= message.type === 'error' ? 'fa-circle-exclamation' : message.type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i> <%= message.text %></div>
+          <div class="flashStack" data-site-flash-stack role="status" aria-live="polite" aria-atomic="true">
+            <% flashMessages.forEach(function(message){ const type = ['success','error','warning','info'].includes(message.type) ? message.type : 'info'; %>
+              <div class="flashMessage <%= type %>" data-site-flash>
+                <div class="flashMessageBody"><i class="fa-solid <%= type === 'error' ? 'fa-circle-exclamation' : type === 'warning' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-circle-check' : 'fa-circle-info' %>"></i><span><%= message.text %></span></div>
+                <button type="button" class="flashDismiss" data-dismiss-site-flash aria-label="Dismiss message"><i class="fa-solid fa-xmark"></i></button>
+              </div>
             <% }); %>
           </div>
         <% } %>
@@ -296,6 +306,9 @@
   </div>
 
   <div class="toast" id="toast">Action completed</div>
+
+  <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
+  <script src="/js/pwa.js?v=20260727-1" defer></script>
 
   <script nonce="<%= cspNonce %>">
     const html = document.documentElement;

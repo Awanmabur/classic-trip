@@ -2,9 +2,6 @@
 <%- include('../../partials/site-header') %>
 <main class="container paymentPage" style="padding:28px 0 44px">
   <section class="sheet" style="max-width:820px;margin:0 auto">
-    <% if (Array.isArray(flashMessages) && flashMessages.length) { %>
-      <div style="display:grid;gap:8px;margin-bottom:12px"><% flashMessages.forEach(message => { %><div class="listing" role="alert" style="padding:12px"><%= message.text %></div><% }) %></div>
-    <% } %>
     <% if (Array.isArray(recoveryCodes) && recoveryCodes.length) { %>
       <div class="sheetTop"><div><div class="badge badgeOk"><i class="fa-solid fa-shield-circle-check"></i> MFA enabled</div><div class="sheetTitle">Save your recovery codes now</div><div class="sheetSub">Each code works once. Store them in a password manager or another secure offline location. They will not be shown again.</div></div></div>
       <div class="summaryCard" style="margin-top:16px"><div class="gridCards" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><% recoveryCodes.forEach(code => { %><code class="listing" style="display:block;padding:14px;text-align:center;font-size:15px"><%= code %></code><% }) %></div></div>

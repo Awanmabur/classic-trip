@@ -3,6 +3,11 @@ let dotenv = null;
 try { dotenv = require('dotenv'); } catch (error) { dotenv = null; }
 if (dotenv) dotenv.config({ path: path.join(process.cwd(), '.env') });
 
+const RAW_NODE_ENV = String(process.env.NODE_ENV || 'development').trim().toLowerCase();
+const NODE_ENV_ALIASES = Object.freeze({ develoment: 'development', developement: 'development', dev: 'development', prod: 'production' });
+const NORMALIZED_NODE_ENV = NODE_ENV_ALIASES[RAW_NODE_ENV] || RAW_NODE_ENV || 'development';
+process.env.NODE_ENV = NORMALIZED_NODE_ENV;
+
 const number = (key, fallback) => {
   const value = Number(process.env[key]);
   return Number.isFinite(value) ? value : fallback;
@@ -28,13 +33,21 @@ const csvList = (key, fallback = []) => {
 
 const env = {
   appName: process.env.APP_NAME || 'Classic Trip',
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  nodeEnv: NORMALIZED_NODE_ENV,
+  rawNodeEnv: RAW_NODE_ENV,
+  nodeEnvWasNormalized: RAW_NODE_ENV !== NORMALIZED_NODE_ENV,
+  isProduction: NORMALIZED_NODE_ENV === 'production',
   port: number('PORT', 5000),
   appUrl: process.env.APP_URL || 'http://localhost:5000',
   mongoUri: process.env.MONGO_URI || '',
   mongoDbName: configuredValue('MONGO_DB_NAME'),
   mongoTransactions: ['true', '1', 'yes'].includes(String(process.env.MONGO_TRANSACTIONS || '').toLowerCase()),
+  mongoPool: {
+    min: Math.max(0, number('MONGO_MIN_POOL_SIZE', 2)),
+    max: Math.max(5, number('MONGO_MAX_POOL_SIZE', 30)),
+    maxIdleTimeMs: Math.max(10000, number('MONGO_MAX_IDLE_TIME_MS', 60000)),
+    waitQueueTimeoutMs: Math.max(1000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 10000)),
+  },
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
   mfaEncryptionKey: configuredValue('MFA_ENCRYPTION_KEY') || (process.env.NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_mfa_key')),
   platformMfaEnabled: booleanFlag('PLATFORM_MFA_ENABLED', false),
@@ -136,7 +149,7 @@ const env = {
   seo: {
     siteUrl: process.env.SITE_URL || process.env.APP_URL || 'http://localhost:5000',
     defaultTitle: process.env.SEO_DEFAULT_TITLE || 'Classic Trip | East Africa travel marketplace',
-    defaultDescription: process.env.SEO_DEFAULT_DESCRIPTION || 'Book buses, hotels, routes, tickets, and partner travel services across East Africa with Classic Trip.',
+    defaultDescription: process.env.SEO_DEFAULT_DESCRIPTION || 'Book buses, hotels, agent-supported flights and verified local rides across East Africa with Classic Trip.',
     defaultImage: process.env.SEO_DEFAULT_IMAGE || '',
     googleSiteVerification: process.env.GOOGLE_SITE_VERIFICATION || '',
     bingSiteVerification: process.env.BING_SITE_VERIFICATION || '',
@@ -151,8 +164,16 @@ const env = {
     fullName: process.env.SUPER_ADMIN_NAME || 'Classic Trip Super Admin',
     phone: configuredValue('SUPER_ADMIN_PHONE'),
   },
+  performance: {
+    logSlowRequests: booleanFlag('LOG_SLOW_REQUESTS', NORMALIZED_NODE_ENV === 'production'),
+    slowRequestThresholdMs: number('SLOW_REQUEST_THRESHOLD_MS', 2000),
+    homeCacheTtlMs: number('HOME_CACHE_TTL_MS', 60000),
+    homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 300000),
+    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
+    dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 300000),
+  },
   jobs: {
-    enabled: booleanFlag('ENABLE_JOBS', process.env.NODE_ENV === 'production'),
+    enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
     processOutbox: process.env.JOB_PROCESS_OUTBOX || '* * * * *',
     expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
@@ -167,6 +188,8 @@ const env = {
 };
 
 function validateEnv() {
+  const supportedNodeEnvs = new Set(['development', 'test', 'production']);
+  if (!supportedNodeEnvs.has(env.nodeEnv)) throw new Error(`NODE_ENV must be development, test, or production (received "${env.rawNodeEnv || env.nodeEnv}")`);
   const requiredAlways = ['MONGO_URI', 'SESSION_SECRET'];
   const missingAlways = requiredAlways.filter((key) => !configuredValue(key));
   if (missingAlways.length) throw new Error(`Missing required environment variables: ${missingAlways.join(', ')}`);

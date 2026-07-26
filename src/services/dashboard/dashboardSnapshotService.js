@@ -1,7 +1,8 @@
 const repositories = require('../../repositories');
+const { env } = require('../../config/env');
 
-const SNAPSHOT_TTL_MS = Math.max(1000, Number(process.env.DASHBOARD_SNAPSHOT_TTL_MS || 5000));
-const SNAPSHOT_STALE_MS = Math.max(SNAPSHOT_TTL_MS, Number(process.env.DASHBOARD_SNAPSHOT_STALE_MS || 30000));
+const SNAPSHOT_TTL_MS = Math.max(1000, Number(env.performance.dashboardCacheTtlMs || 60000));
+const SNAPSHOT_STALE_MS = Math.max(SNAPSHOT_TTL_MS, Number(env.performance.dashboardCacheStaleMs || 300000));
 const snapshotCache = new Map();
 const snapshotInflight = new Map();
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
@@ -217,7 +218,10 @@ async function loadFresh(role, context = {}) {
 }
 
 function remember(key, value) {
-  snapshotCache.set(key, { value: clone(value), createdAt: Date.now() });
+  // Repository rows are plain read models. Dashboard projections treat them as
+  // immutable, so retaining the snapshot avoids cloning tens of thousands of
+  // records on every navigation request.
+  snapshotCache.set(key, { value, createdAt: Date.now() });
   while (snapshotCache.size > 24) snapshotCache.delete(snapshotCache.keys().next().value);
 }
 
@@ -234,14 +238,14 @@ async function load(role, context = {}, options = {}) {
   const key = cacheKey(role, context);
   const cached = snapshotCache.get(key);
   const age = cached ? Date.now() - cached.createdAt : Infinity;
-  if (!options.force && cached && age <= SNAPSHOT_TTL_MS) return clone(cached.value);
+  if (!options.force && cached && age <= SNAPSHOT_TTL_MS) return cached.value;
   // Stale-while-revalidate keeps dashboard navigation responsive while a short-lived
   // snapshot refresh runs in the background. Writes remain authoritative in MongoDB.
   if (!options.force && cached && age <= SNAPSHOT_STALE_MS) {
     refreshKey(key, role, context).catch(() => {});
-    return clone(cached.value);
+    return cached.value;
   }
-  return clone(await refreshKey(key, role, context));
+  return refreshKey(key, role, context);
 }
 
 function invalidate(role = '', context = {}) {

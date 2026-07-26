@@ -2,6 +2,13 @@ const repositories = require('../../repositories');
 const snapshotService = require('./dashboardSnapshotService');
 const { createDashboardProjection } = require('./dashboardProjectionEngine');
 
+const roleProjectionCache = new Map();
+
+function projectionCacheKey(role, context = {}) {
+  return [role, context.companyId || '', context.customerId || '', context.promoterId || '', (context.permissions || []).join(',')].join(':');
+}
+
+
 function cleanLimit(value, fallback = 50, max = 500) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return fallback;
@@ -123,10 +130,17 @@ function restrictRoleDashboard(role, data = {}) {
 async function roleDashboard(role, context = {}) {
   const dataRole = ['support', 'finance', 'operations', 'content'].includes(role) ? 'admin' : role;
   const snapshot = await snapshotService.load(dataRole, context);
+  const key = projectionCacheKey(role, context);
+  const cached = roleProjectionCache.get(key);
+  if (cached?.snapshot === snapshot) return cached.data;
   const projection = createDashboardProjection(snapshot);
-  const data = projection.dashboardData(dataRole, context);
-  if (role === 'employee') return restrictEmployeeDashboard(data, context.permissions || []);
-  return restrictRoleDashboard(role, data);
+  const projected = projection.dashboardData(dataRole, context);
+  const data = role === 'employee'
+    ? restrictEmployeeDashboard(projected, context.permissions || [])
+    : restrictRoleDashboard(role, projected);
+  roleProjectionCache.set(key, { snapshot, data });
+  while (roleProjectionCache.size > 32) roleProjectionCache.delete(roleProjectionCache.keys().next().value);
+  return data;
 }
 
 

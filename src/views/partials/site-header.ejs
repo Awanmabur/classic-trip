@@ -13,7 +13,7 @@
     </div>
     <div class="navActions">
       <button class="iconbtn" id="siteThemeBtn" title="Toggle theme" data-site-action="theme"><i class="fa-solid fa-moon" id="siteThemeIcon"></i></button>
-      <a class="btn btnGhost" href="/tickets" style="<%= currentPath.startsWith('/tickets') ? 'background:rgba(255,183,3,.13);border-color:rgba(255,183,3,.30);color:var(--accent)' : '' %>"><i class="fa-solid fa-ticket"></i><span class="navBtnText">Tickets</span></a>
+      <a class="btn btnGhost topTicketAction" href="/tickets" style="<%= currentPath.startsWith('/tickets') ? 'background:rgba(255,183,3,.13);border-color:rgba(255,183,3,.30);color:var(--accent)' : '' %>"><i class="fa-solid fa-ticket"></i><span class="navBtnText">Tickets</span></a>
       <% if (currentUser) { %>
         <a class="btn btnGhost login" href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i><span class="navBtnText"><%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></span></a>
       <% } else { %>
@@ -58,7 +58,7 @@
       <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>"><i class="fa-regular fa-newspaper"></i> Travel Guides</a>
       <a href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How It Works</a>
     </div>
-    <div style="display:grid;gap:9px;padding-top:12px;border-top:1px solid var(--line)">
+    <div class="drawerFinalActions" style="display:grid;gap:9px;padding-top:12px;border-top:1px solid var(--line)">
       <a class="btn btnPrimary" href="/register?role=partner#partner" style="justify-content:flex-start;gap:10px"><i class="fa-solid fa-store"></i> Become a Partner</a>
     </div>
   </div>

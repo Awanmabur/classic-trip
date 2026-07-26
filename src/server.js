@@ -6,6 +6,7 @@ const { ensurePlatformConfig } = require('./services/platform/platformConfigServ
 const { startScheduledJobs } = require('./jobs/scheduler');
 const repositories = require('./repositories');
 const dashboardSnapshotService = require('./services/dashboard/dashboardSnapshotService');
+const catalogService = require('./services/marketplace/catalogService');
 
 let httpServer = null;
 let shuttingDown = false;
@@ -16,16 +17,24 @@ async function start() {
   repositories.readyRepository('companies');
   await ensurePlatformConfig();
   startScheduledJobs();
-  // Begin the expensive platform snapshot once at startup. Dashboard requests
-  // share the same in-flight promise and then use a short-lived cache.
-  dashboardSnapshotService.prewarm('admin').catch((error) => {
-    logger.warn('Dashboard snapshot prewarm failed', { error: error.message });
+  if (env.nodeEnvWasNormalized) {
+    logger.warn('NODE_ENV spelling was corrected', { from: env.rawNodeEnv, to: env.nodeEnv });
+  }
+  // Prewarm expensive read models without delaying the port from opening.
+  Promise.allSettled([
+    dashboardSnapshotService.prewarm('admin'),
+    catalogService.prewarmHome(),
+  ]).then((results) => {
+    const failed = results.filter((result) => result.status === 'rejected');
+    if (failed.length) logger.warn('One or more read-model prewarms failed', { count: failed.length });
   });
   httpServer = app.listen(env.port, () => {
-    logger.info(`${env.appName} server listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
+    logger.startup(`${env.appName} listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
   });
   httpServer.keepAliveTimeout = 65_000;
   httpServer.headersTimeout = 66_000;
+  httpServer.requestTimeout = 30_000;
+  httpServer.maxRequestsPerSocket = 1_000;
   return httpServer;
 }
 

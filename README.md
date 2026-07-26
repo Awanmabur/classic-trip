@@ -29,6 +29,60 @@ npm start
 Use strong independent secrets for sessions, MFA encryption, payment webhooks and the Super Admin. Do not commit `.env`.
 
 
+
+## Development, production and terminal output
+
+Local development uses quiet nodemon automatically:
+
+```bash
+cp .env.example .env
+npm ci
+npm start
+```
+
+- `npm start` uses nodemon when `NODE_ENV` is not `production`.
+- Changes to JavaScript, EJS, JSON and CSS restart the server automatically.
+- Type `rs` in the terminal to restart manually.
+- Do not install with `--omit=dev` on a development machine because nodemon is a development dependency.
+
+The normal application output is intentionally limited to the database connection and listening address. Warnings and errors remain visible because they require action. Routine job-registration messages and slow-request warnings are disabled by default.
+
+```text
+✓ MongoDB connected — host=... db=classic-trip transactions=true
+✓ Classic Trip listening — url=http://localhost:5000 port=5000 nodeEnv=development
+```
+
+Enable temporary performance diagnostics only when investigating a problem:
+
+```env
+LOG_LEVEL=info
+LOG_SLOW_REQUESTS=true
+SLOW_REQUEST_THRESHOLD_MS=1200
+```
+
+Production uses plain Node, not nodemon:
+
+```bash
+npm ci --omit=dev
+npm run db:indexes
+npm run doctor
+NODE_ENV=production npm run launch:check
+npm run start:prod
+```
+
+`npm run db:indexes` creates declared indexes without dropping application data. `npm run doctor` checks the selected database, Atlas/replica-set transaction support, connection pool, scheduled jobs and live routing configuration.
+
+## Performance architecture
+
+- The homepage reads only active, published records and live inventory for the four production services.
+- Its read model is prewarmed, deduplicated and cached with stale-while-revalidate behaviour.
+- Dashboard snapshots and role projections are cached briefly and invalidated automatically after writes.
+- Successful login no longer waits for device/audit persistence after the secure session is saved.
+- Login identity and lockout reads run concurrently and the lockout query has a matching compound index.
+- MongoDB uses an explicit bounded connection pool.
+- HTTP requests have bounded request and connection reuse limits.
+- `X-Request-ID` and `Server-Timing` remain available for debugging without producing terminal noise by default.
+
 ## Final spacing, stacking and feedback completion
 
 This release keeps the approved reference UI byte-for-byte and adds one narrowly scoped completion layer for issues found after the reference merge:
@@ -471,9 +525,7 @@ The public site, authentication/onboarding screens and all role dashboards load 
 
 ## Final deep cleanup (26 July 2026)
 
-The final cleanup preserves the approved reference UI while fixing Super Admin Partner Network overlap, phone dashboard gutters, focused-input feedback, auth errors, dark-mode contrast and slow login/dashboard reads. See `FINAL_DEEP_CLEANUP_2026-07-26.md` and `FINAL_VERIFICATION_2026-07-26.json`.
-
-Optional dashboard cache settings:
+The final cleanup preserves the approved reference UI while fixing Super Admin Partner Network overlap, phone dashboard gutters, focused-input feedback, auth errors, dark-mode contrast and slow login/dashboard reads. Optional dashboard cache settings:
 
 ```env
 DASHBOARD_SNAPSHOT_TTL_MS=5000
@@ -485,3 +537,52 @@ DASHBOARD_SNAPSHOT_STALE_MS=30000
 The nine Super Admin Partner Network destinations use one scoped structure: a separate hero, a separate data card, a standard card header, a contained table area and a padded empty state. The layout is isolated from generic dashboard positioning so cards cannot overlap. Driver and vehicle review forms scroll inside their own data surface on narrow screens.
 
 The temporary light-blue input focus treatment has been removed. Form controls keep the approved neutral focus appearance.
+
+
+## Version 1.2.1 final mobile and install update
+
+This release preserves the approved Classic Trip UI and adds the final phone navigation and install experience. The authoritative report is `FINAL_RELEASE_REPORT_2026-07-27.md`.
+
+### Complete local setup
+
+```bash
+cp .env.example .env
+npm ci
+npm run db:indexes
+npm run doctor
+npm run verify
+npm start
+```
+
+### Production start
+
+```bash
+npm ci --omit=dev
+npm audit --omit=dev
+npm run db:indexes
+npm run doctor
+NODE_ENV=production npm run launch:check
+npm run start:prod
+```
+
+Use `MONGO_DB_NAME=classic-trip`. Configure real payment, email/SMS, object-storage, routing/GPS and certified flight-supplier credentials before launch.
+
+
+## Mobile navigation and installable app
+
+- The phone/tablet bottom navigation hides while the user scrolls or types and returns after scrolling stops.
+- Opening the Profile drawer hides the bottom navigation and reserves safe bottom spacing so the final menu action remains visible.
+- The public Start action opens the Sign in page.
+- The top Tickets action is hidden on phone navigation while ticket access remains available in the bottom navigation and drawer.
+- Login, Signup and Partner remain in one clean three-column row on phones.
+- KPI/stat cards remain two per row on phones.
+- Blue and primary button labels keep readable colours on hover, focus and active states.
+- Classic Trip is installable on supported phones and computers. The install prompt uses the full logo, product name and slogan.
+- Installed launches receive a short, session-only branded splash without delaying normal browser visits.
+- The service worker caches only static assets; account, payment, booking and dashboard HTML are never cached.
+
+Verify this contract with:
+
+```bash
+npm run check:mobile-pwa
+```

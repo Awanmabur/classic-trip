@@ -69,7 +69,7 @@ async function runJob(name) {
       result,
     };
     lastRuns.set(name, status);
-    logger.info('Scheduled job completed', status);
+    logger.debug('Scheduled job completed', status);
     return status;
   } catch (error) {
     const failedAt = new Date();
@@ -89,7 +89,7 @@ async function runJob(name) {
 
 function startScheduledJobs({ force = false, active = true } = {}) {
   if (!force && !env.jobs.enabled) {
-    logger.info('Scheduled jobs disabled', { enableWith: 'ENABLE_JOBS=true' });
+    if (env.isProduction) logger.warn('Scheduled jobs are disabled in production', { enableWith: 'ENABLE_JOBS=true' });
     return { started: false, jobs: [] };
   }
   if (scheduledTasks.size) return { started: true, jobs: Array.from(scheduledTasks.keys()) };
@@ -104,7 +104,7 @@ function startScheduledJobs({ force = false, active = true } = {}) {
       ? cron.schedule(expression, () => runJob(name))
       : cron.createTask(expression, () => runJob(name));
     scheduledTasks.set(name, { expression, task, active });
-    logger.info('Scheduled job registered', { name, expression, active });
+    logger.debug('Scheduled job registered', { name, expression, active });
   });
 
   return { started: scheduledTasks.size > 0, jobs: Array.from(scheduledTasks.keys()) };

@@ -40,7 +40,7 @@ app.use((req, res, next) => {
   res.end = function timedEnd(...args) {
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
     if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${durationMs.toFixed(1)}`);
-    if (durationMs >= 1200) {
+    if (env.performance.logSlowRequests && durationMs >= env.performance.slowRequestThresholdMs) {
       require('./config/logger').warn('Slow request', {
         requestId: req.id,
         method: req.method,

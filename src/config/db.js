@@ -17,7 +17,14 @@ async function connectDb() {
     mongoose.set('strictQuery', true);
     const effectiveDbName = env.mongoDbName || (uriIncludesDatabaseName(env.mongoUri) ? '' : 'classic-trip');
     const conn = await mongoose.connect(env.mongoUri, {
-      serverSelectionTimeoutMS: env.isProduction ? 30000 : 3000,
+      serverSelectionTimeoutMS: env.isProduction ? 30000 : 5000,
+      connectTimeoutMS: env.isProduction ? 30000 : 10000,
+      socketTimeoutMS: 45000,
+      minPoolSize: env.mongoPool.min,
+      maxPoolSize: env.mongoPool.max,
+      maxIdleTimeMS: env.mongoPool.maxIdleTimeMs,
+      waitQueueTimeoutMS: env.mongoPool.waitQueueTimeoutMs,
+      autoIndex: !env.isProduction,
       ...(effectiveDbName ? { dbName: effectiveDbName } : {}),
     });
     if (env.mongoTransactions) {
@@ -28,7 +35,7 @@ async function connectDb() {
         throw new Error('MONGO_TRANSACTIONS=true requires a MongoDB replica set or mongos');
       }
     }
-    logger.info('MongoDB connected', { host: conn.connection.host, db: conn.connection.name, transactions: env.mongoTransactions });
+    logger.startup('MongoDB connected', { host: conn.connection.host, db: conn.connection.name, transactions: env.mongoTransactions });
     if (conn.connection.name === 'test') {
       logger.warn('MongoDB is connected to the test database. Set MONGO_DB_NAME=classic-trip or include /classic-trip in MONGO_URI before seeding production-like data.');
     }

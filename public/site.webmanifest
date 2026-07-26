@@ -1,14 +1,86 @@
 {
+  "id": "/",
   "name": "Classic Trip",
   "short_name": "Classic Trip",
-  "description": "Book buses, accommodation, flights and safe local rides across East Africa with verified partners and secure payments.",
-  "start_url": "/",
+  "description": "Move, stay and fly with confidence across East Africa using verified travel partners and secure bookings.",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#070a12",
   "theme_color": "#070a12",
+  "categories": [
+    "travel",
+    "transportation",
+    "lifestyle"
+  ],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/images/logo-symbol-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/images/logo-symbol-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/images/logo-symbol-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo-symbol-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/logo-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search trips",
+      "short_name": "Search",
+      "url": "/search?source=pwa-shortcut",
+      "icons": [
+        {
+          "src": "/images/logo-symbol-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "My bookings",
+      "short_name": "Bookings",
+      "url": "/my-bookings?source=pwa-shortcut",
+      "icons": [
+        {
+          "src": "/images/logo-symbol-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Local taxi",
+      "short_name": "Taxi",
+      "url": "/taxi?source=pwa-shortcut",
+      "icons": [
+        {
+          "src": "/images/logo-symbol-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

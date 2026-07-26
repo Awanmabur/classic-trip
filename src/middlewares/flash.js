@@ -55,6 +55,7 @@ function flashMiddleware(req, res, next) {
     res.once('finish', () => {
       if (!skipDashboardInvalidation && res.statusCode < 500) {
         try { require('../services/dashboard/dashboardSnapshotService').invalidate(); } catch (_) {}
+        try { require('../services/marketplace/catalogService').invalidateMarketplaceCache(); } catch (_) {}
       }
     });
   }

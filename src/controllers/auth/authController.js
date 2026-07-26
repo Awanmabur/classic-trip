@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const { env } = require('../../config/env');
 const { isDriverAccountOperational } = require('../../services/company/driverEligibilityService');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
+const logger = require('../../config/logger');
 
 function welcomeName(user = {}) {
   return String(user.fullName || user.name || user.email || 'there').trim().split(/\s+/)[0] || 'there';
@@ -26,6 +27,20 @@ function registrationRedirect(user = {}) {
   if (user.role === 'company_admin') return '/company/profile?onboarding=1';
   if (user.role === 'promoter') return '/promoter/profile?onboarding=1';
   return authService.redirectForRole(user.role);
+}
+
+function securityRequestSnapshot(req = {}) {
+  return {
+    id: req.id || '',
+    ip: req.ip || '',
+    headers: { ...(req.headers || {}) },
+    sessionID: req.sessionID || '',
+    session: { user: req.session?.user || null, id: req.session?.id || '' },
+  };
+}
+
+function saveSession(req) {
+  return new Promise((resolve, reject) => req.session.save((error) => (error ? reject(error) : resolve())));
 }
 
 function authQueryMessage(query = {}) {
@@ -127,13 +142,20 @@ async function login(req, res, next) {
     // Regenerate the session to prevent session fixation attacks.
     await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
     req.session.user = user;
-    await securityService.recordLoginAttempt({
-      user,
-      identity: req.body.identity || req.body.email,
-      result: 'success',
-      req,
-    });
     if (req.flash) req.flash('success', `Welcome back, ${welcomeName(user)}. Your dashboard is ready.`);
+    // Persist the authenticated session before redirecting. Device/audit writes are
+    // still recorded, but no longer hold the user on the login page for several
+    // extra Atlas round trips.
+    await saveSession(req);
+    const auditReq = securityRequestSnapshot(req);
+    setImmediate(() => {
+      securityService.recordLoginAttempt({
+        user,
+        identity: req.body.identity || req.body.email,
+        result: 'success',
+        req: auditReq,
+      }).catch((auditError) => logger.error('Successful login audit could not be recorded', { error: auditError.message, userId: user.id }));
+    });
     return res.redirect(nextUrl);
   } catch (error) {
     if (error.code === 'account_locked') {

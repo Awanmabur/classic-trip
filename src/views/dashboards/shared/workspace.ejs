@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
+  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <title><%= seo?.title || (`Classic Trip | ${dashboardShell?.label || 'Dashboard'}`) %></title>
   <meta name="description" content="<%= dashboardShell?.consoleName || dashboardShell?.label || 'Classic Trip dashboard' %> for role-scoped bookings, inventory, operations, finance, support, and reports." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -17,7 +23,7 @@
   
   <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260726-reference-ui-1">
   <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-deep-cleanup-2">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-release-3">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 
@@ -95,8 +101,8 @@
       reportsLabel: 'Reports ready',
       quickSub: 'Fast staff actions scoped to assigned company data.'
     } : {
-      title: 'Welcome back. Your marketplace is running smoothly.',
-      body: 'Track every booking, partner listing, customer ticket, payout split, promoter commission, ad campaign, refund, and dispute from this single super admin dashboard.',
+      title: 'Lead every service from one trusted command centre.',
+      body: 'See marketplace performance clearly, approve trustworthy partners, protect every payment and coordinate bus, hotel, flight-agent and local-mobility operations from one accountable workspace.',
       primaryPage: 'payments',
       primaryIcon: 'fa-money-bill-transfer',
       primaryLabel: 'Review payouts',
@@ -107,7 +113,7 @@
       bookingLabel: 'Bookings today',
       supportLabel: 'Pending partner approvals',
       reportsLabel: 'Open disputes',
-      quickSub: 'Fast platform control actions.'
+      quickSub: 'High-priority controls for safe growth, reliable operations and faster customer resolution.'
     };
     const sectionLocals = {
       dashboardRoleKey,
@@ -259,7 +265,7 @@
         </div>
       <% } %>
 
-      <section class="section is-open" id="overview">
+      <section class="section is-open dashboardFlowPage dashboardOverviewPage" id="overview">
         <div class="hero">
           <div class="heroGrid">
             <div class="welcome">
@@ -638,7 +644,8 @@
       <% }) %>
 
   <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
-<script src="/js/dashboard-workspace.js?v=20260724-hotel-ui-final-1" defer></script>
+<script src="/js/pwa.js?v=20260727-1" defer></script>
+<script src="/js/dashboard-workspace.js?v=20260727-1" defer></script>
 </body>
 </html>
 

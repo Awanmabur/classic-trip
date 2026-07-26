@@ -17,4 +17,5 @@ const loginAuditSchema = new Schema({
 
 loginAuditSchema.index({ userId: 1, createdAt: -1 });
 loginAuditSchema.index({ identity: 1, createdAt: -1 });
+loginAuditSchema.index({ identity: 1, result: 1, createdAt: -1 });
 module.exports = model('LoginAudit', loginAuditSchema);

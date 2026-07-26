@@ -6,9 +6,10 @@ const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPu
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
+const { env } = require('../../config/env');
 
-const SERVICE_LABELS = { bus: 'Bus', hotel: 'Hotel' };
-const TYPE_ORDER = ['bus', 'hotel'];
+const SERVICE_LABELS = { bus: 'Bus', hotel: 'Hotel', flight: 'Flight', local_transport: 'Local ride' };
+const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
@@ -19,30 +20,66 @@ function asDate(value) { const date = value ? new Date(value) : null; return dat
 function active(row) { return ['active', 'published', 'verified', 'approved', 'boarding', 'delayed'].includes(normalize(row?.status)); }
 function isPublicListing(row, data = {}) { return publicListingVisible(row, data && typeof data === 'object' && !Array.isArray(data) ? data : {}); }
 
-async function snapshot() {
+let snapshotCache = null;
+let snapshotCachedAt = 0;
+let snapshotInflight = null;
+
+async function loadSnapshotFresh() {
   const [categories, listings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig] = await Promise.all([
-    commerceRepository.categories.list({}, { sort: { order: 1, name: 1 }, limit: 500 }),
-    commerceRepository.listings.list({}, { sort: { createdAt: -1 }, limit: 5000 }),
+    commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
+    commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
     commerceRepository.companies.list({}, { sort: { name: 1 }, limit: 2000 }),
-    commerceRepository.routes.list({}, { sort: { createdAt: -1 }, limit: 5000 }),
+    commerceRepository.routes.list({ status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 5000 }),
     commerceRepository.routeStops.list({ status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 20000 }),
-    commerceRepository.fareProducts.list({ status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 10000 }),
-    commerceRepository.segmentFares.list({ status: { $ne: 'archived' } }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 }),
-    commerceRepository.serviceAddons.list({ status: { $ne: 'archived' } }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
-    commerceRepository.schedules.list({}, { sort: { departAt: 1 }, limit: 10000 }),
-    commerceRepository.seats.list({}, { limit: 50000 }),
-    commerceRepository.vehicles.list({}, { limit: 10000 }),
-    commerceRepository.roomTypes.list({}, { limit: 10000 }),
-    commerceRepository.roomUnits.list({}, { limit: 20000 }),
-    commerceRepository.roomNights.list({}, { limit: 50000 }),
-    promoterRepository.links.list({ status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 5000 }),
-    contentRepository.promotionCampaigns.list({}, { sort: { createdAt: -1 }, limit: 5000 }),
-    contentRepository.blogs.list({}, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
+    commerceRepository.fareProducts.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 10000 }),
+    commerceRepository.segmentFares.list({ status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 }),
+    commerceRepository.serviceAddons.list({ status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
+    commerceRepository.schedules.list({ status: { $in: ['published', 'boarding', 'delayed'] } }, { sort: { departAt: 1 }, limit: 10000 }),
+    commerceRepository.seats.list({ status: 'available' }, { limit: 50000 }),
+    commerceRepository.vehicles.list({ status: { $ne: 'archived' } }, { limit: 10000 }),
+    commerceRepository.roomTypes.list({ status: 'active' }, { limit: 10000 }),
+    commerceRepository.roomUnits.list({ status: { $nin: ['archived', 'maintenance'] } }, { limit: 20000 }),
+    commerceRepository.roomNights.list({ status: { $in: ['available', 'open'] } }, { limit: 50000 }),
+    promoterRepository.links.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+    contentRepository.promotionCampaigns.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+    contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
     getPlatformConfig(),
   ]);
   const productionListings = listings.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings, companies })));
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
+}
+
+async function refreshSnapshot() {
+  if (snapshotInflight) return snapshotInflight;
+  snapshotInflight = loadSnapshotFresh()
+    .then((value) => {
+      snapshotCache = value;
+      snapshotCachedAt = Date.now();
+      return value;
+    })
+    .finally(() => { snapshotInflight = null; });
+  return snapshotInflight;
+}
+
+async function snapshot(options = {}) {
+  const age = snapshotCache ? Date.now() - snapshotCachedAt : Infinity;
+  if (!options.force && snapshotCache && age <= env.performance.homeCacheTtlMs) return snapshotCache;
+  if (!options.force && snapshotCache && age <= env.performance.homeCacheStaleMs) {
+    refreshSnapshot().catch(() => {});
+    return snapshotCache;
+  }
+  return refreshSnapshot();
+}
+
+function invalidateMarketplaceCache() {
+  snapshotCache = null;
+  snapshotCachedAt = 0;
+}
+
+async function prewarmHome() {
+  await snapshot({ force: true });
+  return homeBootstrap();
 }
 
 function companyFor(data, identifier) {
@@ -164,15 +201,16 @@ function catalogItem(data, listing) {
   const from = listing.from || route.origin || route.from || listing.city || '';
   const to = listing.to || route.destination || route.to || listing.location || '';
   const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
-  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && remainingInventory > 0;
+  const inventoryRequired = ['bus', 'hotel', 'flight'].includes(serviceType);
+  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && (!inventoryRequired || remainingInventory > 0);
   const policy = text(listing.policy || listing.cancellationRules || listing.cancellationPolicy || listing.refundPolicy);
   const nextDepartAt = nextSchedule?.departAt || listing.nextDepartAt || null;
   const nextDepartDate = asDate(nextDepartAt);
   const nextDepartLabel = nextDepartDate
     ? nextDepartDate.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: nextSchedule?.timezone || 'UTC' })
-    : serviceType === 'hotel' ? 'Choose stay dates' : '';
+    : serviceType === 'hotel' ? 'Choose stay dates' : serviceType === 'local_transport' ? 'Request now or schedule' : '';
   const bookableReason = bookable
-    ? (serviceType === 'bus' ? 'Published departure available' : 'Live inventory available')
+    ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : 'Live inventory available')
     : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
   const enriched = {
     id: stableId,
@@ -223,7 +261,7 @@ function catalogItem(data, listing) {
     availability: remainingInventory,
     availableSeats,
     availableRooms: roomInventory,
-    unitsLabel: serviceType === 'bus' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : `${remainingInventory} room${remainingInventory === 1 ? '' : 's'} available`,
+    unitsLabel: serviceType === 'bus' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'hotel' ? `${remainingInventory} room${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'flight' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : 'On-demand and scheduled rides',
     priceFrom,
     price: priceFrom,
     fullRoutePrice: number(fareCatalog.fullRoutePrice || priceFrom),
@@ -240,8 +278,8 @@ function catalogItem(data, listing) {
     bookableReason,
     instantConfirmation: listing.instantConfirmation !== false && bookable,
     refundable: /refund|cancellation/.test(normalize(policy)),
-    url: `/listings/${serviceType}/${listing.slug || stableId}`,
-    bookingUrl: bookable ? `/book/${serviceType}/${listing.slug || stableId}` : '',
+    url: serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/listings/${serviceType}/${listing.slug || stableId}`,
+    bookingUrl: bookable ? (serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/book/${serviceType}/${listing.slug || stableId}`) : '',
     companyUrl: `/companies/${company?.slug || entityId(company || {})}`,
     searchText: normalize([listing.title, listing.description, from, to, listing.city, listing.country, company?.name, serviceType].join(' ')),
   };
@@ -458,4 +496,4 @@ async function recordReferralClick(code, listingId, request = {}) {
   return click;
 }
 
-module.exports = { snapshot, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };
+module.exports = { snapshot, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };

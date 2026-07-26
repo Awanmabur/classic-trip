@@ -110,7 +110,7 @@ assert(/timingSafeEqual/.test(csrf), 'src/middlewares/csrf.js: CSRF comparison m
 
 const adminDashboardController = source('src/controllers/admin/dashboardController.js');
 assert(/mongoDashboardService\.roleDashboard\(role\)/.test(adminDashboardController), 'specialized dashboards must request their role-scoped projection');
-assert(/role === 'admin' \? mongoDashboardService\.listEntity\('companies'/.test(adminDashboardController), 'raw company selector data must be limited to Super Admin');
+assert(/companies:\s*role === 'admin' \? \(dashboardData\.partners \|\| \[\]\) : \[\]/.test(adminDashboardController) || /role === 'admin' \? mongoDashboardService\.listEntity\('companies'/.test(adminDashboardController), 'company selector data must be sourced from the role-scoped admin projection or queried only for Super Admin');
 const dashboardWorkspace = source('public/js/dashboard-workspace.js');
 assert(/platformActionPath/.test(dashboardWorkspace), 'specialized dashboard actions must use role-scoped action paths');
 

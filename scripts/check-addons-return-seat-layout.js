@@ -42,7 +42,7 @@ expect('Public preview removes selected journey fare strip', !has('src/views/pag
 expect('Public preview hides technical fare product label', !/Fare product/.test(read('src/views/pages/listing-details.ejs')));
 expect('Public preview hides technical journey segment label', !/Journey segment/.test(read('src/views/pages/listing-details.ejs')));
 expect('Marketplace cards use approved shared reference layout', has('src/views/pages/home.ejs', /partials\/listing-card/) && has('src/views/partials/listing-card.ejs', /referenceBusCard/) && has('public/js/home.js', /referenceBusCard/));
-expect('Current release guide exists', fs.existsSync(path.join(root, 'RELEASE_NOTES_2026-07-26.md')) && fs.existsSync(path.join(root, 'README.md')));
+expect('Current release guide exists', fs.existsSync(path.join(root, 'RELEASE_NOTES_2026-07-27.md')) && fs.existsSync(path.join(root, 'README.md')));
 
 const failed = checks.filter((row) => !row.condition);
 if (failed.length) {

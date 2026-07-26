@@ -106,7 +106,7 @@ const server = read('src/server.js');
 
 const packageJson = JSON.parse(read('package.json'));
 check('Production readiness gate is wired into verify', String(packageJson.scripts.verify || '').includes('check:production-readiness-final'));
-check('Release guide is current', fs.existsSync(path.join(root, 'RELEASE_NOTES_2026-07-26.md')) && fs.existsSync(path.join(root, 'README.md')));
+check('Release guide is current', fs.existsSync(path.join(root, 'RELEASE_NOTES_2026-07-27.md')) && fs.existsSync(path.join(root, 'README.md')));
 
 if (failures.length) {
   console.error(`Production readiness final audit failed (${passed.length}/${passed.length + failures.length}).`);

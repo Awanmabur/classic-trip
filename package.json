@@ -1,11 +1,11 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Production East Africa marketplace for buses, accommodation, agent-supported flights and safe local mobility.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js --watch",
     "seed": "node src/seeds/seedSuperAdmin.js",
     "seed:superadmin": "node src/seeds/seedSuperAdmin.js",
     "check": "node scripts/check-syntax.js && node scripts/check-ejs.js",
@@ -20,7 +20,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "jest --runInBand tests/unit",
-    "verify": "npm run check && npm run check:reference-ui && npm run check:spacing-flash-final && npm run check:deep-cleanup-final && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
+    "verify": "npm run check && npm run check:production-finalization && npm run check:final-superadmin-flow && npm run check:mobile-pwa && npm run check:reference-ui && npm run check:spacing-flash-final && npm run check:deep-cleanup-final && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -58,7 +58,14 @@
     "check:production-readiness-final": "node scripts/check-production-readiness-final.js",
     "check:reference-ui": "node scripts/check-reference-ui-merge.js",
     "check:spacing-flash-final": "node scripts/check-final-spacing-flash.js",
-    "check:deep-cleanup-final": "node scripts/check-deep-cleanup-final.js"
+    "check:deep-cleanup-final": "node scripts/check-deep-cleanup-final.js",
+    "start:prod": "node scripts/start-production.js",
+    "dev:verbose": "nodemon --verbose --legacy-watch src/server.js",
+    "db:indexes": "node scripts/ensure-production-indexes.js",
+    "doctor": "node scripts/production-doctor.js",
+    "check:production-finalization": "node scripts/check-production-finalization.js",
+    "check:final-superadmin-flow": "node scripts/check-final-superadmin-flow-flash-copy.js",
+    "check:mobile-pwa": "node scripts/check-mobile-pwa-final.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -90,7 +97,7 @@
     "supertest": "^7.0.0"
   },
   "engines": {
-    "node": "24.x",
-    "npm": "11.x"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }

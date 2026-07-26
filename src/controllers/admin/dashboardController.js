@@ -1,6 +1,5 @@
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
-const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 
 function activePageFromRequest(req) {
@@ -12,21 +11,23 @@ function activePageFromRequest(req) {
 }
 
 async function renderAdminShell(req, res, role, title) {
-  const [dashboardData, companies, notificationRows, notificationCount] = await Promise.all([
-    mongoDashboardService.roleDashboard(role),
-    role === 'admin' ? mongoDashboardService.listEntity('companies', {}, { limit: 250 }) : Promise.resolve([]),
-    notificationService.dashboardRowsLive(role, {}),
-    notificationService.unreadCountLive(role, {}),
-  ]);
+  const dashboardData = await mongoDashboardService.roleDashboard(role);
+  // The dashboard snapshot already contains role-scoped notifications and partner
+  // rows. Re-querying them here added three Atlas round trips to every page load.
+  const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
+  const notificationCount = notificationRows.filter((row) => {
+    const status = String(Array.isArray(row) ? (row[4] || row[5] || '') : row.status || '').toLowerCase();
+    return !['read', 'dismissed', 'archived'].includes(status);
+  }).length;
   res.render(`dashboards/${role}/index`, {
     seo: { title },
     dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: SERVICE_DASHBOARDS, roles: ROLE_DASHBOARD_FEATURES } },
     dashboardShell: buildDashboardShell(role, {
       user: req.session?.user,
-      companies,
+      companies: role === 'admin' ? (dashboardData.partners || []) : [],
       notifications: notificationRows,
       notificationCount,
-        activePage: activePageFromRequest(req),
+      activePage: activePageFromRequest(req),
     }),
   });
 }
