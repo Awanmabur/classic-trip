@@ -45,3 +45,41 @@
     outline: 0 !important;
   }
 }
+
+/* Dashboard button contrast contract. This file is loaded last, so these rules
+ * intentionally beat the generic `.btn:hover` surface without changing layout. */
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue,
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:link,
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:visited {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  background: linear-gradient(135deg, #4f8cff, #2f6bff) !important;
+  border-color: transparent !important;
+}
+
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:hover,
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:focus,
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:focus-visible,
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:active {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: linear-gradient(135deg, #3978ef, #1d56df) !important;
+  border-color: rgba(255,255,255,.22) !important;
+  box-shadow: 0 16px 36px rgba(47,107,255,.24) !important;
+}
+
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue :is(span,strong,b,small,i,svg,path),
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:hover :is(span,strong,b,small,i,svg,path),
+.dashboardBody :is(a,button,input[type="submit"],input[type="button"]).btnBlue:focus-visible :is(span,strong,b,small,i,svg,path) {
+  color: inherit !important;
+  fill: currentColor !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.dashboardBody .btnBlue[disabled],
+.dashboardBody .btnBlue[aria-disabled="true"] {
+  color: rgba(255,255,255,.72) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.72) !important;
+  background: linear-gradient(135deg, #658bcf, #4e6fae) !important;
+  opacity: .72;
+}

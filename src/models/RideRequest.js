@@ -18,7 +18,6 @@ const rideRequestSchema = new Schema({
   routeSnapshot: Schema.Types.Mixed,
   vehicleClassId: { type: String, required: true, index: true },
   passengerCount: { type: Number, min: 1, default: 1 },
-  luggageCount: { type: Number, min: 0, default: 0 },
   accessibilityNeeds: [String],
   status: { type: String, enum: ['awaiting_payment', 'scheduled', 'dispatch_pending', 'offering', 'assigned', 'cancelled', 'expired', 'failed'], default: 'awaiting_payment', index: true },
   dispatchAfter: { type: Date, required: true, index: true },

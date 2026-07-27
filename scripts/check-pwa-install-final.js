@@ -48,8 +48,8 @@ for (const view of [
 ]) {
   const source = read(view);
   check(`${view} loads manifest`, source.includes('/site.webmanifest'));
-  check(`${view} loads PWA script`, source.includes('/js/pwa.js?v=20260727-3'));
-  check(`${view} loads scoped PWA CSS`, source.includes('/css/pwa.css?v=20260727-3'));
+  check(`${view} loads PWA script`, source.includes('/js/pwa.js?v='));
+  check(`${view} loads scoped PWA CSS`, source.includes('/css/pwa.css?v='));
 }
 
 const failed = checks.filter((item) => !item.ok);

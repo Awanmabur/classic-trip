@@ -82,7 +82,7 @@ check('Partner auth role cards use two-column layout', authView.includes('.roleG
 // Bus operational safety remains strict.
 check('Driver assignment requires operational eligibility', driverEligibility.includes('isDriverAccountOperational') && driverEligibility.includes("normalize(employee.safetyStatus) !== 'cleared'") && driverEligibility.includes('REQUIRED_DRIVER_PERMISSIONS'));
 const busDeparture = read('src/modules/bus/services/busDepartureService.js');
-check('Bus publication checks strict driver eligibility', busBooking.includes('createTrustedManualBooking') && busDeparture.includes('validateSchedulePublish') && busDeparture.includes('evaluateDriverEligibility') && busDeparture.includes("failures.push('verified_operational_driver_missing')"));
+check('Bus publication keeps driver assignment optional while retaining eligibility diagnostics', busBooking.includes('createTrustedManualBooking') && busDeparture.includes('validateSchedulePublish') && busDeparture.includes('evaluateDriverEligibility') && busDeparture.includes('Driver assignment is optional at publication time') && !busDeparture.includes("failures.push('verified_operational_driver_missing')"));
 check('Segment-aware seat inventory remains authoritative', read('src/modules/bus/services/busInventoryService.js').includes('bus_segment_seat') && read('src/models/BusSeatSegmentInventory.js').includes('segmentId'));
 
 const failed = checks.filter((row) => !row.ok);

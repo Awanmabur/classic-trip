@@ -330,23 +330,40 @@ async function updateFinanceRules(req, res, next) {
 
 async function updatePriceRule(req, res, next) {
   try {
+    const requestedId = cleanText(req.params?.id || req.body.id, 180);
     const listingId = cleanText(req.body.listingId, 180);
     if (listingId && !(await repository.listings.findOne({ id: listingId }))) throw error('Listing not found', 404);
-    const percent = amountValue(req.body.percent || req.body.priceDelta, 0);
+    const percent = amountValue(req.body.percent ?? req.body.priceDelta, 0);
     if (percent < -100 || percent > 500) throw error('Price adjustment must be between -100% and 500%', 422);
     const startsAt = validDate(req.body.startsAt, 'price rule start date');
     const endsAt = validDate(req.body.endsAt, 'price rule end date');
     if (startsAt && endsAt && new Date(endsAt) <= new Date(startsAt)) throw error('Price rule end date must be after its start date', 422);
-    const rule = {
-      id: await nextId('price-rule'), listingId, ruleName: cleanText(req.body.ruleName || req.body.name || 'Dashboard price rule', 180),
-      percent, startsAt, endsAt, note: cleanText(req.body.note, 1000), status: 'active', createdBy: actor(req), createdAt: new Date().toISOString(),
-    };
+    const status = enumValue(req.body.status || 'active', new Set(['active', 'disabled', 'expired']), 'active', 'price rule status');
     const settings = await platformSettingsRepository.get();
-    settings.priceRules = [rule, ...(Array.isArray(settings.priceRules) ? settings.priceRules.filter((item) => item.id !== rule.id) : [])].slice(0, 500);
+    const rules = Array.isArray(settings.priceRules) ? settings.priceRules : [];
+    const existing = requestedId ? rules.find((item) => String(item.id || '') === requestedId) : null;
+    if (requestedId && !existing) throw error('Price rule not found', 404);
+    const rule = {
+      ...(existing?.toObject ? existing.toObject() : existing || {}),
+      id: requestedId || await nextId('price-rule'),
+      listingId,
+      ruleName: cleanText(req.body.ruleName || req.body.name || existing?.ruleName || 'Dashboard price rule', 180),
+      percent,
+      startsAt,
+      endsAt,
+      note: cleanText(req.body.note, 1000),
+      status,
+      createdBy: existing?.createdBy || actor(req),
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedBy: actor(req),
+      updatedAt: new Date().toISOString(),
+    };
+    settings.priceRules = [rule, ...rules.filter((item) => String(item.id || '') !== String(rule.id))].slice(0, 500);
     settings.updatedBy = actor(req);
     await platformSettingsRepository.save(settings);
-    await audit(req, 'admin.price.rule.created', rule.id, { entityType: 'price_rule', ...rule }, { entityType: 'price_rule' });
-    redirect(res, '/admin/listings');
+    await audit(req, existing ? 'admin.price.rule.updated' : 'admin.price.rule.created', rule.id, { entityType: 'price_rule', ...rule }, { entityType: 'price_rule' });
+    const destination = actorRole(req) === 'content_admin' ? '/content/dashboard/listings' : '/admin/listings';
+    redirect(res, destination);
   } catch (err) { next(err); }
 }
 

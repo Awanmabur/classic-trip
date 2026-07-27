@@ -27,6 +27,27 @@ async function createPolicy(req, res, next) {
   }
 }
 
+
+async function updateBranch(req, res, next) {
+  try {
+    await companyService.updateBranch(companyId(req), req.params.id, req.body, actorId(req));
+    if (req.flash) req.flash('success', 'Branch information was updated.');
+    res.redirect('/company/profile#branches');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updatePolicy(req, res, next) {
+  try {
+    await companyService.updatePolicy(companyId(req), req.params.id, req.body, actorId(req));
+    if (req.flash) req.flash('success', 'Company policy was updated.');
+    res.redirect('/company/profile#policies');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updateStaffRole(req, res, next) {
   try {
     await companyService.updateEmployeeRole(companyId(req), req.params.id, req.body, actorId(req));
@@ -67,7 +88,9 @@ async function assignDriver(req, res, next) {
 
 module.exports = {
   createBranch,
+  updateBranch,
   createPolicy,
+  updatePolicy,
   updateStaffRole,
   updateDriverProfile,
   activateDriver,

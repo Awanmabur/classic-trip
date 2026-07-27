@@ -24,4 +24,5 @@ router.post('/admin/mobility/drivers/:id/review', action((req) => setup.verifyDr
 router.post('/admin/mobility/partners/:id/payout-policy', action((req) => setup.updatePartnerPayoutPolicy(req.params.id, req.body, actor(req))));
 router.post('/admin/mobility/rides/:id/dispatch', action((req) => dispatch.dispatchRide(req.params.id, actor(req))));
 router.post('/admin/mobility/rides/:id/cancel', action((req) => rideService.cancelRide(req.params.id, req.body.reason, actor(req))));
+router.post('/admin/mobility/incidents/:id/review', action((req) => setup.reviewIncident(req.params.id, req.body, actor(req)), '/admin/mobility-safety'));
 module.exports = router;

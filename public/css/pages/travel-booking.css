@@ -43,7 +43,7 @@
 .offerMeta,.quoteMeta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:800}
 .offerPrice,.quotePrice{font-size:22px;font-weight:1000;color:var(--accent);white-space:nowrap}
 .seatMap{display:grid;grid-template-columns:repeat(6,minmax(42px,1fr));gap:8px;padding:14px;border-radius:22px;background:var(--soft);border:1px solid var(--line);min-width:0;overflow:auto}
-.flightSeat{position:relative;display:grid;place-items:center;min-height:44px;border-radius:14px;border:1px solid var(--line);background:var(--field);font-size:12px;font-weight:1000;cursor:pointer}
+.flightSeat{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:1/1;min-height:44px;border-radius:14px;border:1px solid var(--line);background:var(--field);font-size:12px;font-weight:1000;cursor:pointer}
 .flightSeat input{position:absolute;opacity:0;pointer-events:none}
 .flightSeat.selected{background:linear-gradient(135deg,var(--accent),var(--hot));color:#091126;border-color:transparent}
 .flightSeat.unavailable{opacity:.35;cursor:not-allowed;text-decoration:line-through}

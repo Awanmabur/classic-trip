@@ -98,8 +98,8 @@ assert(/router\.post\('\/company\/listings',[\s\S]*?upload\.single\('imageFile'\
 
 assert(html.includes("action: '/company/driver-requests'"), 'Company driver request modal must post to /company/driver-requests.');
 assert(html.includes("action: '/company/employees/invite'"), 'Company staff modal must post to /company/employees/invite.');
-assert(html.includes("action: '/company/branches'"), 'Company branch modal must post to /company/branches.');
-assert(html.includes("action: '/company/policies'"), 'Company policy modal must post to /company/policies.');
+assert(html.includes("'/company/branches'") && html.includes('`/company/branches/${encodeURIComponent(branchId)}`'), 'Company branch modal must support create and edit endpoints.');
+assert(html.includes("'/company/policies'") && html.includes('`/company/policies/${encodeURIComponent(policyId)}`'), 'Company policy modal must support create and edit endpoints.');
 assert(html.includes("action: '/company/seats/status'"), 'Company seat map modal must post to /company/seats/status.');
 assert(html.includes("action: '/company/payouts'"), 'Company payout modal must post to /company/payouts.');
 assert(html.includes("isCompanyDashboard ? '/company/support/notices'") && html.includes("isSupportDashboard ? '/support/notices' : '/admin/notices'"), 'Support notice forms must use company, support-admin, and Super Admin namespaces correctly.');

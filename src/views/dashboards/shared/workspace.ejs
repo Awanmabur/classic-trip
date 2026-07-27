@@ -247,7 +247,7 @@
           <a class="iconBtn" href="#notifications" title="Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i><% if ((dashboardShell?.notificationCount || 0) > 0) { %><span class="topNotifBadge"><%= dashboardShell.notificationCount %></span><% } %></a>
           <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
           <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
-          <button class="btn btnPrimary hideMobile"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></button>
+          <span class="btn btnPrimary hideMobile dashboardRoleBadge" role="status"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></span>
           <form class="logoutForm topLogout" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn hideMobile navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
         </div>
       </header>

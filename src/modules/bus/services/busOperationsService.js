@@ -92,7 +92,6 @@ async function manifest(companyId, scheduleId) {
       destinationStopId: ticket.destinationStopId,
       pickupPoint: passenger.pickupPoint || reservation.routeSnapshot?.journey?.originName || '',
       dropoffPoint: passenger.dropoffPoint || reservation.routeSnapshot?.journey?.destinationName || '',
-      luggageCount: Number(passenger.luggageCount || 0),
       specialNotes: passenger.specialNotes || '',
       ticketStatus: ticket.status,
       checkInStatus: ticket.checkInStatus,

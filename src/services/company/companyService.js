@@ -510,6 +510,82 @@ async function createPolicy(companyId, payload = {}, actorId = 'company-admin') 
   return policy;
 }
 
+async function updateBranch(companyId, branchId, payload = {}, actorId = 'company-admin') {
+  const company = await companyOrThrow(companyId);
+  const branch = await companyRepository.branches.findOne({ companyId: company.id, id: cleanText(branchId, 180) });
+  if (!branch) throw notFound('Branch, terminal, or property desk not found for this company');
+  if (Object.prototype.hasOwnProperty.call(payload, 'name') || Object.prototype.hasOwnProperty.call(payload, 'branchName')) {
+    const name = cleanText(payload.name || payload.branchName, 180);
+    if (!name) throw validation('Branch or terminal name is required');
+    branch.name = name;
+  }
+  if (payload.branchType) {
+    const branchType = cleanText(payload.branchType, 80);
+    if (!BRANCH_TYPES.includes(branchType)) throw validation('Invalid branch type');
+    branch.branchType = branchType;
+  }
+  if (payload.status) {
+    const status = cleanText(payload.status, 40);
+    if (!BRANCH_STATUSES.includes(status)) throw validation('Invalid branch status');
+    branch.status = status;
+  }
+  const textFields = ['terminalCode','city','country','address','contactName','contactPhone','contactEmail','operatingHours'];
+  textFields.forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(payload, field)) return;
+    const max = field === 'address' || field === 'operatingHours' ? 300 : field === 'contactEmail' ? 254 : field === 'terminalCode' ? 40 : 180;
+    branch[field] = cleanText(payload[field], max);
+    if (field === 'contactEmail') branch[field] = branch[field].toLowerCase();
+  });
+  if (Object.prototype.hasOwnProperty.call(payload, 'serviceCategories') || Object.prototype.hasOwnProperty.call(payload, 'categories')) branch.serviceCategories = parseList(payload.serviceCategories || payload.categories);
+  if (Object.prototype.hasOwnProperty.call(payload, 'amenities')) branch.amenities = parseList(payload.amenities);
+  branch.updatedBy = actorId;
+  branch.updatedAt = new Date().toISOString();
+  await companyRepository.withTransaction(async (session) => {
+    await companyRepository.branches.save(branch, { id: branch.id }, { session });
+    await writeAudit(actorId, 'company.branch.updated', branch.id, { companyId: company.id, entityType: 'company_branch', status: branch.status }, { session });
+  });
+  return branch;
+}
+
+async function updatePolicy(companyId, policyId, payload = {}, actorId = 'company-admin') {
+  const company = await companyOrThrow(companyId);
+  const policy = await companyRepository.policies.findOne({ companyId: company.id, id: cleanText(policyId, 180) });
+  if (!policy) throw notFound('Company policy not found');
+  if (Object.prototype.hasOwnProperty.call(payload, 'title') || Object.prototype.hasOwnProperty.call(payload, 'policyTitle')) {
+    const title = cleanText(payload.title || payload.policyTitle, 180);
+    if (!title) throw validation('Policy title is required');
+    policy.title = title;
+  }
+  if (payload.policyType) {
+    const policyType = cleanText(payload.policyType, 80);
+    if (!POLICY_TYPES.includes(policyType)) throw validation('Invalid policy type');
+    policy.policyType = policyType;
+  }
+  if (payload.status) {
+    const status = cleanText(payload.status, 40);
+    if (!POLICY_STATUSES.includes(status)) throw validation('Invalid policy status');
+    policy.status = status;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'serviceCategory') || Object.prototype.hasOwnProperty.call(payload, 'serviceType')) policy.serviceCategory = cleanText(payload.serviceCategory || payload.serviceType, 80);
+  if (Object.prototype.hasOwnProperty.call(payload, 'summary') || Object.prototype.hasOwnProperty.call(payload, 'description')) policy.summary = cleanText(payload.summary || payload.description, 3000);
+  if (Object.prototype.hasOwnProperty.call(payload, 'customerVisible')) policy.customerVisible = boolValue(payload.customerVisible);
+  if (Object.prototype.hasOwnProperty.call(payload, 'appliesToBranches') || Object.prototype.hasOwnProperty.call(payload, 'branchIds')) {
+    const branchIds = parseList(payload.appliesToBranches || payload.branchIds);
+    if (branchIds.length) {
+      const validBranches = await companyRepository.branches.list({ companyId: company.id, id: { $in: branchIds }, status: { $ne: 'archived' } });
+      if (validBranches.length !== branchIds.length) throw validation('One or more selected policy branches do not belong to this company');
+    }
+    policy.appliesToBranches = branchIds;
+  }
+  policy.updatedBy = actorId;
+  policy.updatedAt = new Date().toISOString();
+  await companyRepository.withTransaction(async (session) => {
+    await companyRepository.policies.save(policy, { id: policy.id }, { session });
+    await writeAudit(actorId, 'company.policy.updated', policy.id, { companyId: company.id, policyType: policy.policyType, entityType: 'company_policy', status: policy.status }, { session });
+  });
+  return policy;
+}
+
 async function updateEmployeeRole(companyId, employeeId, payload = {}, actorId = 'company-admin') {
   const employee = await employeeOrThrow(companyId, employeeId);
   const user = await employeeUser(employee);
@@ -912,12 +988,43 @@ async function isBusVehicle(companyId, vehicleId) {
 }
 
 async function isBusSchedule(companyId, scheduleId) {
-  const schedule = await companyRepository.schedules.findOne({ companyId, $or: entityIdentityClauses(scheduleId) });
+  const identities = entityIdentityClauses(scheduleId);
+  let schedule = await companyRepository.schedules.findOne({ companyId, $or: identities });
+  if (schedule) return normalize(schedule.serviceType || 'bus') === 'bus';
+
+  // Older departures can remain visible through their linked listing/route while
+  // activation fails because companyId is missing or contains a stale legacy value.
+  // Repair it only when every resolvable linked bus entity proves current ownership.
+  schedule = await companyRepository.schedules.findOne({ $or: identities });
   if (!schedule) return false;
-  if (schedule.listingId && await isBusListing(companyId, schedule.listingId)) return true;
-  if (schedule.routeId && await isBusRoute(companyId, schedule.routeId)) return true;
-  if (schedule.vehicleId && await isBusVehicle(companyId, schedule.vehicleId)) return true;
-  return isBusCompany(companyId);
+
+  const ownershipChecks = [];
+  if (schedule.listingId) {
+    const listing = await companyRepository.listings.findOne({ $or: [{ id: cleanText(schedule.listingId, 180) }, { slug: cleanText(schedule.listingId, 180) }] });
+    if (listing) ownershipChecks.push(String(listing.companyId || '') === String(companyId) && normalize(listing.serviceType || '') === 'bus');
+  }
+  if (schedule.routeId) {
+    const route = await companyRepository.routes.findOne({ $or: entityIdentityClauses(schedule.routeId) });
+    if (route) ownershipChecks.push(String(route.companyId || '') === String(companyId));
+  }
+  if (schedule.vehicleId) {
+    const vehicle = await companyRepository.vehicles.findOne({ $or: entityIdentityClauses(schedule.vehicleId) });
+    if (vehicle) ownershipChecks.push(String(vehicle.companyId || '') === String(companyId) && normalize(vehicle.serviceType || 'bus') === 'bus');
+  }
+  if (!ownershipChecks.length || ownershipChecks.some((result) => !result)) return false;
+
+  const scheduleKey = cleanText(schedule.id || schedule._id, 180);
+  if (!scheduleKey) return false;
+  schedule.companyId = companyId;
+  schedule.serviceType = 'bus';
+  schedule.updatedAt = new Date().toISOString();
+  schedule.ownershipRepairedAt = schedule.updatedAt;
+  await companyRepository.withTransaction(async (session) => {
+    await companyRepository.schedules.save(schedule, { $or: identities }, { session });
+    await companyRepository.seats.updateMany({ scheduleId: scheduleKey, $or: [{ companyId: { $exists: false } }, { companyId: '' }, { companyId: null }] }, { $set: { companyId } }, { session });
+    await companyRepository.busSeatSegmentInventories.updateMany({ scheduleId: scheduleKey, $or: [{ companyId: { $exists: false } }, { companyId: '' }, { companyId: null }] }, { $set: { companyId } }, { session });
+  });
+  return true;
 }
 
 async function createListingDispatch(companyId, payload = {}) {
@@ -999,6 +1106,6 @@ module.exports = {
   createFareProduct: busSetupService.createFareProduct, updateFareProduct: busSetupService.updateFareProduct, upsertSegmentFare: busSetupService.upsertSegmentFare,
   createServiceAddon: busSetupService.createServiceAddon, updateServiceAddon: busSetupService.updateServiceAddon, archiveServiceAddon: busSetupService.archiveServiceAddon, busReadinessReport: busSetupService.readinessReport,
   setRoomTypeInventory: hotelService.setRoomTypeInventory,
-  createBranch, createPolicy, inviteEmployee, updateEmployeeRole, updateDriverProfile, activateDriverByCompany, assignDriver, updateTripStatus, createDriverIncident,
+  createBranch, updateBranch, createPolicy, updatePolicy, inviteEmployee, updateEmployeeRole, updateDriverProfile, activateDriverByCompany, assignDriver, updateTripStatus, createDriverIncident,
   attachMedia, removeMedia, companyCanPublish,
 };

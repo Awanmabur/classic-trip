@@ -84,7 +84,6 @@ async function createQuotes(payload = {}) {
   const distanceKm = route.distanceKm;
   const durationMinutes = route.durationMinutes;
   const passengerCount = integerValue(payload.passengerCount, 'Passengers', 1, 20, 1);
-  const luggageCount = integerValue(payload.luggageCount, 'Luggage', 0, 30, 0);
   const pickupAt = payload.scheduledPickupAt ? new Date(payload.scheduledPickupAt) : now();
   if (Number.isNaN(pickupAt.getTime())) throw validationError('Pickup time is invalid');
   if (['scheduled', 'airport', 'intercity', 'corporate'].includes(serviceType) && pickupAt.getTime() < Date.now() + 15 * 60 * 1000) {
@@ -97,7 +96,7 @@ async function createQuotes(payload = {}) {
   const classes = await repo.vehicleClasses.list({
     companyId: PLATFORM_MOBILITY_OWNER,
     status: 'active', serviceTypes: serviceType,
-    passengerCapacity: { $gte: passengerCount }, luggageCapacity: { $gte: luggageCount },
+    passengerCapacity: { $gte: passengerCount },
   }, { sort: { sortOrder: 1, name: 1 }, limit: 50 });
 
   const quotes = [];
@@ -127,7 +126,7 @@ async function createQuotes(payload = {}) {
     });
   }
   if (!quotes.length) throw validationError('No approved ride class is configured for this trip yet', 422, 'ride_class_unavailable');
-  return { criteria: { pickup, destination, stops, distanceKm, durationMinutes, route, serviceType, scheduledPickupAt: pickupAt, passengerCount, luggageCount }, quotes };
+  return { criteria: { pickup, destination, stops, distanceKm, durationMinutes, route, serviceType, scheduledPickupAt: pickupAt, passengerCount }, quotes };
 }
 
 async function readQuote(id, token) {

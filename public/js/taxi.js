@@ -333,7 +333,7 @@
     const payload = {
       pickupPlaceId: pickup.id || pickup.placeId, pickupAddress: pickup.address || pickup.name, pickupLatitude: pickup.latitude, pickupLongitude: pickup.longitude, pickupCity: pickup.city, pickupDistrict: pickup.district, pickupCountry: pickup.country, pickupCountryCode: pickup.countryCode,
       destinationPlaceId: destination.id || destination.placeId, destinationAddress: destination.address || destination.name, destinationLatitude: destination.latitude, destinationLongitude: destination.longitude, destinationCity: destination.city, destinationDistrict: destination.district, destinationCountry: destination.country, destinationCountryCode: destination.countryCode,
-      passengerCount: Number($('#passengerCount').value || 1), luggageCount: Number($('#luggageCount').value || 0),
+      passengerCount: Number($('#passengerCount').value || 1),
       stops: orderedStops().map(publicStop),
     };
     if (state.timeMode === 'scheduled') {
@@ -403,7 +403,6 @@
           phone: form.phone.value,
           email: form.email.value,
           passengerCount: Number($('#passengerCount').value || 1),
-          luggageCount: Number($('#luggageCount').value || 0),
           idempotencyKey: idem,
         }),
       });

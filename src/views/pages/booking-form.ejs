@@ -212,7 +212,6 @@
                       <option value="birth_certificate">Birth certificate</option>
                     </select>
                     <input name="identityNumbers" placeholder="ID / passport number">
-                    <label>Date of birth<input name="datesOfBirth" type="date"></label>
                     <select name="sexes">
                       <option value="">Sex</option>
                       <option value="female">Female</option>
@@ -222,8 +221,7 @@
                     <input name="nationalities" placeholder="Nationality">
                     <input name="emergencyContactNames" placeholder="Emergency contact name">
                     <input name="emergencyContactPhones" placeholder="Emergency contact phone">
-                    <label>Luggage items<input name="luggageCounts" type="number" min="0" max="20" value="0"></label>
-                    <textarea class="full" name="specialNotes" placeholder="Accessibility need, luggage note, or special request..."></textarea>
+                    <textarea class="full" name="specialNotes" placeholder="Accessibility need or special request..."></textarea>
                   </div>
                 </section>
               <% }) %>
@@ -248,7 +246,6 @@
                 <input name="documentNumber" placeholder="ID / passport number">
                 <% if (listing.serviceType === 'hotel') { %>
                   <input name="nationality" placeholder="Nationality">
-                  <label>Date of birth<input name="dateOfBirth" type="date"></label>
                   <input name="emergencyContactName" placeholder="Emergency contact name">
                   <input name="emergencyContactPhone" placeholder="Emergency contact phone">
                   <label>Adults<input name="adults" type="number" min="1" max="40" value="<%= requestedAdults %>" required data-hotel-occupancy></label>

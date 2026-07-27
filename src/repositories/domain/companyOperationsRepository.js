@@ -11,6 +11,8 @@ const companyOperationsRepository = {
   listings: new MongoCollection('listings'),
   vehicles: new MongoCollection('vehicles'),
   schedules: new MongoCollection('schedules'),
+  seats: new MongoCollection('seats'),
+  busSeatSegmentInventories: new MongoCollection('busSeatSegmentInventories'),
   driverAssignments: new MongoCollection('driverAssignments'),
   driverIncidents: new MongoCollection('driverIncidents'),
   tripStatusUpdates: new MongoCollection('tripStatusUpdates'),

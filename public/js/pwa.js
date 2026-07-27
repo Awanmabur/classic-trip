@@ -29,16 +29,17 @@
   }
 
   function showBrandLaunchFlash() {
-    // Show the branded flash only inside the installed app, never in normal browser pages.
-    if (!isStandalone() || launchFlashAlreadyShown() || document.querySelector('.pwaLaunchFlash')) return;
+    const flash = document.getElementById('pwaLaunchFlash');
+    if (!flash) return;
+    // The markup is server-rendered so the installed app moves directly from the
+    // native launch surface into the same branded screen without creating a
+    // second animated overlay. Normal browser pages never display it.
+    if (!isStandalone() || launchFlashAlreadyShown()) {
+      flash.remove();
+      return;
+    }
     rememberLaunchFlash();
-    const flash = document.createElement('div');
-    flash.className = 'pwaLaunchFlash';
-    flash.setAttribute('role', 'status');
-    flash.setAttribute('aria-label', `${APP_NAME}. ${APP_SLOGAN}`);
-    flash.innerHTML = `<div class="pwaLaunchIdentity"><img src="/images/logo-symbol-192.png" alt=""><strong>${APP_NAME}</strong><span>${APP_SLOGAN}</span></div>`;
-    document.body.appendChild(flash);
-    requestAnimationFrame(() => flash.classList.add('is-visible'));
+    flash.classList.add('is-visible');
     window.setTimeout(() => {
       flash.classList.add('is-leaving');
       window.setTimeout(() => flash.remove(), 260);

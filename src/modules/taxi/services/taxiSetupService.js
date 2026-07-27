@@ -254,6 +254,43 @@ async function verifyDriver(id, payload, actor = {}) {
   return row;
 }
 
+async function reviewIncident(id, payload = {}, actor = {}) {
+  requireSuperAdmin(actor, 'Only Super Admin may review mobility safety incidents');
+  const incident = await repo.oneOrThrow(repo.incidents, { id: cleanText(id, 180) }, 'Mobility incident not found');
+  const status = requireEnum(payload.status || incident.status || 'under_review', ['open', 'under_review', 'escalated', 'resolved', 'closed'], 'Incident status');
+  const severity = payload.severity
+    ? requireEnum(payload.severity, ['low', 'medium', 'high', 'critical'], 'Incident severity')
+    : (incident.severity || 'medium');
+  const resolutionNotes = cleanText(payload.resolutionNotes || payload.reviewNotes, 2000);
+  if (['resolved', 'closed'].includes(status) && !resolutionNotes) throw validationError('Resolution notes are required before closing an incident');
+  incident.status = status;
+  incident.severity = severity;
+  incident.assignedTo = cleanText(payload.assignedTo || incident.assignedTo, 180);
+  incident.resolutionNotes = resolutionNotes || incident.resolutionNotes || '';
+  incident.reviewedBy = actorId(actor);
+  incident.reviewedAt = now();
+  incident.updatedAt = now();
+  await repo.withTransaction(async (session) => {
+    await repo.incidents.save(incident, { id: incident.id }, { session });
+    if (incident.rideId) {
+      const ride = await repo.rides.findOne({ id: incident.rideId }, { session });
+      if (ride) {
+        ride.safetyState = {
+          ...(ride.safetyState || {}),
+          status,
+          incidentId: incident.id,
+          reviewedAt: now(),
+          reviewedBy: actorId(actor),
+        };
+        ride.updatedAt = now();
+        await repo.rides.save(ride, { id: ride.id }, { session });
+      }
+    }
+    await repo.audit({ actorId: actorId(actor), action: 'mobility.incident.reviewed', targetType: 'taxi_incident', targetId: incident.id, companyId: incident.companyId || incident.providerCompanyId || '', metadata: { status, severity }, session });
+  });
+  return incident;
+}
+
 async function updatePartnerPayoutPolicy(companyId, payload = {}, actor = {}) {
   requireSuperAdmin(actor, 'Only Super Admin may change mobility partner payout policy');
   const partner = await company(companyId);
@@ -300,7 +337,7 @@ module.exports = {
   company, platformListing, partnerSetupSummary,
   createVehicleClass, createZone, createFareRule, createPlatformListing,
   createVehicle, updateVehicleStatus, reviewVehicle,
-  createDriverProfile, verifyDriver, updatePartnerPayoutPolicy,
+  createDriverProfile, verifyDriver, reviewIncident, updatePartnerPayoutPolicy,
   // Compatibility aliases remain admin-only at the service layer.
   createTransferListing: createPlatformListing,
   publishListing: createPlatformListing,

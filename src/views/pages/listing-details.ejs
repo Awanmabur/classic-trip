@@ -69,7 +69,8 @@
               </div>
               <% if (previewSchedules.length) { %>
                 <div class="bookingForm" style="margin-top:10px">
-                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" data-listing-action="outbound-schedule">
+                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" data-listing-action="outbound-schedule" required>
+                    <option value="" <%= safeAvailability.scheduleId ? '' : 'selected' %> disabled>Select travel date and time</option>
                     <% previewSchedules.forEach((schedule) => { %>
                       <option value="<%= schedule.id %>" <%= schedule.id === safeAvailability.scheduleId ? 'selected' : '' %>><%= schedule.departureLabel %></option>
                     <% }) %>
@@ -195,10 +196,11 @@
               <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Choose a reverse departure after arrival, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
               <div class="bookingForm" id="returnTripFields" style="display:none">
                 <select class="full" id="returnScheduleSelect" aria-label="Return schedule" data-listing-action="return-schedule">
-                  <% returnSchedules.forEach((schedule, index) => { %>
-                    <option value="<%= schedule.id %>" data-origin-stop-id="<%= schedule.originStopId %>" data-destination-stop-id="<%= schedule.destinationStopId %>" <%= index === 0 ? 'selected' : '' %>><%= schedule.departureLabel %></option>
+                  <option value="" selected disabled>Select return date and time</option>
+                  <% returnSchedules.forEach((schedule) => { %>
+                    <option value="<%= schedule.id %>" data-origin-stop-id="<%= schedule.originStopId %>" data-destination-stop-id="<%= schedule.destinationStopId %>"><%= schedule.departureLabel %></option>
                   <% }) %>
-                  <% if (!returnSchedules.length) { %><option value="">No reverse trips available</option><% } %>
+                  <% if (!returnSchedules.length) { %><option value="" disabled>No reverse trips available</option><% } %>
                 </select>
                 <% if (!returnSchedules.length) { %>
                   <div class="notice full" id="returnTripNotice">No reverse trips are scheduled after this outbound journey.</div>
@@ -249,7 +251,7 @@
     serviceType: <%- toScriptJson(listing.serviceType) %>,
     currency: <%- toScriptJson(currency) %>,
     basePrice: Number(<%- toScriptJson(safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0) %>),
-    scheduleId: <%- toScriptJson(safeAvailability.scheduleId || (safeAvailability.schedules || [])[0]?.id || '') %>,
+    scheduleId: <%- toScriptJson(safeAvailability.scheduleId || '') %>,
     originStopId: <%- toScriptJson(selectedJourney.originStopId || '') %>,
     destinationStopId: <%- toScriptJson(selectedJourney.destinationStopId || '') %>
   };
@@ -539,8 +541,8 @@
     const notice = document.getElementById('returnTripNotice');
     if (select) {
       select.innerHTML = returnSchedulesData.length
-        ? returnSchedulesData.map((item) => `<option value="${escapeHtml(item.id)}" data-origin-stop-id="${escapeHtml(item.originStopId)}" data-destination-stop-id="${escapeHtml(item.destinationStopId)}">${escapeHtml(item.departureLabel || item.label || item.id)}</option>`).join('')
-        : '<option value="">No reverse trips available</option>';
+        ? `<option value="" selected disabled>Select return date and time</option>${returnSchedulesData.map((item) => `<option value="${escapeHtml(item.id)}" data-origin-stop-id="${escapeHtml(item.originStopId)}" data-destination-stop-id="${escapeHtml(item.destinationStopId)}">${escapeHtml(item.departureLabel || item.label || item.id)}</option>`).join('')}`
+        : '<option value="" selected disabled>No reverse trips available</option>';
     }
     if (notice) notice.style.display = returnSchedulesData.length ? 'none' : 'block';
     return returnSchedulesData;
@@ -558,7 +560,20 @@
   }
   async function onOutboundScheduleChange() {
     const scheduleId = document.getElementById('outboundScheduleSelect')?.value || '';
-    if (!scheduleId) return;
+    if (!scheduleId) {
+      previewPricing.scheduleId = '';
+      previewPricing.originStopId = '';
+      previewPricing.destinationStopId = '';
+      activeSelections = [];
+      activeSelectionLabels = [];
+      activeSelection = '';
+      activeSelectionLabel = '';
+      renderOutboundSeats([]);
+      returnSchedulesData = [];
+      renderReturnSeats([]);
+      refreshPreviewTotals();
+      return;
+    }
     try {
       previewPricing.scheduleId = scheduleId;
       const data = await fetchScheduleAvailability(scheduleId);
@@ -696,7 +711,14 @@
   }
   async function toggleReturnTrip() {
     const fields = document.getElementById('returnTripFields');
-    const enabled = document.getElementById('returnTripToggle')?.checked;
+    const toggle = document.getElementById('returnTripToggle');
+    const enabled = toggle?.checked;
+    if (enabled && !previewPricing.scheduleId) {
+      toggle.checked = false;
+      notify('Select the outbound travel date and time before adding a return journey.');
+      document.getElementById('outboundScheduleSelect')?.focus();
+      return;
+    }
     if (fields) fields.style.display = enabled ? 'grid' : 'none';
     syncAddonAvailability();
     if (!enabled) {
@@ -744,11 +766,21 @@
       if (inventory && roomCount > inventory) { notify(`Only ${inventory} room${inventory === 1 ? '' : 's'} of this type are available.`); return; }
       if (capacity && guests.total > capacity) { notify(`The selected rooms can accommodate up to ${capacity} guests.`); return; }
     }
+    if (previewPricing.serviceType === 'bus' && !previewPricing.scheduleId) {
+      notify('Select your travel date and time first.');
+      document.getElementById('outboundScheduleSelect')?.focus();
+      return;
+    }
     if (!activeSelection) {
       notify('Select an available option first.');
       return;
     }
     const hasReturn = previewPricing.serviceType === 'bus' && document.getElementById('returnTripToggle')?.checked;
+    if (hasReturn && !returnPricing.scheduleId) {
+      notify('Select the return travel date and time.');
+      document.getElementById('returnScheduleSelect')?.focus();
+      return;
+    }
     if (hasReturn && activeReturnSelections.length !== activeSelections.length) {
       notify(`Select ${activeSelections.length} return seat${activeSelections.length === 1 ? '' : 's'} before continuing.`);
       return;

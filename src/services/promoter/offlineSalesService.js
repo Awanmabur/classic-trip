@@ -188,7 +188,6 @@ async function createOfflineSale(payload = {}, context = {}) {
     identityNumbers: listValues(payload.identityNumbers || payload.passengerIdentityNumbers),
     identityTypes: listValues(payload.identityTypes),
     nationalities: listValues(payload.nationalities),
-    luggageCounts: listValues(payload.luggageCounts),
     roomUnitIds: listValues(payload.roomUnitIds || payload.roomUnitId),
     addons: listValues(payload.addons),
     fullName: cleanText(payload.fullName || payload.customerName || customer.fullName, 160),

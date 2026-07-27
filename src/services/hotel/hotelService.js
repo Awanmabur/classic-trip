@@ -73,7 +73,6 @@ function normalizeHotelGuests(payload = {}, buyer = {}, roomCount = 1, occupancy
       identityType: clean(guest.identityType || guest.idType || (index === 0 ? payload.identityType || payload.idType : '')).slice(0, 80),
       identityNumber: clean(guest.identityNumber || guest.documentNumber || (index === 0 ? payload.identityNumber || payload.documentNumber : '')).slice(0, 120),
       nationality: clean(guest.nationality || (index === 0 ? payload.nationality : '')).slice(0, 100),
-      dateOfBirth: guest.dateOfBirth || (index === 0 ? payload.dateOfBirth : null) || null,
       sex: clean(guest.sex || (index === 0 ? payload.sex : '')).slice(0, 40),
       emergencyContactName: clean(guest.emergencyContactName || (index === 0 ? payload.emergencyContactName : '')).slice(0, 180),
       emergencyContactPhone: clean(guest.emergencyContactPhone || (index === 0 ? payload.emergencyContactPhone : '')).slice(0, 80),
@@ -814,7 +813,7 @@ async function buildCanonicalHotelRecords({ booking, listing, property, roomType
       id: guestId, reservationId, bookingId: booking.id, bookingRef: booking.bookingRef, companyId: booking.companyId, listingId: booking.listingId,
       roomAssignmentId: assignment?.id || '', roomIndex, guestType: guest.guestType || 'adult', guestIndex, isLeadGuest: guestIndex === 0,
       fullName: clean(guest.fullName), email: clean(guest.email).toLowerCase(), phone: clean(guest.phone), identityType: clean(guest.identityType), identityNumber: clean(guest.identityNumber), nationality: clean(guest.nationality),
-      dateOfBirth: guest.dateOfBirth || null, sex: clean(guest.sex), emergencyContactName: clean(guest.emergencyContactName), emergencyContactPhone: clean(guest.emergencyContactPhone), specialRequests: clean(guest.specialRequests), checkInStatus: 'not_checked',
+      sex: clean(guest.sex), emergencyContactName: clean(guest.emergencyContactName), emergencyContactPhone: clean(guest.emergencyContactPhone), specialRequests: clean(guest.specialRequests), checkInStatus: 'not_checked',
     };
     hotelGuests.push(row);
     if (assignment) assignment.guestIds.push(guestId);
@@ -1040,7 +1039,7 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       const roomIndex = Math.max(0, Math.min(roomUnits.length - 1, Number(guest.roomIndex || 0)));
       return {
         id: `guest-${index + 1}`, fullName: clean(guest.fullName), email: clean(guest.email).toLowerCase(), phone: clean(guest.phone),
-        identityType: clean(guest.identityType), identityNumber: clean(guest.identityNumber), nationality: clean(guest.nationality), dateOfBirth: guest.dateOfBirth || null,
+        identityType: clean(guest.identityType), identityNumber: clean(guest.identityNumber), nationality: clean(guest.nationality),
         sex: clean(guest.sex), emergencyContactName: clean(guest.emergencyContactName), emergencyContactPhone: clean(guest.emergencyContactPhone), guestType: guest.guestType,
         specialNotes: clean(guest.specialRequests), roomIndex, seatOrRoom: roomUnits[roomIndex]?.unitNumber || roomTypes[roomIndex]?.name || '', roomNumber: roomUnits[roomIndex]?.unitNumber || '',
         roomType: roomTypes[roomIndex]?.name || '', roomTypeId: roomTypes[roomIndex]?.id || '', roomUnitId: roomUnits[roomIndex]?.id || '',

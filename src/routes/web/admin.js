@@ -86,6 +86,7 @@ router.post('/content/reports/custom', requirePermission('reports.view'), report
 router.post('/content/listings', requirePermission('content.manage'), actionController.createListing);
 router.post('/content/promotions', requirePermission('content.manage'), promotionController.create);
 router.post('/content/price-rules', requirePermission('content.manage'), actionController.updatePriceRule);
+router.post('/content/price-rules/:id', requirePermission('content.manage'), actionController.updatePriceRule);
 router.post('/content/templates', requirePermission('content.manage'), actionController.updateTemplate);
 router.post('/content/notices', requirePermission('content.manage'), actionController.createNotice);
 router.post('/content/notifications', requirePermission('content.manage'), actionController.sendNotification);
@@ -170,6 +171,7 @@ router.post('/admin/wallet-top-ups/:id/review', financeController.reviewTopUp);
 router.post('/admin/reconciliation', financeController.reconcile);
 router.post('/admin/finance/statements', financeController.generateStatements);
 router.post('/admin/price-rules', actionController.updatePriceRule);
+router.post('/admin/price-rules/:id', actionController.updatePriceRule);
 router.post('/admin/templates', actionController.updateTemplate);
 router.post('/admin/settings', settingController.update);
 router.post('/admin/support/:id/reply', actionController.replySupport);

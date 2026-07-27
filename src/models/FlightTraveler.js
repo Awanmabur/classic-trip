@@ -10,7 +10,6 @@ const flightTravelerSchema = new Schema({
   title: String,
   firstName: { type: String, required: true, trim: true },
   lastName: { type: String, required: true, trim: true },
-  dateOfBirth: { type: Date, required: true },
   sex: String,
   nationality: String,
   documentType: { type: String, enum: ['passport', 'national_id', 'travel_document'] },

@@ -746,6 +746,20 @@ function createDashboardProjection(initialState = {}) {
         createdAt: incident.createdAt || null,
       })),
     };
+    const priceRuleRows = (state.platformSettings?.priceRules || []).map((rule) => {
+      const listing = rule.listingId ? (findListing(rule.listingId) || {}) : {};
+      const percent = Number(rule.percent || 0);
+      return [
+        rule.ruleName || 'Pricing rule',
+        listing.title || (rule.listingId ? `Listing ${rule.listingId}` : 'All listings'),
+        `${percent > 0 ? '+' : ''}${percent}%`,
+        rule.status || 'active',
+        dashboardMeta('price_rule', rule.id, rule.ruleName || rule.id, rule.status || 'active', {
+          priceRule: rule,
+          listing,
+        }, ['view', 'edit', 'export']),
+      ];
+    });
     return {
       overviewStats,
       liveActivity: [['Bookings today', bookings.length.toLocaleString()], ['Seats / rooms on hold', state.seats.filter(seat => seat.status === 'locked').length.toLocaleString()], ['Pending partner approvals', partnerCompanies.filter(company => /pending|review/.test(normalize(company.verificationStatus))).length.toLocaleString()], ['Open disputes', openSupport.length.toLocaleString()]],
@@ -827,6 +841,7 @@ function createDashboardProjection(initialState = {}) {
       bookings: bookingRows,
       partners: companyRows,
       listings: listingRows,
+      priceRules: priceRuleRows,
       routes: routeRows,
       vehicles: vehicleRows,
       schedules: scheduleRows,

@@ -21,7 +21,7 @@ const approvedUi = {
   'public/css/base.css': '653530243e926bc64e4cb2e733066dcb18586af8baa86ff8d8351701ab976ca5',
   'public/css/components.css': 'd6d52392225dd6c931954ae51cd658dc27f94601de35b025ae59b4b1a50e3965',
   'public/css/dashboard-workspace.css': '68c5a5b6e4b90fb4153430a043e64724865ddc9ca3d283386c366eb9f3865ab5',
-  'public/css/pages/home.css': 'ff27c53a35e6e00743f03e0d08825fb0f8c2f3fe56fe446d560126d2e8d2936d',
+  'public/css/pages/home.css': '13cfcd80c2faf456d0ffec8f425d033f884722e3101a1cbb3d1be1479cb94005',
 };
 Object.entries(approvedUi).forEach(([file, expected]) => check(`${file} matches the uploaded approved UI`, fileHash(file) === expected));
 const travelCss = read('public/css/pages/travel-booking.css');

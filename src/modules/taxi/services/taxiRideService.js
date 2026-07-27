@@ -72,7 +72,6 @@ async function createRide(payload = {}, actor = {}) {
       serviceType: quote.serviceType, requestedPickupAt: quote.scheduledPickupAt, scheduled,
       pickup: quote.pickup, destination: quote.destination, stops: quote.stops || [], routeSnapshot: quote.routeSnapshot || null, vehicleClassId: quote.vehicleClassId,
       passengerCount: integerValue(payload.passengerCount, 'Passengers', 1, 20, 1),
-      luggageCount: integerValue(payload.luggageCount, 'Luggage', 0, 30, 0),
       accessibilityNeeds: Array.isArray(payload.accessibilityNeeds) ? payload.accessibilityNeeds.map((value) => cleanText(value, 120)).filter(Boolean) : [],
       status: 'awaiting_payment', dispatchAfter, dispatchAttempts: 0, createdAt: now(), updatedAt: now(),
     };

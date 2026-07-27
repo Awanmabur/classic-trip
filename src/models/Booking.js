@@ -10,7 +10,6 @@ const passengerSnapshotSchema = new Schema({
   identityType: String,
   identityNumber: String,
   nationality: String,
-  dateOfBirth: Date,
   sex: String,
   emergencyContactName: String,
   emergencyContactPhone: String,

@@ -211,7 +211,7 @@
       ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
-    return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
+    return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
       <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
         <div class="thumb">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}

@@ -26,7 +26,10 @@ async function catalogContext(identifier, serviceType = '', selection = {}) {
       .filter((row) => !row.departAt || new Date(row.departAt) > now)
       .sort((a, b) => new Date(a.departAt || 0) - new Date(b.departAt || 0))
       .slice(0, 180);
-    const requested = departures.find((row) => catalogService.sameId(row, selection.scheduleId || '')) || departures[0] || null;
+    const requestedScheduleId = String(selection.scheduleId || '').trim();
+    const requested = requestedScheduleId
+      ? departures.find((row) => catalogService.sameId(row, requestedScheduleId)) || null
+      : null;
     if (requested) {
       const canonical = await busInventoryService.getAvailability({
         scheduleId: catalogService.entityId(requested),
@@ -50,6 +53,8 @@ async function catalogContext(identifier, serviceType = '', selection = {}) {
         companyId: raw.companyId,
         originName: canonical.journey.destinationName,
         destinationName: canonical.journey.originName,
+        originBranchId: canonical.journey.destinationBranchId,
+        destinationBranchId: canonical.journey.originBranchId,
         afterDate: canonical.schedule.arriveAt || canonical.schedule.departAt,
       });
       availability = { ...availability, ...canonical, scheduleId: catalogService.entityId(requested), schedules, returnSchedules };
@@ -57,7 +62,21 @@ async function catalogContext(identifier, serviceType = '', selection = {}) {
       listing.currency = canonical.fare.currency || listing.currency;
       listing.from = canonical.journey.originName || listing.from;
       listing.to = canonical.journey.destinationName || listing.to;
-    } else availability = { ...availability, scheduleId: '', schedules: [], seats: [], stops: [] };
+    } else {
+      const schedules = departures.map((schedule) => ({
+        id: catalogService.entityId(schedule),
+        listingId: schedule.listingId,
+        routeId: schedule.routeId,
+        vehicleId: schedule.vehicleId,
+        departAt: schedule.departAt,
+        arriveAt: schedule.arriveAt,
+        departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
+        basePrice: Number(schedule.basePrice || 0),
+        currency: schedule.currency,
+        status: schedule.status,
+      }));
+      availability = { ...availability, scheduleId: '', schedule: null, schedules, returnSchedules: [], seats: [], stops: [], journey: {}, fare: null };
+    }
   }
   const preview = catalogService.listingPreview(data, listing, availability, company);
   if (normalize(listing.serviceType) === 'bus') {

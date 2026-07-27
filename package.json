@@ -72,7 +72,9 @@
     "check:stays": "node scripts/check-stays-marketplace.js",
     "check:marketing-mobile": "node scripts/check-marketing-mobile-overflow.js",
     "check:single-splash": "node scripts/check-single-native-splash.js",
-    "check:seven-services": "node scripts/check-seven-service-completion.js"
+    "check:seven-services": "node scripts/check-seven-service-completion.js",
+    "check:dashboard-completeness": "node scripts/check-dashboard-completeness-final.js",
+    "check:final-departure-booking-ui": "node scripts/check-final-departure-booking-ui.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

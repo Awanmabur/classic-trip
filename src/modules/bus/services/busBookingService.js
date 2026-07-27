@@ -101,11 +101,9 @@ function buildPassengerPayloads(payload = {}, seatNumbers = []) {
   const emails = list(payload.passengerEmails);
   const identities = list(payload.identityNumbers || payload.passengerIdentityNumbers || payload.documentNumbers);
   const identityTypes = list(payload.identityTypes || payload.idTypes);
-  const datesOfBirth = list(payload.datesOfBirth);
   const sexes = list(payload.sexes);
   const nationalities = list(payload.nationalities);
   const notes = list(payload.specialNotes || payload.travelNotes || payload.passengerNotes);
-  const luggageCounts = list(payload.luggageCounts);
   const emergencyNames = list(payload.emergencyContactNames);
   const emergencyPhones = list(payload.emergencyContactPhones);
   const buyer = guestSnapshot(payload);
@@ -119,12 +117,10 @@ function buildPassengerPayloads(payload = {}, seatNumbers = []) {
       email: itemAt(emails, index, buyer.email).toLowerCase(),
       identityNumber: itemAt(identities, index),
       identityType: itemAt(identityTypes, index),
-      dateOfBirth: itemAt(datesOfBirth, index) || null,
       sex: itemAt(sexes, index),
       nationality: itemAt(nationalities, index),
       emergencyContactName: itemAt(emergencyNames, index),
       emergencyContactPhone: itemAt(emergencyPhones, index),
-      luggageCount: Math.max(0, Number(itemAt(luggageCounts, index, '0')) || 0),
       seatOrRoom: seatNumber,
       seatNumber,
       specialNotes: itemAt(notes, index),

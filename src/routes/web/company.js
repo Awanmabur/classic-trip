@@ -166,7 +166,9 @@ router.post('/company/drivers/:id/verification', requireCompanyService('bus'), v
 router.post('/company/media', upload.single('imageFile'), requireCsrfToken, mediaController.upload);
 router.post('/company/media/delete', mediaController.destroy);
 router.post('/company/branches', operationsController.createBranch);
+router.post('/company/branches/:id', operationsController.updateBranch);
 router.post('/company/policies', operationsController.createPolicy);
+router.post('/company/policies/:id', operationsController.updatePolicy);
 router.post('/company/employees/invite', requireVerifiedCompany, employeeController.invite);
 router.post('/company/driver-requests', requireVerifiedCompany, requireCompanyService('bus'), actionController.createDriverRequest);
 router.post('/company/staff/:id/role', operationsController.updateStaffRole);

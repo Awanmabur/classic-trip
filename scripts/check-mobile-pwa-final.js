@@ -35,13 +35,13 @@ check('install prompt carries brand and slogan', () => assert(pwa.includes('Move
 check('installed launch uses only the native manifest splash', () => assert(!pwa.includes('classicTripLaunchSplash') && !pwa.includes('showStandaloneSplash') && manifest.name === 'Classic Trip — Move, stay and fly with confidence.'));
 check('service worker is registered', () => assert(pwa.includes("register('/sw.js'")));
 check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.2.8") && sw.includes("'/css/")));
-check('manifest has separate any and maskable icons', () => {
+check('manifest uses transparent any-purpose icons for the launch surface', () => {
   assert(manifest.icons.some((icon) => icon.purpose === 'any'));
-  assert(manifest.icons.some((icon) => icon.purpose === 'maskable'));
+  assert(manifest.icons.every((icon) => icon.purpose !== 'maskable'));
 });
 check('manifest starts in standalone mode', () => assert.strictEqual(manifest.display, 'standalone'));
-check('clean padded icons exist', () => {
-  ['public/images/logo-maskable-192.png','public/images/logo-maskable-512.png','public/images/apple-touch-icon.png'].forEach((file) => assert(fs.existsSync(path.join(root, file))));
+check('transparent launch and Apple touch icons exist', () => {
+  ['public/images/logo-symbol-192.png','public/images/logo-symbol-512.png','public/images/apple-touch-icon.png'].forEach((file) => assert(fs.existsSync(path.join(root, file))));
 });
 check('auth document has one main opening', () => assert.strictEqual((auth.match(/<main class="main container">/g) || []).length, 1));
 

@@ -3,17 +3,19 @@
 const repository = require('../repositories/busRepository');
 const { cleanText, normalize } = require('../domain/busDomain');
 
-async function findReturnDepartures({ companyId, originName, destinationName, afterDate } = {}) {
+async function findReturnDepartures({ companyId, originName, destinationName, originBranchId = '', destinationBranchId = '', afterDate } = {}) {
   const tenantId = cleanText(companyId, 180);
   const wantedOrigin = normalize(originName);
   const wantedDestination = normalize(destinationName);
-  if (!tenantId || !wantedOrigin || !wantedDestination) return [];
+  const wantedOriginBranch = cleanText(originBranchId, 180);
+  const wantedDestinationBranch = cleanText(destinationBranchId, 180);
+  if (!tenantId || (!wantedOriginBranch && !wantedOrigin) || (!wantedDestinationBranch && !wantedDestination)) return [];
   const routes = await repository.routes.list({ companyId: tenantId, status: 'active' }, { limit: 200 });
   const matches = [];
   for (const route of routes) {
     const stops = await repository.routeStops.list({ companyId: tenantId, routeId: route.id, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 }, limit: 200 });
-    const originIndex = stops.findIndex((stop) => normalize(stop.name) === wantedOrigin);
-    const destinationIndex = stops.findIndex((stop, index) => index > originIndex && normalize(stop.name) === wantedDestination);
+    const originIndex = stops.findIndex((stop) => (wantedOriginBranch && String(stop.branchId || '') === wantedOriginBranch) || (!wantedOriginBranch && normalize(stop.name) === wantedOrigin));
+    const destinationIndex = stops.findIndex((stop, index) => index > originIndex && ((wantedDestinationBranch && String(stop.branchId || '') === wantedDestinationBranch) || (!wantedDestinationBranch && normalize(stop.name) === wantedDestination)));
     if (originIndex < 0 || destinationIndex <= originIndex) continue;
     matches.push({ route, originStop: stops[originIndex], destinationStop: stops[destinationIndex] });
   }
@@ -54,6 +56,8 @@ async function findReturnsForDeparture({ scheduleId, originStopId, destinationSt
     companyId: (await repository.schedules.findOne({ id: scheduleId }))?.companyId,
     originName: availability.journey.destinationName,
     destinationName: availability.journey.originName,
+    originBranchId: availability.journey.destinationBranchId,
+    destinationBranchId: availability.journey.originBranchId,
     afterDate: availability.schedule.arriveAt || availability.schedule.departAt,
   });
   return { outbound: availability.journey, departures };

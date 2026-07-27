@@ -285,8 +285,42 @@ window.addEventListener('DOMContentLoaded', function () {
     return meta ? row.slice(0, -1) : row;
   }
 
+  function rowServiceType(row) {
+    const meta = rowMeta(row) || {};
+    const detail = meta.detail || {};
+    return String(
+      meta.serviceType ||
+      detail.serviceType ||
+      detail.service?.type ||
+      detail.booking?.serviceType ||
+      detail.booking?.booking?.serviceType ||
+      detail.listing?.serviceType ||
+      ''
+    ).toLowerCase().replace(/[\s-]+/g, '_');
+  }
+
   function encodeDetail(detail) {
     try { return encodeURIComponent(JSON.stringify(detail || {})); } catch (error) { return ''; }
+  }
+
+  function completeRowDetail(meta = null, type = 'record', label = '') {
+    const detail = meta?.detail && typeof meta.detail === 'object' ? { ...meta.detail } : {};
+    const entity = String(meta?.entity || detail.entity || type || 'record').toLowerCase();
+    const id = meta?.id || detail.id || dashboardRecordId(detail) || '';
+    return {
+      ...detail,
+      entity,
+      id,
+      label: meta?.label || detail.label || label || id || entity,
+      status: meta?.status || detail.status || '',
+      actions: Array.isArray(meta?.actions) ? meta.actions : (Array.isArray(detail.actions) ? detail.actions : []),
+    };
+  }
+
+  function rowDetailAttribute(meta = null, type = 'record', label = '') {
+    if (!meta && !label) return '';
+    const payload = completeRowDetail(meta, type, label);
+    return ` data-row-detail="${escapeHtml(encodeDetail(payload))}"`;
   }
 
   function bookingPreviewUrl(){
@@ -304,11 +338,11 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
   function dashboardRecordId(detail = {}) {
-    return detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.routeStop?.id || detail?.serviceAddon?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.seatMap?.scheduleId || detail?.manifest?.scheduleId || detail?.booking?.bookingRef || '';
+    return detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.routeStop?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.campaign?.id || detail?.promotion?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.seatMap?.scheduleId || detail?.manifest?.scheduleId || detail?.booking?.bookingRef || '';
   }
 
   function mutableCompanyEntity(entity = '') {
-    return ['listing','route','routestop','route_stop','vehicle','schedule','room','hotel_property','room_type','rate_plan','room_unit','room_night','seat','manifest_passenger','service_addon','add-on'].includes(String(entity || '').toLowerCase());
+    return ['listing','route','routestop','route_stop','vehicle','schedule','room','hotel_property','room_type','rate_plan','room_unit','room_night','service_addon','add-on','fare_product','segment_fare','branch','policy'].includes(String(entity || '').toLowerCase());
   }
 
   function archiveActionFor(entity = '', id = '') {
@@ -333,15 +367,13 @@ window.addEventListener('DOMContentLoaded', function () {
   function addModeButtons(entity, safeLabel, safeType, detailAttr, idAttr, id) {
     const key = String(entity || safeType || '').toLowerCase();
     if ((shell.currentRole || 'admin') !== 'company' || !id || !mutableCompanyEntity(key)) return '';
-    return `
-      <button class="tinyBtn" data-modal="edit" data-type="${escapeHtml(key)}" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit"><i class="fa-solid fa-pen"></i></button>
-      <button class="tinyBtn danger" data-modal="delete" data-type="${escapeHtml(key)}" data-label="${safeLabel}"${detailAttr}${idAttr} title="Delete / archive"><i class="fa-solid fa-trash"></i></button>`;
+    return `<button class="tinyBtn" data-modal="edit" data-type="${escapeHtml(key)}" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit ${escapeHtml(key.replace(/[_-]+/g, ' '))}"><i class="fa-solid fa-pen"></i></button>`;
   }
 
   function rowActions(label, type, meta = null) {
     const safeLabel = escapeHtml(label);
     const safeType = escapeHtml(type);
-    const detailAttr = meta?.detail ? ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"` : '';
+    const detailAttr = rowDetailAttribute(meta, type, label);
     const idAttr = meta?.id ? ` data-row-id="${escapeHtml(meta.id)}"` : '';
     if (meta?.entity === 'partner') {
       const slug = encodeURIComponent(meta.slug || meta.id || label);
@@ -361,7 +393,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const entity = String(meta?.entity || type || '').toLowerCase();
     const detailBooking = meta?.detail?.booking?.booking || meta?.detail?.booking || {};
     const detailServiceType = String(detailBooking.serviceType || meta?.detail?.service?.type || '').toLowerCase();
-    const isHotelBooking = entity === 'hotel_booking' || detailServiceType === 'hotel';
+    const isHotelBooking = entity === 'hotel_booking' || ['hotel','stay','airbnb'].includes(detailServiceType);
     const paymentStatusKey = String(detailBooking.paymentStatus || meta?.detail?.payment?.status || '').toLowerCase().replace(/[\s-]+/g, '_');
     const bookingStatusKey = String(detailBooking.bookingStatus || meta?.status || '').toLowerCase().replace(/[\s-]+/g, '_');
     const stayStatusKey = String(detailBooking.hotelStay?.status || bookingStatusKey).toLowerCase().replace(/[\s-]+/g, '_');
@@ -507,6 +539,50 @@ window.addEventListener('DOMContentLoaded', function () {
           scopedActions += `<form method="POST" action="/company/hotels/bookings/${bookingRef}/check-out" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Guest check-out"><i class="fa-solid fa-door-open"></i></button></form>`;
         }
         scopedActions += `<form method="POST" action="/company/hotels/inventory/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive room-night"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'service_addon' || entity === 'add-on') {
+        scopedActions += `<form method="POST" action="/company/addons/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive optional extra"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'promotion') {
+        const campaignStatus = String(meta?.status || meta?.detail?.campaign?.status || meta?.detail?.promotion?.status || '').toLowerCase();
+        if (campaignStatus === 'active') scopedActions += `<form method="POST" action="/company/promotions/${id}/pause" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Pause promotion"><i class="fa-solid fa-pause"></i></button></form>`;
+        if (campaignStatus === 'paused' || campaignStatus === 'draft') scopedActions += `<form method="POST" action="/company/promotions/${id}/resume" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Resume promotion"><i class="fa-solid fa-play"></i></button></form>`;
+        if (!['expired','ended','archived'].includes(campaignStatus)) scopedActions += `<form method="POST" action="/company/promotions/${id}/end" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="End promotion"><i class="fa-solid fa-stop"></i></button></form>`;
+      }
+      if (entity === 'review') {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="review reply" data-label="${safeLabel}"${detailAttr}${idAttr} title="Reply to review"><i class="fa-solid fa-reply"></i></button>`;
+      }
+      if (entity === 'support' || entity === 'support ticket') {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="support response" data-label="${safeLabel}"${detailAttr}${idAttr} title="Respond or update support case"><i class="fa-solid fa-headset"></i></button>`;
+      }
+    }
+    if (['admin','support','finance','content'].includes(role) && id) {
+      if ((entity === 'support' || entity === 'support ticket') && ['admin','support'].includes(role)) {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="platform support response" data-label="${safeLabel}"${detailAttr}${idAttr} title="Reply and update support case"><i class="fa-solid fa-reply"></i></button>`;
+      }
+      if (entity === 'refund' && ['admin','finance'].includes(role)) {
+        const base = role === 'finance' ? '/finance' : '/admin';
+        scopedActions += `<form method="POST" action="${base}/refunds/${id}/approve" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Approve refund"><i class="fa-solid fa-circle-check"></i></button></form>`;
+        scopedActions += `<form method="POST" action="${base}/refunds/${id}/reject" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Reject refund"><i class="fa-solid fa-ban"></i></button></form>`;
+      }
+      if (entity === 'payment' && ['admin','finance'].includes(role)) {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="payment" data-label="${safeLabel}"${detailAttr}${idAttr} title="Freeze payment or payout for review"><i class="fa-solid fa-snowflake"></i></button>`;
+      }
+      if (entity === 'review' && ['admin','content'].includes(role)) {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="review moderation" data-label="${safeLabel}"${detailAttr}${idAttr} title="Moderate review"><i class="fa-solid fa-shield-halved"></i></button>`;
+      }
+      if (entity === 'price_rule' && ['admin','content'].includes(role)) {
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="price rule" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit price rule"><i class="fa-solid fa-pen"></i></button>`;
+      }
+      if (entity === 'customer' && ['admin','support'].includes(role)) {
+        scopedActions += `<button class="tinyBtn" data-modal="create" data-type="customer note" data-label="${safeLabel}"${detailAttr}${idAttr} title="Add customer note"><i class="fa-solid fa-note-sticky"></i></button>`;
+      }
+      if (['payout','payout_request','company_payout_request'].includes(entity) && ['admin','finance'].includes(role)) {
+        const base = role === 'finance' ? '/finance' : '/admin';
+        scopedActions += `<form method="POST" action="${base}/payouts/${id}/review" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="status" value="approved"><button class="tinyBtn" type="submit" title="Approve payout review"><i class="fa-solid fa-money-check-dollar"></i></button></form>`;
+      }
+      if (entity === 'withdrawal' && role === 'admin') {
+        scopedActions += `<form method="POST" action="/admin/withdrawals/${id}/approve" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Approve withdrawal"><i class="fa-solid fa-circle-check"></i></button></form>`;
       }
     }
     if (role === 'employee' && id) {
@@ -912,6 +988,35 @@ window.addEventListener('DOMContentLoaded', function () {
     downloadText(filename, csv, 'text/csv');
   }
 
+  function csvCell(value) {
+    return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  }
+
+  function exportVisibleDashboardTables() {
+    const active = document.querySelector('.section.is-open') || document.querySelector('.section');
+    const tables = active ? Array.from(active.querySelectorAll('table')) : [];
+    if (!tables.length) {
+      toast('No table is available on this page');
+      return;
+    }
+    const blocks = [];
+    tables.forEach((table, index) => {
+      const card = table.closest('.card, .tabPane, .section');
+      const title = card?.querySelector('.cardTitle h3, h3, h4')?.textContent?.trim() || `Table ${index + 1}`;
+      const headers = Array.from(table.querySelectorAll('thead th')).map((cell) => cell.textContent.trim()).filter(Boolean);
+      const actionIndex = headers.findIndex((header) => /^(actions?|manage|review|share|recovery|permitted action)$/i.test(header));
+      const rows = Array.from(table.querySelectorAll('tbody tr')).map((row) => Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent.replace(/\s+/g, ' ').trim()));
+      const keep = (values) => actionIndex >= 0 ? values.filter((_, idx) => idx !== actionIndex) : values;
+      blocks.push([csvCell(title)]);
+      if (headers.length) blocks.push(keep(headers).map(csvCell));
+      rows.filter((row) => row.length && !row.some((value) => /No records found|No .* yet|No .* configured/i.test(value))).forEach((row) => blocks.push(keep(row).map(csvCell)));
+      blocks.push([]);
+    });
+    const pageName = String(els.pageHeading?.textContent || active?.id || 'dashboard').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'dashboard';
+    downloadText(`classic-trip-${pageName}-${new Date().toISOString().slice(0, 10)}.csv`, blocks.map((row) => row.join(',')).join('\n'), 'text/csv');
+    toast('Dashboard data exported');
+  }
+
   function setHtml(selector, html) {
     const node = $(selector);
     if (node) node.innerHTML = html;
@@ -989,10 +1094,10 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
   function rowOpenAttrs(label, type, meta = null) {
-    if (!meta?.detail) return '';
+    if (!meta) return '';
     const safeLabel = escapeHtml(label || meta.label || 'Record');
     const safeType = escapeHtml(meta.entity || type || 'record');
-    const detailAttr = ` data-row-detail="${escapeHtml(encodeDetail(meta.detail))}"`;
+    const detailAttr = rowDetailAttribute(meta, type, label);
     const idAttr = meta.id ? ` data-row-id="${escapeHtml(meta.id)}"` : '';
     return ` class="clickableRow" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr}`;
   }
@@ -1007,6 +1112,49 @@ window.addEventListener('DOMContentLoaded', function () {
         <td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${badgeFor(row[4])}</td><td>${escapeHtml(row[5])}</td><td>${rowActions(row[0], 'booking', meta)}</td>
       </tr>`;
     }).join(''));
+  }
+
+  function tableHeadersFor(selector) {
+    const tbody = $(selector);
+    const table = tbody?.closest('table');
+    return table ? Array.from(table.querySelectorAll('thead th')).map((th) => String(th.textContent || '').trim()) : [];
+  }
+
+  function headerUsesBadge(header = '') {
+    return /(status|verification|availability|payment|check[ -]?in|risk|priority|result|delivery|housekeeping|compliance|safety|stage|publication|operating|review)$/i.test(String(header).trim());
+  }
+
+  function normalizeGenericRow(row = [], expectedColumns = 0) {
+    const cells = Array.isArray(row) ? row.slice() : [];
+    if (!expectedColumns) return cells;
+    if (cells.length > expectedColumns) {
+      // Never merge overflow into the final labelled column: that made values
+      // appear under the wrong heading. The complete record remains available
+      // in the View details payload, while the table preserves its schema.
+      return cells.slice(0, expectedColumns);
+    }
+    while (cells.length < expectedColumns) cells.push('-');
+    return cells;
+  }
+
+  function renderGenericRow(selector, row, meta, type) {
+    const headers = tableHeadersFor(selector);
+    const hasActionColumn = !headers.length || /^(actions?|manage)?$/i.test(headers[headers.length - 1] || '');
+    const dataHeaders = hasActionColumn ? headers.slice(0, -1) : headers;
+    const expectedColumns = dataHeaders.length || row.length;
+    const cells = normalizeGenericRow(row, expectedColumns);
+    const initial = escapeHtml(String(cells[0] || '?').charAt(0));
+    const entity = String(meta?.entity || type || 'record');
+    const body = cells.map((cell, index) => {
+      const header = dataHeaders[index] || '';
+      if (index === 0 && !/(date|time|amount|total|currency|status)/i.test(header)) {
+        return `<td><div class="nameCell"><div class="miniLogo">${initial}</div><div><strong>${escapeHtml(cell || '-')}</strong><span>${escapeHtml(entity.replace(/[_-]+/g, ' '))}</span></div></div></td>`;
+      }
+      if (headerUsesBadge(header)) return `<td>${badgeFor(cell || '-')}</td>`;
+      return `<td>${escapeHtml(cell === undefined || cell === null || cell === '' ? '-' : cell)}</td>`;
+    }).join('');
+    const actions = hasActionColumn ? `<td>${rowActions(cells[0] || meta?.label || 'Record', meta?.entity || type || 'record', meta)}</td>` : '';
+    return `<tr${rowOpenAttrs(cells[0], meta?.entity || type || 'record', meta)}>${body}${actions}</tr>`;
   }
 
   function fillTable(selector, rows, type = 'booking') {
@@ -1034,7 +1182,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (type === 'kyc') return `<tr${rowOpenAttrs(row[0], 'verification case', meta)}><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-id-card"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Verification case</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${badgeFor(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'verification case', meta)}</td></tr>`;
       if (type === 'refunds') return `<tr${rowOpenAttrs(row[0], 'refund', meta)}><td>${escapeHtml(row[0])}</td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'refund', meta)}</td></tr>`;
       if (type === 'notifications') return `<tr${rowOpenAttrs(row[0], 'notification', meta)}><td><div class="nameCell"><div class="miniLogo"><i class="fa-solid fa-bell"></i></div><div><strong>${escapeHtml(row[0])}</strong><span>Message campaign</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${rowActions(row[0], 'notification', meta)}</td></tr>`;
-      if (type === 'generic') return `<tr${rowOpenAttrs(row[0], meta?.entity || 'record', meta)}>${row.slice(0, 7).map((cell, idx) => idx === 0 ? `<td><div class="nameCell"><div class="miniLogo">${initial}</div><div><strong>${escapeHtml(cell)}</strong><span>${escapeHtml(meta?.entity || 'Record')}</span></div></div></td>` : idx === Math.min(row.length - 1, 5) ? `<td>${badgeFor(cell)}</td>` : `<td>${escapeHtml(cell)}</td>`).join('')}<td>${rowActions(row[0], meta?.entity || 'record', meta)}</td></tr>`;
+      if (type === 'generic') return renderGenericRow(selector, row, meta, type);
       return `<tr${rowOpenAttrs(row[0], 'booking', meta)}><td><div class="nameCell"><div class="miniLogo">#</div><div><strong>${escapeHtml(row[0])}</strong><span>Booking order</span></div></div></td><td>${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td>${escapeHtml(row[3])}</td><td>${escapeHtml(row[4])}</td><td>${badgeFor(row[5])}</td><td>${escapeHtml(row[6])}</td><td>${rowActions(row[0], 'booking', meta)}</td></tr>`;
     }).join(''));
   }
@@ -1965,11 +2113,11 @@ window.addEventListener('DOMContentLoaded', function () {
     const customers = optionFromRows(data.customers, 'Select customer');
     const promoters = optionFromRows(data.promoters, 'Select promoter');
     const employeeProfile = data.profile || {};
-    const recordId = detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.routeStop?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || '';
+    const recordId = detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.routeStop?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || '';
     const recordLabel = label || detail?.label || recordId || 'selected record';
 
 
-    const record = detail?.listing || detail?.route || detail?.routeStop || detail?.vehicle || detail?.schedule || detail?.room || detail?.property || detail?.roomType || detail?.roomUnit || detail?.roomNight || detail || {};
+    const record = detail?.listing || detail?.route || detail?.routeStop || detail?.vehicle || detail?.schedule || detail?.room || detail?.property || detail?.roomType || detail?.roomUnit || detail?.roomNight || detail?.serviceAddon || detail?.fareProduct || detail?.segmentFare || detail?.branch || detail?.policy || detail?.review || detail?.ticket || detail?.support || detail || {};
     const fieldValue = (...keys) => {
       for (const key of keys) {
         const value = key.split('.').reduce((obj, part) => (obj && typeof obj === 'object') ? obj[part] : undefined, detail);
@@ -2019,7 +2167,6 @@ window.addEventListener('DOMContentLoaded', function () {
           { name:'identityType', label:'ID type', type:'select', icon:'fa-id-card', options:['national_id','passport','student_id','birth_certificate'] },
           { name:'identityNumber', label:'ID / passport number', icon:'fa-id-card-clip' },
           { name:'nationality', label:'Nationality', icon:'fa-earth-africa' },
-          { name:'dateOfBirth', label:'Date of birth', type:'date', icon:'fa-cake-candles' },
           { name:'emergencyContactName', label:'Emergency contact name', icon:'fa-user-shield' },
           { name:'emergencyContactPhone', label:'Emergency contact phone', icon:'fa-phone-volume' },
           { name:'estimatedArrivalTime', label:'Estimated arrival', type:'time', icon:'fa-clock' },
@@ -2453,7 +2600,6 @@ window.addEventListener('DOMContentLoaded', function () {
           { name:'identityType', label:'ID type', type:'select', icon:'fa-id-card', options:['national_id','passport','student_id','birth_certificate'] },
           { name:'identityNumber', label:'ID / passport number', icon:'fa-id-card-clip' },
           { name:'nationality', label:'Nationality', icon:'fa-earth-africa' },
-          { name:'dateOfBirth', label:'Date of birth', type:'date', icon:'fa-cake-candles' },
           { name:'emergencyContactName', label:'Emergency contact name', icon:'fa-user-shield' },
           { name:'emergencyContactPhone', label:'Emergency contact phone', icon:'fa-phone-volume' },
           { name:'estimatedArrivalTime', label:'Estimated arrival', type:'time', icon:'fa-clock' },
@@ -2616,31 +2762,38 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'notes', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
-    if (isCompanyRole && key === 'fare product') return {
-      action: '/company/fares', submit: 'Create fare plan',
-      fields: [
-        { type:'smart-summary', label:'Smart fare setup', help:'Route, currency and full origin-to-destination segment are reused automatically. Enter only the commercial values and policy choices.' },
-        { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
-        { name:'name', label:'Fare plan name', icon:'fa-tag', placeholder:'Generated from route and class' },
-        { name:'fareClass', label:'Fare class', type:'select', icon:'fa-star', options:['standard','economy','business','executive','vip','premium','express'], value:'standard' },
-        { name:'amount', label:'Full-route fare', type:'number', icon:'fa-coins', required:true, help:'Creates the initial origin-to-destination fare. Add partial-route fares separately when passengers may board or leave at intermediate stops.' },
-        { name:'baggageAllowanceKg', label:'Included baggage KG', type:'number', icon:'fa-suitcase', value:'0' },
-        { name:'refundable', label:'Refundable', type:'select', icon:'fa-rotate-left', options:['true','false'], value:'false' },
-        { name:'changeable', label:'Changeable', type:'select', icon:'fa-calendar-pen', options:['true','false'], value:'false' },
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','draft'], value:'active' }
-      ]
-    };
-    if (isCompanyRole && key === 'segment fare') return {
-      action: '/company/fare-segments', submit: 'Save stop-to-stop price',
-      fields: [
-        { type:'smart-summary', label:'Smart stop-to-stop price', help:'Only stops belonging to the selected route are shown, in route order. The drop-off must come after the boarding stop.' },
-        { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-tag', options:fareProducts, required:true },
-        { name:'fromStopId', label:'Boarding stop', type:'select', icon:'fa-location-dot', options:routeStops, required:true, dependsOn:'fareProductId', filterKey:'routeId', parentMetaKey:'routeId' },
-        { name:'toStopId', label:'Drop-off stop', type:'select', icon:'fa-flag-checkered', options:routeStops, required:true, dependsOn:'fareProductId', filterKey:'routeId', parentMetaKey:'routeId' },
-        { name:'amount', label:'Boarding-to-drop-off fare', type:'number', icon:'fa-coins', required:true, help:'Enter what one passenger pays between these two stops. Exact stop-pair prices take priority; otherwise connected configured fare ranges are combined.' },
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','archived'], value:'active' }
-      ]
-    };
+    if (isCompanyRole && (key === 'fare product' || key === 'fare_product')) {
+      const fareProductId = detail?.fareProduct?.id || recordId || '';
+      const editing = mode === 'edit' && fareProductId;
+      const fields = [
+        { type:'smart-summary', label:editing ? 'Edit fare plan' : 'Smart fare setup', help:editing ? 'Update commercial, baggage, refund, change and publication rules. Stop-to-stop prices remain independently editable.' : 'Route, currency and full origin-to-destination segment are reused automatically.' },
+        ...(!editing ? [{ name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true, value:fieldValue('fareProduct.routeId','route.id','routeId') }] : []),
+        { name:'name', label:'Fare plan name', icon:'fa-tag', placeholder:'Generated from route and class', required:editing, value:fieldValue('fareProduct.name','name') },
+        { name:'fareClass', label:'Fare class', type:'select', icon:'fa-star', options:['standard','economy','business','executive','vip','premium','express'], value:fieldValue('fareProduct.fareClass','fareClass') || 'standard' },
+        ...(!editing ? [{ name:'amount', label:'Full-route fare', type:'number', icon:'fa-coins', required:true, value:fieldValue('segmentFares.0.amount','amount'), help:'Creates the initial origin-to-destination fare.' }] : []),
+        { name:'baggageAllowanceKg', label:'Included baggage KG', type:'number', icon:'fa-suitcase', value:fieldValue('fareProduct.baggageAllowanceKg','baggageAllowanceKg') || '0' },
+        { name:'refundable', label:'Refundable', type:'select', icon:'fa-rotate-left', options:['true','false'], value:String(fieldValue('fareProduct.refundable','refundable') ?? 'false') },
+        { name:'changeable', label:'Changeable', type:'select', icon:'fa-calendar-pen', options:['true','false'], value:String(fieldValue('fareProduct.changeable','changeable') ?? 'false') },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','draft','paused','archived'], value:fieldValue('fareProduct.status','status') || 'active' }
+      ];
+      return { action: editing ? `/company/fares/${encodeURIComponent(fareProductId)}` : '/company/fares', submit: editing ? 'Save fare plan' : 'Create fare plan', fields };
+    }
+    if (isCompanyRole && (key === 'segment fare' || key === 'segment_fare')) {
+      const segmentFareId = detail?.segmentFare?.id || recordId || '';
+      const editing = mode === 'edit' && segmentFareId;
+      return {
+        action: '/company/fare-segments', submit: editing ? 'Update stop-to-stop price' : 'Save stop-to-stop price',
+        fields: [
+          { type:'smart-summary', label:editing ? 'Edit stop-to-stop price' : 'Smart stop-to-stop price', help:'Saving the same boarding and drop-off pair updates the existing price rather than creating a duplicate.' },
+          { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-tag', options:fareProducts, required:true, value:fieldValue('segmentFare.fareProductId','fareProduct.id','fareProductId') },
+          { name:'fromStopId', label:'Boarding stop', type:'select', icon:'fa-location-dot', options:routeStops, required:true, dependsOn:'fareProductId', filterKey:'routeId', parentMetaKey:'routeId', value:fieldValue('segmentFare.fromStopId','fromStop.id','fromStopId') },
+          { name:'toStopId', label:'Drop-off stop', type:'select', icon:'fa-flag-checkered', options:routeStops, required:true, dependsOn:'fareProductId', filterKey:'routeId', parentMetaKey:'routeId', value:fieldValue('segmentFare.toStopId','toStop.id','toStopId') },
+          { name:'amount', label:'Boarding-to-drop-off fare', type:'number', icon:'fa-coins', required:true, value:fieldValue('segmentFare.amount','amount') },
+          { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','archived'], value:fieldValue('segmentFare.status','status') || 'active' }
+        ]
+      };
+    }
+
 
     if (isCompanyRole && (key === 'add-on' || key === 'service_addon')) {
       const addonId = detail?.serviceAddon?.id || detail?.id || '';
@@ -2931,31 +3084,45 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'note', label:'Approval note', type:'textarea', full:true, placeholder:'Optional internal approval note' }
       ]
     };
-    if (isCompanyRole && key === 'branch') return {
-      action: '/company/branches', submit: companyServiceType === 'hotel' ? 'Add hotel branch/property desk' : 'Add branch / terminal',
-      fields: [
-        { name:'name', label:'Name', icon:'fa-building', required:true, placeholder: companyServiceType === 'hotel' ? 'Front desk / branch' : 'Terminal / branch' },
-        { name:'branchType', label:'Type', type:'select', icon:'fa-layer-group', options: companyServiceType === 'hotel' ? ['property','front_desk','office','branch'] : ['terminal','branch','pickup_point','dropoff_point','office'] },
-        { name:'terminalCode', label:'Short code', icon:'fa-hashtag', placeholder: companyServiceType === 'hotel' ? 'KLA-FD' : 'KLA-01' },
-        ...(companyServiceType === 'hotel' ? [{ name:'city', label:'City', icon:'fa-location-dot', placeholder:'Enter the property city' }] : []),
-        { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Street / terminal address' },
-        { name:'contactPhone', label:'Contact phone', icon:'fa-phone' },
-        { name:'operatingHours', label:'Operating hours', icon:'fa-clock', placeholder:'08:00 - 18:00' },
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','paused','archived'], value:'active' }
-      ]
-    };
-    if (isCompanyRole && key === 'policy') return {
-      action: '/company/policies', submit: 'Add policy',
-      fields: [
-        { name:'title', label:'Policy title', icon:'fa-file-lines', required:true, placeholder: companyServiceType === 'hotel' ? 'Hotel cancellation policy' : 'Passenger baggage policy' },
-        { name:'policyType', label:'Policy type', type:'select', icon:'fa-list-check', options: companyServiceType === 'hotel' ? ['cancellation','refund','check_in','check_out','housekeeping','support'] : ['cancellation','refund','baggage','boarding','no_show','support'] },
-        { name:'serviceType', type:'hidden', value: companyServiceType },
-        { name:'customerVisible', label:'Customer visible', type:'select', icon:'fa-eye', options:['true','false'], value:'false' },
-        { name:'branchIds', label:'Applies to branches / terminals / property desks', type:'multiselect', icon:'fa-building', options:branches, help:'Leave empty to apply company-wide.' },
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','paused','archived'], value:'active' },
-        { name:'summary', label:'Policy summary', type:'textarea', full:true, required:true, placeholder:'Write the policy that staff and customers should follow' }
-      ]
-    };
+    if (isCompanyRole && key === 'branch') {
+      const branchId = detail?.branch?.id || recordId || '';
+      const editing = mode === 'edit' && branchId;
+      return {
+        action: editing ? `/company/branches/${encodeURIComponent(branchId)}` : '/company/branches', submit: editing ? 'Save branch changes' : (companyServiceType === 'hotel' ? 'Add hotel branch/property desk' : 'Add branch / terminal'),
+        fields: [
+          { name:'name', label:'Name', icon:'fa-building', required:true, value:fieldValue('branch.name','name'), placeholder:companyServiceType === 'hotel' ? 'Front desk / branch' : 'Terminal / branch' },
+          { name:'branchType', label:'Type', type:'select', icon:'fa-layer-group', options:companyServiceType === 'hotel' ? ['property','front_desk','office','branch'] : ['terminal','branch','pickup_point','dropoff_point','office'], value:fieldValue('branch.branchType','branchType') },
+          { name:'terminalCode', label:'Short code', icon:'fa-hashtag', value:fieldValue('branch.terminalCode','terminalCode') },
+          { name:'city', label:'City', icon:'fa-location-dot', value:fieldValue('branch.city','city') },
+          { name:'country', label:'Country', icon:'fa-earth-africa', value:fieldValue('branch.country','country') },
+          { name:'address', label:'Address', icon:'fa-map-pin', value:fieldValue('branch.address','address') },
+          { name:'contactName', label:'Contact person', icon:'fa-user', value:fieldValue('branch.contactName','contactName') },
+          { name:'contactPhone', label:'Contact phone', icon:'fa-phone', value:fieldValue('branch.contactPhone','contactPhone') },
+          { name:'contactEmail', label:'Contact email', type:'email', icon:'fa-envelope', value:fieldValue('branch.contactEmail','contactEmail') },
+          { name:'operatingHours', label:'Operating hours', icon:'fa-clock', value:fieldValue('branch.operatingHours','operatingHours') },
+          { name:'serviceCategories', label:'Service categories', icon:'fa-layer-group', value:fieldValue('branch.serviceCategories','serviceCategories') },
+          { name:'amenities', label:'Amenities / facilities', icon:'fa-list-check', value:fieldValue('branch.amenities','amenities') },
+          { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','paused','archived'], value:fieldValue('branch.status','status') || 'active' }
+        ]
+      };
+    }
+    if (isCompanyRole && key === 'policy') {
+      const policyId = detail?.policy?.id || recordId || '';
+      const editing = mode === 'edit' && policyId;
+      return {
+        action: editing ? `/company/policies/${encodeURIComponent(policyId)}` : '/company/policies', submit: editing ? 'Save policy changes' : 'Add policy',
+        fields: [
+          { name:'title', label:'Policy title', icon:'fa-file-lines', required:true, value:fieldValue('policy.title','title') },
+          { name:'policyType', label:'Policy type', type:'select', icon:'fa-list-check', options:['operations','hotel','bus','cancellation','refund','baggage','boarding','no_show','support','check_in','check_out','housekeeping'], value:fieldValue('policy.policyType','policyType') || 'operations' },
+          { name:'serviceCategory', label:'Service category', icon:'fa-layer-group', value:fieldValue('policy.serviceCategory','serviceCategory') || companyServiceType },
+          { name:'customerVisible', label:'Visibility', type:'select', icon:'fa-eye', options:[{value:'true',label:'Customer visible'},{value:'false',label:'Internal only'}], value:String(fieldValue('policy.customerVisible','customerVisible') ?? 'false') },
+          { name:'appliesToBranches', label:'Applies to branches / terminals / property desks', type:'multiselect', icon:'fa-building', options:branches, value:fieldValue('policy.appliesToBranches','appliesToBranches'), help:'Leave empty to apply company-wide.' },
+          { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','paused','archived'], value:fieldValue('policy.status','status') || 'active' },
+          { name:'summary', label:'Policy summary', type:'textarea', full:true, required:true, value:fieldValue('policy.summary','summary') }
+        ]
+      };
+    }
+
     if (isCompanyRole && key === 'seat map') return {
       action: '/company/seats/status', submit: 'Update seat status',
       fields: [
@@ -3000,7 +3167,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'passengerNames', label:'Passenger names', type:'textarea', full:true, required:true, showFor:'bus', placeholder:'One passenger name per line, in the same order as the selected seats', help:'Include the lead passenger. Return bookings use the same passenger order.' },
         { name:'identityNumbers', label:'Passenger ID / passport numbers', type:'textarea', full:true, showFor:'bus', placeholder:'One per line, matching passenger order' },
         { name:'nationalities', label:'Passenger nationalities', type:'textarea', full:true, showFor:'bus', placeholder:'One per line, matching passenger order' },
-        { name:'luggageCounts', label:'Luggage item counts', type:'textarea', full:true, showFor:'bus', placeholder:'One number per line, matching passenger order' },
         { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, required:true, dependsOn:'listingId', filterKey:'listingId', showFor:'hotel' },
         { name:'ratePlanId', label:'Rate plan', type:'select', icon:'fa-tags', options:ratePlans, dependsOn:'roomTypeId', filterKey:'roomTypeId', showFor:'hotel' },
         { name:'roomUnitIds', label:'Preferred room units', type:'multiselect', icon:'fa-door-open', options:roomUnits, dependsOn:'roomTypeId', filterKey:'roomTypeId', showFor:'hotel', help:'Optional. Leave empty for automatic allocation from available room nights.' },
@@ -3017,7 +3183,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'identityType', label:'Lead ID type', type:'select', icon:'fa-id-card', options:['national_id','passport','student_id','birth_certificate'] },
         { name:'identityNumber', label:'Lead ID / passport number', icon:'fa-id-card-clip' },
         { name:'nationality', label:'Lead nationality', icon:'fa-earth-africa' },
-        { name:'dateOfBirth', label:'Lead date of birth', type:'date', icon:'fa-cake-candles' },
         { name:'emergencyContactName', label:'Emergency contact name', icon:'fa-user-shield' },
         { name:'emergencyContactPhone', label:'Emergency contact phone', icon:'fa-phone-volume' },
         { name:'addons', label:'Approved extras', type:'multiselect', icon:'fa-circle-plus', options:serviceAddonOptions, dependsOn:'listingId', filterKey:'listingId' },
@@ -3028,6 +3193,43 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'specialRequests', label:'Special requests / travel notes', type:'textarea', full:true, placeholder:'Accessibility, arrival, luggage or room requests' },
         { name:'notes', label:'Internal sale note', type:'textarea', full:true, placeholder:'Optional promoter note' },
         { name:'paymentMethod', type:'hidden', value:'cash' }
+      ]
+    };
+
+    if (isCompanyRole && mode === 'edit' && key === 'review reply') return {
+      action: `/company/reviews/${encodeURIComponent(recordId)}/reply`, submit: 'Publish reply',
+      fields: [
+        { type:'smart-summary', label:'Reply to customer review', help:'The reply is displayed with this review and stored with the replying company administrator.' },
+        { name:'reply', label:'Company reply', type:'textarea', full:true, required:true, value:fieldValue('review.companyReply.message','companyReply.message'), placeholder:'Thank the customer and address the feedback clearly.' },
+        { name:'status', label:'Review status', type:'select', icon:'fa-circle-check', options:['replied','published','hidden','flagged'], value:fieldValue('review.status','status') || 'replied' }
+      ]
+    };
+    if (isCompanyRole && mode === 'edit' && key === 'support response') return {
+      action: `/company/support/${encodeURIComponent(recordId)}`, submit: 'Save support update',
+      fields: [
+        { type:'smart-summary', label:'Support case update', help:'Update priority and status, assign the case, and add a response that remains attached to the case timeline.' },
+        { name:'subject', label:'Subject', icon:'fa-heading', value:fieldValue('ticket.subject','support.subject','subject') },
+        { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['low','normal','medium','high','urgent'], value:fieldValue('ticket.priority','support.priority','priority') || 'normal' },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['open','in_progress','waiting_customer','resolved','closed','reopened'], value:fieldValue('ticket.status','support.status','status') || 'open' },
+        { name:'assignedTo', label:'Assigned employee ID', icon:'fa-user-check', value:fieldValue('ticket.assignedTo','support.assignedTo','assignedTo'), help:'Use an active employee ID from this company or leave it unchanged.' },
+        { name:'response', label:'Response / resolution note', type:'textarea', full:true, value:'', placeholder:'Write the customer-facing or operational response.' }
+      ]
+    };
+
+    if (mode === 'edit' && key === 'platform support response') return {
+      action: dashboardRoleKey === 'support' ? `/support/${encodeURIComponent(recordId)}/reply` : `/admin/support/${encodeURIComponent(recordId)}/reply`, submit: 'Send support reply',
+      fields: [
+        { type:'smart-summary', label:'Support reply', help:'The response is recorded in the support timeline with the selected visibility and case status.' },
+        { name:'message', label:'Reply message', type:'textarea', full:true, required:true, placeholder:'Write a clear response or resolution.' },
+        { name:'status', label:'Case status', type:'select', icon:'fa-circle-check', options:['open','in_progress','waiting_customer','resolved','closed'], value:fieldValue('ticket.status','status') || 'open' },
+        { name:'visibility', label:'Visibility', type:'select', icon:'fa-eye', options:['shared','customer','internal'], value:'shared' }
+      ]
+    };
+    if (mode === 'edit' && key === 'review moderation') return {
+      action: platformActionPath('content', `/reviews/${encodeURIComponent(recordId)}/moderate`), submit: 'Save moderation decision',
+      fields: [
+        { type:'smart-summary', label:'Review moderation', help:'The selected status is persisted to the review and reflected immediately in marketplace review queues.' },
+        { name:'status', label:'Review status', type:'select', icon:'fa-shield-halved', options:['published','hidden','flagged','rejected'], value:fieldValue('review.status','status') || 'hidden' }
       ]
     };
 
@@ -3089,7 +3291,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (key === 'payment') return {
       action: platformActionPath('finance', '/payments/freeze'), submit: 'Freeze payout/payment',
       fields: [
-        { name:'transactionId', label:'Transaction', type:'select', icon:'fa-receipt', options:payments, required:true },
+        { name:'transactionId', label:'Transaction', type:'select', icon:'fa-receipt', options:payments, required:true, value:recordId || fieldValue('payment.id','payment.transactionId','transactionId') },
         { name:'reason', label:'Reason', type:'textarea', full:true, required:true, placeholder:'Why this payout needs review' }
       ]
     };
@@ -3126,17 +3328,22 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'supportedCurrencies', label:'Supported currencies', icon:'fa-coins', value:supportedCurrencies.join(', '), help:'Configure once here. Company and service forms reuse these codes.' }
       ]
     };
-    if (key === 'price rule') return {
-      action: platformActionPath('content', '/price-rules'), submit: 'Save price rule',
-      fields: [
-        { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings },
-        { name:'ruleName', label:'Rule name', icon:'fa-tags', required:true, placeholder:'Holiday surge' },
-        { name:'percent', label:'Price change %', type:'number', icon:'fa-percent', placeholder:'10' },
-        { name:'startsAt', label:'Starts', type:'date', icon:'fa-calendar' },
-        { name:'endsAt', label:'Ends', type:'date', icon:'fa-calendar' },
-        { name:'note', label:'Note', type:'textarea', full:true, placeholder:'Pricing rule details' }
-      ]
-    };
+    if (key === 'price rule') {
+      const priceRule = detail?.priceRule || {};
+      const dateInputValue = (value) => value ? String(value).slice(0, 10) : '';
+      return {
+        action: platformActionPath('content', `/price-rules${recordId ? `/${encodeURIComponent(recordId)}` : ''}`), submit: recordId ? 'Update price rule' : 'Save price rule',
+        fields: [
+          { name:'listingId', label:'Listing', type:'select', icon:'fa-layer-group', options:listings, value:priceRule.listingId || fieldValue('listing.id','listingId') },
+          { name:'ruleName', label:'Rule name', icon:'fa-tags', required:true, placeholder:'Holiday surge', value:priceRule.ruleName || label || '' },
+          { name:'percent', label:'Price change %', type:'number', icon:'fa-percent', placeholder:'10', value:String(priceRule.percent ?? '') },
+          { name:'startsAt', label:'Starts', type:'date', icon:'fa-calendar', value:dateInputValue(priceRule.startsAt) },
+          { name:'endsAt', label:'Ends', type:'date', icon:'fa-calendar', value:dateInputValue(priceRule.endsAt) },
+          { name:'status', label:'Status', type:'select', icon:'fa-toggle-on', options:['active','disabled','expired'], value:priceRule.status || 'active' },
+          { name:'note', label:'Note', type:'textarea', full:true, placeholder:'Pricing rule details', value:priceRule.note || '' }
+        ]
+      };
+    }
     if (key === 'campaign' || key === 'ad' || key === 'ad campaign') return {
       action: platformActionPath('content', '/promotions'), submit: 'Create campaign',
       fields: [
@@ -3151,7 +3358,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (key === 'customer note') return {
       action: platformActionPath('support', '/customer-notes'), submit: 'Add note',
       fields: [
-        { name:'customerId', label:'Customer', type:'select', icon:'fa-user', options:customers, required:true },
+        { name:'customerId', label:'Customer', type:'select', icon:'fa-user', options:customers, required:true, value: recordId || fieldValue('customer.id', 'customerId', 'id') },
         { name:'subject', label:'Subject', icon:'fa-pen', value:label || 'Customer note' },
         { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
         { name:'message', label:'Note', type:'textarea', full:true, required:true, placeholder:'Internal customer note' }
@@ -3473,7 +3680,11 @@ window.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      if (e.target.closest('#btnExport')) toast('Export started');
+      if (e.target.closest('#btnExport')) {
+        e.preventDefault();
+        exportVisibleDashboardTables();
+        return;
+      }
     });
 
     document.addEventListener('submit', function (e) {
@@ -3773,8 +3984,8 @@ window.addEventListener('DOMContentLoaded', function () {
     fillOverviewStats();
     fillRecent();
     fillTable('#bookingsTable', data.bookings);
-    fillTable('#bookingsBusTable', data.bookings.filter(r => /bus/i.test(r[1])));
-    fillTable('#bookingsHotelTable', data.bookings.filter(r => /hotel/i.test(r[1])));
+    fillTable('#bookingsBusTable', data.bookings.filter(r => rowServiceType(r) === 'bus'));
+    fillTable('#bookingsHotelTable', data.bookings.filter(r => ['hotel','stay','airbnb'].includes(rowServiceType(r))));
     fillTable('#bookingsHoldTable', data.bookings.filter(r => /hold/i.test(r[5]) || /left/i.test(r[4])));
     fillTable('#bookingsRefundedTable', data.bookings.filter(r => /refund/i.test(r[5])));
     fillTable('#partnersTable', data.partners, 'partners');
@@ -3787,6 +3998,7 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#partnersMobilityCompanyTable', data.partners.filter(r => /taxi|mobility company/i.test(r[1])), 'partners');
     fillTable('#partnersPendingTable', data.partners.filter(r => /pending|review|submitted/i.test(r[4])), 'partners');
     fillTable('#listingsTable', data.listings, 'listings');
+    fillTable('#priceRulesTable', data.priceRules || [], 'generic');
     fillTable('#adminRoutesTable', data.routes || data.routeInventory || [], 'routes');
     fillTable('#adminVehiclesTable', data.vehicles || [], 'vehicles');
     fillTable('#adminSchedulesTable', data.schedules || [], 'schedules');
