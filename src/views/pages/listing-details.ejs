@@ -85,7 +85,7 @@
                       <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.destinationStopId ? 'selected' : '' %>>Drop at: <%= stop.name %></option>
                     <% }) %>
                   </select>
-                  <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Your ticket price is recalculated from the boarding stop to the selected drop-off stop. A shorter journey costs its configured lower fare.</div>
+                  <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.</div>
                 </div>
               <% } else { %>
                 <div class="notice">No upcoming trips are scheduled for this route yet.</div>
@@ -256,6 +256,11 @@
     destinationStopId: <%- toScriptJson(selectedJourney.destinationStopId || '') %>
   };
   const returnPricing = { basePrice: 0, scheduleId: '', originStopId: '', destinationStopId: '' };
+  const availabilityCache = new Map();
+  const returnScheduleCache = new Map();
+  let activeAvailabilityRequest = null;
+  let activeReturnRequest = null;
+  let outboundRequestSequence = 0;
   const customerFeeConfig = <%- toScriptJson({ percent: platformConfig.customerServiceFeePercent || 0, flat: platformConfig.customerServiceFeeFlat || 0, taxPercent: platformConfig.customerTaxPercent || 0 }) %>;
   function customerFees(subtotal) { const base = Math.max(0, Number(subtotal || 0)); return Math.round((base * Number(customerFeeConfig.percent || 0) / 100) + Number(customerFeeConfig.flat || 0) + (base * Number(customerFeeConfig.taxPercent || 0) / 100)); }
 
@@ -310,7 +315,7 @@
     copyPreviewLink(url);
   }
   function moneyPreview(amount) {
-    return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+    return `${previewPricing.currency} ${Math.round(Number(amount) || 0).toLocaleString('en-GB')}`;
   }
   function selectedButtons() {
     return Array.from(document.querySelectorAll('[data-choice].selected'));
@@ -520,22 +525,59 @@
     previewPricing.destinationStopId = destinationSelect.value;
     synchronizeJourneySelectors();
   }
+  function availabilityKey(scheduleId, originStopId = '', destinationStopId = '', holdId = '') {
+    return [scheduleId, originStopId, destinationStopId, holdId].map((value) => String(value || '')).join('|');
+  }
+  function setJourneyLoading(loading, label = '') {
+    ['outboundScheduleSelect', 'outboundOriginStopSelect', 'outboundDestinationStopSelect'].forEach((id) => {
+      const control = document.getElementById(id);
+      if (control) control.disabled = !!loading;
+    });
+    const hint = document.querySelector('.scheduleSelector .journeyPriceHint');
+    if (!hint) return;
+    if (loading) hint.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${escapeHtml(label || 'Updating seats and fare...')}`;
+    else hint.innerHTML = '<i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.';
+  }
   async function fetchScheduleAvailability(scheduleId, originStopId = '', destinationStopId = '', holdId = '') {
+    const key = availabilityKey(scheduleId, originStopId, destinationStopId, holdId);
+    if (!holdId) {
+      const cached = availabilityCache.get(key);
+      if (cached && cached.expiresAt > Date.now()) return cached.data;
+      if (cached) availabilityCache.delete(key);
+    }
+    if (activeAvailabilityRequest) activeAvailabilityRequest.abort();
+    activeAvailabilityRequest = new AbortController();
     const params = new URLSearchParams();
     if (originStopId) params.set('originStopId', originStopId);
     if (destinationStopId) params.set('destinationStopId', destinationStopId);
     if (holdId) params.set('holdId', holdId);
-    const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(scheduleId)}/availability?${params.toString()}`);
+    const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(scheduleId)}/availability?${params.toString()}`, {
+      signal: activeAvailabilityRequest.signal,
+      headers: { Accept: 'application/json' },
+    });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Unable to load seats for that departure.');
+    if (!holdId) availabilityCache.set(key, { data: result, expiresAt: Date.now() + 5000 });
     return result;
   }
   async function refreshReturnSchedules() {
     if (!previewPricing.scheduleId || !previewPricing.originStopId || !previewPricing.destinationStopId) return [];
-    const params = new URLSearchParams({ originStopId: previewPricing.originStopId, destinationStopId: previewPricing.destinationStopId });
-    const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(previewPricing.scheduleId)}/returns?${params.toString()}`);
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Unable to load reverse departures.');
+    const cacheKey = availabilityKey(previewPricing.scheduleId, previewPricing.originStopId, previewPricing.destinationStopId);
+    const cachedReturn = returnScheduleCache.get(cacheKey);
+    let result = cachedReturn && cachedReturn.expiresAt > Date.now() ? cachedReturn.data : null;
+    if (cachedReturn && !result) returnScheduleCache.delete(cacheKey);
+    if (!result) {
+      if (activeReturnRequest) activeReturnRequest.abort();
+      activeReturnRequest = new AbortController();
+      const params = new URLSearchParams({ originStopId: previewPricing.originStopId, destinationStopId: previewPricing.destinationStopId });
+      const response = await fetch(`/api/v1/bus/departures/${encodeURIComponent(previewPricing.scheduleId)}/returns?${params.toString()}`, {
+        signal: activeReturnRequest.signal,
+        headers: { Accept: 'application/json' },
+      });
+      result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to load reverse departures.');
+      returnScheduleCache.set(cacheKey, { data: result, expiresAt: Date.now() + 30000 });
+    }
     returnSchedulesData = result.departures || [];
     const select = document.getElementById('returnScheduleSelect');
     const notice = document.getElementById('returnTripNotice');
@@ -547,11 +589,13 @@
     if (notice) notice.style.display = returnSchedulesData.length ? 'none' : 'block';
     return returnSchedulesData;
   }
-  function applyOutboundAvailability(data) {
+  function applyOutboundAvailability(data, { refreshJourneyOptions = true } = {}) {
     previewPricing.basePrice = Number(data.fare?.baseAmountPerSeat || 0);
     previewPricing.currency = data.fare?.currency || previewPricing.currency;
+    previewPricing.originStopId = data.journey?.originStopId || previewPricing.originStopId;
+    previewPricing.destinationStopId = data.journey?.destinationStopId || previewPricing.destinationStopId;
     currentOutboundLayout = data.schedule?.layoutName || currentOutboundLayout;
-    renderJourneyOptions(data);
+    if (refreshJourneyOptions) renderJourneyOptions(data);
     renderOutboundSeats(data.seats || [], currentOutboundLayout);
     activeSelections = [];
     activeSelectionLabels = [];
@@ -574,29 +618,49 @@
       refreshPreviewTotals();
       return;
     }
+    const sequence = ++outboundRequestSequence;
+    setJourneyLoading(true, 'Loading this departure...');
     try {
       previewPricing.scheduleId = scheduleId;
       const data = await fetchScheduleAvailability(scheduleId);
-      applyOutboundAvailability(data);
-      await refreshReturnSchedules();
+      if (sequence !== outboundRequestSequence) return;
+      applyOutboundAvailability(data, { refreshJourneyOptions: true });
       activeReturnSelections = [];
       renderReturnSeats([]);
-      if (document.getElementById('returnTripToggle')?.checked && returnSchedulesData.length) await onReturnScheduleChange();
+      if (document.getElementById('returnTripToggle')?.checked) {
+        await refreshReturnSchedules();
+        if (returnSchedulesData.length) await onReturnScheduleChange();
+      }
       refreshPreviewTotals();
-    } catch (error) { notify(error.message); }
+    } catch (error) {
+      if (error.name !== 'AbortError') notify(error.message);
+    } finally {
+      if (sequence === outboundRequestSequence) setJourneyLoading(false);
+    }
   }
   async function onOutboundJourneyChange(changedId = '') {
     const journey = selectedJourneyIds(changedId);
     if (!previewPricing.scheduleId || !journey.originStopId || !journey.destinationStopId) return;
+    previewPricing.originStopId = journey.originStopId;
+    previewPricing.destinationStopId = journey.destinationStopId;
+    const sequence = ++outboundRequestSequence;
+    setJourneyLoading(true, 'Updating fare and seats...');
     try {
       const data = await fetchScheduleAvailability(previewPricing.scheduleId, journey.originStopId, journey.destinationStopId);
-      applyOutboundAvailability(data);
-      await refreshReturnSchedules();
+      if (sequence !== outboundRequestSequence) return;
+      applyOutboundAvailability(data, { refreshJourneyOptions: false });
       activeReturnSelections = [];
       renderReturnSeats([]);
-      if (document.getElementById('returnTripToggle')?.checked && returnSchedulesData.length) await onReturnScheduleChange();
+      if (document.getElementById('returnTripToggle')?.checked) {
+        await refreshReturnSchedules();
+        if (returnSchedulesData.length) await onReturnScheduleChange();
+      }
       refreshPreviewTotals();
-    } catch (error) { notify(error.message); }
+    } catch (error) {
+      if (error.name !== 'AbortError') notify(error.message);
+    } finally {
+      if (sequence === outboundRequestSequence) setJourneyLoading(false);
+    }
   }
   async function onReturnScheduleChange() {
     const select = document.getElementById('returnScheduleSelect');

@@ -20,7 +20,7 @@ const publicAdditions = read('public/css/four-service-ui.css');
 check('Marketplace server card uses approved shared reference', home.includes("include('../partials/listing-card'") && listingCard.includes('referenceBusCard') && listingCard.includes('class="meta"') && listingCard.includes('class="desc"'));
 check('Dynamic homepage bus card matches reference', homeJs.includes("const isBus = type === 'bus'") && homeJs.includes('referenceBusCard') && homeJs.includes('class="meta"'));
 check('Removed selected journey fare section', !details.includes('Selected journey fare') && !details.includes('journeyFareStrip'));
-check('Boarding/drop-off price explanation present', details.includes('price is recalculated from the boarding stop to the selected drop-off stop'));
+check('Boarding/drop-off price explanation present', details.includes('Fare updates instantly for the selected boarding and drop-off stops.'));
 check('Stop selectors carry route order', details.includes('data-stop-order') && details.includes('synchronizeJourneySelectors'));
 check('Server supports connected fare bands', domain.includes('configured_fare_path') && domain.includes('edgesByOrigin') && domain.includes('fewest configured fare bands'));
 check('Exact segment fare remains first priority', domain.indexOf("source: 'exact'") < domain.indexOf('configured_fare_path'));

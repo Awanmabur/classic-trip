@@ -5,14 +5,25 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.3.0
+## Current release — version 1.4.0
 
-The current release makes VIP a **whole-vehicle class**, restores canonical full-detail editing for Partner Admin staff and driver records, completes branch/policy/fare/promotion/schedule/stay inventory lifecycles, and adds dedicated Tours, Car rentals, Cargo and Airbnb-style destinations to the relevant dashboard sidebars. See `RELEASE_NOTES_2026-07-27.md` and `VIP_PARTNER_DASHBOARD_CRUD_AUDIT_2026-07-27.md`.
+This final polish release keeps the approved UI intact while improving marketplace clarity, partner content quality, mobile dashboard density, installed-app branding and bus-search responsiveness.
 
-Run the focused release gate with:
+- Bus cards use the compact one-line label **Fare by stops**.
+- Marketplace descriptions display a consistent three-line preview.
+- Partners must enter at least **125 characters (about 20 words)** for public listing descriptions; the browser and backend both enforce it.
+- Operating terminal selection reuses the saved city, country and address.
+- Bus schedule, boarding-stop and drop-off changes use parallel backend reads, stale-request cancellation and short-lived browser caches.
+- Mobile Profile drawers show marketplace categories after the main navigation links.
+- Dashboard statistics remain two per row on phones.
+- The installed app uses one native launch path with a transparent logo/name/slogan lockup; no second web splash is rendered.
+
+See `FINAL_SPEED_CONTENT_SPLASH_RELEASE_2026-07-27.md`.
+
+Run the focused final gate with:
 
 ```bash
-npm run check:vip-dashboard-crud
+npm run check:final-polish
 ```
 
 

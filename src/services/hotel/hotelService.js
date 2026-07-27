@@ -13,6 +13,7 @@ const paymentService = require('../payment/paymentService');
 const notificationService = require('../notification/notificationService');
 const hotelInventoryService = require('./hotelInventoryService');
 const { getCachedPlatformConfig } = require('../platform/platformConfigService');
+const { LISTING_DESCRIPTION_MIN_LENGTH, normalizePublicDescription } = require('../../config/contentRules');
 
 function clean(value, fallback = '') { return String(value ?? fallback).trim(); }
 function num(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
@@ -1805,7 +1806,7 @@ async function hotelListingReadiness(companyId, listingId) {
   if (clean(listing.serviceType).toLowerCase() !== 'hotel') failures.push('listing_is_not_hotel');
   if (clean(company.status).toLowerCase() !== 'active' || clean(company.verificationStatus).toLowerCase() !== 'verified' || company.settings?.canPublish === false) failures.push('company_not_active_and_verified');
   if (!clean(listing.title)) failures.push('listing_title_missing');
-  if (!clean(listing.sub)) failures.push('listing_description_missing');
+  if (normalizePublicDescription(listing.sub || listing.shortDescription).length < LISTING_DESCRIPTION_MIN_LENGTH) failures.push('listing_description_missing');
   if (!/^[A-Z]{3}$/.test(clean(listing.currency).toUpperCase())) failures.push('listing_currency_invalid');
   const media = Array.isArray(listing.media) ? listing.media : [];
   if (!media.some((asset) => clean(asset?.secureUrl || asset?.url))) failures.push('listing_media_missing');
@@ -1867,7 +1868,7 @@ function hotelReadinessMessage(readiness = {}) {
     listing_is_not_hotel: 'Select a hotel listing.',
     company_not_active_and_verified: 'Complete company verification before publishing.',
     listing_title_missing: 'Add the public hotel title.',
-    listing_description_missing: 'Add a clear public hotel description.',
+    listing_description_missing: `Add a clear public hotel description with at least ${LISTING_DESCRIPTION_MIN_LENGTH} characters.`,
     listing_currency_invalid: 'Set a valid three-letter operating currency.',
     listing_media_missing: 'Upload at least one hotel image.',
     multiple_active_properties_for_listing: 'Keep exactly one active property for this public listing.',

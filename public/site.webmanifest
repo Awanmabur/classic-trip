@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Classic Trip\nMove, stay and fly with confidence.",
+  "name": "Classic Trip",
   "short_name": "Classic Trip",
   "description": "Move, stay and fly with confidence across East Africa using verified travel partners and secure bookings.",
   "start_url": "/?source=pwa",
@@ -21,13 +21,13 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/images/logo-symbol-192.png",
+      "src": "/images/launch-lockup-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/logo-symbol-512.png",
+      "src": "/images/launch-lockup-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

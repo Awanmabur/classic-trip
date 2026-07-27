@@ -3,6 +3,7 @@
 const toSlug = require('../../../utils/slugify');
 const repository = require('../repositories/busRepository');
 const { evaluateDriverAssignment } = require('../../../services/company/driverEligibilityService');
+const { LISTING_DESCRIPTION_MIN_LENGTH, assertPublicDescription, normalizePublicDescription } = require('../../../config/contentRules');
 const {
   cleanText,
   normalize,
@@ -102,6 +103,7 @@ async function createBusListing(companyId, payload = {}, actor = 'company-admin'
   const branch = await activeBranch(company.id, payload.branchId, 'Operating branch');
   if (!branch) throw validationError('Select an active operating branch or terminal for this bus service');
   if (!cleanText(branch.country || company.country, 120)) throw validationError('The selected branch or company must have a country before creating a bus service');
+  const publicDescription = assertPublicDescription(payload.description || payload.sub || payload.shortDescription, validationError);
   const timestamp = nowIso();
   const listing = {
     id: await repository.nextId('listing'),
@@ -116,8 +118,8 @@ async function createBusListing(companyId, payload = {}, actor = 'company-admin'
     type: 'Bus',
     title,
     slug: await uniqueSlug(payload.slug || title),
-    sub: cleanText(payload.sub || payload.shortDescription || payload.description, 280),
-    shortDescription: cleanText(payload.shortDescription || payload.sub || payload.description, 500),
+    sub: publicDescription.slice(0, 280),
+    shortDescription: publicDescription.slice(0, 500),
     country: cleanText(branch.country || company.country, 120),
     city: cleanText(branch.city || company.city, 160),
     address: cleanText(branch.address || company.headOfficeAddress, 400),
@@ -169,9 +171,13 @@ async function updateBusListing(companyId, listingId, payload = {}, actor = 'com
     listing.city = cleanText(branch.city, 160);
     listing.address = cleanText(branch.address, 400);
   }
+  const descriptionSupplied = ['description', 'sub', 'shortDescription'].some((field) => Object.prototype.hasOwnProperty.call(payload, field));
+  if (descriptionSupplied) {
+    const publicDescription = assertPublicDescription(payload.description || payload.sub || payload.shortDescription, validationError);
+    listing.sub = publicDescription.slice(0, 280);
+    listing.shortDescription = publicDescription.slice(0, 500);
+  }
   const directFields = {
-    shortDescription: 500,
-    sub: 280,
     serviceNotes: 1600,
     contactPhone: 80,
     operatorLicenceRef: 160,
@@ -180,9 +186,6 @@ async function updateBusListing(companyId, listingId, payload = {}, actor = 'com
   };
   for (const [field, max] of Object.entries(directFields)) {
     if (Object.prototype.hasOwnProperty.call(payload, field)) listing[field] = cleanText(payload[field], max);
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, 'description') && !Object.prototype.hasOwnProperty.call(payload, 'shortDescription')) {
-    listing.shortDescription = cleanText(payload.description, 500);
   }
   if (Object.prototype.hasOwnProperty.call(payload, 'amenities')) listing.amenities = parseList(payload.amenities);
   if (Object.prototype.hasOwnProperty.call(payload, 'salesChannels')) listing.salesChannels = parseList(payload.salesChannels);
@@ -352,6 +355,7 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
   if (company.verificationStatus !== 'verified' || company.status !== 'active') failures.push('Company must be active and verified');
   if (!listing.branchId) failures.push('Select an active operating branch or terminal');
   if (!listing.country || !listing.city || !listing.address) failures.push('Complete the selected branch country, city and address');
+  if (normalizePublicDescription(listing.shortDescription || listing.sub).length < LISTING_DESCRIPTION_MIN_LENGTH) failures.push(`Add a public description with at least ${LISTING_DESCRIPTION_MIN_LENGTH} characters`);
   if (!listing.media?.length) failures.push('Upload at least one bus service image');
   if (!listing.contactPhone) failures.push('Add the public operations contact phone');
   if (!listing.operatorLicenceRef) failures.push('Add the bus operator licence reference');

@@ -14,6 +14,7 @@ const { getPlatformConfig } = require('../platform/platformConfigService');
 const { SERVICE_REGISTRY, normalizeServiceType } = require('../../config/serviceRegistry');
 const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
 const { evaluateDriverAssignment, evaluateDriverEligibility, evaluatePartnerDriverActivation } = require('./driverEligibilityService');
+const { LISTING_DESCRIPTION_MIN_LENGTH, assertPublicDescription, normalizePublicDescription } = require('../../config/contentRules');
 
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
 const BRANCH_TYPES = Object.freeze(['terminal', 'branch', 'pickup_point', 'dropoff_point', 'office', 'property', 'front_desk']);
@@ -318,6 +319,7 @@ async function createListing(companyId, payload = {}) {
   const requestedStatus = cleanText(payload.status || LISTING_STATUS.DRAFT, 40);
   if (!Object.values(LISTING_STATUS).includes(requestedStatus)) throw validation('Invalid listing status');
 
+  const publicDescription = assertPublicDescription(payload.description || payload.sub || payload.shortDescription, validation);
   const isHotel = serviceType === 'hotel';
   const inventory = Math.max(0, Math.floor(moneyValue(payload.inventory ?? payload.availableInventory ?? payload.capacity, 0)));
   const priceFrom = moneyValue(payload.priceFrom ?? payload.price ?? payload.nightlyPrice, 0);
@@ -332,7 +334,7 @@ async function createListing(companyId, payload = {}) {
     id: await nextId('listing'), companyId: company.id, companySlug: company.slug, companyName: company.name, branchId: branch?.id || '', branchName: branchName(branch),
     serviceType, group: serviceType, type: listingType(serviceType), listingKind: listingKinds[serviceType], title,
     slug: await uniqueSlug(`${title}-${company.name}`, companyRepository.listings),
-    sub: cleanText(payload.sub || payload.description, 2000), shortDescription: cleanText(payload.shortDescription || payload.description || payload.sub, 500),
+    sub: publicDescription, shortDescription: publicDescription.slice(0, 500),
     country: cleanText(branch?.country || company.country, 100), city: cleanText(payload.city || branch?.city || company.city || '', 140),
     address: cleanText(payload.address || branch?.address || '', 300), from: cleanText(payload.from || payload.origin || payload.pickupLocation || '', 140), to: cleanText(payload.to || payload.destination || payload.deliveryLocation || '', 140),
     corridor: cleanText(payload.corridor || listingRouteLabel(payload).toLowerCase().replace(/\s+to\s+/i, '-'), 200),
@@ -383,6 +385,7 @@ function validateGenericListingReadiness(listing = {}) {
   const serviceType = normalizeServiceType(listing.serviceType);
   if (!['tour', 'car_rental', 'cargo'].includes(serviceType)) throw validation('This listing must use its dedicated publishing workflow');
   if (!cleanText(listing.title, 180)) throw validation('Listing title is required before publishing');
+  if (normalizePublicDescription(listing.sub || listing.shortDescription).length < LISTING_DESCRIPTION_MIN_LENGTH) throw validation(`Public description must contain at least ${LISTING_DESCRIPTION_MIN_LENGTH} characters before publishing`);
   if (!(Number(listing.priceFrom) > 0)) throw validation('A price greater than zero is required before publishing');
   if (!cleanText(listing.city || listing.from || listing.address, 300)) throw validation('A service city, address, or pickup location is required before publishing');
   if (['tour', 'car_rental'].includes(serviceType) && !(Number(listing.remainingInventory ?? listing.inventory) > 0)) {
@@ -401,8 +404,14 @@ async function updateListing(companyId, listingId, payload = {}) {
   if (typeof payload.branchId !== 'undefined') { const branch = await branchOrThrow(company.id, payload.branchId); listing.branchId = branch?.id || ''; listing.branchName = branchName(branch); }
   const wantsPublish = payload.status === LISTING_STATUS.ACTIVE || boolValue(payload.publish);
   if (wantsPublish) ensureCompanyCanPublish(company);
-  const fields = ['title', 'sub', 'description', 'shortDescription', 'city', 'country', 'address', 'from', 'to', 'corridor', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'stayType', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions', 'pricingUnit', 'availabilityMode', 'vehicleCategory', 'transmission', 'fuelType'];
-  fields.forEach((field) => { if (typeof payload[field] !== 'undefined') listing[field === 'description' ? 'sub' : field] = cleanText(payload[field]); });
+  const descriptionSupplied = ['description', 'sub', 'shortDescription'].some((field) => typeof payload[field] !== 'undefined');
+  if (descriptionSupplied) {
+    const publicDescription = assertPublicDescription(payload.description || payload.sub || payload.shortDescription, validation);
+    listing.sub = publicDescription;
+    listing.shortDescription = publicDescription.slice(0, 500);
+  }
+  const fields = ['title', 'city', 'country', 'address', 'from', 'to', 'corridor', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'stayType', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions', 'pricingUnit', 'availabilityMode', 'vehicleCategory', 'transmission', 'fuelType'];
+  fields.forEach((field) => { if (typeof payload[field] !== 'undefined') listing[field] = cleanText(payload[field]); });
   if (payload.amenities) listing.amenities = parseList(payload.amenities);
   if (typeof payload.cargoTypes !== 'undefined' || typeof payload.cargoType !== 'undefined') listing.cargoTypes = parseList(payload.cargoTypes || payload.cargoType);
   const media = payloadMedia(payload, listing.title);

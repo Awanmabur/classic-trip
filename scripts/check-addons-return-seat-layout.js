@@ -38,11 +38,11 @@ expect('2x3 layout option exists', has('public/js/dashboard-workspace.js', /'2x3
 expect('3x3 layout option exists', has('public/js/dashboard-workspace.js', /'3x3'/));
 expect('Public seat rows are dynamic', has('src/views/pages/listing-details.ejs', /seatGroup/) && (has('public/css/pages/home.css', /\.seatGroup/) || has('public/css/four-service-ui.css', /\.seatGroup/)));
 expect('Dashboard seat rows are dynamic', has('src/views/dashboards/shared/sections/seat-maps.ejs', /busSeatGroup/) && (has('public/css/dashboard-workspace.css', /\.busSeatGroup/) || has('public/css/dashboard-service-additions.css', /\.busSeatGroup/)));
-expect('Public preview removes selected journey fare strip', !has('src/views/pages/listing-details.ejs', /Selected journey fare/) && has('src/views/pages/listing-details.ejs', /price is recalculated from the boarding stop/));
+expect('Public preview removes selected journey fare strip', !has('src/views/pages/listing-details.ejs', /Selected journey fare/) && has('src/views/pages/listing-details.ejs', /Fare updates instantly for the selected boarding and drop-off stops\./));
 expect('Public preview hides technical fare product label', !/Fare product/.test(read('src/views/pages/listing-details.ejs')));
 expect('Public preview hides technical journey segment label', !/Journey segment/.test(read('src/views/pages/listing-details.ejs')));
 expect('Marketplace cards use approved shared reference layout', has('src/views/pages/home.ejs', /partials\/listing-card/) && has('src/views/partials/listing-card.ejs', /referenceBusCard/) && has('public/js/home.js', /referenceBusCard/));
-expect('Current release guide exists', fs.existsSync(path.join(root, 'RELEASE_NOTES_2026-07-27.md')) && fs.existsSync(path.join(root, 'README.md')));
+expect('Current release guide exists', fs.existsSync(path.join(root, 'FINAL_SPEED_CONTENT_SPLASH_RELEASE_2026-07-27.md')) && fs.existsSync(path.join(root, 'README.md')));
 
 const failed = checks.filter((row) => !row.condition);
 if (failed.length) {

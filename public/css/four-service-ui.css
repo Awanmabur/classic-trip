@@ -56,3 +56,22 @@
 .paymentPage .directPassengerForm>input,.paymentPage .directPassengerForm>select,.paymentPage .directPassengerForm>label>input{height:44px!important;min-height:44px!important;padding-top:0!important;padding-bottom:0!important}
 .paymentPage .directPassengerForm>select[name="sexes"],.paymentPage .directPassengerForm>input[name="emergencyContactNames"],.paymentPage .directPassengerForm>input[name="emergencyContactPhones"]{height:44px!important;min-height:44px!important}
 @media(max-width:680px){.paymentPage .directInfoHeader,.paymentPage .directTicketPreview{margin-top:12px!important}}
+
+/* Final marketplace card readability: three-line description and compact fare hint. */
+.marketplaceListingCard .desc{
+  line-height:1.45;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height:52px;
+  max-height:52px;
+}
+.marketplaceListingCard .price small{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}

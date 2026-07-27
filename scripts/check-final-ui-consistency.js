@@ -34,7 +34,7 @@ assert(dashboardJs.includes('emptyTableRow') && dashboardJs.includes('emptyTable
 assert(dashboardCss.includes('.emptyTableRow td') && dashboardCss.includes('border-radius:18px!important'), 'Empty table background must have complete rounded edges');
 assert(dashboardCss.includes('.card>.notice:not(.hotelEmptyNotice)') && dashboardCss.includes('margin:12px 16px 16px'), 'Dashboard warnings must have consistent container spacing');
 assert(home.includes("include('../partials/listing-card'") && search.includes("include('../partials/listing-card'") && services.includes("include('../partials/listing-card'") && companies.includes("include('../partials/listing-card'") && promoters.includes("include('../partials/listing-card'"), 'All marketplace listing pages must use one shared card partial');
-assert(card.includes('marketplaceListingCard') && card.includes('Starting fare · choose boarding and drop-off') && card.includes('per available night'), 'Shared card must support bus and hotel pricing copy');
+assert(card.includes('marketplaceListingCard') && card.includes('Fare by stops') && card.includes('per available night'), 'Shared card must support bus and hotel pricing copy');
 assert(homeJs.includes('marketplaceListingCard') && homeJs.includes('per available night'), 'Dynamically rendered home cards must match the shared card');
 assert(!home.includes('referenceBusCard" data-id') && !home.includes('<article class="listing referenceBusCard"'), 'Homepage must not keep a second hard-coded card implementation');
 assert((home.match(/Become a partner/g) || []).length <= 3, 'Homepage must not duplicate the same partner footer link');

@@ -1,10 +1,12 @@
-const STATIC_CACHE = 'classic-trip-static-v1.3.0';
+const STATIC_CACHE = 'classic-trip-static-v1.4.0';
 const STATIC_ASSETS = [
   '/site.webmanifest',
   '/images/favicon-48.png',
   '/images/logo-symbol-128.png',
   '/images/logo-symbol-192.png',
   '/images/logo-symbol-512.png',
+  '/images/launch-lockup-192.png',
+  '/images/launch-lockup-512.png',
   '/images/apple-touch-icon.png',
   '/css/base.css',
   '/css/components.css',

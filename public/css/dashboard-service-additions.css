@@ -60,3 +60,7 @@
 /* Keep clicked dashboard inputs visually neutral; keyboard focus is restored by accessibility-safe.css. */
 .control:focus-within,.searchBox:focus-within,.topSearch:focus-within{background:var(--input)!important;border-color:var(--line)!important;box-shadow:none!important}
 .control :is(input,select,textarea):focus,.searchBox input:focus,.topSearch input:focus{box-shadow:none!important}
+
+/* Public listing description guidance used by partner create/edit forms. */
+.fieldCharacterCount{display:block;margin-top:6px;color:var(--muted);font-size:11px;font-weight:850;text-align:right}
+.fieldCharacterCount.is-ready{color:var(--ok,#16a34a)}

@@ -35,7 +35,7 @@ check('return schedule and seats are submitted to checkout', () => assert(listin
 check('no second web launch screen is server-rendered', () => assert(!head.includes('pwaLaunchFlash')));
 check('PWA JavaScript does not create a second launch overlay', () => assert(!pwa.includes('showBrandLaunchFlash') && !pwa.includes('pwaLaunchFlash')));
 check('installed launch icons use transparent symbols only', () => assert(manifest.icons.length >= 2 && manifest.icons.every((icon) => icon.purpose !== 'maskable')));
-check('native manifest carries the launch name and slogan', () => assert(manifest.name.includes('Classic Trip') && manifest.name.includes('Move, stay and fly with confidence.')));
+check('native manifest carries the launch name and slogan', () => assert(manifest.name === 'Classic Trip' && manifest.description.includes('Move, stay and fly with confidence')));
 check('homepage aside exposes tours, rentals, cargo and Airbnb', () => ['Tours','Car rentals','Cargo','Airbnb homes'].forEach((label) => assert(home.includes(label))));
 check('homepage dynamic cards preserve service metadata', () => assert(homeJs.includes('data-service-type') && homeJs.includes('data-stay-type')));
 check('View and Book buttons are locked to one row', () => assert(homeCss.includes('.actions{display:flex;gap:7px;flex-wrap:nowrap')));

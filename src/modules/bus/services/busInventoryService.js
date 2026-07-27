@@ -31,15 +31,18 @@ async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
   if (!schedule) throw validationError('Bus departure not found', 404);
   if (requirePublished && !['published', 'delayed', 'boarding'].includes(normalize(schedule.status))) throw conflictError('This departure is not open for booking', 'departure_not_bookable');
   if (new Date(schedule.departAt).getTime() <= Date.now()) throw conflictError('This departure has already closed', 'departure_closed');
-  const route = await repository.routes.findOne({ id: schedule.routeId, companyId: schedule.companyId, status: 'active' });
-  const listing = await repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus' });
+  const [route, listing, stopsRaw, segments, seatMapVersion, fareProduct, fares] = await Promise.all([
+    repository.routes.findOne({ id: schedule.routeId, companyId: schedule.companyId, status: 'active' }),
+    repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus' }),
+    repository.routeStops.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 } }),
+    repository.routeSegments.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: 'active' }, { sort: { segmentOrder: 1 } }),
+    repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId: schedule.companyId, status: 'published' }),
+    repository.fareProducts.findOne({ id: schedule.fareProductId, companyId: schedule.companyId, status: 'active' }),
+    repository.segmentFares.list({ fareProductId: schedule.fareProductId, companyId: schedule.companyId, status: 'active' }),
+  ]);
   if (!route || !listing) throw conflictError('Departure route or bus service is unavailable', 'departure_configuration_missing');
-  const stops = sortStops(await repository.routeStops.list({ companyId: schedule.companyId, routeId: route.id, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 } }));
-  const segments = await repository.routeSegments.list({ companyId: schedule.companyId, routeId: route.id, status: 'active' }, { sort: { segmentOrder: 1 } });
-  const seatMapVersion = await repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId: schedule.companyId, status: 'published' });
-  const fareProduct = await repository.fareProducts.findOne({ id: schedule.fareProductId, companyId: schedule.companyId, status: 'active' });
   if (!seatMapVersion || !fareProduct) throw conflictError('Departure seat map or fare is unavailable', 'departure_configuration_missing');
-  const fares = await repository.segmentFares.list({ fareProductId: fareProduct.id, companyId: schedule.companyId, status: 'active' });
+  const stops = sortStops(stopsRaw);
   return { schedule, route, listing, stops, segments, seatMapVersion, fareProduct, fares };
 }
 
@@ -51,11 +54,11 @@ async function expireStaleHolds(reference = new Date()) {
 
 function inventoryStatusAvailable(row, allowedHoldId = '') {
   if (row.status === 'available') return true;
+  if (row.status === 'held' && new Date(row.lockedUntil).getTime() <= Date.now()) return true;
   return !!allowedHoldId && row.status === 'held' && row.holdId === allowedHoldId && new Date(row.lockedUntil).getTime() > Date.now();
 }
 
 async function getAvailability({ scheduleId, originStopId, destinationStopId, holdId = '' } = {}) {
-  await expireStaleHolds();
   const context = await scheduleContext(scheduleId);
   const originId = cleanText(originStopId || context.schedule.originStopId || context.route.originStopId, 180);
   const destinationId = cleanText(destinationStopId || context.schedule.destinationStopId || context.route.destinationStopId, 180);
@@ -73,7 +76,9 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
     const inventory = bySeat.get(String(definition.seatNumber)) || [];
     const complete = inventory.length === selectedSegments.length;
     const available = definition.enabled !== false && complete && inventory.every((row) => inventoryStatusAvailable(row, holdId));
-    const statuses = [...new Set(inventory.map((row) => row.status))];
+    const statuses = [...new Set(inventory.map((row) => (
+      row.status === 'held' && new Date(row.lockedUntil).getTime() <= Date.now() ? 'available' : row.status
+    )))];
     return {
       seatNumber: definition.seatNumber,
       row: definition.row,

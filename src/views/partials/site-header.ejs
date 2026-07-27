@@ -48,14 +48,6 @@
       <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>"><i class="fa-solid fa-house"></i> Home</a>
       <a href="/search" class="<%= currentPath.startsWith('/search') ? 'active' : '' %>"><i class="fa-solid fa-magnifying-glass"></i> Search</a>
       <a href="/services" class="<%= currentPath.startsWith('/services') ? 'active' : '' %>"><i class="fa-solid fa-layer-group"></i> All services</a>
-      <a href="/search?serviceType=bus" class="<%= currentPath.startsWith('/search') && String(query?.serviceType || '') === 'bus' ? 'active' : '' %>"><i class="fa-solid fa-bus"></i> Buses</a>
-      <a href="/stays" class="<%= currentPath.startsWith('/stays') ? 'active' : '' %>"><i class="fa-solid fa-hotel"></i> Stays</a>
-      <a href="/airbnb" class="<%= currentPath.startsWith('/airbnb') ? 'active' : '' %>"><i class="fa-solid fa-house-chimney"></i> Airbnb homes</a>
-      <a href="/flights" class="<%= currentPath.startsWith('/flights') ? 'active' : '' %>"><i class="fa-solid fa-plane"></i> Flights</a>
-      <a href="/taxi" class="<%= currentPath.startsWith('/taxi') ? 'active' : '' %>"><i class="fa-solid fa-taxi"></i> Local taxi</a>
-      <a href="/tours" class="<%= currentPath.startsWith('/tours') ? 'active' : '' %>"><i class="fa-solid fa-map-location-dot"></i> Tours</a>
-      <a href="/car-rentals" class="<%= currentPath.startsWith('/car-rentals') ? 'active' : '' %>"><i class="fa-solid fa-car-side"></i> Car rentals</a>
-      <a href="/cargo" class="<%= currentPath.startsWith('/cargo') ? 'active' : '' %>"><i class="fa-solid fa-boxes-stacked"></i> Cargo</a>
       <a href="/routes" class="<%= currentPath.startsWith('/routes') ? 'active' : '' %>"><i class="fa-solid fa-route"></i> Routes</a>
       <a href="/companies" class="<%= currentPath.startsWith('/companies') ? 'active' : '' %>"><i class="fa-solid fa-building"></i> Partners</a>
       <a href="/promoters" class="<%= currentPath.startsWith('/promoters') ? 'active' : '' %>"><i class="fa-solid fa-users"></i> Promoters</a>
@@ -65,6 +57,23 @@
       <a href="/booking" class="<%= currentPath.startsWith('/booking') || currentPath.startsWith('/my-bookings') || currentPath.startsWith('/account/bookings') ? 'active' : '' %>"><i class="fa-solid fa-suitcase-rolling"></i> My bookings</a>
       <a href="/blogs" class="<%= currentPath.startsWith('/blogs') ? 'active' : '' %>"><i class="fa-regular fa-newspaper"></i> Travel guides</a>
       <a href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How it works</a>
+    </div>
+    <div class="drawerFilters staticDrawerFilters" aria-label="Marketplace categories">
+      <div><div class="drawerFilterTitle">Browse services</div><div class="drawerFilterHint">The marketplace categories from the desktop aside.</div></div>
+      <div class="sideNav">
+        <a class="btn btnGhost" href="/search"><i class="fa-solid fa-border-all"></i> All</a>
+        <a class="btn btnGhost" href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
+        <a class="btn btnGhost" href="/stays"><i class="fa-solid fa-hotel"></i> Stays</a>
+        <a class="btn btnGhost" href="/airbnb"><i class="fa-solid fa-house-chimney"></i> Airbnb homes</a>
+        <a class="btn btnGhost" href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
+        <a class="btn btnGhost" href="/taxi"><i class="fa-solid fa-taxi"></i> Local taxi</a>
+        <a class="btn btnGhost" href="/tours"><i class="fa-solid fa-map-location-dot"></i> Tours</a>
+        <a class="btn btnGhost" href="/car-rentals"><i class="fa-solid fa-car-side"></i> Car rentals</a>
+        <a class="btn btnGhost" href="/cargo"><i class="fa-solid fa-boxes-stacked"></i> Cargo</a>
+        <a class="btn btnGhost" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Bookable</a>
+        <a class="btn btnGhost" href="/search?available=true&sort=availability"><i class="fa-solid fa-circle-check"></i> Open inventory</a>
+        <a class="btn btnGhost" href="/search?instant=true&bookable=true"><i class="fa-solid fa-bolt"></i> Instant confirmation</a>
+      </div>
     </div>
     <div class="drawerFinalActions" style="display:grid;gap:9px;padding-top:12px;border-top:1px solid var(--line)">
       <a class="btn btnPrimary" href="/register?role=partner#partner" style="justify-content:flex-start;gap:10px"><i class="fa-solid fa-store"></i> Become a Partner</a>

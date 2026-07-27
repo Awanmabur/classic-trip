@@ -71,7 +71,7 @@
     const code = String(currency || defaultCurrency || '').trim().toUpperCase();
     const value = Number(amount);
     if (!code || !Number.isFinite(value)) return 'Price unavailable';
-    return `${escapeHtml(code)} ${Math.round(value).toLocaleString()}`;
+    return `${escapeHtml(code)} ${Math.round(value).toLocaleString('en-GB')}`;
   }
 
   function toast(message) {
@@ -208,13 +208,13 @@
         : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
           : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : isTour ? 'Verified activity with published capacity, guide details and secure booking.' : isRental ? 'Verified vehicle rental with pickup, return and live availability.' : isCargo ? 'Verified parcel and freight movement with pickup and delivery details.' : 'Verified travel service.');
     const priceHint = item.bookable
-      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
+      ? (isBus ? 'Fare by stops' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
     return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
       <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
         <div class="thumb">
-          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}" loading="lazy" decoding="async">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
           <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
           <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Stay' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : isTour ? 'Tour' : isRental ? 'Car rental' : isCargo ? 'Cargo' : 'Service'))}</span></div>
         </div>

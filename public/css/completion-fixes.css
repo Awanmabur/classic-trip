@@ -487,3 +487,24 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
     overflow-wrap:anywhere;
   }
 }
+
+
+/* Final phone dashboard density and mobile profile-aside contract. */
+.drawerFilters{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.drawerFilterTitle{font-size:13px;font-weight:950}.drawerFilterHint{margin-top:2px;color:var(--muted);font-size:11px;font-weight:760;line-height:1.45}
+.staticDrawerFilters .sideNav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.staticDrawerFilters .sideNav .btn{width:100%;min-width:0;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:680px){
+  .dashboardBody .dashboardOverviewPage .statsGrid,
+  .dashboardBody .statsGrid,
+  .dashboardBody .financeKpis,
+  .dashboardBody .seatPageStats,
+  .dashboardBody .hotelManifestKpis,
+  .dashboardBody .busManifestKpis,
+  .dashboardBody .hotelOpsNudge,
+  .dashboardBody .heroMetricsRow,
+  .dashboardBody .safeRideMetrics{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+}

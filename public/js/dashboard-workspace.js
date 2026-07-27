@@ -62,6 +62,15 @@ window.addEventListener('DOMContentLoaded', function () {
         setFieldError(field, 'This field is required.');
       }
     });
+    form.querySelectorAll('textarea[minlength],input[minlength]').forEach((field) => {
+      if (field.disabled) return;
+      const minimum = Number(field.getAttribute('minlength') || 0);
+      const value = String(field.value || '').trim().replace(/\s+/g, ' ');
+      if (minimum && value.length < minimum) {
+        firstInvalid = firstInvalid || field;
+        setFieldError(field, `Enter at least ${minimum} characters. ${value.length} provided.`);
+      }
+    });
     const labelMode = String(form.querySelector('[name="seatLabelMode"]')?.value || '').toLowerCase();
     const seatLabelsField = form.querySelector('[name="seatLabels"]');
     const totalSeatsField = form.querySelector('[name="totalSeats"]');
@@ -119,14 +128,31 @@ window.addEventListener('DOMContentLoaded', function () {
     window.setTimeout(() => dismissFlash(flash), 4000 + (index * 250));
   });
 
+  function updateCharacterCount(field) {
+    if (!field?.name) return;
+    const counter = field.closest('.field')?.querySelector('[data-character-count-for]');
+    if (!counter || counter.dataset.characterCountFor !== field.name) return;
+    const minimum = Number(field.getAttribute('minlength') || 0);
+    const count = String(field.value || '').trim().replace(/\s+/g, ' ').length;
+    counter.textContent = `${count} / ${minimum} minimum`;
+    counter.classList.toggle('is-ready', count >= minimum);
+  }
+
+  function initializeCharacterCounts(root = document) {
+    root.querySelectorAll('textarea[minlength],input[minlength]').forEach(updateCharacterCount);
+  }
+
   document.addEventListener('input', (event) => {
     if (event.target.matches('input,select,textarea')) clearFieldError(event.target);
+    if (event.target.matches('textarea[minlength]')) updateCharacterCount(event.target);
   });
 
   document.addEventListener('submit', (event) => {
     const form = event.target;
     if (!validateActionForm(form)) event.preventDefault();
   }, true);
+
+  initializeCharacterCounts(document);
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -1468,6 +1494,9 @@ window.addEventListener('DOMContentLoaded', function () {
     const requiredMeta = field.required ? ' data-original-required="true"' : '';
     const dependency = dependencyAttributes(field);
     const smart = field.smart ? ` data-smart="${escapeHtml(field.smart)}"` : '';
+    const minLength = Number(field.minLength || 0) > 0 ? ` minlength="${Number(field.minLength)}"` : '';
+    const maxLength = Number(field.maxLength || 0) > 0 ? ` maxlength="${Number(field.maxLength)}"` : '';
+    const characterCount = Number(field.minLength || 0) > 0 ? `<small class="fieldCharacterCount" data-character-count-for="${escapeHtml(field.name)}">0 / ${Number(field.minLength)} minimum</small>` : '';
     if (field.type === 'hidden') return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || '')}">`;
     if (field.type === 'smart-summary') {
       return `<div class="field full smartBusSummary" data-smart-summary="${escapeHtml(field.summary || 'bus')}"><div class="smartBusSummaryInner"><i class="fa-solid ${field.icon || 'fa-wand-magic-sparkles'}"></i><div><strong>${escapeHtml(field.label || 'Smart form')}</strong><span data-smart-summary-text>${escapeHtml(field.help || 'Select the related record and the form will fill verified details automatically.')}</span></div></div></div>`;
@@ -1476,7 +1505,7 @@ window.addEventListener('DOMContentLoaded', function () {
       return `<div class="field full seatLabelEditor" data-seat-label-editor><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '1, 2, 3, 4...')}" ${ro} ${required}${requiredMeta}${smart}>${escapeHtml(field.value || '')}</textarea></div><div class="seatLabelTools"><span data-seat-label-count>0 labels</span><button class="tinyBtn" type="button" data-generate-seat-labels="numeric"><i class="fa-solid fa-arrow-down-1-9"></i> Numeric</button><button class="tinyBtn" type="button" data-generate-seat-labels="row_letters"><i class="fa-solid fa-table-cells"></i> Row letters</button></div>${help}</div>`;
     }
     if (field.type === 'textarea') {
-      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}>${escapeHtml(field.value || '')}</textarea></div>${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}${minLength}${maxLength}>${escapeHtml(field.value || '')}</textarea></div>${characterCount}${help}</div>`;
     }
     if (field.type === 'select') {
       return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}${requiredMeta}${dependency}${smart}>${selectOptions(field.options, field.value || '')}</select></div>${help}</div>`;
@@ -2316,7 +2345,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'imageFile', label:'Add service image', type:'file', icon:'fa-image' },
         { name:'priceFrom', label:'Price from / unit price', type:'number', icon:'fa-coins', value: fieldValue('listing.priceFrom','priceFrom'), showFor:['hotel','tour','car_rental','cargo'] },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','paused','archived'], value: fieldValue('listing.status','status') || 'draft' },
-        { name:'description', label:'Description', type:'textarea', full:true, required:true, value: fieldValue('listing.description','listing.sub','description') }
+        { name:'description', label:'Public description', type:'textarea', full:true, required:true, minLength:125, maxLength:2000, value: fieldValue('listing.description','listing.sub','listing.shortDescription','description'), help:'Minimum 125 characters (about 20 words). Marketplace cards display a consistent three-line preview and truncate longer text.' }
       ]
     };
     if (isCompanyRole && mode === 'edit' && key === 'route') return {
@@ -2667,12 +2696,11 @@ window.addEventListener('DOMContentLoaded', function () {
     if (isCompanyRole && key === 'listing') return {
       action: '/company/listings', submit: `Create ${serviceLabel.toLowerCase()} listing`,
       fields: [
-        ...(companyServiceType === 'bus' ? [{ type:'smart-summary', label:'Smart bus listing', help:'Select the operating terminal and city, country and address are reused instead of typed again.' }] : []),
+        ...(companyServiceType === 'bus' ? [{ type:'smart-summary', label:'Smart bus listing', help:'Select the operating terminal once. Its city, country and address are reused automatically.' }] : []),
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, placeholder: companyServiceType === 'hotel' ? 'Enter the property listing title' : companyServiceType === 'tour' ? 'Kampala city and culture experience' : companyServiceType === 'car_rental' ? 'Toyota SUV daily rental' : companyServiceType === 'cargo' ? 'Kampala to Juba cargo delivery' : 'Enter the public bus service name' },
         { name:'branchId', label:'Branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, required: companyServiceType === 'bus', help:'Select an existing operating location when one is available.' },
         ...(companyServiceType === 'bus' ? [
-          { name:'shortDescription', label:'Short public description', icon:'fa-align-left', required:true, placeholder:'Verified bus service with daily departures' },
           { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', placeholder:'Bus operator licence reference' },
           { name:'contactPhone', label:'Booking support phone', icon:'fa-phone', placeholder:'Enter phone number' },
           { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'] }
@@ -2716,7 +2744,7 @@ window.addEventListener('DOMContentLoaded', function () {
           { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, placeholder:'When changes, cancellations and refunds are allowed' }
         ] : [{ name:'priceFrom', label: companyServiceType === 'hotel' ? 'Price from per night' : companyServiceType === 'tour' ? 'Price per participant' : companyServiceType === 'car_rental' ? 'Price per day' : companyServiceType === 'cargo' ? 'Base cargo price' : 'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' }]),
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options: companyServiceType === 'bus' ? ['draft'] : ['draft','active','paused'], value:'draft', help:'Publish only after all required service details, capacity and pricing are complete.' },
-        { name:'description', label:'Description', type:'textarea', full:true, required:true, placeholder:'Complete public service details' }
+        { name:'description', label:'Public description', type:'textarea', full:true, required:true, minLength:125, maxLength:2000, placeholder:'Describe the service, route or location, customer experience, important inclusions and what travelers should expect.', help:'Minimum 125 characters (about 20 words). Marketplace cards display a consistent three-line preview and truncate longer text.' }
       ]
     };
     if (isCompanyRole && key === 'route') return {
@@ -3585,6 +3613,7 @@ window.addEventListener('DOMContentLoaded', function () {
       initFoldSelects(els.crudModal);
       applyShowForFields(els.crudModal);
       bindDependentFields(els.crudModal);
+      initializeCharacterCounts(els.crudModal);
       return;
     }
     const config = adminFormConfig(cleanType, label, detail, mode);
@@ -3598,6 +3627,7 @@ window.addEventListener('DOMContentLoaded', function () {
       initFoldSelects(els.crudModal);
       applyShowForFields(els.crudModal);
       bindDependentFields(els.crudModal);
+      initializeCharacterCounts(els.crudModal);
       return;
     }
     const fields = config.fields.map(field => adminFieldHtml(field, readonly, disabled)).join('');
@@ -3615,6 +3645,7 @@ window.addEventListener('DOMContentLoaded', function () {
     initFoldSelects(els.crudModal);
     applyShowForFields(els.crudModal);
     bindDependentFields(els.crudModal);
+    initializeCharacterCounts(els.crudModal);
     syncSmartBusForm(els.crudModal.querySelector('#crudForm'));
   }
 
