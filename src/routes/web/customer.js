@@ -49,6 +49,8 @@ router.get('/saved', requireAuth, requireRole('customer', 'super_admin'), async 
   } catch (err) { next(err); }
 });
 
+router.get('/booking', requireAuth, requireRole('customer', 'super_admin'), (req, res) => res.redirect('/my-bookings'));
+
 router.get('/my-bookings', requireAuth, requireRole('customer', 'super_admin'), async (req, res, next) => {
   try {
     const userId = req.session?.user?.id;

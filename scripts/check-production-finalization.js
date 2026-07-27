@@ -44,7 +44,7 @@ expect('index deployment command exists', pkg.scripts['db:indexes'] && fs.exists
 expect('production doctor command exists', pkg.scripts.doctor && fs.existsSync(path.join(root, 'scripts/production-doctor.js')));
 expect('homepage catalogue has TTL and stale cache', catalog.includes('snapshotCache') && catalog.includes('homeCacheStaleMs'));
 expect('homepage cache prewarms on startup', server.includes('catalogService.prewarmHome()'));
-expect('all four services are in the public catalogue', catalog.includes("TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport']") && grouping.includes("'flight', 'local_transport'"));
+expect('all seven services are in the public catalogue', catalog.includes("TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']") && grouping.includes("'tour', 'car_rental', 'cargo'"));
 expect('successful writes invalidate public and dashboard caches', flash.includes('invalidateMarketplaceCache') && flash.includes('dashboardSnapshotService'));
 expect('dashboard cache defaults are production-friendly', dashboardSnapshot.includes('dashboardCacheTtlMs') && dashboardSnapshot.includes('dashboardCacheStaleMs'));
 expect('dashboard snapshots are not cloned on every request', dashboardSnapshot.includes('return cached.value') && !dashboardSnapshot.includes('return clone(cached.value)'));

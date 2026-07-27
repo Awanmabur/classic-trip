@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,7 +14,7 @@
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
-  <meta name="theme-color" content="#070a12" />
+  <meta name="theme-color" content="#f8fafc" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -31,7 +31,7 @@
       --shadow:0 22px 70px rgba(0,0,0,.22);
       --shadow2:0 12px 34px rgba(0,0,0,.16);
     }
-    html[data-theme="dark"]{
+    html[data-theme="light"]{
       --bg0:#070a12; --bg1:#0b1020;
       --cardA:rgba(255,255,255,.08); --cardB:rgba(255,255,255,.045);
       --line:rgba(255,255,255,.12); --line2:rgba(255,255,255,.18);
@@ -326,7 +326,7 @@
 
     function showToast(message){ toast.textContent = message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 2200); }
     function setTheme(mode){ html.setAttribute('data-theme', mode); try { localStorage.setItem('classicTripTheme', mode); localStorage.removeItem('ct-theme'); localStorage.removeItem('ct_auth_theme'); } catch (_) {} themeIcon.className = mode === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
-    let savedTheme = 'dark'; try { savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'dark'; } catch (_) {} setTheme(savedTheme);
+    let savedTheme = 'light'; try { savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'light'; } catch (_) {} setTheme(savedTheme);
     themeBtn.addEventListener('click', ()=> setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 
     function openPanel(name){

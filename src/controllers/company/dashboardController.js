@@ -40,6 +40,7 @@ function requestedPageFromRequest(req) {
     '/company/analytics': 'reports',
     '/company/reports': 'reports',
     '/company/support': 'support',
+    '/company/promotions': 'ads',
     '/company/seat-maps': 'seat-maps',
     '/company/manifests-dashboard': 'manifests',
     '/company/passenger-manifests': 'manifests',

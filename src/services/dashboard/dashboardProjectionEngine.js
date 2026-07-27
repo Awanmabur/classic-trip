@@ -133,12 +133,15 @@ function createDashboardProjection(initialState = {}) {
     return SERVICE_LABELS[company.companyType || company.type || company.serviceType] || company.companyType || company.type || 'Partner';
   }
   const ROUTED_SERVICE_TYPES = ['bus'];
-  const COMPANY_COMMON_DASHBOARD_PAGES = ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'];
+  const COMPANY_COMMON_DASHBOARD_PAGES = ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'];
   const COMPANY_SERVICE_PAGE_MAP = Object.freeze({
-    bus: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
-    hotel: ['overview', 'company-profile', 'staff', 'listings', 'hotel-rooms', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
-    flight: ['overview', 'company-profile', 'staff', 'flight-search', 'flight-quotes', 'bookings', 'flight-travelers', 'flight-tickets', 'flight-changes', 'flight-refunds', 'support', 'revenue', 'settlement', 'reports'],
-    local_transport: ['overview', 'company-profile', 'staff', 'taxi-fleet', 'taxi-drivers', 'taxi-availability', 'taxi-operations', 'taxi-incidents', 'bookings', 'reviews', 'support', 'revenue', 'settlement', 'reports'],
+    bus: ['overview', 'company-profile', 'staff', 'listings', 'routes', 'vehicles', 'seat-maps', 'schedules', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    hotel: ['overview', 'company-profile', 'staff', 'listings', 'hotel-rooms', 'bookings', 'manifests', 'checkins', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    flight: ['overview', 'company-profile', 'staff', 'flight-search', 'flight-quotes', 'bookings', 'flight-travelers', 'flight-tickets', 'flight-changes', 'flight-refunds', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    local_transport: ['overview', 'company-profile', 'staff', 'taxi-fleet', 'taxi-drivers', 'taxi-availability', 'taxi-operations', 'taxi-incidents', 'bookings', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    tour: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    car_rental: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
+    cargo: ['overview', 'company-profile', 'staff', 'listings', 'bookings', 'reviews', 'support', 'ads', 'revenue', 'settlement', 'reports'],
   });
   const platformDefaultCurrency = String(state.platformSettings?.financeRules?.defaultCurrency || '').toUpperCase();
   function normalize(value) {
@@ -835,6 +838,7 @@ function createDashboardProjection(initialState = {}) {
       sessions: sessionRows,
       agreements: agreementRows,
       ads: campaignRows,
+      blogs: (state.blogs || []).map((blog) => ({ ...blog })),
       routeInventory: routeInventoryRows,
       stayInventory: stayInventoryRows,
       reviewInventory: state.listings.filter(listing => normalize(listing.releaseStatus) !== 'published' || listing.status !== 'active').slice(0, 20).map(listing => [listing.title, findCompany(listing.companyId)?.name || listing.partner || 'Partner', listing.releaseStatus || 'Needs content review', listing.status === 'active' ? 'Medium' : 'High', listing.updatedAt ? dateValue(listing.updatedAt) : '-', listing.status || 'Needs review', dashboardMeta('listing_review', listing.id, listing.title, listing.status, listingDetail(listing), ['view', 'approve', 'reject'])]),
@@ -919,10 +923,13 @@ function createDashboardProjection(initialState = {}) {
     const supportsBusOperations = supportsBus;
     const supportsFlight = primaryServiceType === 'flight';
     const supportsTaxi = primaryServiceType === 'local_transport';
+    const supportsTour = primaryServiceType === 'tour';
+    const supportsRental = primaryServiceType === 'car_rental';
+    const supportsCargo = primaryServiceType === 'cargo';
     const partnerCategory = normalize(company.partnerCategory || company.settings?.partnerCategory);
-    const primaryLabel = supportsFlight ? 'Flight agency' : supportsTaxi && ['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver' : supportsTaxi ? 'Mobility partner' : (SERVICE_LABELS[primaryServiceType] || 'Company');
-    const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : supportsFlight ? 'Customer quotes' : supportsTaxi ? 'My vehicle availability' : 'Inventory';
-    const dashboardLabel = supportsBus ? 'Bus Operations Dashboard' : supportsHotel ? 'Hotel Operations Dashboard' : supportsFlight ? 'Flight Agent Dashboard' : supportsTaxi ? (['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver Dashboard' : 'Mobility Partner Dashboard') : `${primaryLabel} Operations Dashboard`; 
+    const primaryLabel = supportsFlight ? 'Flight agency' : supportsTaxi && ['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver' : supportsTaxi ? 'Mobility partner' : supportsTour ? 'Tour operator' : supportsRental ? 'Car rental partner' : supportsCargo ? 'Cargo partner' : (SERVICE_LABELS[primaryServiceType] || 'Company');
+    const inventoryLabel = supportsBus ? 'Seat maps' : supportsHotel ? 'Rooms' : supportsFlight ? 'Customer quotes' : supportsTaxi ? 'My vehicle availability' : supportsTour ? 'Tour capacity' : supportsRental ? 'Vehicle availability' : supportsCargo ? 'Shipment capacity' : 'Inventory';
+    const dashboardLabel = supportsBus ? 'Bus Operations Dashboard' : supportsHotel ? 'Hotel Operations Dashboard' : supportsFlight ? 'Flight Agent Dashboard' : supportsTaxi ? (['boda_rider','car_driver'].includes(partnerCategory) ? 'Driver Dashboard' : 'Mobility Partner Dashboard') : supportsTour ? 'Tour Operations Dashboard' : supportsRental ? 'Car Rental Dashboard' : supportsCargo ? 'Cargo Operations Dashboard' : `${primaryLabel} Operations Dashboard`;
     const visiblePages = new Set(COMPANY_SERVICE_PAGE_MAP[primaryServiceType] || COMPANY_COMMON_DASHBOARD_PAGES);
     if (supportsTaxi && ['boda_rider','car_driver'].includes(partnerCategory)) {
       visiblePages.delete('staff');
@@ -952,6 +959,7 @@ function createDashboardProjection(initialState = {}) {
       'taxi-incidents': ['Safety & Incidents', 'Report SOS, accident, conduct, vehicle and lost-item cases for restricted platform review.'],
       manifests: ['Manifests', supportsHotel ? 'Print hotel arrival, departure, and in-house lists.' : 'Print passenger manifests and operational lists.'],
       revenue: ['Revenue', 'View company revenue, booking splits, pending earnings, and refunds.'],
+      ads: ['Promote Services', 'Create sponsored campaigns for this company’s own published services and track their placement, budget, clicks, and bookings.'],
       settlement: ['Settlement', 'Request payout and track pending, available, and paid-out earnings.'],
     };
     return {
@@ -965,6 +973,9 @@ function createDashboardProjection(initialState = {}) {
       supportsHotel,
       supportsFlight,
       supportsTaxi,
+      supportsTour,
+      supportsRental,
+      supportsCargo,
       supportsBusOperations,
       supportsMultiple: false,
       partnerCategory,
@@ -2404,6 +2415,7 @@ function createDashboardProjection(initialState = {}) {
         label: campaign.name,
         status: campaign.status
       }]),
+      ads: state.promotionCampaigns.filter(campaign => campaign.companyId === companyId).map(campaign => [campaign.name, findListing(campaign.listingId)?.title || 'Listing', campaign.placement, formatMoney(campaign.budget), String(campaign.clicks || 0), String(campaign.bookings || 0), campaign.status, { entity: 'promotion', id: campaign.id, label: campaign.name, status: campaign.status }]),
       reviews: reviews.map(review => {
         const booking = state.bookings.find(item => item.id === review.bookingId);
         return [bookingCustomer(booking || {}) || review.customerUserId || 'Customer', bookingTitle({

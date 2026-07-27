@@ -7,6 +7,8 @@
   const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
   const AUTO_PROMPT_DELAY_MS = 1400;
   const APP_ORIENTATION = 'portrait-primary';
+  const LAUNCH_FLASH_KEY = 'classicTripLaunchFlashShown';
+  const LAUNCH_FLASH_DURATION_MS = 1150;
   const silentPaths = ['/checkout', '/payment', '/tickets/', '/taxi/track', '/flights/order/'];
 
   let deferredInstallPrompt = null;
@@ -15,6 +17,33 @@
 
   function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+
+  function launchFlashAlreadyShown() {
+    try { return sessionStorage.getItem(LAUNCH_FLASH_KEY) === 'true'; } catch (_) { return false; }
+  }
+
+  function rememberLaunchFlash() {
+    try { sessionStorage.setItem(LAUNCH_FLASH_KEY, 'true'); } catch (_) { /* Session storage may be unavailable. */ }
+  }
+
+  function showBrandLaunchFlash() {
+    // Installed PWAs already receive the manifest/native splash. Restrict the web
+    // flash to browser mode so users never see two consecutive splash screens.
+    if (isStandalone() || launchFlashAlreadyShown() || document.querySelector('.pwaLaunchFlash')) return;
+    rememberLaunchFlash();
+    const flash = document.createElement('div');
+    flash.className = 'pwaLaunchFlash';
+    flash.setAttribute('role', 'status');
+    flash.setAttribute('aria-label', `${APP_NAME}. ${APP_SLOGAN}`);
+    flash.innerHTML = `<div class="pwaLaunchIdentity"><img src="/images/logo-maskable-192.png" alt=""><strong>${APP_NAME}</strong><span>${APP_SLOGAN}</span></div>`;
+    document.body.appendChild(flash);
+    requestAnimationFrame(() => flash.classList.add('is-visible'));
+    window.setTimeout(() => {
+      flash.classList.add('is-leaving');
+      window.setTimeout(() => flash.remove(), 260);
+    }, LAUNCH_FLASH_DURATION_MS);
   }
 
 
@@ -265,6 +294,7 @@
   };
 
   async function initialise() {
+    showBrandLaunchFlash();
     await keepInstalledAppPortrait();
     addDrawerInstallAction();
     registerServiceWorker();

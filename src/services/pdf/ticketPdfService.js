@@ -19,6 +19,9 @@ function documentMeta(booking = {}) {
   if (serviceType === 'hotel') return { suffix: 'hotel-voucher', title: 'Classic Trip Hotel Voucher', short: 'Hotel voucher', qrCaption: 'Verify at reception' };
   if (serviceType === 'flight') return { suffix: 'flight-eticket', title: 'Classic Trip Flight E-ticket', short: 'Flight e-ticket', qrCaption: 'Verify at check-in' };
   if (serviceType === 'local_transport') return { suffix: 'ride-receipt', title: 'Classic Trip Ride Receipt', short: 'Ride receipt', qrCaption: 'Protected ride reference' };
+  if (serviceType === 'tour') return { suffix: 'tour-voucher', title: 'Classic Trip Tour Voucher', short: 'Tour voucher', qrCaption: 'Verify with tour operator' };
+  if (serviceType === 'car_rental') return { suffix: 'rental-voucher', title: 'Classic Trip Car Rental Voucher', short: 'Rental voucher', qrCaption: 'Verify at vehicle handover' };
+  if (serviceType === 'cargo') return { suffix: 'cargo-receipt', title: 'Classic Trip Cargo Receipt', short: 'Cargo receipt', qrCaption: 'Verify at shipment handover' };
   return { suffix: 'bus-ticket', title: 'Classic Trip Bus Ticket', short: 'Bus ticket', qrCaption: 'Scan at boarding' };
 }
 
@@ -82,6 +85,9 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
       const isHotel = serviceType === 'hotel';
       const isFlight = serviceType === 'flight';
       const isTaxi = serviceType === 'local_transport';
+      const isTour = serviceType === 'tour';
+      const isRental = serviceType === 'car_rental';
+      const isCargo = serviceType === 'cargo';
       const guest = booking.guestSnapshot || booking.buyerSnapshot || {};
       const passenger = (booking.passengers || [])[0] || {};
       const pricing = booking.pricing || {};
@@ -91,6 +97,7 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
       const addonNames = addons.map((addon) => `${clean(addon.name, 'Add-on')}${Number(addon.quantity || 1) > 1 ? ` x ${addon.quantity}` : ''}`).join(', ');
       const tripType = booking.tripType === 'round_trip' || (booking.bookingLegs || []).length > 1 ? 'Return ticket' : 'One-way ticket';
       const hotelStay = booking.hotelStay || {};
+      const reservation = booking.serviceReservation || {};
       const roomLabels = (booking.passengers || []).map((row) => row.roomNumber || row.seatOrRoom || row.roomType).filter(Boolean);
       const guestCount = Number(hotelStay.adults || 0) + Number(hotelStay.children || 0) || (booking.passengers || []).length || 1;
       const flightLegs = (booking.bookingLegs || []).filter((leg) => leg && (leg.departureId || leg.flightNumber));
@@ -115,7 +122,7 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
       doc.fontSize(8).fillColor('#64748b').text(meta.qrCaption, 424, 274, { width: 130, align: 'center' });
 
       let y = 216;
-      writeLine(doc, isHotel ? 'Lead guest' : isFlight ? 'Booking contact' : isTaxi ? 'Passenger' : 'Customer', guest.fullName || passenger.fullName || passenger.name || 'Guest customer', y); y += 30;
+      writeLine(doc, isHotel ? 'Lead guest' : isFlight ? 'Booking contact' : isTaxi ? 'Passenger' : isTour ? 'Lead participant' : isRental ? 'Renter' : isCargo ? 'Sender' : 'Customer', guest.fullName || passenger.fullName || passenger.name || 'Guest customer', y); y += 30;
       writeLine(doc, 'Email', guest.email || passenger.email || 'Not provided', y); y += 30;
       writeLine(doc, 'Phone', guest.phone || passenger.phone || 'Not provided', y); y += 30;
 
@@ -148,6 +155,24 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
         writeLine(doc, 'Pickup time', formatDateTime(rideLeg.scheduledPickupAt || ticketLegs[0]?.scheduledPickupAt), y); y += 30;
         writeLine(doc, 'Ride type', clean(rideLeg.serviceType || passenger.seatOrRoom || 'Private ride'), y); y += 30;
         if (ticketLegs[0]?.rideRef || rideLeg.rideRef) { writeLine(doc, 'Ride reference', ticketLegs[0]?.rideRef || rideLeg.rideRef, y); y += 30; }
+      } else if (isTour) {
+        writeLine(doc, 'Tour date', reservation.serviceDate || '-', y); y += 30;
+        writeLine(doc, 'Participants', String(Number(reservation.participantCount || (booking.passengers || []).length || 1)), y); y += 30;
+        writeLine(doc, 'Meeting point', clean(reservation.meetingPoint || reservation.pickupLocation || listing.address, 'See operator instructions').slice(0, 110), y); y += 30;
+        if (reservation.language) { writeLine(doc, 'Language', reservation.language, y); y += 30; }
+      } else if (isRental) {
+        writeLine(doc, 'Vehicle', clean(reservation.vehicleCategory || listing.vehicleCategory, 'Reserved vehicle'), y); y += 30;
+        writeLine(doc, 'Pickup', `${clean(reservation.pickupDate, '-')} ${clean(reservation.pickupTime)}`.trim(), y); y += 30;
+        writeLine(doc, 'Return', `${clean(reservation.returnDate, '-')} ${clean(reservation.returnTime)}`.trim(), y); y += 30;
+        writeLine(doc, 'Rental period', `${Number(reservation.rentalDays || 1)} day(s)`, y); y += 30;
+        writeLine(doc, 'Locations', `${clean(reservation.pickupLocation, '-')} to ${clean(reservation.returnLocation, '-')}`.slice(0, 110), y); y += 30;
+        writeLine(doc, 'Driver option', clean(reservation.driverOption, 'self drive').replace(/_/g, ' '), y); y += 30;
+      } else if (isCargo) {
+        writeLine(doc, 'Pickup date', reservation.pickupDate || '-', y); y += 30;
+        writeLine(doc, 'Route', `${clean(reservation.pickupLocation, '-')} to ${clean(reservation.deliveryLocation, '-')}`.slice(0, 110), y); y += 30;
+        writeLine(doc, 'Shipment', `${Number(reservation.packageCount || 1)} package(s), ${Number(reservation.weightKg || 0)} kg, ${clean(reservation.cargoType, 'cargo')}`, y); y += 30;
+        writeLine(doc, 'Recipient', `${clean(reservation.recipientName, 'Not set')} ${clean(reservation.recipientPhone)}`.trim(), y); y += 30;
+        if (reservation.dimensions) { writeLine(doc, 'Dimensions', reservation.dimensions, y); y += 30; }
       }
 
       writeLine(doc, 'Payment', booking.paymentStatus || 'pending', y); y += 30;
@@ -164,6 +189,9 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
         hotel: 'This paid hotel voucher must be verified against the live reservation at reception. A cancelled or refunded stay is not valid for check-in.',
         flight: 'This e-ticket reflects the authoritative paid flight order. Airline check-in, document, schedule-change and boarding rules still apply.',
         local_transport: 'This receipt identifies the protected ride booking. Driver identity, vehicle assignment and live tracking are available only through the secure ride page.',
+        tour: 'This paid tour voucher is valid for the booked date and participant count. The operator verifies it against the live reservation.',
+        car_rental: 'This rental voucher is valid for the listed renter, vehicle and pickup/return period. Identity and licence checks may be required at handover.',
+        cargo: 'This cargo receipt identifies the paid shipment request. The cargo partner verifies the sender, recipient, packages and weight before handover.',
       };
       doc.fontSize(9).fillColor('#64748b').text(notes[serviceType] || 'This travel document must be verified against the live Classic Trip booking record.', 48, 716, { width: 497 });
       doc.end();

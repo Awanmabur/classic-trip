@@ -8,7 +8,7 @@
       <div>
         <span class="badge badgeOk" style="width:max-content;margin-bottom:10px"><i class="fa-solid fa-envelope-circle-check"></i> My bookings</span>
         <h1 class="heroTitle" style="font-size:clamp(24px,3.5vw,36px)">All your bookings</h1>
-        <p class="heroSub">Your Classic Trip history across buses, stays, agent-supported flights and local rides, with protected tickets, vouchers and receipts.</p>
+        <p class="heroSub">Your Classic Trip history across buses, stays, Airbnb homes, flights, local rides, tours, car rentals and cargo, with protected tickets, vouchers and receipts.</p>
         <div class="actions" style="margin-top:14px">
           <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Lookup a ticket</a>
           <a class="btn btnGhost" href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
@@ -37,16 +37,16 @@
       <div>
         <div style="font-weight:950;font-size:14px;letter-spacing:-.2px;line-height:1.35;margin-bottom:6px"><%= b.title %></div>
         <div class="meta">
-          <% var bookingType = String(b.type || b.serviceType || '').toLowerCase(); var typeIcon = /hotel|room|house/.test(bookingType) ? 'fa-hotel' : /flight|air/.test(bookingType) ? 'fa-plane' : /taxi|ride|boda|local_transport/.test(bookingType) ? 'fa-motorcycle' : 'fa-bus'; %>
+          <% var bookingType = String(b.serviceType || b.type || '').toLowerCase(); var typeIcon = bookingType === 'hotel' ? 'fa-hotel' : bookingType === 'flight' ? 'fa-plane' : bookingType === 'local_transport' ? 'fa-motorcycle' : bookingType === 'tour' ? 'fa-map-location-dot' : bookingType === 'car_rental' ? 'fa-car-side' : bookingType === 'cargo' ? 'fa-boxes-stacked' : 'fa-bus'; var selectionIcon = bookingType === 'bus' ? 'fa-chair' : bookingType === 'hotel' ? 'fa-door-open' : bookingType === 'tour' ? 'fa-users' : bookingType === 'car_rental' ? 'fa-calendar-days' : bookingType === 'cargo' ? 'fa-box' : 'fa-circle-info'; %>
           <% if (b.type) { %><span><i class="fa-solid <%= typeIcon %>"></i> <%= b.type %></span><% } %>
-          <% if (b.selected && b.selected !== 'Selected inventory') { %><span><i class="fa-solid fa-chair"></i> <%= b.selected %></span><% } %>
+          <% if (b.selected && b.selected !== 'Selected inventory') { %><span><i class="fa-solid <%= selectionIcon %>"></i> <%= b.selected %></span><% } %>
         </div>
       </div>
 
       <div style="display:grid;gap:5px;font-size:12px;font-weight:820">
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="muted">Total</span><b><%= b.total %></b></div>
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="muted">Date</span><b><%= b.date %></b></div>
-        <% if (b.customer) { %><div style="display:flex;justify-content:space-between;gap:8px"><span class="muted">Passenger</span><b><%= b.customer %></b></div><% } %>
+        <% if (b.customer) { %><div style="display:flex;justify-content:space-between;gap:8px"><span class="muted"><%= b.customerLabel || 'Customer' %></span><b><%= b.customer %></b></div><% } %>
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="muted">Channel</span><b><%= b.channel %></b></div>
       </div>
 

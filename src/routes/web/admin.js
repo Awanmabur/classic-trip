@@ -8,6 +8,7 @@ const withdrawalController = require('../../controllers/admin/withdrawalControll
 const disputeController = require('../../controllers/admin/disputeController');
 const reviewController = require('../../controllers/admin/reviewController');
 const promotionController = require('../../controllers/admin/promotionController');
+const blogController = require('../../controllers/admin/blogController');
 const settingController = require('../../controllers/admin/settingController');
 const partnerPipelineController = require('../../controllers/admin/partnerPipelineController');
 const invitationController = require('../../controllers/admin/invitationController');
@@ -89,6 +90,11 @@ router.post('/content/templates', requirePermission('content.manage'), actionCon
 router.post('/content/notices', requirePermission('content.manage'), actionController.createNotice);
 router.post('/content/notifications', requirePermission('content.manage'), actionController.sendNotification);
 router.post('/content/reviews/:id/moderate', requirePermission('content.manage'), reviewController.moderate);
+router.post('/content/blogs', requirePermission('content.manage'), blogController.create);
+router.post('/content/blogs/:id/update', requirePermission('content.manage'), blogController.update);
+router.post('/content/blogs/:id/publish', requirePermission('content.manage'), blogController.publish);
+router.post('/content/blogs/:id/draft', requirePermission('content.manage'), blogController.draft);
+router.post('/content/blogs/:id/archive', requirePermission('content.manage'), blogController.archive);
 
 router.get('/admin/companies', dashboardController.index);
 router.get('/admin/bookings', dashboardController.index);
@@ -141,6 +147,11 @@ router.get('/admin/api/promotions', promotionController.list);
 router.post('/admin/bookings', actionController.createBooking);
 router.post('/admin/listings', actionController.createListing);
 router.post('/admin/promotions', promotionController.create);
+router.post('/admin/blogs', blogController.create);
+router.post('/admin/blogs/:id/update', blogController.update);
+router.post('/admin/blogs/:id/publish', blogController.publish);
+router.post('/admin/blogs/:id/draft', blogController.draft);
+router.post('/admin/blogs/:id/archive', blogController.archive);
 router.post('/admin/notices', actionController.createNotice);
 router.post('/admin/notifications', actionController.sendNotification);
 router.post('/admin/customer-notes', actionController.createCustomerNote);

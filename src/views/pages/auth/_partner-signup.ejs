@@ -24,6 +24,9 @@
             <option value="hotel" <%= partnerForm?.companyType === 'hotel' ? 'selected' : '' %>>Stays</option>
             <option value="local_transport" <%= partnerForm?.companyType === 'local_transport' ? 'selected' : '' %>>Boda, car & local rides</option>
             <option value="flight" <%= partnerForm?.companyType === 'flight' ? 'selected' : '' %>>Flight travel services</option>
+            <option value="tour" <%= partnerForm?.companyType === 'tour' ? 'selected' : '' %>>Tours & experiences</option>
+            <option value="car_rental" <%= partnerForm?.companyType === 'car_rental' ? 'selected' : '' %>>Car rentals</option>
+            <option value="cargo" <%= partnerForm?.companyType === 'cargo' ? 'selected' : '' %>>Cargo & deliveries</option>
           </select>
         </div>
       </div>
@@ -154,6 +157,9 @@
       { value: 'stay_host', label: 'Individual home or room host', model: 'host', description: 'Offer an entire home, apartment, villa, cottage, cabin, homestay, private room or shared room.' },
     ],
     flight: [{ value: 'flight_agent', label: 'Flight travel agent', model: 'agency', description: 'Travel agency selling approved supplier inventory and supporting travelers. Not an airline account.' }],
+    tour: [{ value: 'tour_operator', label: 'Tour operator', model: 'organization', description: 'Licensed guide, experience provider or tour company managing its own tours, guest capacity and bookings.' }],
+    car_rental: [{ value: 'car_rental_partner', label: 'Car rental partner', model: 'organization fleet', description: 'Vehicle rental business managing its own approved rental fleet, pickup points, availability and bookings.' }],
+    cargo: [{ value: 'cargo_partner', label: 'Cargo provider', model: 'organization fleet', description: 'Cargo, courier or logistics provider managing its own services, coverage, shipment limits and bookings.' }],
     local_transport: [
       { value: 'boda_rider', label: 'Boda rider', model: 'driver', description: 'Individual motorcycle rider using platform-controlled fares, zones, safety and dispatch.' },
       { value: 'car_driver', label: 'Car driver', model: 'driver', description: 'Individual car driver using platform-controlled fares, zones, safety and dispatch.' },

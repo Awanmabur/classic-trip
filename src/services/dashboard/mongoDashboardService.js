@@ -43,7 +43,7 @@ const ROLE_DATA_KEYS = Object.freeze({
     'partners', 'notifications', 'recentActivity', 'recentBookings', 'overviewStats', 'systemHealth',
   ],
   content: [
-    'listings', 'ads', 'partners', 'promoters', 'reviewInventory', 'notifications', 'recentActivity',
+    'listings', 'ads', 'blogs', 'partners', 'promoters', 'reviewInventory', 'notifications', 'recentActivity',
     'overviewStats',
   ],
 });

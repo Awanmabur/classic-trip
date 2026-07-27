@@ -1,7 +1,7 @@
 {
   "name": "classic-trip-platform",
   "version": "1.2.8",
-  "description": "Production East Africa marketplace for buses, stays, agent-supported flights and safe local mobility.",
+  "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
   "scripts": {
     "start": "node scripts/start.js",
@@ -71,7 +71,8 @@
     "check:orientation-lock": "node scripts/check-orientation-lock.js",
     "check:stays": "node scripts/check-stays-marketplace.js",
     "check:marketing-mobile": "node scripts/check-marketing-mobile-overflow.js",
-    "check:single-splash": "node scripts/check-single-native-splash.js"
+    "check:single-splash": "node scripts/check-single-native-splash.js",
+    "check:seven-services": "node scripts/check-seven-service-completion.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

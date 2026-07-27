@@ -304,52 +304,70 @@ async function setVerificationStatus(identifier, status = COMPANY_STATUS.VERIFIE
 
 async function createListing(companyId, payload = {}) {
   const company = await companyOrThrow(companyId);
-  const serviceType = normalize(payload.serviceType || payload.group || company.companyType).replace(/-/g, '_');
-  if (serviceType !== 'hotel' || normalizeCompanyType(company.companyType) !== 'hotel') throw validation('Hotel listings can only be created in a verified hotel company workspace');
+  const serviceType = normalizeServiceType(payload.serviceType || payload.group || company.companyType);
+  const companyType = normalizeCompanyType(company.companyType);
+  const supported = ['hotel', 'tour', 'car_rental', 'cargo'];
+  if (!supported.includes(serviceType) || companyType !== serviceType) {
+    throw validation('Listings can only be created inside the matching approved partner workspace');
+  }
+
   const wantsActive = boolValue(payload.publish) || payload.status === LISTING_STATUS.ACTIVE;
   if (wantsActive) ensureCompanyCanPublish(company);
   const title = cleanText(payload.title, 180);
-  if (!title) throw validation('Hotel listing title is required');
+  if (!title) throw validation(`${SERVICE_LABELS[serviceType] || 'Service'} listing title is required`);
   const requestedStatus = cleanText(payload.status || LISTING_STATUS.DRAFT, 40);
   if (!Object.values(LISTING_STATUS).includes(requestedStatus)) throw validation('Invalid listing status');
-  // Hotel publication is a separate readiness transition. A listing cannot
-  // become public before property, room, rate-plan and dated inventory setup.
-  const status = wantsActive ? LISTING_STATUS.DRAFT : requestedStatus;
-  const bookable = false;
+
+  const isHotel = serviceType === 'hotel';
+  const inventory = Math.max(0, Math.floor(moneyValue(payload.inventory ?? payload.availableInventory ?? payload.capacity, 0)));
+  const priceFrom = moneyValue(payload.priceFrom ?? payload.price ?? payload.nightlyPrice, 0);
+  const status = isHotel && wantsActive ? LISTING_STATUS.DRAFT : (wantsActive ? LISTING_STATUS.ACTIVE : requestedStatus);
+  const bookable = !isHotel && status === LISTING_STATUS.ACTIVE;
   const media = payloadMedia(payload, title);
   const branch = await branchOrThrow(company.id, payload.branchId);
+  const listingKinds = { hotel: 'property', tour: 'experience', car_rental: 'rental_vehicle', cargo: 'cargo_service' };
+  const availabilityModes = { hotel: 'date_range', tour: 'dated_capacity', car_rental: 'date_range', cargo: 'on_demand' };
+  const pricingUnits = { hotel: 'per_night', tour: 'per_person', car_rental: 'per_day', cargo: 'per_shipment' };
   const listing = {
     id: await nextId('listing'), companyId: company.id, companySlug: company.slug, companyName: company.name, branchId: branch?.id || '', branchName: branchName(branch),
-    serviceType, group: serviceType, type: listingType(serviceType), title,
+    serviceType, group: serviceType, type: listingType(serviceType), listingKind: listingKinds[serviceType], title,
     slug: await uniqueSlug(`${title}-${company.name}`, companyRepository.listings),
-    sub: cleanText(payload.sub || payload.description, 2000),
+    sub: cleanText(payload.sub || payload.description, 2000), shortDescription: cleanText(payload.shortDescription || payload.description || payload.sub, 500),
     country: cleanText(branch?.country || company.country, 100), city: cleanText(payload.city || branch?.city || company.city || '', 140),
-    address: cleanText(payload.address || branch?.address || '', 300), from: cleanText(payload.from || payload.origin || '', 140), to: cleanText(payload.to || payload.destination || '', 140),
+    address: cleanText(payload.address || branch?.address || '', 300), from: cleanText(payload.from || payload.origin || payload.pickupLocation || '', 140), to: cleanText(payload.to || payload.destination || payload.deliveryLocation || '', 140),
     corridor: cleanText(payload.corridor || listingRouteLabel(payload).toLowerCase().replace(/\s+to\s+/i, '-'), 200),
-    price: moneyValue(payload.priceFrom || payload.price), priceFrom: moneyValue(payload.priceFrom || payload.price),
+    price: priceFrom, priceFrom, pricingUnit: cleanText(payload.pricingUnit || pricingUnits[serviceType], 60),
     currency: cleanText(company.operatingCurrency, 8).toUpperCase(), media, img: media[0]?.url || '', amenities: parseList(payload.amenities),
-    checkInTime: cleanText(payload.checkInTime, 20), checkOutTime: cleanText(payload.checkOutTime, 20),
+    checkInTime: cleanText(payload.checkInTime, 20), checkOutTime: cleanText(payload.checkOutTime, 20), stayType: cleanText(payload.stayType || payload.propertyType || '', 80),
     serviceNotes: cleanText(payload.serviceNotes || '', 2000), contactPhone: cleanText(payload.contactPhone || company.supportContacts?.phone || '', 60),
     pickupInstructions: cleanText(payload.pickupInstructions || '', 1000), dropoffInstructions: cleanText(payload.dropoffInstructions || '', 1000),
+    inventory, remainingInventory: inventory, availabilityMode: cleanText(payload.availabilityMode || availabilityModes[serviceType], 40),
+    durationMinutes: Math.max(0, Math.floor(moneyValue(payload.durationMinutes ?? payload.durationHours * 60, 0))), maxGuests: Math.max(1, Math.floor(moneyValue(payload.maxGuests || payload.capacity, 1))), minimumAge: Math.max(0, Math.floor(moneyValue(payload.minimumAge, 0))),
+    vehicleCategory: cleanText(payload.vehicleCategory || payload.vehicleType || '', 100), transmission: cleanText(payload.transmission || '', 40), fuelType: cleanText(payload.fuelType || '', 40), seatsCount: Math.max(1, Math.floor(moneyValue(payload.seatsCount || payload.seats, 1))),
+    cargoTypes: parseList(payload.cargoTypes || payload.cargoType), weightLimitKg: Math.max(0, moneyValue(payload.weightLimitKg || payload.maxWeightKg, 0)), packageLimit: Math.max(1, Math.floor(moneyValue(payload.packageLimit || payload.maxPackages, 1))),
+    serviceDetails: payload.serviceDetails && typeof payload.serviceDetails === 'object' ? payload.serviceDetails : {
+      meetingPoint: cleanText(payload.meetingPoint || '', 300), included: parseList(payload.included), excluded: parseList(payload.excluded),
+      pickupLocation: cleanText(payload.pickupLocation || '', 300), returnLocation: cleanText(payload.returnLocation || '', 300), driverOption: cleanText(payload.driverOption || '', 60),
+      deliveryAreas: parseList(payload.deliveryAreas), cargoDescription: cleanText(payload.cargoDescription || '', 1000),
+    },
     ratingAverage: 0, rating: '0', reviewCount: 0, isSponsored: false, isFeatured: false,
-    isVerified: company.verificationStatus === COMPANY_STATUS.VERIFIED, bookable, releaseStatus: status === LISTING_STATUS.ARCHIVED ? 'archived' : status === LISTING_STATUS.PAUSED ? 'paused' : 'draft', status,
-    policy: cleanText(payload.policy || (bookable ? 'Instant booking after company verification.' : 'Draft listing pending publish.'), 2000),
-    layout: cleanText(payload.layout || (serviceType === 'hotel' ? 'hotel-rooms' : 'bus-2-2'), 100), taken: [],
-    cancellationRules: cleanText(payload.cancellationRules || 'Refund rules follow company policy.', 2000), baggageRules: cleanText(payload.baggageRules || '', 2000),
+    isVerified: company.verificationStatus === COMPANY_STATUS.VERIFIED, bookable, releaseStatus: status === LISTING_STATUS.ACTIVE ? 'published' : status === LISTING_STATUS.ARCHIVED ? 'archived' : status === LISTING_STATUS.PAUSED ? 'paused' : 'draft', status,
+    policy: cleanText(payload.policy || (bookable ? 'Instant booking after secure payment confirmation.' : 'Draft listing pending publish.'), 2000),
+    layout: cleanText(payload.layout || (isHotel ? 'hotel-rooms' : serviceType), 100), taken: [],
+    cancellationRules: cleanText(payload.cancellationRules || 'Refund and cancellation rules follow the published partner policy.', 2000), baggageRules: cleanText(payload.baggageRules || '', 2000),
     createdAt: new Date().toISOString(),
   };
+
+  if (!listing.currency || !/^[A-Z]{3}$/.test(listing.currency)) throw validation('Company operating currency is required');
+  if (!isHotel && wantsActive) validateGenericListingReadiness(listing);
   await companyRepository.listings.save(listing, { id: listing.id });
-  if (serviceType === 'hotel' && (payload.roomType || payload.inventory || payload.nightlyPrice)) {
+
+  if (isHotel && (payload.roomType || payload.inventory || payload.nightlyPrice)) {
     const property = await hotelService.createProperty(company.id, {
-      listingId: listing.id,
-      propertyName: payload.propertyName || listing.title,
-      address: payload.address || listing.address,
-      city: payload.city || listing.city,
-      country: listing.country,
-      checkInTime: payload.checkInTime || listing.checkInTime,
-      checkOutTime: payload.checkOutTime || listing.checkOutTime,
-      amenities: payload.propertyAmenities || payload.amenities,
-      status: 'active',
+      listingId: listing.id, propertyName: payload.propertyName || listing.title, address: payload.address || listing.address,
+      city: payload.city || listing.city, country: listing.country, checkInTime: payload.checkInTime || listing.checkInTime,
+      checkOutTime: payload.checkOutTime || listing.checkOutTime, amenities: payload.propertyAmenities || payload.amenities, status: 'active',
+      propertyType: payload.stayType || payload.propertyType || 'hotel',
     });
     await hotelService.createRoomType(company.id, {
       listingId: listing.id, propertyId: property.id, name: payload.roomType || 'Standard Room', capacity: payload.capacity || 2,
@@ -357,22 +375,50 @@ async function createListing(companyId, payload = {}) {
       amenities: payload.roomAmenities || payload.amenities, status: 'active',
     });
   }
-  if (wantsActive) return hotelService.publishHotelListing(company.id, listing.id, payload.actorId || payload.createdBy || 'company-admin');
+  if (isHotel && wantsActive) return hotelService.publishHotelListing(company.id, listing.id, payload.actorId || payload.createdBy || 'company-admin');
   return listing;
+}
+
+function validateGenericListingReadiness(listing = {}) {
+  const serviceType = normalizeServiceType(listing.serviceType);
+  if (!['tour', 'car_rental', 'cargo'].includes(serviceType)) throw validation('This listing must use its dedicated publishing workflow');
+  if (!cleanText(listing.title, 180)) throw validation('Listing title is required before publishing');
+  if (!(Number(listing.priceFrom) > 0)) throw validation('A price greater than zero is required before publishing');
+  if (!cleanText(listing.city || listing.from || listing.address, 300)) throw validation('A service city, address, or pickup location is required before publishing');
+  if (['tour', 'car_rental'].includes(serviceType) && !(Number(listing.remainingInventory ?? listing.inventory) > 0)) {
+    throw validation(serviceType === 'tour' ? 'Tour capacity is required before publishing' : 'At least one available rental vehicle is required before publishing');
+  }
+  if (serviceType === 'cargo' && !cleanText(listing.to || listing.serviceDetails?.deliveryAreas?.join(', '), 500)) {
+    throw validation('Cargo delivery area or destination is required before publishing');
+  }
 }
 
 async function updateListing(companyId, listingId, payload = {}) {
   const company = await companyOrThrow(companyId);
   const listing = await listingOrThrow(company.id, listingId);
+  const serviceType = normalizeServiceType(listing.serviceType);
+  if (normalizeCompanyType(company.companyType) !== serviceType) throw validation('Listing does not belong to this partner service workspace');
   if (typeof payload.branchId !== 'undefined') { const branch = await branchOrThrow(company.id, payload.branchId); listing.branchId = branch?.id || ''; listing.branchName = branchName(branch); }
   const wantsPublish = payload.status === LISTING_STATUS.ACTIVE || boolValue(payload.publish);
   if (wantsPublish) ensureCompanyCanPublish(company);
-  const fields = ['title', 'sub', 'description', 'city', 'country', 'address', 'from', 'to', 'corridor', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions'];
+  const fields = ['title', 'sub', 'description', 'shortDescription', 'city', 'country', 'address', 'from', 'to', 'corridor', 'policy', 'layout', 'cancellationRules', 'baggageRules', 'checkInTime', 'checkOutTime', 'stayType', 'serviceNotes', 'contactPhone', 'pickupInstructions', 'dropoffInstructions', 'pricingUnit', 'availabilityMode', 'vehicleCategory', 'transmission', 'fuelType'];
   fields.forEach((field) => { if (typeof payload[field] !== 'undefined') listing[field === 'description' ? 'sub' : field] = cleanText(payload[field]); });
   if (payload.amenities) listing.amenities = parseList(payload.amenities);
+  if (typeof payload.cargoTypes !== 'undefined' || typeof payload.cargoType !== 'undefined') listing.cargoTypes = parseList(payload.cargoTypes || payload.cargoType);
   const media = payloadMedia(payload, listing.title);
   if (media.length) { listing.media = Array.isArray(listing.media) ? listing.media : []; listing.media.push(media[0]); listing.img = listing.img || media[0].url; }
   if (typeof payload.priceFrom !== 'undefined' || typeof payload.price !== 'undefined') { listing.priceFrom = moneyValue(payload.priceFrom ?? payload.price, listing.priceFrom); listing.price = listing.priceFrom; }
+  const numericFields = ['inventory', 'remainingInventory', 'durationMinutes', 'maxGuests', 'minimumAge', 'seatsCount', 'weightLimitKg', 'packageLimit'];
+  numericFields.forEach((field) => { if (typeof payload[field] !== 'undefined') listing[field] = Math.max(field === 'maxGuests' || field === 'seatsCount' || field === 'packageLimit' ? 1 : 0, moneyValue(payload[field], listing[field])); });
+  if (typeof payload.inventory !== 'undefined' && typeof payload.remainingInventory === 'undefined') listing.remainingInventory = Math.max(0, moneyValue(payload.inventory, listing.remainingInventory));
+  listing.serviceDetails = {
+    ...(listing.serviceDetails || {}),
+    ...(payload.serviceDetails && typeof payload.serviceDetails === 'object' ? payload.serviceDetails : {}),
+  };
+  ['meetingPoint', 'pickupLocation', 'returnLocation', 'driverOption', 'cargoDescription'].forEach((field) => { if (typeof payload[field] !== 'undefined') listing.serviceDetails[field] = cleanText(payload[field]); });
+  if (typeof payload.deliveryAreas !== 'undefined') listing.serviceDetails.deliveryAreas = parseList(payload.deliveryAreas);
+  if (typeof payload.included !== 'undefined') listing.serviceDetails.included = parseList(payload.included);
+  if (typeof payload.excluded !== 'undefined') listing.serviceDetails.excluded = parseList(payload.excluded);
   if (payload.status && !wantsPublish) {
     const nextStatus = cleanText(payload.status, 40);
     if (!Object.values(LISTING_STATUS).includes(nextStatus)) throw validation('Invalid listing status');
@@ -388,10 +434,27 @@ async function updateListing(companyId, listingId, payload = {}) {
   }
   listing.updatedAt = new Date().toISOString();
   await companyRepository.listings.save(listing, { id: listing.id });
-  if (wantsPublish) return hotelService.publishHotelListing(company.id, listing.id, payload.actorId || payload.updatedBy || 'company-admin');
+  if (wantsPublish) return publishListing(company.id, listing.id, payload.actorId || payload.updatedBy || 'company-admin');
   return listing;
 }
-async function publishListing(companyId, listingId, actorId = 'company-admin') { return hotelService.publishHotelListing(companyId, listingId, actorId); }
+
+async function publishListing(companyId, listingId, actorId = 'company-admin') {
+  const company = await companyOrThrow(companyId);
+  const listing = await listingOrThrow(company.id, listingId);
+  if (normalizeServiceType(listing.serviceType) === 'hotel') return hotelService.publishHotelListing(company.id, listing.id, actorId);
+  ensureCompanyCanPublish(company);
+  if (normalizeCompanyType(company.companyType) !== normalizeServiceType(listing.serviceType)) throw validation('Listing does not belong to this partner service workspace');
+  validateGenericListingReadiness(listing);
+  Object.assign(listing, {
+    status: LISTING_STATUS.ACTIVE, bookable: true, releaseStatus: 'published', isVerified: true,
+    publishedAt: listing.publishedAt || new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  await companyRepository.withTransaction(async (session) => {
+    await companyRepository.listings.save(listing, { id: listing.id }, { session });
+    await writeAudit(actorId, 'listing.published', listing.id, { entityType: 'listing', companyId: company.id, serviceType: listing.serviceType }, { session });
+  });
+  return listing;
+}
 async function archiveListing(companyId, listingId) {
   const listing = await listingOrThrow(companyId, listingId);
   Object.assign(listing, { status: LISTING_STATUS.ARCHIVED, bookable: false, releaseStatus: 'archived', updatedAt: new Date().toISOString() });

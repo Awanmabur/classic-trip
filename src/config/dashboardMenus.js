@@ -33,6 +33,9 @@ const ROLE_DASHBOARDS = {
         { page: 'hotel-dashboard', label: 'Hotel Providers', icon: 'fa-hotel' },
         { page: 'flight-dashboard', label: 'Flight Agents & Supply', icon: 'fa-plane-departure' },
         { page: 'taxi-dashboard', label: 'Local Mobility', icon: 'fa-motorcycle' },
+        { page: 'tour-dashboard', label: 'Tour Operators', icon: 'fa-map-location-dot' },
+        { page: 'rental-dashboard', label: 'Car Rentals', icon: 'fa-car-side' },
+        { page: 'cargo-dashboard', label: 'Cargo Providers', icon: 'fa-boxes-stacked' },
       ] },
       { label: 'Partner Network', items: [
         { page: 'flight-agents', label: 'Flight Agents', icon: 'fa-building-circle-check' },
@@ -54,6 +57,7 @@ const ROLE_DASHBOARDS = {
       { label: 'Growth and Support', items: [
         { page: 'support', label: 'Support & Disputes', icon: 'fa-headset' },
         { page: 'ads', label: 'Ads & Promotions', icon: 'fa-rectangle-ad' },
+        { page: 'blogs', label: 'Blog Management', icon: 'fa-newspaper' },
         { page: 'notifications', label: 'Notifications', icon: 'fa-bell' },
         { page: 'reports', label: 'Reports', icon: 'fa-file-lines' },
         { page: 'admins', label: 'Admins & Roles', icon: 'fa-user-shield' },
@@ -85,6 +89,9 @@ const ROLE_DASHBOARDS = {
         { page: 'bookings', label: 'Bookings', icon: 'fa-ticket' },
         { page: 'support', label: 'Support', icon: 'fa-headset' },
         { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
+      ] },
+      { label: 'Growth', items: [
+        { page: 'ads', label: 'Promote Services', icon: 'fa-rectangle-ad' },
       ] },
       { label: 'Money', items: [
         { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
@@ -283,6 +290,7 @@ const ROLE_DASHBOARDS = {
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
         { page: 'listings', label: 'Listings', icon: 'fa-layer-group' },
         { page: 'ads', label: 'Ads & Promotions', icon: 'fa-rectangle-ad' },
+        { page: 'blogs', label: 'Blog Management', icon: 'fa-newspaper' },
         { page: 'notifications', label: 'Notifications', icon: 'fa-bell' },
         { page: 'reports', label: 'Content Reports', icon: 'fa-file-lines' },
       ] },

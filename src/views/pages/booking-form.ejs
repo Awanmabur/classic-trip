@@ -29,6 +29,9 @@
   const followingDate = new Date(tomorrowDate); followingDate.setUTCDate(followingDate.getUTCDate() + 1);
   const requestedCheckIn = (typeof selectedCheckIn !== 'undefined' && selectedCheckIn) ? String(selectedCheckIn).slice(0, 10) : tomorrowDate.toISOString().slice(0, 10);
   const requestedCheckOut = (typeof selectedCheckOut !== 'undefined' && selectedCheckOut) ? String(selectedCheckOut).slice(0, 10) : followingDate.toISOString().slice(0, 10);
+  const requestedServiceDate = tomorrowDate.toISOString().slice(0, 10);
+  const requestedPickupDate = tomorrowDate.toISOString().slice(0, 10);
+  const requestedReturnDate = followingDate.toISOString().slice(0, 10);
   const requestedHotelNights = Math.max(1, Math.round((new Date(`${requestedCheckOut}T00:00:00Z`) - new Date(`${requestedCheckIn}T00:00:00Z`)) / 86400000));
   const requestedRoomCount = Math.max(1, Math.min(10, Number(typeof selectedRoomCount !== 'undefined' ? selectedRoomCount : 1) || 1));
   const requestedAdults = Math.max(1, Math.min(40, Number(typeof selectedAdults !== 'undefined' ? selectedAdults : 1) || 1));
@@ -104,8 +107,8 @@
 
   if (listing.serviceType !== 'bus' && listing.serviceType !== 'hotel') {
     selectedFieldName = 'selected';
-    selectedFieldValue = requestedOption || previewData.selectedPreview || 'S1';
-    selectedLabel = selectedFieldValue;
+    selectedFieldValue = requestedOption || previewData.selectedPreview || listing.id || 'service';
+    selectedLabel = listing.serviceType === 'tour' ? 'Tour date and participants' : listing.serviceType === 'car_rental' ? 'Pickup and return dates' : listing.serviceType === 'cargo' ? 'Pickup and delivery details' : selectedFieldValue;
   }
 
   const selectedSeatListForForm = listing.serviceType === 'bus'
@@ -173,8 +176,8 @@
       <div class="directPaymentGrid">
         <div class="directPassengerColumn">
           <div class="summaryCard directInfoHeader">
-            <h3><%= listing.serviceType === 'hotel' ? 'Guest information' : 'Ticket / passenger information' %></h3>
-            <div class="checkoutNotice"><%= listing.serviceType === 'hotel' ? 'Enter the lead guest and occupancy details. Availability, add-ons, fees, and the payment amount are verified again on the server.' : 'Add one passenger form for each selected ticket. When only one ticket is selected, only one form is shown.' %></div>
+            <h3><%= listing.serviceType === 'hotel' ? 'Guest information' : listing.serviceType === 'tour' ? 'Lead guest and tour details' : listing.serviceType === 'car_rental' ? 'Renter and rental details' : listing.serviceType === 'cargo' ? 'Sender and shipment details' : 'Ticket / passenger information' %></h3>
+            <div class="checkoutNotice"><%= listing.serviceType === 'hotel' ? 'Enter the lead guest and occupancy details. Availability, add-ons, fees, and the payment amount are verified again on the server.' : listing.serviceType === 'tour' ? 'Choose the tour date and participant count. Capacity and the final amount are verified again on the server.' : listing.serviceType === 'car_rental' ? 'Choose pickup and return details. Vehicle availability and rental days are verified again on the server.' : listing.serviceType === 'cargo' ? 'Enter shipment, recipient, pickup, destination, weight and package details. The final price is verified on the server.' : 'Add one passenger form for each selected ticket. When only one ticket is selected, only one form is shown.' %></div>
           </div>
 
           <% if (!selectedFieldValue && listing.bookable) { %>
@@ -228,8 +231,8 @@
           <% } else { %>
             <section class="passengerRow directPassengerCard" data-passenger-row>
               <div class="directPassengerTop">
-                <h4><%= listing.serviceType === 'hotel' ? 'Guest information' : 'Ticket / passenger information' %></h4>
-                <span class="badge badgeInfo"><i class="fa-solid <%= listing.serviceType === 'hotel' ? 'fa-bed' : 'fa-ticket' %>"></i> <%= selectedLabel %></span>
+                <h4><%= listing.serviceType === 'hotel' ? 'Guest information' : listing.serviceType === 'tour' ? 'Lead participant' : listing.serviceType === 'car_rental' ? 'Renter information' : listing.serviceType === 'cargo' ? 'Sender information' : 'Ticket / passenger information' %></h4>
+                <span class="badge badgeInfo"><i class="fa-solid <%= listing.serviceType === 'hotel' ? 'fa-bed' : listing.serviceType === 'tour' ? 'fa-map-location-dot' : listing.serviceType === 'car_rental' ? 'fa-car-side' : listing.serviceType === 'cargo' ? 'fa-box' : 'fa-ticket' %>"></i> <%= selectedLabel %></span>
               </div>
               <input type="hidden" name="passengerName" data-copy-from="fullName">
               <div class="bookingForm directPassengerForm">
@@ -254,6 +257,36 @@
                   <label>Estimated arrival<input name="estimatedArrivalTime" type="time"></label>
                   <textarea class="full" name="additionalGuestNames" maxlength="1200" placeholder="Other guest names — one per line. Include every traveler so the stay guest list is complete."></textarea>
                   <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, bedding, airport transfer, meal, or other stay request..."></textarea>
+                <% } else if (listing.serviceType === 'tour') { %>
+                  <label>Tour date<input name="serviceDate" type="date" min="<%= new Date().toISOString().slice(0, 10) %>" value="<%= requestedServiceDate %>" required data-generic-pricing></label>
+                  <label>Participants<input name="participantCount" type="number" min="1" max="<%= Math.max(1, Number(listing.maxGuests || listing.remainingInventory || 50)) %>" value="1" required data-generic-pricing></label>
+                  <input name="meetingPoint" value="<%= listing.serviceDetails?.meetingPoint || listing.address || '' %>" placeholder="Meeting point">
+                  <input name="pickupLocation" value="<%= listing.from || '' %>" placeholder="Optional pickup location">
+                  <input name="language" placeholder="Preferred guide language">
+                  <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Accessibility, meal, pickup, or other tour request..."></textarea>
+                <% } else if (listing.serviceType === 'car_rental') { %>
+                  <label>Pickup date<input name="pickupDate" type="date" min="<%= new Date().toISOString().slice(0, 10) %>" value="<%= requestedPickupDate %>" required data-generic-pricing></label>
+                  <label>Return date<input name="returnDate" type="date" min="<%= requestedPickupDate %>" value="<%= requestedReturnDate %>" required data-generic-pricing></label>
+                  <label>Pickup time<input name="pickupTime" type="time"></label>
+                  <label>Return time<input name="returnTime" type="time"></label>
+                  <input class="full" name="pickupLocation" value="<%= listing.from || listing.address || '' %>" placeholder="Pickup location" required>
+                  <input class="full" name="returnLocation" value="<%= listing.to || listing.address || '' %>" placeholder="Return location" required>
+                  <select name="driverOption"><option value="self_drive">Self-drive</option><option value="with_driver">With verified driver</option></select>
+                  <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Child seat, airport pickup, accessibility, or other rental request..."></textarea>
+                <% } else if (listing.serviceType === 'cargo') { %>
+                  <label>Pickup date<input name="pickupDate" type="date" min="<%= new Date().toISOString().slice(0, 10) %>" value="<%= requestedPickupDate %>" required></label>
+                  <select name="cargoType" required>
+                    <% const cargoOptions = (listing.cargoTypes && listing.cargoTypes.length ? listing.cargoTypes : ['parcel','documents','fragile','freight']); cargoOptions.forEach(type => { %><option value="<%= type %>"><%= type %></option><% }) %>
+                  </select>
+                  <input class="full" name="pickupLocation" value="<%= listing.from || '' %>" placeholder="Pickup address" required>
+                  <input class="full" name="deliveryLocation" value="<%= listing.to || '' %>" placeholder="Delivery address" required>
+                  <label>Weight (kg)<input name="weightKg" type="number" min="0.1" step="0.1" <%= Number(listing.weightLimitKg || 0) > 0 ? `max="${listing.weightLimitKg}"` : '' %> required data-generic-pricing></label>
+                  <label>Packages<input name="packageCount" type="number" min="1" max="<%= Math.max(1, Number(listing.packageLimit || 100)) %>" value="1" required data-generic-pricing></label>
+                  <input name="dimensions" placeholder="Dimensions, e.g. 40 × 30 × 20 cm">
+                  <input name="declaredValue" type="number" min="0" step="0.01" placeholder="Declared value">
+                  <input name="recipientName" placeholder="Recipient full name" required>
+                  <input name="recipientPhone" placeholder="Recipient phone" required>
+                  <textarea class="full" name="cargoDescription" maxlength="1200" placeholder="Describe the cargo, handling needs, and delivery instructions..." required></textarea>
                 <% } else { %>
                   <textarea class="full" name="notes" placeholder="Special request or note..."></textarea>
                 <% } %>
@@ -264,7 +297,7 @@
 
         <aside class="directPaymentSide" aria-label="Ticket and payment preview">
           <div class="summaryCard stickyTicketPreview directTicketPreview">
-            <h3><%= listing.serviceType === 'hotel' ? 'Stay / room preview' : 'Ticket / seats preview' %></h3>
+            <h3><%= listing.serviceType === 'hotel' ? 'Stay / room preview' : listing.serviceType === 'tour' ? 'Tour booking preview' : listing.serviceType === 'car_rental' ? 'Rental booking preview' : listing.serviceType === 'cargo' ? 'Cargo booking preview' : 'Ticket / seats preview' %></h3>
             <div class="kv">
               <div><span>Service</span><b><%= listing.title %></b></div>
               <div><span>Selected</span><b><%= selectedLabel %></b></div>
@@ -281,7 +314,7 @@
                 <div><span>Return schedule</span><b><%= safeReturnAvailability.schedule?.departAt || requestedReturnScheduleId %></b></div>
                 <div><span>Return seats</span><b><%= formatBusSeats(requestedReturnSeatList) %></b></div>
               <% } %>
-              <div><span>Tickets / rooms</span><b><%= listing.serviceType === 'bus' ? selectedSeatListForForm.length : requestedRoomCount %></b></div>
+              <% if (listing.serviceType === 'bus' || listing.serviceType === 'hotel') { %><div><span>Tickets / rooms</span><b><%= listing.serviceType === 'bus' ? selectedSeatListForForm.length : requestedRoomCount %></b></div><% } %>
               <% if (listing.serviceType === 'hotel') { %>
                 <div><span>Check-in</span><b><%= requestedCheckIn %></b></div>
                 <div><span>Check-out</span><b><%= requestedCheckOut %></b></div>
@@ -299,7 +332,7 @@
             <h3>Payment options</h3>
             <div class="checkoutNotice">You'll be redirected to Pesapal to complete a secure payment. Your ticket is issued only once payment succeeds.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
-              <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> <%= listing.serviceType === 'hotel' ? 'Change room or dates' : 'Change selection' %></a>
+              <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> <%= listing.serviceType === 'hotel' ? 'Change room or dates' : listing.serviceType === 'tour' ? 'View tour' : listing.serviceType === 'car_rental' ? 'View rental' : listing.serviceType === 'cargo' ? 'View cargo service' : 'Change selection' %></a>
               <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay with Pesapal</button>
             </div>
           </div>
@@ -319,6 +352,12 @@
     feePercent: Number(platformConfig.customerServiceFeePercent || 0),
     feeFlat: Number(platformConfig.customerServiceFeeFlat || 0),
     taxPercent: Number(platformConfig.customerTaxPercent || 0),
+  }) %>;
+  window.__genericCheckoutPricing = <%- toScriptJson({
+    enabled: ['tour','car_rental','cargo'].includes(listing.serviceType), serviceType: listing.serviceType,
+    currency, unitPrice: Number(listing.priceFrom || 0), pricingUnit: listing.pricingUnit || 'per_booking',
+    additionalPricePerKg: Number(listing.serviceDetails?.additionalPricePerKg || 0),
+    feePercent: Number(platformConfig.customerServiceFeePercent || 0), feeFlat: Number(platformConfig.customerServiceFeeFlat || 0), taxPercent: Number(platformConfig.customerTaxPercent || 0),
   }) %>;
   (function () {
     const form = document.querySelector('[data-direct-payment-form]');
@@ -358,8 +397,33 @@
       if (totalInput) totalInput.value = String(total);
     }
 
-    form.addEventListener('input', function () { syncCopiedFields(); recalculateHotelCheckout(); });
-    form.addEventListener('change', function () { syncCopiedFields(); recalculateHotelCheckout(); });
+    function recalculateGenericCheckout() {
+      const config = window.__genericCheckoutPricing || {};
+      if (!config.enabled) return;
+      let subtotal = Number(config.unitPrice || 0);
+      if (config.serviceType === 'tour') subtotal *= Math.max(1, Number(form.querySelector('[name="participantCount"]')?.value || 1));
+      if (config.serviceType === 'car_rental') {
+        const start = new Date(`${form.querySelector('[name="pickupDate"]')?.value || ''}T00:00:00Z`);
+        const end = new Date(`${form.querySelector('[name="returnDate"]')?.value || ''}T00:00:00Z`);
+        const days = Math.max(1, Math.ceil((end - start) / 86400000) || 1);
+        subtotal *= days;
+      }
+      if (config.serviceType === 'cargo') {
+        const weight = Math.max(0, Number(form.querySelector('[name="weightKg"]')?.value || 0));
+        const packages = Math.max(1, Number(form.querySelector('[name="packageCount"]')?.value || 1));
+        if (config.pricingUnit === 'per_kg') subtotal *= weight;
+        else if (config.pricingUnit === 'per_package') subtotal *= packages;
+        else subtotal += Number(config.additionalPricePerKg || 0) * weight;
+      }
+      const fee = Math.round((subtotal * Number(config.feePercent || 0) / 100) + Number(config.feeFlat || 0) + (subtotal * Number(config.taxPercent || 0) / 100));
+      const total = subtotal + fee;
+      const format = (amount) => `${config.currency} ${Math.round(Number(amount) || 0).toLocaleString()}`;
+      const feeOut = form.querySelector('[data-service-fee-summary]'); const totalOut = form.querySelector('[data-total-summary]'); const totalInput = form.querySelector('[data-total-input]');
+      if (feeOut) feeOut.textContent = format(fee); if (totalOut) totalOut.textContent = format(total); if (totalInput) totalInput.value = String(total);
+    }
+
+    form.addEventListener('input', function () { syncCopiedFields(); recalculateHotelCheckout(); recalculateGenericCheckout(); });
+    form.addEventListener('change', function () { syncCopiedFields(); recalculateHotelCheckout(); recalculateGenericCheckout(); });
     form.addEventListener('submit', function (event) {
       syncCopiedFields();
       const required = Array.from(form.querySelectorAll('[required]'));
@@ -378,6 +442,7 @@
     });
     syncCopiedFields();
     recalculateHotelCheckout();
+    recalculateGenericCheckout();
   }());
 </script>
 <%- include('../partials/site-footer') %>

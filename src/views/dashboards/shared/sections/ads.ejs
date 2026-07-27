@@ -1,1 +1,64 @@
-<section class="section" id="ads"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Ads & promotions</h3><p>Paid boosts, top placement, route ads, hotel ads, banner ads, and partner campaigns.</p></div><button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button></div><div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead><tbody id="adsTable"></tbody></table></div></div></section>
+<%
+  const companyPromotionRows = Array.isArray(dashboardData?.ads) ? dashboardData.ads : [];
+  const promotableListings = (Array.isArray(dashboardData?.listings) ? dashboardData.listings : []).map(function(row){
+    const meta = Array.isArray(row) ? row[row.length - 1] : null;
+    const listing = meta && meta.detail && meta.detail.listing ? meta.detail.listing : {};
+    return {
+      id: listing.id || (meta && meta.id) || '',
+      title: (Array.isArray(row) && row[0]) || listing.title || 'Service',
+      status: listing.status || (Array.isArray(row) && row[5]) || '',
+      bookable: listing.bookable !== false,
+    };
+  }).filter(function(item){ return item.id; });
+%>
+<section class="section" id="ads">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead">
+        <div class="cardTitle">
+          <h3><i class="fa-solid fa-rectangle-ad"></i> Ads & promotions</h3>
+          <p>Promote bus trips, stays and Airbnb-style homes, flights, local rides, tours, car rentals, and cargo services.</p>
+        </div>
+        <% if (!isCompanyDashboard) { %>
+          <button class="btn btnPrimary" data-modal="create" data-type="ad campaign"><i class="fa-solid fa-plus"></i> New campaign</button>
+        <% } %>
+      </div>
+      <div class="tableWrap">
+        <table>
+          <thead><tr><th>Campaign</th><th>Service / partner</th><th>Placement</th><th>Budget</th><th>Clicks</th><th>Bookings</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if (isCompanyDashboard) { %>
+      <div class="card">
+        <div class="cardHead"><div class="cardTitle"><h3>Create a service promotion</h3><p>Only your own published services can be promoted. Campaign activity remains scoped to this partner account.</p></div></div>
+        <form class="formPanel" method="POST" action="/company/promotions">
+          <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+          <div class="formGrid">
+            <div class="field full"><label>Published service</label><div class="control"><i class="fa-solid fa-layer-group"></i><select name="listingId" required><option value="">Select service</option><% promotableListings.forEach(function(item){ %><option value="<%= item.id %>"><%= item.title %> · <%= item.status || 'draft' %></option><% }) %></select></div></div>
+            <div class="field"><label>Campaign name</label><div class="control"><i class="fa-solid fa-heading"></i><input name="name" maxlength="120" placeholder="Weekend service boost"></div></div>
+            <div class="field"><label>Placement</label><div class="control"><i class="fa-solid fa-bullseye"></i><select name="placement"><option value="homepage_feature">Homepage feature</option><option value="marketplace_top">Marketplace top</option><option value="route_boost">Search result boost</option><option value="route_card">Route card</option><option value="hotel_card">Stay card</option><option value="banner">Banner</option><option value="promoter_share">Promoter share</option></select></div></div>
+            <div class="field"><label>Budget</label><div class="control"><i class="fa-solid fa-coins"></i><input type="number" name="budget" min="1" step="1" required placeholder="50000"></div></div>
+            <div class="field"><label>Start date</label><div class="control"><i class="fa-solid fa-calendar-day"></i><input type="datetime-local" name="startsAt"></div></div>
+            <div class="field"><label>End date</label><div class="control"><i class="fa-solid fa-calendar-check"></i><input type="datetime-local" name="endsAt"></div></div>
+          </div>
+          <button class="btn btnPrimary" type="submit" <%= promotableListings.length ? '' : 'disabled' %>><i class="fa-solid fa-rocket"></i> Start promotion</button>
+          <% if (!promotableListings.length) { %><p class="formHint">Create and publish a service first, then return here to promote it.</p><% } %>
+        </form>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (isCompanyDashboard && companyPromotionRows.length) { %>
+    <div class="card" style="margin-top:18px">
+      <div class="cardHead"><div class="cardTitle"><h3>Campaign controls</h3><p>Pause, resume, or end your own campaigns without affecting any other partner.</p></div></div>
+      <div class="tableWrap"><table><thead><tr><th>Campaign</th><th>Service</th><th>Placement</th><th>Budget</th><th>Performance</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <% companyPromotionRows.forEach(function(row){ const meta = row[row.length - 1] || {}; const status = String(row[6] || meta.status || 'draft').toLowerCase(); %>
+        <tr><td><strong><%= row[0] %></strong></td><td><%= row[1] %></td><td><%= row[2] %></td><td><%= row[3] %></td><td><%= row[4] %> clicks · <%= row[5] %> bookings</td><td><span class="badge <%= status === 'active' ? 'success' : status === 'paused' ? 'warn' : '' %>"><%= status %></span></td><td><div class="travelActions"><% if(status === 'active'){ %><form method="POST" action="/company/promotions/<%= meta.id %>/pause"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" type="submit" title="Pause"><i class="fa-solid fa-pause"></i></button></form><% } %><% if(status === 'paused'){ %><form method="POST" action="/company/promotions/<%= meta.id %>/resume"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" type="submit" title="Resume"><i class="fa-solid fa-play"></i></button></form><% } %><% if(status !== 'expired'){ %><form method="POST" action="/company/promotions/<%= meta.id %>/end"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" type="submit" title="End campaign"><i class="fa-solid fa-stop"></i></button></form><% } %></div></td></tr>
+      <% }) %>
+      </tbody></table></div>
+    </div>
+  <% } %>
+</section>

@@ -9,7 +9,7 @@ const bookingItemSchema = new Schema({
   providerCompanyId: { type: String, index: true },
   supplierId: { type: String, index: true },
   listingId: { type: String, required: true, index: true },
-  serviceType: { type: String, required: true, enum: ['bus', 'hotel', 'flight', 'local_transport'], index: true },
+  serviceType: { type: String, required: true, enum: ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'], index: true },
   domainReservationId: { type: String, index: true },
   quantity: { type: Number, default: 1, min: 1 },
   pricing: moneySchema,

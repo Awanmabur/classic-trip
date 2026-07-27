@@ -1,0 +1,41 @@
+<%
+  const blogRows = Array.isArray(dashboardData?.blogs) ? dashboardData.blogs : [];
+  const blogActionBase = dashboardRoleKey === 'content' ? '/content/blogs' : '/admin/blogs';
+  function blogDate(value){
+    if(!value) return '-';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+%>
+<section class="section" id="blogs">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-newspaper"></i> Create blog post</h3><p>Write travel guides, service updates, partner stories, safety information, and SEO content from the dashboard.</p></div></div>
+      <form class="formPanel" method="POST" action="<%= blogActionBase %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Title</label><div class="control"><i class="fa-solid fa-heading"></i><input name="title" maxlength="180" required></div></div>
+          <div class="field"><label>Category / tag</label><div class="control"><i class="fa-solid fa-tag"></i><input name="tag" maxlength="60" value="Guide"></div></div>
+          <div class="field"><label>Custom slug</label><div class="control"><i class="fa-solid fa-link"></i><input name="slug" maxlength="180" placeholder="leave blank to generate"></div></div>
+          <div class="field"><label>Status</label><div class="control"><i class="fa-solid fa-circle-check"></i><select name="status"><option value="draft">Draft</option><option value="published">Publish now</option></select></div></div>
+          <div class="field full"><label>Excerpt</label><div class="control"><textarea name="excerpt" maxlength="500" required placeholder="A clear summary for cards and search results."></textarea></div></div>
+          <div class="field full"><label>Article body</label><div class="control"><textarea name="body" rows="12" required placeholder="Write the full article here."></textarea></div></div>
+          <div class="field"><label>Cover image URL</label><div class="control"><i class="fa-solid fa-image"></i><input type="url" name="image" placeholder="https://..."></div></div>
+          <div class="field"><label>Image alternative text</label><div class="control"><i class="fa-solid fa-universal-access"></i><input name="imageAlt" maxlength="180"></div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save blog post</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Blog operations</h3><p><%= blogRows.length %> posts across drafts, published content, and archives.</p></div><a class="btn" href="/blogs" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Public blog</a></div>
+      <div class="tableWrap"><table><thead><tr><th>Post</th><th>Tag</th><th>Published</th><th>Updated</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        <% blogRows.forEach(function(blog){ const status = String(blog.status || 'draft').toLowerCase(); %>
+          <tr><td><strong><%= blog.title %></strong><br><small>/blogs/<%= blog.slug %></small></td><td><%= blog.tag || 'Guide' %></td><td><%= blogDate(blog.publishedAt) %></td><td><%= blogDate(blog.updatedAt || blog.createdAt) %></td><td><span class="badge <%= status === 'published' ? 'success' : status === 'draft' ? 'warn' : '' %>"><%= status %></span></td><td><div class="travelActions"><% if(status !== 'published'){ %><form method="POST" action="<%= blogActionBase %>/<%= blog.id %>/publish"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" title="Publish" type="submit"><i class="fa-solid fa-cloud-arrow-up"></i></button></form><% } %><% if(status === 'published'){ %><form method="POST" action="<%= blogActionBase %>/<%= blog.id %>/draft"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" title="Move to draft" type="submit"><i class="fa-solid fa-file-pen"></i></button></form><% } %><% if(status !== 'archived'){ %><form method="POST" action="<%= blogActionBase %>/<%= blog.id %>/archive"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="tinyBtn" title="Archive" type="submit"><i class="fa-solid fa-box-archive"></i></button></form><% } %><a class="tinyBtn" href="/blogs/<%= blog.slug %>" target="_blank" rel="noopener" title="View"><i class="fa-solid fa-eye"></i></a></div></td></tr>
+          <tr><td colspan="6"><details><summary>Edit <%= blog.title %></summary><form class="formPanel" method="POST" action="<%= blogActionBase %>/<%= blog.id %>/update"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><div class="formGrid"><div class="field"><label>Title</label><div class="control"><input name="title" value="<%= blog.title %>" required></div></div><div class="field"><label>Tag</label><div class="control"><input name="tag" value="<%= blog.tag || 'Guide' %>"></div></div><div class="field full"><label>Slug</label><div class="control"><input name="slug" value="<%= blog.slug %>" required></div></div><div class="field full"><label>Excerpt</label><div class="control"><textarea name="excerpt"><%= blog.excerpt || '' %></textarea></div></div><div class="field full"><label>Body</label><div class="control"><textarea name="body" rows="12"><%= blog.body || '' %></textarea></div></div><div class="field"><label>Image URL</label><div class="control"><input type="url" name="image" value="<%= blog.image || '' %>"></div></div><div class="field"><label>Image alt</label><div class="control"><input name="imageAlt" value="<%= blog.imageAlt || '' %>"></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Update post</button></form></details></td></tr>
+        <% }) %>
+        <% if(!blogRows.length){ %><tr><td colspan="6">No blog posts yet. Create the first article using the form.</td></tr><% } %>
+      </tbody></table></div>
+    </div>
+  </div>
+</section>

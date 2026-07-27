@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <%
-    const homeTitle = seo?.title || 'Classic Trip | Bus, Stays, Flights and Local Taxi';
-    const homeDescription = seo?.description || 'Plan and book verified buses, quality stays, agent-supported flights and trusted local rides across East Africa from one secure platform.';
+    const homeTitle = seo?.title || 'Classic Trip | Buses, Stays, Airbnb, Flights, Taxi, Tours, Car Rentals and Cargo';
+    const homeDescription = seo?.description || 'Plan and book verified buses, stays and Airbnb-style homes, agent-supported flights, local rides, tours, car rentals and cargo services across East Africa from one secure platform.';
     const homeCanonical = `${String(siteUrl || '').replace(/\/+$/, '') || ''}/`;
     const homeSchema = {
       '@context': 'https://schema.org',
@@ -25,7 +25,7 @@
   <title><%= homeTitle %></title>
   <meta name="description" content="<%= homeDescription %>" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
-  <meta name="theme-color" content="#070a12" />
+  <meta name="theme-color" content="#f8fafc" />
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
@@ -56,7 +56,7 @@
     <div class="navIn">
       <a class="brand" href="/"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
-        <a href="#home" class="active">Home</a><a href="#bus">Buses</a><a href="#hotel">Stays</a><a href="#flight">Flights</a><a href="#local-transport">Local taxi</a><a href="#ads">Promotions</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
+        <a href="/" class="active">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/airbnb">Airbnb</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="/tours">Tours</a><a href="/car-rentals">Car rentals</a><a href="/cargo">Cargo</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/saved">Saved</a><a href="/booking">My bookings</a>
       </nav>
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
@@ -89,7 +89,7 @@
         </a>
       <% } %>
       <div class="drawerLinks">
-        <a href="#home">Home</a><a href="#bus">Buses</a><a href="#hotel">Stays</a><a href="#flight">Flights</a><a href="#local-transport">Local taxi</a><a href="#ads">Promotions</a><a href="#blogs">Blogs</a><a href="/saved">Saved</a><a href="/my-bookings">My bookings</a>
+        <a href="/">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/airbnb">Airbnb homes</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="/tours">Tours</a><a href="/car-rentals">Car rentals</a><a href="/cargo">Cargo</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/saved">Saved</a><a href="/booking">My bookings</a><a href="<%= currentUser ? dashboardUrl : '/login' %>"><%= currentUser ? 'Dashboard / profile' : 'Login / sign up' %></a>
       </div>
       <div class="drawerFilters" id="drawerFilters"></div>
       <% if (currentUser) { %><button class="btn btnPrimary" type="button" data-home-action="scroll-section" data-section-id="bus" data-close-drawer="true"><i class="fa-solid fa-bolt"></i> Start booking</button><% } else { %><a class="btn btnPrimary" href="/login"><i class="fa-solid fa-right-to-bracket"></i> Sign in to start</a><% } %>
@@ -116,7 +116,7 @@
               <span class="chip"><i class="fa-solid fa-building"></i> Partner dashboards</span>
             </div>
             <h1 class="heroTitle"><span class="keepLine">Move, stay and fly</span> with confidence.</h1>
-            <p class="heroSub">Compare verified transport and accommodation options, book with transparent pricing, and manage every ticket, stay and local ride from one trusted East African travel platform.</p>
+            <p class="heroSub">Compare verified transport, stays, Airbnb-style homes, tours, rentals and cargo options, book with transparent pricing, and manage every reservation from one trusted East African travel platform.</p>
           </div>
 
           <div class="card searchBox">
@@ -125,6 +125,9 @@
               <button class="tab" data-type="hotel"><i class="fa-solid fa-house"></i> Stays</button>
               <button class="tab" data-type="flight"><i class="fa-solid fa-plane"></i> Flight</button>
               <button class="tab" data-type="local_transport"><i class="fa-solid fa-taxi"></i> Local taxi</button>
+              <button class="tab" data-type="tour"><i class="fa-solid fa-map-location-dot"></i> Tours</button>
+              <button class="tab" data-type="car_rental"><i class="fa-solid fa-car-side"></i> Car rental</button>
+              <button class="tab" data-type="cargo"><i class="fa-solid fa-box"></i> Cargo</button>
             </div>
             <div class="formGrid">
               <div class="field" id="fromField"><label>From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="fromInput" placeholder="From city"></div></div>
@@ -253,6 +256,40 @@
           <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-local-transport" data-home-action="show-more" data-group="local_transport"><i class="fa-solid fa-plus"></i> More</button></div>
         </section>
 
+        <section class="section" id="tour">
+          <div class="sectionHead"><div><h2>Tours, activities & destination experiences</h2><p>Book verified guides, attractions, excursions and local experiences with published dates and live participant capacity.</p></div><a class="btn btnGhost" href="/tours"><i class="fa-solid fa-map-location-dot"></i> Explore tours</a></div>
+          <% var initialTourListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'tour' || item.group === 'tour'); }).slice(0, 6); %>
+          <div class="gridCards" id="tourCards">
+            <% if (initialTourListings.length) { initialTourListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
+              <div class="card marketplaceEmptyCard" data-home-empty="tour"><strong>No published tours yet</strong><p class="muted">Verified tour operators can publish activities, dates, prices and participant capacity from their partner dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a tour partner</a></div>
+            <% } %>
+          </div>
+          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-tour" data-home-action="show-more" data-group="tour"><i class="fa-solid fa-plus"></i> More</button></div>
+        </section>
+
+        <section class="section" id="car-rental">
+          <div class="sectionHead"><div><h2>Car rentals for every journey</h2><p>Reserve verified self-drive or chauffeured vehicles with clear per-day pricing, pickup and return details, and live fleet availability.</p></div><a class="btn btnGhost" href="/car-rentals"><i class="fa-solid fa-car-side"></i> Find a rental</a></div>
+          <% var initialRentalListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'car_rental' || item.group === 'car_rental'); }).slice(0, 6); %>
+          <div class="gridCards" id="rentalCards">
+            <% if (initialRentalListings.length) { initialRentalListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
+              <div class="card marketplaceEmptyCard" data-home-empty="car_rental"><strong>No published rental vehicles yet</strong><p class="muted">Verified rental partners can publish vehicles, daily prices, pickup locations and availability from their dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a rental partner</a></div>
+            <% } %>
+          </div>
+          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-car-rental" data-home-action="show-more" data-group="car_rental"><i class="fa-solid fa-plus"></i> More</button></div>
+        </section>
+
+        <section class="section" id="cargo">
+          <div class="sectionHead"><div><h2>Cargo, parcels & freight</h2><p>Book verified pickup and delivery services for documents, parcels and freight with shipment weight, package, recipient and handling details.</p></div><a class="btn btnGhost" href="/cargo"><i class="fa-solid fa-box"></i> Send cargo</a></div>
+          <% var initialCargoListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'cargo' || item.group === 'cargo'); }).slice(0, 6); %>
+          <div class="gridCards" id="cargoCards">
+            <% if (initialCargoListings.length) { initialCargoListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
+              <div class="card marketplaceEmptyCard" data-home-empty="cargo"><strong>No published cargo services yet</strong><p class="muted">Verified logistics partners can publish service areas, weight limits, pricing and pickup instructions from their dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a cargo partner</a></div>
+            <% } %>
+          </div>
+          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-cargo" data-home-action="show-more" data-group="cargo"><i class="fa-solid fa-plus"></i> More</button></div>
+        </section>
+
+      <% if (comingSoonServiceTypes && comingSoonServiceTypes.length) { %>
       <section class="section" id="coming-soon">
         <div class="sectionHead"><div><h2>More marketplace services are coming</h2><p>They remain part of Classic Trip while each workflow is built with its own inventory, pricing, verification and operations.</p></div><a class="btn btnGhost" href="/services#coming-soon">View roadmap</a></div>
         <div class="gridCards">
@@ -261,11 +298,12 @@
           <% }) %>
         </div>
       </section>
+      <% } %>
       <section class="section" id="ads">
           <div class="sectionHead">
             <div>
               <h2>Ads & promoted listings</h2>
-              <p>Partners can promote published bus, stay, flight and local taxi listings so they appear higher in search.</p>
+              <p>Partners can promote any published bus, stay, Airbnb-style home, flight, local taxi, tour, car-rental or cargo listing so it appears higher in search and selected homepage placements.</p>
             </div>
             <span class="badge badgeWarn"><i class="fa-solid fa-bullhorn"></i> Partner growth</span>
           </div>
@@ -274,11 +312,11 @@
               <h3>Promotion center</h3>
               <p>Approved campaigns linked to published services appear here from the database.</p>
             </div>
-            <% if (currentUser?.role === 'company_admin') { %><a class="btn btnPrimary" href="/company/dashboard#promotions"><i class="fa-solid fa-plus"></i> Promote listing</a><% } else { %><a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-building"></i> Become a partner</a><% } %>
+            <% if (currentUser?.role === 'company_admin') { %><a class="btn btnPrimary" href="/company/promotions"><i class="fa-solid fa-plus"></i> Promote listing</a><% } else { %><a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-building"></i> Become a partner</a><% } %>
           </div>
           <div class="gridCards" id="adsCards">
 <% var sponsored = (bootstrap.listings || []).filter(function(l) { return l.isSponsored; }).slice(0, 4); %>
-<% if (sponsored.length) { sponsored.forEach(function(l) { var svcIcon = l.serviceType === 'hotel' ? 'fa-hotel' : l.serviceType === 'flight' ? 'fa-plane' : l.serviceType === 'local_transport' ? 'fa-taxi' : 'fa-bus'; %>
+<% if (sponsored.length) { sponsored.forEach(function(l) { var svcIcon = l.serviceType === 'hotel' ? 'fa-hotel' : l.serviceType === 'flight' ? 'fa-plane' : l.serviceType === 'local_transport' ? 'fa-taxi' : l.serviceType === 'tour' ? 'fa-map-location-dot' : l.serviceType === 'car_rental' ? 'fa-car-side' : l.serviceType === 'cargo' ? 'fa-box' : 'fa-bus'; %>
             <article class="promoCard">
               <div class="promoIcon"><i class="fa-solid <%= svcIcon %>"></i></div>
               <span class="badge badgeWarn" style="width:max-content;margin-bottom:8px"><i class="fa-solid fa-star"></i> Promoted</span>
@@ -305,7 +343,7 @@
               <h3>Content that helps customers book with confidence</h3>
               <p>Published articles appear here from the content database.</p>
             </div>
-            <% if (currentUser?.role === 'super_admin') { %><a class="btn btnGhost" href="/admin/dashboard#content"><i class="fa-solid fa-pen-nib"></i> Write blog</a><% } %>
+            <% if (currentUser?.role === 'super_admin') { %><a class="btn btnGhost" href="/admin/blogs"><i class="fa-solid fa-pen-nib"></i> Write blog</a><% } %>
           </div>
           <div class="gridCards" id="blogCards">
 <% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
@@ -339,7 +377,7 @@
     <div class="footerGrid">
       <div class="footerBrand">
         <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-        <p>Classic Trip brings verified bus travel, stays and homes, agent-supported flights, boda rides and private cars into one secure East Africa marketplace.</p>
+        <p>Classic Trip brings verified buses, stays and Airbnb-style homes, flights, local rides, tours, car rentals and cargo into one secure East Africa marketplace.</p>
         <span><i class="fa-solid fa-shield-halved"></i> Secure checkout</span>
         <span><i class="fa-solid fa-clock"></i> <%= platformConfig.holdMinutes %> minute inventory holds</span>
         <span><i class="fa-solid fa-headset"></i> Customer support</span>
@@ -351,8 +389,11 @@
         <a href="/stays"><i class="fa-solid fa-house"></i> Stays</a>
         <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
         <a href="/taxi"><i class="fa-solid fa-motorcycle"></i> Boda & car rides</a>
+        <a href="/tours"><i class="fa-solid fa-map-location-dot"></i> Tours & activities</a>
+        <a href="/car-rentals"><i class="fa-solid fa-car-side"></i> Car rentals</a>
+        <a href="/cargo"><i class="fa-solid fa-boxes-stacked"></i> Cargo & parcels</a>
         <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
-        <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
+        <a href="/booking"><i class="fa-solid fa-bookmark"></i> My bookings</a>
         <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
         <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
       </div>

@@ -10,7 +10,7 @@ const promotionCampaignSchema = new Schema({
   budget: Number,
   clicks: { type: Number, default: 0 },
   bookings: { type: Number, default: 0 },
-  status: { type: String, default: 'draft', index: true, enum: ['draft', 'active', 'expired'] },
+  status: { type: String, default: 'draft', index: true, enum: ['draft', 'active', 'paused', 'expired'] },
   startsAt: Date,
   endsAt: Date,
 }, { timestamps: true });

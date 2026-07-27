@@ -280,7 +280,30 @@ function frontendListing(listing = {}) {
 
 function frontendBooking(booking = {}, listing = {}) {
   const passenger = booking.passengers?.[0] || {};
-  return { code: booking.bookingRef, title: listing.title || booking.serviceType, type: listing.type || booking.serviceType, selected: passenger.seatOrRoom || passenger.seatNumber || '', total: `${booking.pricing?.currency || platformCurrency()} ${Math.round(Number(booking.pricing?.total || 0)).toLocaleString()}`, customer: booking.guestSnapshot?.fullName || '', date: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '', channel: booking.bookingChannel || '', status: booking.bookingStatus, ticketUrl: `/tickets/${booking.bookingRef}`, lookupUrl: `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}` };
+  const reservation = booking.serviceReservation || {};
+  const serviceType = String(booking.serviceType || listing.serviceType || '').toLowerCase();
+  const labels = {
+    bus: 'Bus', hotel: listing.stayType === 'airbnb' ? 'Airbnb stay' : 'Stay', flight: 'Flight',
+    local_transport: 'Local taxi', tour: 'Tour', car_rental: 'Car rental', cargo: 'Cargo',
+  };
+  let selected = passenger.seatOrRoom || passenger.seatNumber || '';
+  if (serviceType === 'tour') selected = `${Number(reservation.participantCount || 1)} participant${Number(reservation.participantCount || 1) === 1 ? '' : 's'}${reservation.serviceDate ? ` · ${reservation.serviceDate}` : ''}`;
+  if (serviceType === 'car_rental') selected = `${reservation.vehicleCategory || listing.vehicleCategory || 'Vehicle'}${reservation.pickupDate || reservation.returnDate ? ` · ${reservation.pickupDate || '-'} → ${reservation.returnDate || '-'}` : ''}`;
+  if (serviceType === 'cargo') selected = `${Number(reservation.packageCount || 1)} package${Number(reservation.packageCount || 1) === 1 ? '' : 's'}${Number(reservation.weightKg || 0) ? ` · ${reservation.weightKg} kg` : ''}${reservation.pickupDate ? ` · ${reservation.pickupDate}` : ''}`;
+  const activityDate = reservation.serviceDate || reservation.pickupDate || booking.createdAt;
+  return {
+    code: booking.bookingRef,
+    title: listing.title || labels[serviceType] || booking.serviceType,
+    type: labels[serviceType] || listing.type || booking.serviceType,
+    serviceType,
+    selected,
+    total: `${booking.pricing?.currency || platformCurrency()} ${Math.round(Number(booking.pricing?.total || 0)).toLocaleString()}`,
+    customer: booking.guestSnapshot?.fullName || '',
+    customerLabel: serviceType === 'cargo' ? 'Sender' : serviceType === 'car_rental' ? 'Renter' : serviceType === 'hotel' ? 'Guest' : 'Passenger',
+    date: activityDate ? new Date(activityDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+    channel: booking.bookingChannel || '', status: booking.bookingStatus,
+    ticketUrl: `/tickets/${booking.bookingRef}`, lookupUrl: `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}`,
+  };
 }
 
 async function savedListingsFor(userId) {

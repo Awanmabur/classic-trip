@@ -1,6 +1,6 @@
 'use strict';
 
-const HOME_GROUPS = new Set(['bus', 'hotel', 'flight', 'local_transport']);
+const HOME_GROUPS = new Set(['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']);
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');

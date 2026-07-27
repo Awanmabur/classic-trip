@@ -8,6 +8,8 @@
   function applyTheme(theme) {
     if (!['light', 'dark'].includes(theme)) return;
     document.documentElement.setAttribute('data-theme', theme);
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.setAttribute('content', theme === 'dark' ? '#070a12' : '#f8fafc');
     if (themeIcon) themeIcon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
   }
 

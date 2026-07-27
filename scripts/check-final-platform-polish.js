@@ -34,8 +34,8 @@ check(/bindCountryCurrency/.test(dashboard) && /currencyForCountryBrowser/.test(
 check(markets.currencyForCountry('Uganda') === 'UGX', 'Uganda must map to UGX');
 check(markets.currencyForCountry('Kenya') === 'KES', 'Kenya must map to KES');
 check(markets.currencyForCountry('South Sudan') === 'SSP', 'South Sudan must map to SSP');
-check(JSON.stringify(registry.ACTIVE_SERVICE_TYPES) === JSON.stringify(['bus','hotel','flight','local_transport']), 'Only the four completed service types may be active');
-check(JSON.stringify(registry.COMING_SOON_SERVICE_TYPES) === JSON.stringify(['tour','car_rental','cargo']), 'Only the approved roadmap categories may remain');
+check(JSON.stringify(registry.ACTIVE_SERVICE_TYPES) === JSON.stringify(['bus','hotel','flight','local_transport','tour','car_rental','cargo']), 'All completed marketplace service types must be active');
+check(JSON.stringify(registry.COMING_SOON_SERVICE_TYPES) === JSON.stringify([]), 'No completed marketplace category may remain marked coming soon');
 check(/PerplexityBot/.test(seo) && /Claude-SearchBot/.test(seo) && /llmsFullTxt/.test(seo), 'AI-search discovery files and crawler policy must be present');
 check(/TravelAgency/.test(head) && /SearchAction/.test(head) && /llms-full\.txt/.test(head), 'Structured data and AI-readable alternate links must be present');
 

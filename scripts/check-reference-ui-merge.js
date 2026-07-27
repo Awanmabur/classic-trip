@@ -76,7 +76,7 @@ for (const file of ['src/views/pages/flights.ejs','src/views/pages/flight-order.
 }
 
 const serviceRegistry = read('src/config/serviceRegistry.js');
-for (const service of ['bus','hotel','flight','local_transport']) {
+for (const service of ['bus','hotel','flight','local_transport','tour','car_rental','cargo']) {
   check(new RegExp(`${service}:[\\s\\S]*status: 'active'[\\s\\S]*bookable: true`).test(serviceRegistry), `${service} must remain active and bookable`);
 }
 

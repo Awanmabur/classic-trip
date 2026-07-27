@@ -136,6 +136,41 @@ async function claimHotelRoomAtomically(booking = {}, payload = {}, session = nu
   await hotelInventoryService.claimSelectedRoom(booking, payload, session);
 }
 
+async function claimGenericInventoryAtomically(booking = {}, _payload = {}, session = null) {
+  const serviceType = String(booking.serviceType || '').toLowerCase();
+  if (!['tour', 'car_rental', 'cargo'].includes(serviceType)) return;
+  const Listing = require('../../models/Listing');
+  const requested = serviceType === 'tour' ? Math.max(1, Number(booking.quantity || booking.serviceReservation?.participantCount || 1)) : 1;
+  const listing = await Listing.findOne({ id: booking.listingId }).session(session || null).lean();
+  if (!listing) throw Object.assign(new Error('Listing inventory was not found'), { status: 404 });
+  const finiteInventory = serviceType !== 'cargo' || Number(listing.inventory || listing.remainingInventory || 0) > 0;
+  if (!finiteInventory) {
+    booking.serviceReservation = { ...(booking.serviceReservation || {}), inventoryClaimed: false, claimedUnits: 0 };
+    return;
+  }
+  const updated = await Listing.findOneAndUpdate(
+    { id: booking.listingId, status: 'active', bookable: true, remainingInventory: { $gte: requested } },
+    { $inc: { remainingInventory: -requested } },
+    sessionOptions(session, { new: true, runValidators: true })
+  ).lean();
+  if (!updated) {
+    const error = new Error(serviceType === 'tour' ? 'Selected tour capacity is no longer available' : serviceType === 'car_rental' ? 'Selected rental vehicle is no longer available' : 'Cargo capacity is no longer available');
+    error.status = 409;
+    error.code = 'GENERIC_INVENTORY_CLAIM_FAILED';
+    throw error;
+  }
+  booking.serviceReservation = { ...(booking.serviceReservation || {}), inventoryClaimed: true, claimedUnits: requested, remainingInventoryAfterClaim: updated.remainingInventory };
+}
+
+async function releaseGenericInventory(booking = {}, session = null) {
+  const serviceType = String(booking.serviceType || '').toLowerCase();
+  const claimedUnits = Math.max(0, Number(booking.serviceReservation?.claimedUnits || 0));
+  if (!['tour', 'car_rental', 'cargo'].includes(serviceType) || !booking.serviceReservation?.inventoryClaimed || !claimedUnits) return;
+  const Listing = require('../../models/Listing');
+  await Listing.updateOne({ id: booking.listingId }, { $inc: { remainingInventory: claimedUnits } }, sessionOptions(session));
+  booking.serviceReservation = { ...(booking.serviceReservation || {}), inventoryClaimed: false, releasedUnits: claimedUnits, inventoryReleasedAt: new Date().toISOString() };
+}
+
 async function releaseFailedBookingInventory(booking = {}, payload = {}) {
   if (!booking) return;
   booking.cancelledAt = booking.cancelledAt || new Date().toISOString();
@@ -155,6 +190,7 @@ async function releaseFailedBookingInventory(booking = {}, payload = {}) {
     }
   }
   if (booking.serviceType === 'hotel') await hotelInventoryService.releaseBookedNights(booking.bookingRef);
+  if (['tour', 'car_rental', 'cargo'].includes(booking.serviceType)) await releaseGenericInventory(booking);
   if (payload.holdId) await inventoryHoldService.releaseHold(payload.holdId, 'payment_failed');
 }
 
@@ -215,6 +251,7 @@ async function persistBooking(booking, payload, _transactionStartIndex, options 
     if (options.claimInventory) {
       if (booking.serviceType === 'bus') await claimBusSeatsAtomically(booking, payload, session);
       if (booking.serviceType === 'hotel') await claimHotelRoomAtomically(booking, payload, session);
+      if (['tour', 'car_rental', 'cargo'].includes(booking.serviceType)) await claimGenericInventoryAtomically(booking, payload, session);
     }
     if (shouldConsumeHold) await consumeInventoryHoldInSession(payload.holdId, booking, session);
     await persistBookingRows(booking, payload, session);
@@ -305,7 +342,7 @@ async function createGuestBooking(payload, req) {
     await persistPaymentIntent(intentBase);
     await persistBooking(booking, payload, 0, { claimInventory: true });
     await recordBookingTimeline(booking, 'booking.created', `Booking ${booking.bookingRef} created`, 'Inventory was selected and booking record was created.', { metadata: { source: payload.source || 'checkout', holdId: payload.holdId || '' } });
-    await recordBookingTimeline(booking, 'inventory.claimed', `Inventory claimed for ${booking.bookingRef}`, booking.serviceType === 'bus' ? 'Selected seat inventory was connected to this booking.' : 'Selected room inventory was connected to this booking.', { entityType: 'inventory', entityId: payload.holdId || booking.scheduleId || booking.listingId });
+    await recordBookingTimeline(booking, 'inventory.claimed', `Inventory claimed for ${booking.bookingRef}`, booking.serviceType === 'bus' ? 'Selected seat inventory was connected to this booking.' : booking.serviceType === 'hotel' ? 'Selected room inventory was connected to this booking.' : 'Selected service capacity was connected to this booking.', { entityType: 'inventory', entityId: payload.holdId || booking.scheduleId || booking.listingId });
     const payment = await paymentService.initiatePayment({
       ...payload,
       provider,
@@ -605,6 +642,7 @@ async function cancelBooking(bookingRef, reason = 'Customer requested cancellati
       }
       for (const scheduleId of [...new Set(claims.map((item) => item.scheduleId))]) await refreshScheduleAvailability(scheduleId, session);
     }
+    if (['tour', 'car_rental', 'cargo'].includes(booking.serviceType)) await releaseGenericInventory(booking, session);
     if (booking.serviceType === 'hotel') {
       const canonicalCancellation = await hotelRepository.cancelReservation({
         bookingRef: booking.bookingRef,

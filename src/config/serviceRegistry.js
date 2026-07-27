@@ -5,9 +5,9 @@ const SERVICE_REGISTRY = Object.freeze({
   hotel: Object.freeze({ key: 'hotel', label: 'Stays', singular: 'Stay', icon: 'fa-house', status: 'active', bookable: true, description: 'Hotels, apartments, entire homes, private rooms, villas, cottages, guest houses and nightly inventory.' }),
   flight: Object.freeze({ key: 'flight', label: 'Flights', singular: 'Flight', icon: 'fa-plane', status: 'active', bookable: true, description: 'Platform-approved airline and certified supplier offers sold directly or with verified flight-agent assistance, including baggage, seats, ticketing and post-booking support.' }),
   local_transport: Object.freeze({ key: 'local_transport', label: 'Local rides', singular: 'Local ride', icon: 'fa-taxi', status: 'active', bookable: true, description: 'Simple boda and car rides with upfront platform pricing, verified drivers, automatic dispatch, airport transfers and scheduled trips.' }),
-  tour: Object.freeze({ key: 'tour', label: 'Tours & activities', singular: 'Tour', icon: 'fa-map-location-dot', status: 'coming_soon', bookable: false, description: 'Guided tours, activities and destination experiences are coming soon.' }),
-  car_rental: Object.freeze({ key: 'car_rental', label: 'Car rentals', singular: 'Car rental', icon: 'fa-car-side', status: 'coming_soon', bookable: false, description: 'Self-drive and chauffeured vehicle rentals are coming soon.' }),
-  cargo: Object.freeze({ key: 'cargo', label: 'Cargo & parcels', singular: 'Cargo', icon: 'fa-box', status: 'coming_soon', bookable: false, description: 'Parcel, freight and cargo movement services are coming soon.' }),
+  tour: Object.freeze({ key: 'tour', label: 'Tours & activities', singular: 'Tour', icon: 'fa-map-location-dot', status: 'active', bookable: true, description: 'Verified guided tours, activities, excursions and destination experiences with dated capacity.' }),
+  car_rental: Object.freeze({ key: 'car_rental', label: 'Car rentals', singular: 'Car rental', icon: 'fa-car-side', status: 'active', bookable: true, description: 'Verified self-drive and chauffeured vehicle rentals with pickup, return and live availability.' }),
+  cargo: Object.freeze({ key: 'cargo', label: 'Cargo & parcels', singular: 'Cargo', icon: 'fa-box', status: 'active', bookable: true, description: 'Verified parcel, freight and cargo transport with pickup, delivery, weight and package details.' }),
 });
 
 const ALL_SERVICE_TYPES = Object.freeze(Object.keys(SERVICE_REGISTRY));

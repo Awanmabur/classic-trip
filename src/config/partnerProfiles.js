@@ -73,6 +73,33 @@ const PARTNER_PROFILES = Object.freeze({
     description: 'Registered taxi, airport-transfer or local mobility company operating an approved fleet.',
     requiredFields: ['legalName', 'registrationNumber', 'fleetSize', 'country', 'city'],
   }),
+  tour_operator: Object.freeze({
+    key: 'tour_operator',
+    companyType: 'tour',
+    label: 'Tour and activity operator',
+    accountModel: 'organization',
+    ownerLabel: 'Operator owner / authorised representative',
+    description: 'Verified guide, attraction, activity or excursion business publishing dated tours and capacity.',
+    requiredFields: ['legalName', 'country', 'city'],
+  }),
+  car_rental_partner: Object.freeze({
+    key: 'car_rental_partner',
+    companyType: 'car_rental',
+    label: 'Car rental partner',
+    accountModel: 'organization',
+    ownerLabel: 'Rental owner / authorised representative',
+    description: 'Verified self-drive, chauffeured, airport transfer or fleet rental business.',
+    requiredFields: ['legalName', 'fleetSize', 'country', 'city'],
+  }),
+  cargo_partner: Object.freeze({
+    key: 'cargo_partner',
+    companyType: 'cargo',
+    label: 'Cargo and parcel partner',
+    accountModel: 'organization',
+    ownerLabel: 'Logistics owner / authorised representative',
+    description: 'Verified courier, parcel, freight or cargo operator serving approved pickup and delivery areas.',
+    requiredFields: ['legalName', 'registrationNumber', 'country', 'city'],
+  }),
 });
 
 const PARTNER_PROFILE_KEYS = Object.freeze(Object.keys(PARTNER_PROFILES));
@@ -86,6 +113,9 @@ const PROFILE_CAPABILITIES = Object.freeze({
   car_driver: Object.freeze({ manageOwnDriverProfile: true, manageOwnVehicle: true, updateAvailability: true, acceptAssignedRides: true, viewOwnEarnings: true, manageDrivers: false, manageFareRules: false, manageServiceZones: false, manualDispatch: false }),
   fleet_owner: Object.freeze({ manageOwnFleet: true, manageOwnDrivers: true, viewFleetRides: true, viewFleetEarnings: true, manageFareRules: false, manageServiceZones: false, manageVehicleClasses: false, manualDispatch: false }),
   taxi_company: Object.freeze({ manageOwnFleet: true, manageOwnDrivers: true, viewCompanyRides: true, viewCompanyEarnings: true, manageDispatchStaff: true, manageFareRules: false, manageServiceZones: false, manageVehicleClasses: false, manualDispatch: false }),
+  tour_operator: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnStaff: true, manageOwnPricing: true, managePromotions: true, managePlatformPricing: false }),
+  car_rental_partner: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnFleet: true, manageOwnStaff: true, manageOwnPricing: true, managePromotions: true, managePlatformPricing: false }),
+  cargo_partner: Object.freeze({ manageOwnListings: true, manageOwnInventory: true, manageOwnStaff: true, manageOwnPricing: true, managePromotions: true, managePlatformPricing: false }),
 });
 
 function capabilityPolicyFor(value) {

@@ -72,7 +72,7 @@ for (const file of tableFiles) {
 check('Every rendered table is contained by an internal scroller', uncontainedTables.length === 0, uncontainedTables.join(', '));
 
 const serviceRegistry = read('src/config/serviceRegistry.js');
-['bus','hotel','flight','local_transport'].forEach((key) => check(`${key} is an active bookable service`, new RegExp(`${key}:[\\s\\S]*status: 'active'[\\s\\S]*bookable: true`).test(serviceRegistry)));
+['bus','hotel','flight','local_transport','tour','car_rental','cargo'].forEach((key) => check(`${key} is an active bookable service`, new RegExp(`${key}:[\\s\\S]*status: 'active'[\\s\\S]*bookable: true`).test(serviceRegistry)));
 
 const app = read('src/app.js');
 [

@@ -174,6 +174,9 @@ router.post('/company/drivers/:id/profile', requireVerifiedCompany, operationsCo
 router.post('/company/drivers/:id/activate', requireVerifiedCompany, requireCompanyService('bus'), operationsController.activateDriver);
 router.post('/company/drivers/:id/assign', requireVerifiedCompany, operationsController.assignDriver);
 router.post('/company/promotions', promotionController.create);
+router.post('/company/promotions/:id/pause', promotionController.pause);
+router.post('/company/promotions/:id/resume', promotionController.resume);
+router.post('/company/promotions/:id/end', promotionController.end);
 router.post('/company/settings', actionController.updateSettings);
 router.post('/company/payouts', requireVerifiedCompany, actionController.requestPayout);
 router.post('/company/support/notices', actionController.createNotice);

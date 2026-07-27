@@ -8,8 +8,9 @@ const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 
-const SERVICE_LABELS = { bus: 'Bus', hotel: 'Stay', flight: 'Flight', local_transport: 'Local ride' };
-const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport'];
+const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
+const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
+const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
@@ -203,16 +204,16 @@ function catalogItem(data, listing) {
   const from = listing.from || route.origin || route.from || listing.city || '';
   const to = listing.to || route.destination || route.to || listing.location || '';
   const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
-  const inventoryRequired = ['bus', 'hotel', 'flight'].includes(serviceType);
+  const inventoryRequired = ['bus', 'hotel', 'flight', 'tour', 'car_rental'].includes(serviceType);
   const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && (!inventoryRequired || remainingInventory > 0);
   const policy = text(listing.policy || listing.cancellationRules || listing.cancellationPolicy || listing.refundPolicy);
   const nextDepartAt = nextSchedule?.departAt || listing.nextDepartAt || null;
   const nextDepartDate = asDate(nextDepartAt);
   const nextDepartLabel = nextDepartDate
     ? nextDepartDate.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: nextSchedule?.timezone || 'UTC' })
-    : serviceType === 'hotel' ? 'Choose stay dates' : serviceType === 'local_transport' ? 'Request now or schedule' : '';
+    : serviceType === 'hotel' ? 'Choose stay dates' : serviceType === 'local_transport' ? 'Request now or schedule' : serviceType === 'tour' ? 'Choose an activity date' : serviceType === 'car_rental' ? 'Choose pickup and return dates' : serviceType === 'cargo' ? 'Choose pickup details' : '';
   const bookableReason = bookable
-    ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : 'Live inventory available')
+    ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : serviceType === 'tour' ? 'Tour capacity available' : serviceType === 'car_rental' ? 'Vehicle available' : serviceType === 'cargo' ? 'Cargo booking available' : 'Live inventory available')
     : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
   const enriched = {
     id: stableId,
@@ -226,6 +227,19 @@ function catalogItem(data, listing) {
     policy,
     cancellationRules: listing.cancellationRules || policy,
     serviceNotes: listing.serviceNotes || '',
+    stayType: listing.stayType || listing.propertyType || '',
+    pricingUnit: listing.pricingUnit || 'per_booking',
+    inventory: number(listing.inventory),
+    durationMinutes: number(listing.durationMinutes),
+    maxGuests: number(listing.maxGuests),
+    vehicleCategory: listing.vehicleCategory || '',
+    transmission: listing.transmission || '',
+    fuelType: listing.fuelType || '',
+    seatsCount: number(listing.seatsCount),
+    cargoTypes: Array.isArray(listing.cargoTypes) ? listing.cargoTypes : [],
+    weightLimitKg: number(listing.weightLimitKg),
+    packageLimit: number(listing.packageLimit),
+    serviceDetails: listing.serviceDetails || {},
     amenities: Array.isArray(listing.amenities) ? listing.amenities : [],
     salesChannels: Array.isArray(listing.salesChannels) ? listing.salesChannels : [],
     baggageRules: listing.baggageRules || '',
@@ -263,7 +277,7 @@ function catalogItem(data, listing) {
     availability: remainingInventory,
     availableSeats,
     availableRooms: roomInventory,
-    unitsLabel: serviceType === 'bus' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'hotel' ? `${remainingInventory} room${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'flight' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : 'On-demand and scheduled rides',
+    unitsLabel: serviceType === 'bus' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'hotel' ? `${remainingInventory} room${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'flight' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'tour' ? `${remainingInventory} place${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'car_rental' ? `${remainingInventory} vehicle${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'cargo' ? 'Pickup and delivery capacity available' : 'On-demand and scheduled rides',
     priceFrom,
     price: priceFrom,
     fullRoutePrice: number(fareCatalog.fullRoutePrice || priceFrom),
@@ -302,6 +316,7 @@ function applySearch(items, query = {}) {
   const origin = normalize(query.origin || query.from);
   const destination = normalize(query.destination || query.to);
   const partner = normalize(query.partner || query.company);
+  const stayType = normalize(query.stayType || query.propertyType || '');
   const min = number(query.minPrice || query.min);
   const max = number(query.maxPrice || query.max);
   const minRating = number(query.minRating || query.rating);
@@ -313,6 +328,13 @@ function applySearch(items, query = {}) {
     if (origin && !normalize(item.from).includes(origin)) return false;
     if (destination && !normalize(item.to).includes(destination)) return false;
     if (partner && !normalize(`${item.partner} ${item.companyName}`).includes(partner)) return false;
+    if (stayType) {
+      const itemStayType = normalize(item.stayType);
+      const staySearchText = normalize(`${item.stayType} ${item.type} ${item.sub} ${item.amenities?.join(' ')} ${item.title} ${item.description}`);
+      const airbnbTypes = new Set(['airbnb', 'entire_home', 'entire_place', 'home', 'apartment', 'villa', 'cottage', 'cabin', 'homestay', 'private_room', 'shared_room']);
+      const matchesAirbnb = stayType === 'airbnb' && (airbnbTypes.has(itemStayType) || /airbnb|entire home|private room|shared room|holiday home|vacation home/.test(staySearchText));
+      if (!matchesAirbnb && itemStayType !== stayType && !staySearchText.includes(stayType)) return false;
+    }
     if (min && item.priceFrom < min) return false;
     if (max && item.priceFrom > max) return false;
     if (minRating && item.ratingAverage < minRating) return false;
@@ -426,6 +448,7 @@ function availability(data, listing) {
   const selected = schedules[0];
   if (serviceType === 'bus') return { listing, schedules, scheduleId: entityId(selected), seats: selected ? scheduleSeats(data, entityId(selected)) : [] };
   if (serviceType === 'hotel') return { listing, rooms: listingRooms(data, listingId) };
+  if (['tour', 'car_rental', 'cargo'].includes(serviceType)) return { listing, remainingInventory: number(listing.remainingInventory || listing.inventory), serviceType };
   return null;
 }
 
@@ -439,11 +462,11 @@ function listingPreview(data, listing, currentAvailability, company) {
   return {
     currency: fareCatalog.currency || listing.currency || data.platformConfig?.defaultCurrency || '', subtotal, serviceFee: customerFees.totalFees, totalEstimate: customerFees.total,
     fareProducts: fareCatalog.products, fullRoutePrice: fareCatalog.fullRoutePrice,
-    serviceIcon: ({ hotel: 'fa-hotel', bus: 'fa-bus' })[listing.serviceType] || 'fa-ticket',
+    serviceIcon: ({ hotel: 'fa-hotel', bus: 'fa-bus', tour: 'fa-map-location-dot', car_rental: 'fa-car-side', cargo: 'fa-box' })[listing.serviceType] || 'fa-ticket',
     previewSeats: seats, previewRooms: rooms.slice(0, 12),
     firstSeat: seats.find((row) => normalize(row.status) === 'available')?.seatNumber || seats[0]?.seatNumber || '',
     firstRoom: entityId(rooms.find((row) => number(row.inventory) > 0) || rooms[0] || {}),
-    selectedPreview: listing.serviceType === 'hotel' ? (rooms[0]?.roomType || rooms[0]?.name || '') : (seats[0]?.seatNumber || ''),
+    selectedPreview: listing.serviceType === 'hotel' ? (rooms[0]?.roomType || rooms[0]?.name || '') : listing.serviceType === 'bus' ? (seats[0]?.seatNumber || '') : listing.serviceType === 'tour' ? 'Tour date and participants' : listing.serviceType === 'car_rental' ? 'Pickup and return dates' : listing.serviceType === 'cargo' ? 'Pickup and delivery details' : '',
     addons: (data.serviceAddons || [])
       .filter((row) => sameId(row.listingId, listing) && normalize(row.serviceType || listing.serviceType) === normalize(listing.serviceType) && normalize(row.status) === 'active' && number(row.price) >= 0)
       .sort((a, b) => number(a.sortOrder) - number(b.sortOrder) || String(a.name || '').localeCompare(String(b.name || '')))

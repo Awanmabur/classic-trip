@@ -1,9 +1,32 @@
-# Classic Trip — Bus, Stays & Homes, Flight Agents and Safe Local Mobility
+# Classic Trip — Complete East Africa Travel and Service Marketplace
 
-Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, verified stays and homes, flights plus simple platform-dispatched boda and car rides**. The operational service registry exposes `bus`, `hotel`, `flight` and `local_transport`; unfinished future categories remain explicitly non-bookable.
+Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, verified stays and Airbnb-style homes, flights, platform-dispatched boda and car rides, tours and activities, car rentals, and cargo or parcel delivery**. The operational service registry exposes seven active, bookable services: `bus`, `hotel`, `flight`, `local_transport`, `tour`, `car_rental` and `cargo`.
 
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
+
+
+## Seven-service marketplace completion
+
+Classic Trip now uses real service-specific workflows instead of treating new categories as labels or generic bus bookings:
+
+- **Tours and activities:** dated capacity, participant counts, meeting points, pickup details, per-person pricing, atomic capacity reduction, cancellation/payment-failure release, QR vouchers and PDFs.
+- **Car rentals:** vehicle inventory, pickup and return dates/times, rental-day pricing, pickup/return locations, driver options, atomic availability, rental vouchers and PDFs.
+- **Cargo and parcels:** pickup date, pickup/delivery locations, package count, weight, dimensions, cargo type, recipient details, unit/per-package/per-kilogram pricing, shipment receipts and PDFs.
+- **Airbnb-style stays:** public `/airbnb` discovery uses the existing canonical stay inventory and booking engine while filtering entire homes, apartments, villas, cottages, cabins, homestays, private rooms and shared rooms.
+- **Post-booking documents:** booking history, confirmations, QR instructions, public ticket pages and PDF generation retain the correct service identity for every one of the seven services.
+
+Run the dependency-free completion contract with:
+
+```bash
+npm run check:seven-services
+```
+
+## Partner promotion and blog operations
+
+Verified partners can open **Promote Services** from their dashboard, select only their own published listing, set placement, budget and dates, then pause, resume or end the campaign. Sponsored state and campaign records are stored in MongoDB and dashboard/public caches are invalidated after changes.
+
+Super Admin and authorised Content Admin users can create, edit, publish, return to draft and archive blog posts from the dashboard. Published posts appear at `/blogs` and `/blogs/:slug`; drafts and archives remain private.
 
 ## Stays and Airbnb-style hosting
 
@@ -96,7 +119,7 @@ npm run start:prod
 
 ## Performance architecture
 
-- The homepage reads only active, published records and live inventory for the four production services.
+- The homepage reads only active, published records and live inventory or capacity for all seven production services.
 - Its read model is prewarmed, deduplicated and cached with stale-while-revalidate behaviour.
 - Dashboard snapshots and role projections are cached briefly and invalidated automatically after writes.
 - Successful login no longer waits for device/audit persistence after the secure session is saved.
@@ -130,7 +153,7 @@ This release uses the UI from the user-provided reference archive as the visual 
 - The accessibility layer restores keyboard focus, reduced-motion and forced-colour support without changing dimensions, radii, colours or layout.
 - Dynamic seat groups, checkout alignment, manifests and completed operation panels are added through feature-specific selectors rather than edits to the reference CSS.
 
-Run `npm run check:reference-ui` to verify the exact reference hashes, absence of destructive global styles, scoped extension boundaries and all four active services.
+Run `npm run check:reference-ui` to verify the exact reference hashes, absence of destructive global styles, scoped extension boundaries and all seven active services.
 
 ## Runtime health and deployment lifecycle
 
@@ -211,13 +234,16 @@ The fresh-install default is 10% commission. Promoters receive 30% of Classic Tr
 
 ## Complete dashboard service coverage
 
-The Super Admin console and role dashboards expose all four production services and the correct partner models. Dashboard records are projections of the canonical MongoDB entities; no dashboard keeps an isolated copy of operational data.
+The Super Admin console and role dashboards expose all seven production services and the correct partner models. Dashboard records are projections of the canonical MongoDB entities; no dashboard keeps an isolated copy of operational data.
 
 Super Admin service and partner workspaces include:
 
-- Bus Providers and Hotel Providers
+- Bus Providers and Stay/Airbnb Hosts
 - Flight Agents plus platform-owned airline, airport, supplier, route, seat-map, fare and departure controls
 - Local Mobility supply, including platform ride classes, zones, fare rules and automatic dispatch
+- Tour Operators with dated capacity, meeting points and participant reservations
+- Car Rental Partners with vehicle availability, pickup and return periods, and self-drive or chauffeured options
+- Cargo Partners with coverage, pickup/delivery routes, package counts, weights, recipients and shipment limits
 - Individual Boda Riders and Car Drivers
 - Fleet and Rental Owners
 - Mobility Companies

@@ -26,12 +26,12 @@ describe('MongoDB user identity contract', () => {
 });
 
 describe('service roadmap contract', () => {
-  test('the four completed travel verticals are operational', () => {
-    expect(ACTIVE_SERVICE_TYPES).toEqual(['bus', 'hotel', 'flight', 'local_transport']);
+  test('all completed marketplace verticals are operational', () => {
+    expect(ACTIVE_SERVICE_TYPES).toEqual(['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']);
   });
 
-  test('future categories remain visible but non-bookable', () => {
-    expect(COMING_SOON_SERVICE_TYPES).toEqual(['tour', 'car_rental', 'cargo']);
-    expect(serviceDefinition('flight')).toMatchObject({ status: 'active', bookable: true });
+  test('there are no placeholder-only marketplace categories', () => {
+    expect(COMING_SOON_SERVICE_TYPES).toEqual([]);
+    expect(serviceDefinition('cargo')).toMatchObject({ status: 'active', bookable: true });
   });
 });

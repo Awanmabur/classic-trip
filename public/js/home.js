@@ -22,6 +22,9 @@
     hotel: { container: 'hotelCards', section: 'hotel', label: 'hotels' },
     flight: { container: 'flightCards', section: 'flight', label: 'flights' },
     local_transport: { container: 'taxiCards', section: 'local-transport', label: 'local rides' },
+    tour: { container: 'tourCards', section: 'tour', label: 'tours and activities' },
+    car_rental: { container: 'rentalCards', section: 'car-rental', label: 'car rentals' },
+    cargo: { container: 'cargoCards', section: 'cargo', label: 'cargo services' },
   };
 
   const serviceIcons = {
@@ -29,6 +32,9 @@
     hotel: 'fa-hotel',
     flight: 'fa-plane',
     local_transport: 'fa-taxi',
+    tour: 'fa-map-location-dot',
+    car_rental: 'fa-car-side',
+    cargo: 'fa-box',
   };
 
   const initialLimit = () => (window.matchMedia('(max-width: 680px)').matches ? 3 : 6);
@@ -183,11 +189,14 @@
     const isHotel = type === 'hotel';
     const isFlight = type === 'flight';
     const isTaxi = type === 'local_transport';
+    const isTour = type === 'tour';
+    const isRental = type === 'car_rental';
+    const isCargo = type === 'cargo';
     const icon = serviceIcons[type] || 'fa-ticket';
     const badge = availabilityBadge(item);
     const image = safeImageUrl(item.img || item.image || item.media?.[0]?.url || '');
     const route = item.routeLabel || [item.from, item.to].filter(Boolean).join(' → ');
-    const place = (isBus || isFlight) ? (route || item.location || 'Route information') : (item.location || item.city || route || (isTaxi ? 'Service zone' : 'Property location'));
+    const place = (isBus || isFlight || isCargo) ? (route || item.location || item.city || 'Route information') : (item.location || item.city || route || (isTaxi ? 'Service zone' : isTour ? 'Meeting area' : isRental ? 'Pickup location' : 'Property location'));
     const rating = Number(item.ratingAverage || item.rating);
     const ratingText = Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : 'New';
     const partner = item.partner || item.companyName || 'Service partner';
@@ -197,9 +206,9 @@
       ? 'Public bus service with live departure and seat availability.'
       : isHotel ? 'Verified stay with dated availability and secure booking.'
         : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
-          : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : 'Verified travel service.');
+          : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : isTour ? 'Verified activity with published capacity, guide details and secure booking.' : isRental ? 'Verified vehicle rental with pickup, return and live availability.' : isCargo ? 'Verified parcel and freight movement with pickup and delivery details.' : 'Verified travel service.');
     const priceHint = item.bookable
-      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : 'Starting price')
+      ? (isBus ? 'Starting fare · choose boarding and drop-off' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
     return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
@@ -207,7 +216,7 @@
         <div class="thumb">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
           <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
-          <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Hotel' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : 'Service'))}</span></div>
+          <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Stay' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : isTour ? 'Tour' : isRental ? 'Car rental' : isCargo ? 'Cargo' : 'Service'))}</span></div>
         </div>
       </a>
       <div class="listingBody">
@@ -326,10 +335,10 @@
     const params = new URLSearchParams({ serviceType });
     const date = $('#dateInput')?.value;
     if (date) params.set('date', date);
-    if (serviceType === 'hotel') {
+    if (serviceType === 'hotel' || serviceType === 'tour') {
       const city = $('#cityInput')?.value.trim();
       if (city) params.set('city', city);
-      return window.location.assign(`/search?${params.toString()}`);
+      return window.location.assign(serviceType === 'tour' ? `/tours?${params.toString()}` : `/search?${params.toString()}`);
     }
     const origin = $('#fromInput')?.value.trim();
     const destination = $('#toInput')?.value.trim();
@@ -337,6 +346,8 @@
     if (destination) params.set('destination', destination);
     if (serviceType === 'flight') return window.location.assign(`/flights?${params.toString()}`);
     if (serviceType === 'local_transport') return window.location.assign(`/taxi?${params.toString()}`);
+    if (serviceType === 'car_rental') return window.location.assign(`/car-rentals?${params.toString()}`);
+    if (serviceType === 'cargo') return window.location.assign(`/cargo?${params.toString()}`);
     window.location.assign(`/search?${params.toString()}`);
   }
 
@@ -364,6 +375,8 @@
     localStorage.setItem('classicTripTheme', normalized);
     const icon = $('#themeIcon');
     if (icon) icon.className = normalized === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.setAttribute('content', normalized === 'dark' ? '#070a12' : '#f8fafc');
   }
 
   function shareDataset(button) {
@@ -376,8 +389,8 @@
   setupDrawerFilters();
   render();
 
-  const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme');
-  if (savedTheme) setTheme(savedTheme);
+  const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'light';
+  setTheme(savedTheme);
   const dateInput = $('#dateInput');
   if (dateInput) dateInput.min = new Date().toISOString().slice(0, 10);
 
@@ -391,15 +404,15 @@
     if (!tab) return;
     $$('.tab', $('#searchTabs')).forEach((item) => item.classList.toggle('active', item === tab));
     const type = tab.dataset.type || 'bus';
-    const hotel = type === 'hotel';
-    $('#cityField')?.classList.toggle('hide', !hotel);
-    $('#fromField')?.classList.toggle('hide', hotel);
-    $('#toField')?.classList.toggle('hide', hotel);
+    const cityOnly = type === 'hotel' || type === 'tour';
+    $('#cityField')?.classList.toggle('hide', !cityOnly);
+    $('#fromField')?.classList.toggle('hide', cityOnly);
+    $('#toField')?.classList.toggle('hide', cityOnly);
     const fromInput = $('#fromInput'); const toInput = $('#toInput');
-    if (fromInput) fromInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Pickup address' : 'From city';
-    if (toInput) toInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Destination' : 'To city';
-    const dateLabel = $('#dateLabel'); if (dateLabel) dateLabel.textContent = type === 'hotel' ? 'Check-in' : type === 'local_transport' ? 'Pickup date' : 'Date';
-    const peopleLabel = $('#peopleLabel'); if (peopleLabel) peopleLabel.textContent = type === 'hotel' ? 'Guests / rooms' : type === 'local_transport' ? 'Passengers' : 'Travelers / seats';
+    if (fromInput) fromInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Pickup address' : type === 'car_rental' ? 'Pickup city or branch' : type === 'cargo' ? 'Pickup location' : 'From city';
+    if (toInput) toInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Destination' : type === 'car_rental' ? 'Return city or branch' : type === 'cargo' ? 'Delivery location' : 'To city';
+    const dateLabel = $('#dateLabel'); if (dateLabel) dateLabel.textContent = type === 'hotel' ? 'Check-in' : type === 'local_transport' || type === 'car_rental' || type === 'cargo' ? 'Pickup date' : type === 'tour' ? 'Activity date' : 'Date';
+    const peopleLabel = $('#peopleLabel'); if (peopleLabel) peopleLabel.textContent = type === 'hotel' ? 'Guests / rooms' : type === 'local_transport' ? 'Passengers' : type === 'tour' ? 'Participants' : type === 'car_rental' ? 'Passengers' : type === 'cargo' ? 'Packages' : 'Travelers / seats';
   });
 
   document.addEventListener('click', (event) => {

@@ -1876,7 +1876,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const currentRole = shell.currentRole || 'admin';
     const isCompanyRole = currentRole === 'company';
     const isEmployeeRole = currentRole === 'employee';
-    const serviceListingTypes = ['bus','hotel'];
+    const serviceListingTypes = ['bus','hotel','tour','car_rental','cargo'];
     const requestedServiceListing = serviceListingTypes.find(serviceType => key === `${serviceType} listing` || key === `${serviceType.replace('_', '-')} listing`);
     const requestedServiceLabel = requestedServiceListing ? requestedServiceListing.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
     const companyServiceType = String(companyServiceProfile.primaryServiceType || 'partner').replace('-', '_');
@@ -1889,12 +1889,18 @@ window.addEventListener('DOMContentLoaded', function () {
       hotel: ['Front Desk','Housekeeping','Hotel Manager','Inventory Manager','Finance','Support','Report Viewer'],
       flight: ['Flight Sales Agent','Flight Ticketing Agent','Flight Customer Support','Agency Finance','Report Viewer'],
       local_transport: ['Mobility Fleet Manager','Mobility Driver Coordinator','Mobility Customer Support','Safety Officer','Finance','Report Viewer'],
+      tour: ['Tour Manager','Guide Coordinator','Guest Support','Inventory Manager','Finance','Report Viewer'],
+      car_rental: ['Rental Manager','Fleet Coordinator','Customer Support','Inventory Manager','Finance','Report Viewer'],
+      cargo: ['Cargo Manager','Dispatch Coordinator','Shipment Support','Inventory Manager','Finance','Report Viewer'],
     };
     const staffPermissionOptionsByService = {
       bus: [{value:'booking.view',label:'View bookings'},{value:'booking.create_manual',label:'Create counter bookings'},{value:'checkin.scan',label:'Scan tickets'},{value:'checkin.manage',label:'Check in passengers'},{value:'checkin.no_show',label:'Mark no-show'},{value:'manifest.view',label:'View manifests'},{value:'inventory.update',label:'Update seat inventory'},{value:'schedule.update',label:'Manage routes and schedules'},{value:'schedule.delay_notice',label:'Send delay notices'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage support'},{value:'customer.note',label:'Add customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
       hotel: [{value:'booking.view',label:'View reservations'},{value:'booking.create_manual',label:'Create front-desk bookings'},{value:'checkin.manage',label:'Check guests in/out'},{value:'checkin.no_show',label:'Mark hotel no-show'},{value:'manifest.view',label:'View hotel manifests'},{value:'inventory.update',label:'Room inventory / housekeeping'},{value:'payment.record',label:'Record payments'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage guest support'},{value:'customer.note',label:'Add guest notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
       flight: [{value:'booking.view',label:'View agency flight orders'},{value:'booking.create_manual',label:'Create customer quotes and assisted orders'},{value:'payment.record',label:'Record approved agency payments'},{value:'refund.request',label:'Request changes or refunds'},{value:'support.manage',label:'Manage traveler support'},{value:'support.note',label:'Add internal support notes'},{value:'customer.note',label:'Add traveler notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View agency reports'},{value:'profile.update',label:'Update own profile'}],
       local_transport: [{value:'booking.view',label:'View assigned rides'},{value:'inventory.update',label:'Manage own approved fleet availability'},{value:'trip.status.update',label:'Update assigned ride status'},{value:'incident.create',label:'Create safety incidents'},{value:'refund.request',label:'Request ride refunds'},{value:'support.manage',label:'Manage rider support'},{value:'support.note',label:'Add internal support notes'},{value:'customer.note',label:'Add assigned customer notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View mobility reports'},{value:'profile.update',label:'Update own profile'}],
+      tour: [{value:'booking.view',label:'View tour bookings'},{value:'booking.create_manual',label:'Create assisted bookings'},{value:'inventory.update',label:'Manage tour capacity'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage guest support'},{value:'customer.note',label:'Add guest notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
+      car_rental: [{value:'booking.view',label:'View rental bookings'},{value:'booking.create_manual',label:'Create assisted bookings'},{value:'inventory.update',label:'Manage rental availability'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage renter support'},{value:'customer.note',label:'Add renter notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
+      cargo: [{value:'booking.view',label:'View cargo bookings'},{value:'booking.create_manual',label:'Create assisted shipments'},{value:'inventory.update',label:'Manage shipment capacity'},{value:'refund.request',label:'Request refunds'},{value:'support.manage',label:'Manage shipment support'},{value:'customer.note',label:'Add shipment notes'},{value:'handover.create',label:'Create shift handovers'},{value:'reports.view',label:'View reports'},{value:'profile.update',label:'Update own profile'}],
     };
     const staffRoleOptions = staffRoleOptionsByService[companyServiceType] || staffRoleOptionsByService.bus;
     const staffPermissionOptions = staffPermissionOptionsByService[companyServiceType] || staffPermissionOptionsByService.bus;
@@ -2111,28 +2117,39 @@ window.addEventListener('DOMContentLoaded', function () {
     if (isCompanyRole && mode === 'edit' && key === 'listing') return {
       action: editActionFor('listing'), submit: 'Save listing changes',
       fields: [
-        ...(companyServiceType === 'bus' ? [{ type:'smart-summary', label:'Smart bus listing', help:'Select the operating terminal and its verified location details are reused automatically.' }] : []),
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, value: fieldValue('listing.title','title') },
-        { name:'branchId', label:'Primary branch / terminal / property desk', type:'select', icon:'fa-building', options:branches, value: fieldValue('listing.branchId','branchId'), help:'This connects the public listing to the operating location.' },
-        ...(companyServiceType === 'bus' ? [
-          { name:'shortDescription', label:'Short public description', icon:'fa-align-left', required:true, value: fieldValue('listing.shortDescription','listing.sub','shortDescription') },
-          { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', value: fieldValue('listing.operatorLicenceRef','operatorLicenceRef') },
-          { name:'contactPhone', label:'Booking support phone', icon:'fa-phone', value: fieldValue('listing.contactPhone','contactPhone') },
-          { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'], value: fieldValue('listing.salesChannels','salesChannels') },
-          { name:'imageFile', label:'Add service image', type:'file', icon:'fa-image' }
-        ] : []),
-        ...(companyServiceType === 'hotel' ? [{ name:'city', label:'City', icon:'fa-location-dot', value: fieldValue('listing.city','service.city','city') }] : []),
-        ...(companyServiceType === 'hotel' ? [
-          { name:'from', label:'Location / area', icon:'fa-location-dot', value: fieldValue('listing.from','service.from','from') },
-          { name:'to', label:'Nearby landmark', icon:'fa-location-dot', value: fieldValue('listing.to','service.to','to') }
-        ] : []),
-        ...(companyServiceType === 'bus' ? [
-          { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, value: fieldValue('listing.baggageRules','baggageRules') },
-          { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, value: fieldValue('listing.cancellationRules','cancellationRules') }
-        ] : [{ name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', value: fieldValue('listing.priceFrom','inventory.basePrice','priceFrom') }]),
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','paused','archived'], value: fieldValue('listing.status','status') || 'draft', help: companyServiceType === 'bus' ? 'Active is allowed only after the profile, route, compliant vehicle, published seat map, active fare, active verified and safety-cleared driver, live inventory and at least one future published dated departure are complete.' : '' },
-        { name:'description', label:'Description', type:'textarea', full:true, value: fieldValue('listing.description','listing.sub','description') }
+        { name:'branchId', label:'Primary branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, value: fieldValue('listing.branchId','branchId') },
+        { name:'city', label:'City / operating area', icon:'fa-location-dot', value: fieldValue('listing.city','city'), showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'from', label:'Start / pickup / origin', icon:'fa-location-dot', value: fieldValue('listing.from','from'), showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'to', label:'End / return / destination', icon:'fa-location-dot', value: fieldValue('listing.to','to'), showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'address', label:'Address', icon:'fa-map-pin', value: fieldValue('listing.address','address'), showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'stayType', label:'Stay type', type:'select', icon:'fa-house', options:[{value:'hotel',label:'Hotel / lodge / resort'},{value:'entire_home',label:'Entire home / Airbnb-style stay'},{value:'apartment',label:'Apartment'},{value:'villa',label:'Villa'},{value:'cottage',label:'Cottage / cabin'},{value:'private_room',label:'Private room'},{value:'shared_room',label:'Shared room'},{value:'homestay',label:'Homestay'}], value:fieldValue('listing.stayType','stayType') || 'hotel', showFor:'hotel' },
+        { name:'inventory', label:'Total inventory / capacity', type:'number', icon:'fa-boxes-stacked', value:fieldValue('listing.inventory','inventory'), showFor:['tour','car_rental','cargo'] },
+        { name:'remainingInventory', label:'Currently available', type:'number', icon:'fa-circle-check', value:fieldValue('listing.remainingInventory','remainingInventory'), showFor:['tour','car_rental','cargo'] },
+        { name:'meetingPoint', label:'Meeting point', icon:'fa-location-crosshairs', value:fieldValue('listing.serviceDetails.meetingPoint','meetingPoint'), showFor:'tour' },
+        { name:'durationMinutes', label:'Duration (minutes)', type:'number', icon:'fa-clock', value:fieldValue('listing.durationMinutes','durationMinutes'), showFor:'tour' },
+        { name:'maxGuests', label:'Maximum guests', type:'number', icon:'fa-users', value:fieldValue('listing.maxGuests','maxGuests'), showFor:'tour' },
+        { name:'minimumAge', label:'Minimum age', type:'number', icon:'fa-child-reaching', value:fieldValue('listing.minimumAge','minimumAge'), showFor:'tour' },
+        { name:'included', label:'Included', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.included','included'), showFor:'tour' },
+        { name:'excluded', label:'Excluded', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.excluded','excluded'), showFor:'tour' },
+        { name:'pickupLocation', label:'Pickup location', icon:'fa-location-dot', value:fieldValue('listing.serviceDetails.pickupLocation','pickupLocation'), showFor:'car_rental' },
+        { name:'returnLocation', label:'Return location', icon:'fa-rotate-left', value:fieldValue('listing.serviceDetails.returnLocation','returnLocation'), showFor:'car_rental' },
+        { name:'vehicleCategory', label:'Vehicle category', type:'select', icon:'fa-car-side', options:['economy','sedan','suv','van','pickup','luxury','motorcycle'], value:fieldValue('listing.vehicleCategory','vehicleCategory'), showFor:'car_rental' },
+        { name:'transmission', label:'Transmission', type:'select', icon:'fa-gears', options:['automatic','manual'], value:fieldValue('listing.transmission','transmission'), showFor:'car_rental' },
+        { name:'fuelType', label:'Fuel type', type:'select', icon:'fa-gas-pump', options:['petrol','diesel','hybrid','electric'], value:fieldValue('listing.fuelType','fuelType'), showFor:'car_rental' },
+        { name:'seatsCount', label:'Passenger seats', type:'number', icon:'fa-users', value:fieldValue('listing.seatsCount','seatsCount'), showFor:'car_rental' },
+        { name:'driverOption', label:'Driver option', type:'select', icon:'fa-user-tie', options:[{value:'self_drive',label:'Self-drive only'},{value:'with_driver',label:'With driver only'},{value:'both',label:'Self-drive or driver'}], value:fieldValue('listing.serviceDetails.driverOption','driverOption'), showFor:'car_rental' },
+        { name:'cargoTypes', label:'Accepted cargo types', type:'multiselect', icon:'fa-box', options:['documents','parcels','food','electronics','furniture','building_materials','agricultural_goods','general_goods'], value:fieldValue('listing.cargoTypes','cargoTypes'), showFor:'cargo' },
+        { name:'weightLimitKg', label:'Maximum weight (kg)', type:'number', icon:'fa-weight-hanging', value:fieldValue('listing.weightLimitKg','weightLimitKg'), showFor:'cargo' },
+        { name:'packageLimit', label:'Maximum packages', type:'number', icon:'fa-boxes-stacked', value:fieldValue('listing.packageLimit','packageLimit'), showFor:'cargo' },
+        { name:'pricingUnit', label:'Pricing unit', type:'select', icon:'fa-scale-balanced', options:[{value:'per_shipment',label:'Per shipment'},{value:'per_kg',label:'Per kilogram'},{value:'per_package',label:'Per package'}], value:fieldValue('listing.pricingUnit','pricingUnit'), showFor:'cargo' },
+        { name:'deliveryAreas', label:'Delivery areas', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.deliveryAreas','deliveryAreas'), showFor:'cargo' },
+        { name:'cargoDescription', label:'Cargo handling details', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.cargoDescription','cargoDescription'), showFor:'cargo' },
+        { name:'imageFile', label:'Add service image', type:'file', icon:'fa-image' },
+        { name:'priceFrom', label:'Price from / unit price', type:'number', icon:'fa-coins', value: fieldValue('listing.priceFrom','priceFrom'), showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','paused','archived'], value: fieldValue('listing.status','status') || 'draft' },
+        { name:'description', label:'Description', type:'textarea', full:true, required:true, value: fieldValue('listing.description','listing.sub','description') }
       ]
     };
     if (isCompanyRole && mode === 'edit' && key === 'route') return {
@@ -2467,37 +2484,54 @@ window.addEventListener('DOMContentLoaded', function () {
       fields: [
         ...(companyServiceType === 'bus' ? [{ type:'smart-summary', label:'Smart bus listing', help:'Select the operating terminal and city, country and address are reused instead of typed again.' }] : []),
         { name:'serviceType', type:'hidden', value: companyServiceType },
-        { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, placeholder: companyServiceType === 'hotel' ? 'Enter the property listing title' : 'Enter the public bus service name' },
-        { name:'branchId', label:'Branch / terminal / property', type:'select', icon:'fa-building', options:branches, required: companyServiceType === 'bus', help: companyServiceType === 'bus' ? 'Country, city and address are inherited from this terminal.' : 'Select a saved branch or property desk when applicable.' },
+        { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, placeholder: companyServiceType === 'hotel' ? 'Enter the property listing title' : companyServiceType === 'tour' ? 'Kampala city and culture experience' : companyServiceType === 'car_rental' ? 'Toyota SUV daily rental' : companyServiceType === 'cargo' ? 'Kampala to Juba cargo delivery' : 'Enter the public bus service name' },
+        { name:'branchId', label:'Branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, required: companyServiceType === 'bus', help:'Select an existing operating location when one is available.' },
         ...(companyServiceType === 'bus' ? [
           { name:'shortDescription', label:'Short public description', icon:'fa-align-left', required:true, placeholder:'Verified bus service with daily departures' },
           { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', placeholder:'Bus operator licence reference' },
           { name:'contactPhone', label:'Booking support phone', icon:'fa-phone', placeholder:'Enter phone number' },
-          { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'] },
-          { name:'imageFile', label:'Bus service image', type:'file', icon:'fa-image', required:true, help:'Upload at least one real service or fleet image before publication.' }
+          { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'] }
         ] : []),
-        ...(companyServiceType === 'hotel' ? [{ name:'city', label:'City', icon:'fa-location-dot', placeholder:'Enter the property city' }] : []),
-        ...(companyServiceType === 'hotel' ? [
-          { name:'from', label:'Location / area', icon:'fa-location-dot', placeholder:'Kampala' },
-          { name:'to', label:'Nearby landmark', icon:'fa-location-dot', placeholder:'City center' }
-        ] : []),
-        { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Plot 1 Main Street', showFor:['hotel'] },
-        { name:'layout', label:'Default layout', type:'select', icon:'fa-chair', options:['bus-2-2','bus-2-1'], showFor:['bus'] },
+        { name:'city', label:'City / operating area', icon:'fa-location-dot', placeholder:'Kampala', showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'from', label: companyServiceType === 'hotel' ? 'Location / area' : companyServiceType === 'cargo' ? 'Pickup / origin area' : 'Start / pickup location', icon:'fa-location-dot', placeholder:'Kampala', showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'to', label: companyServiceType === 'hotel' ? 'Nearby landmark' : companyServiceType === 'cargo' ? 'Delivery destination / coverage' : 'End / return location', icon:'fa-location-dot', placeholder: companyServiceType === 'cargo' ? 'Juba or nationwide delivery' : 'City centre', showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'address', label:'Address', icon:'fa-map-pin', placeholder:'Plot 1 Main Street', showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'stayType', label:'Stay type', type:'select', icon:'fa-house', options:[{value:'hotel',label:'Hotel / lodge / resort'},{value:'entire_home',label:'Entire home / Airbnb-style stay'},{value:'apartment',label:'Apartment'},{value:'villa',label:'Villa'},{value:'cottage',label:'Cottage / cabin'},{value:'private_room',label:'Private room'},{value:'shared_room',label:'Shared room'},{value:'homestay',label:'Homestay'}], value:'hotel', showFor:'hotel' },
         { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:'14:00', showFor:'hotel' },
         { name:'checkOutTime', label:'Check-out time', type:'time', icon:'fa-clock', value:'11:00', showFor:'hotel' },
         { name:'amenities', label:'Amenities', type:'multiselect', icon:'fa-wifi', options:hotelAmenityOptions, showFor:['hotel'] },
         { name:'roomType', label:'First room type', icon:'fa-bed', placeholder:'Standard Queen', showFor:'hotel' },
         { name:'capacity', label:'Room capacity', type:'number', icon:'fa-users', value:'2', showFor:'hotel' },
         { name:'nightlyPrice', label:'Nightly price', type:'number', icon:'fa-coins', placeholder:'180000', showFor:'hotel' },
-        { name:'inventory', label:'Room stock', type:'number', icon:'fa-door-open', value:'1', showFor:'hotel' },
+        { name:'inventory', label: companyServiceType === 'tour' ? 'Available participant capacity' : companyServiceType === 'car_rental' ? 'Available vehicles' : companyServiceType === 'cargo' ? 'Available shipment slots (optional)' : 'Room stock', type:'number', icon:'fa-boxes-stacked', value:'1', showFor:['hotel','tour','car_rental','cargo'] },
+        { name:'meetingPoint', label:'Meeting point', icon:'fa-location-crosshairs', required:true, placeholder:'Main entrance, city square or hotel pickup', showFor:'tour' },
+        { name:'durationMinutes', label:'Duration (minutes)', type:'number', icon:'fa-clock', required:true, placeholder:'180', showFor:'tour' },
+        { name:'maxGuests', label:'Maximum guests', type:'number', icon:'fa-user-group', required:true, value:'10', showFor:'tour' },
+        { name:'minimumAge', label:'Minimum age', type:'number', icon:'fa-child-reaching', value:'0', showFor:'tour' },
+        { name:'included', label:'What is included', type:'textarea', full:true, placeholder:'Guide, entrance fees, drinking water', showFor:'tour' },
+        { name:'excluded', label:'What is not included', type:'textarea', full:true, placeholder:'Meals, personal expenses', showFor:'tour' },
+        { name:'pickupLocation', label:'Pickup location', icon:'fa-location-dot', required:true, placeholder:'Rental office or delivery location', showFor:'car_rental' },
+        { name:'returnLocation', label:'Return location', icon:'fa-rotate-left', required:true, placeholder:'Same office or another approved point', showFor:'car_rental' },
+        { name:'vehicleCategory', label:'Vehicle category', type:'select', icon:'fa-car-side', options:['economy','sedan','suv','van','pickup','luxury','motorcycle'], required:true, showFor:'car_rental' },
+        { name:'transmission', label:'Transmission', type:'select', icon:'fa-gears', options:['automatic','manual'], showFor:'car_rental' },
+        { name:'fuelType', label:'Fuel type', type:'select', icon:'fa-gas-pump', options:['petrol','diesel','hybrid','electric'], showFor:'car_rental' },
+        { name:'seatsCount', label:'Passenger seats', type:'number', icon:'fa-users', value:'5', showFor:'car_rental' },
+        { name:'driverOption', label:'Driver option', type:'select', icon:'fa-user-tie', options:[{value:'self_drive',label:'Self-drive only'},{value:'with_driver',label:'With driver only'},{value:'both',label:'Self-drive or driver'}], value:'both', showFor:'car_rental' },
+        { name:'cargoTypes', label:'Accepted cargo types', type:'multiselect', icon:'fa-box', options:['documents','parcels','food','electronics','furniture','building_materials','agricultural_goods','general_goods'], showFor:'cargo' },
+        { name:'weightLimitKg', label:'Maximum weight (kg)', type:'number', icon:'fa-weight-hanging', placeholder:'1000', showFor:'cargo' },
+        { name:'packageLimit', label:'Maximum packages per booking', type:'number', icon:'fa-boxes-stacked', value:'10', showFor:'cargo' },
+        { name:'pricingUnit', label:'Cargo pricing unit', type:'select', icon:'fa-scale-balanced', options:[{value:'per_shipment',label:'Per shipment'},{value:'per_kg',label:'Per kilogram'},{value:'per_package',label:'Per package'}], value:'per_shipment', showFor:'cargo' },
+        { name:'deliveryAreas', label:'Delivery areas', type:'textarea', full:true, placeholder:'Kampala, Entebbe, Gulu, Juba', showFor:'cargo' },
+        { name:'cargoDescription', label:'Cargo handling details', type:'textarea', full:true, placeholder:'Pickup windows, prohibited items and handling rules', showFor:'cargo' },
+        { name:'imageFile', label:'Service image', type:'file', icon:'fa-image', help:'Upload a real service, property, experience, vehicle or cargo image.' },
         { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus'] },
-        { name:'dropoffInstructions', label:'Dropoff instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus'] },
+        { name:'dropoffInstructions', label:'Drop-off instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus'] },
         ...(companyServiceType === 'bus' ? [
           { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, placeholder:'Included allowance and excess baggage rules' },
           { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, placeholder:'When changes, cancellations and refunds are allowed' }
-        ] : [{ name:'priceFrom', label:'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' }]),
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options: companyServiceType === 'bus' ? ['draft'] : ['draft','active','paused'], value:'draft', help: companyServiceType === 'bus' ? 'Create the profile as draft, then edit it to Active when the public image, contact, licence and policies are complete. Keep the listing as draft until a future published departure completes the exact route, vehicle, fare, seat-map, driver and inventory chain. Then edit the listing to Active.' : '' },
-        { name:'description', label:'Description', type:'textarea', full:true, placeholder:'Service details' }
+        ] : [{ name:'priceFrom', label: companyServiceType === 'hotel' ? 'Price from per night' : companyServiceType === 'tour' ? 'Price per participant' : companyServiceType === 'car_rental' ? 'Price per day' : companyServiceType === 'cargo' ? 'Base cargo price' : 'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' }]),
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options: companyServiceType === 'bus' ? ['draft'] : ['draft','active','paused'], value:'draft', help:'Publish only after all required service details, capacity and pricing are complete.' },
+        { name:'description', label:'Description', type:'textarea', full:true, required:true, placeholder:'Complete public service details' }
       ]
     };
     if (isCompanyRole && key === 'route') return {
@@ -3245,7 +3279,7 @@ window.addEventListener('DOMContentLoaded', function () {
           <div class="formGrid">
             <div class="field"><label>Company name</label><div class="control"><i class="fa-solid fa-building"></i><input name="name" placeholder="Enter company name" required></div></div>
             <div class="field"><label>Partner type</label><div class="control"><i class="fa-solid fa-briefcase"></i><select name="companyType"><option value="bus">Bus operator</option><option value="hotel">Accommodation provider</option><option value="flight">Flight services</option><option value="local_transport">Local mobility</option></select></div></div>
-            <div class="field"><label>Partner model</label><div class="control"><i class="fa-solid fa-user-tag"></i><select name="partnerCategory" data-depends-on="companyType" data-filter-key="serviceType" required><option value="" disabled selected>Select partner model</option><option value="bus_operator" data-service-type="bus">Bus operator</option><option value="hotel_partner" data-service-type="hotel">Hotel or stay partner</option><option value="flight_agent" data-service-type="flight">Accredited flight agent</option><option value="boda_rider" data-service-type="local_transport">Boda rider</option><option value="car_driver" data-service-type="local_transport">Car driver</option><option value="fleet_owner" data-service-type="local_transport">Vehicle or fleet owner</option><option value="taxi_company" data-service-type="local_transport">Mobility company</option></select></div></div>
+            <div class="field"><label>Partner model</label><div class="control"><i class="fa-solid fa-user-tag"></i><select name="partnerCategory" data-depends-on="companyType" data-filter-key="serviceType" required><option value="" disabled selected>Select partner model</option><option value="bus_operator" data-service-type="bus">Bus operator</option><option value="hotel_partner" data-service-type="hotel">Hotel or stay partner</option><option value="flight_agent" data-service-type="flight">Accredited flight agent</option><option value="boda_rider" data-service-type="local_transport">Boda rider</option><option value="car_driver" data-service-type="local_transport">Car driver</option><option value="fleet_owner" data-service-type="local_transport">Vehicle or fleet owner</option><option value="taxi_company" data-service-type="local_transport">Mobility company</option><option value="tour_operator" data-service-type="tour">Tour operator</option><option value="car_rental_partner" data-service-type="car_rental">Car rental partner</option><option value="cargo_partner" data-service-type="cargo">Cargo provider</option></select></div></div>
             <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><option value="" selected disabled>Select country</option>${countryOptions.map(item => `<option value="${escapeHtml(item.value)}" data-currency="${escapeHtml(item.currency)}" data-timezone="${escapeHtml(item.timezone)}">${escapeHtml(item.label)}</option>`).join('')}</select></div></div>
             <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><input name="operatingCurrency" value="${escapeHtml(platformDefaultCurrency)}" readonly></div><small class="fieldHelp">Set automatically from the selected country.</small></div>
             <div class="field"><label>Partner commission %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" name="commissionPercent" min="0" max="100" step="0.01" value="${escapeHtml(String(platformConfig.partnerCommissionPercent ?? 0))}" required></div><small class="fieldHelp">One percentage only. The partner receives the remainder.</small></div>

@@ -15,7 +15,7 @@
   const firstRoom = previewData.firstRoom || (previewRooms.find(room => room.inventory > 0) || previewRooms[0] || {}).id || '';
   const firstSeatDisplay = (previewSeats.find(seat => seat.seatNumber === firstSeat) || previewSeats[0] || {}).displaySeatLabel || '';
   const selectedPreview = previewData.selectedPreview || (listing.serviceType === 'hotel' ? (previewRooms[0]?.roomType || '') : firstSeatDisplay);
-  const selectedValue = listing.serviceType === 'hotel' ? firstRoom : firstSeat;
+  const selectedValue = listing.serviceType === 'hotel' ? firstRoom : listing.serviceType === 'bus' ? firstSeat : listing.id;
   const addons = previewData.addons || [];
   const previewSchedules = safeAvailability.schedules || [];
   const returnSchedules = safeAvailability.returnSchedules || [];
@@ -114,15 +114,17 @@
           <div class="selector">
             <div class="selectorTop">
               <div>
-                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your stay option' : listing.serviceType === 'bus' ? 'Choose your seats' : 'Choose your slot' %></b>
-                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint"><%= listing.serviceType === 'bus' ? 'Select one or many available seats before continuing to payment. Taken items cannot be selected.' : 'Select an available seat, room, or slot before continuing to payment. Taken items cannot be selected.' %></div>
+                <b id="layoutTitle"><%= listing.serviceType === 'hotel' ? 'Choose your stay option' : listing.serviceType === 'bus' ? 'Choose your seats' : listing.serviceType === 'tour' ? 'Tour availability' : listing.serviceType === 'car_rental' ? 'Rental availability' : listing.serviceType === 'cargo' ? 'Cargo service details' : 'Service availability' %></b>
+                <div class="muted" style="font-size:13px;font-weight:800" id="layoutHint"><%= listing.serviceType === 'bus' ? 'Select one or many available seats before continuing to payment. Taken items cannot be selected.' : listing.serviceType === 'hotel' ? 'Select an available room or stay option before continuing to payment.' : listing.serviceType === 'tour' ? 'The exact date and participant count are selected securely on the next page.' : listing.serviceType === 'car_rental' ? 'Pickup date, return date, location and driver option are selected securely on the next page.' : listing.serviceType === 'cargo' ? 'Pickup, delivery, package, weight and recipient details are entered securely on the next page.' : 'Review the service before continuing.' %></div>
               </div>
-              <div class="legend">
-                <span class="leg"><i class="dot free"></i> Available</span>
-                <span class="leg"><i class="dot selected"></i> Selected</span>
-                <span class="leg"><i class="dot hold"></i> Held</span>
-                <span class="leg"><i class="dot taken"></i> Taken</span>
-              </div>
+              <% if (listing.serviceType === 'bus' || listing.serviceType === 'hotel') { %>
+                <div class="legend">
+                  <span class="leg"><i class="dot free"></i> Available</span>
+                  <span class="leg"><i class="dot selected"></i> Selected</span>
+                  <span class="leg"><i class="dot hold"></i> Held</span>
+                  <span class="leg"><i class="dot taken"></i> Taken</span>
+                </div>
+              <% } %>
             </div>
             <div class="layoutBox" id="layoutBox">
               <% if (listing.serviceType === 'bus') { %>
@@ -134,6 +136,22 @@
                   <% previewRooms.forEach((room, index) => { %>
                     <button class="room <%= room.inventory <= 0 ? 'taken' : room.id === firstRoom || index === 0 ? 'selected' : '' %>" type="button" data-choice="<%= room.id %>" data-label="<%= room.roomType %>" data-price="<%= room.nightlyPrice || listing.priceFrom %>" data-capacity="<%= room.capacity || 1 %>" data-inventory="<%= room.inventory || 0 %>" data-listing-action="select-option" <%= room.inventory <= 0 ? 'disabled' : '' %>><span><%= room.roomType.split(' ')[0] %></span><small><%= room.inventory %> left</small></button>
                   <% }) %>
+                </div>
+              <% } else if (['tour', 'car_rental', 'cargo'].includes(listing.serviceType)) { %>
+                <div class="roomGrid serviceFactGrid">
+                  <% if (listing.serviceType === 'tour') { %>
+                    <div class="room selected"><span>Capacity</span><small><%= listing.remainingInventory %> place<%= Number(listing.remainingInventory) === 1 ? '' : 's' %> open</small></div>
+                    <div class="room selected"><span>Duration</span><small><%= listing.durationMinutes ? `${listing.durationMinutes} minutes` : 'Set by partner' %></small></div>
+                    <div class="room selected"><span>Meeting</span><small><%= listing.serviceDetails?.meetingPoint || listing.address || listing.location || 'Confirmed after booking' %></small></div>
+                  <% } else if (listing.serviceType === 'car_rental') { %>
+                    <div class="room selected"><span>Vehicles</span><small><%= listing.remainingInventory %> available</small></div>
+                    <div class="room selected"><span>Category</span><small><%= listing.vehicleCategory || 'Vehicle' %></small></div>
+                    <div class="room selected"><span>Seats</span><small><%= listing.seatsCount || 'Partner specified' %></small></div>
+                  <% } else { %>
+                    <div class="room selected"><span>Pricing</span><small><%= listing.pricingUnit === 'per_kg' ? 'Per kilogram' : listing.pricingUnit === 'per_package' ? 'Per package' : 'Per shipment' %></small></div>
+                    <div class="room selected"><span>Weight</span><small><%= listing.weightLimitKg ? `Up to ${listing.weightLimitKg} kg` : 'Quoted by shipment' %></small></div>
+                    <div class="room selected"><span>Packages</span><small><%= listing.packageLimit ? `Up to ${listing.packageLimit}` : 'Partner specified' %></small></div>
+                  <% } %>
                 </div>
               <% } %>
             </div>

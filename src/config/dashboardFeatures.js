@@ -66,13 +66,58 @@ const SERVICE_DASHBOARDS = [
       'Partner-scoped fleet, assigned rides and earnings with separate platform commission and provider settlement',
     ],
     modules: ['Ride classes', 'Coverage', 'Fare rules', 'Vehicle review', 'Driver review', 'Automatic dispatch', 'Ride safety', 'Earnings', 'Settlement'],
-  }
+  },
+  {
+    key: 'tour-dashboard',
+    label: 'Tours Dashboard',
+    serviceType: 'tour',
+    icon: 'fa-map-location-dot',
+    status: 'production',
+    overview: 'Manage guided experiences, schedules, meeting points, participant capacity, pricing, bookings, promotion, customer communication, and settlement.',
+    features: [
+      'Published tour listings with meeting points, duration, guest limits, languages, and inclusion details',
+      'Server-authoritative participant capacity and per-person pricing',
+      'Guest checkout, payment, booking confirmation, ticket records, and cancellation inventory release',
+      'Partner promotion campaigns, reviews, reports, revenue, and settlement',
+    ],
+    modules: ['Experiences', 'Availability', 'Participants', 'Bookings', 'Promotions', 'Reviews', 'Revenue', 'Settlement'],
+  },
+  {
+    key: 'rental-dashboard',
+    label: 'Car Rental Dashboard',
+    serviceType: 'car_rental',
+    icon: 'fa-car-side',
+    status: 'production',
+    overview: 'Manage rentable vehicles, pickup and return locations, daily pricing, availability, driver options, bookings, promotion, and settlement.',
+    features: [
+      'Vehicle category, seats, transmission, fuel type, pickup and return information',
+      'Date-range booking with server-calculated rental days and daily pricing',
+      'Atomic vehicle availability claims with release after failed payment or cancellation',
+      'Partner promotion campaigns, reviews, reports, revenue, and settlement',
+    ],
+    modules: ['Rental vehicles', 'Availability', 'Pickup & return', 'Bookings', 'Promotions', 'Reviews', 'Revenue', 'Settlement'],
+  },
+  {
+    key: 'cargo-dashboard',
+    label: 'Cargo Dashboard',
+    serviceType: 'cargo',
+    icon: 'fa-boxes-stacked',
+    status: 'production',
+    overview: 'Manage cargo services, coverage, shipment limits, weight or package pricing, recipient details, bookings, promotion, and settlement.',
+    features: [
+      'Cargo categories, origin and delivery coverage, weight and package limits',
+      'Per-kilogram, per-package, or per-shipment server pricing',
+      'Pickup, destination, parcel dimensions, declared value, recipient and shipment records',
+      'Partner promotion campaigns, reviews, reports, revenue, and settlement',
+    ],
+    modules: ['Cargo services', 'Coverage', 'Capacity', 'Shipments', 'Promotions', 'Reviews', 'Revenue', 'Settlement'],
+  },
 ];
 
 const ROLE_DASHBOARD_FEATURES = {
   admin: {
     label: 'Super Admin',
-    features: ['Company and driver verification', 'Bus, stays, flight, and local taxi operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
+    features: ['Company and driver verification', 'Bus, stays, flight, local taxi, tours, car rentals, and cargo operations oversight', 'Bookings and inventory monitoring', 'Payments, ledger, settlements, payouts, and refunds', 'Promoters, support, risk, reports, settings, and audit logs'],
   },
   company: {
     label: 'Company Admin',
