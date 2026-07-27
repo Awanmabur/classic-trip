@@ -31,12 +31,12 @@ check(actionService.includes('driverEmployeeId: driverEmployee.id'), 'The suppor
 check(invitationService.includes('driverEmployeeId: cleanText(payload.driverEmployeeId'), 'Driver invitations must retain the canonical driver record link.');
 check(invitationService.includes('employee.userId = user.id'), 'Invitation acceptance must attach the created account to the existing driver record.');
 check(!departureService.includes('if (!employee) employee = await materializeDriverCandidate'), 'Pending requests and invitations must not materialize during departure assignment.');
-check(departureService.includes('Select an active, verified driver account from this company'), 'Departure assignment must require an operational company driver.');
+check(departureService.includes('Selected driver must have an active company membership'), 'An explicitly selected departure driver must have an active company membership.');
 check(setupService.includes("employees.list({ companyId, status: 'active' }"), 'Smart publication must consider active employee memberships only.');
-check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose operational drivers only.');
+check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose active company drivers.');
 check(projection.includes('driverSelectorOptions'), 'One merged driver selector contract must exist.');
-check(workspace.includes('Only active driver accounts with accepted membership'), 'The UI must describe the strict assignment rule.');
-check(!workspace.includes('Any saved company driver can be assigned regardless'), 'Unsafe any-status driver copy must be absent.');
+check(workspace.includes('Driver assignment is optional'), 'The UI must describe the optional assignment rule.');
+check(workspace.includes('Any active company driver can be selected'), 'The UI must explain that active company drivers remain selectable.');
 check(accessibility.includes(':focus-visible'), 'A keyboard focus accessibility layer must exist.');
 check(accessibility.includes('prefers-reduced-motion: reduce'), 'Reduced-motion support must exist.');
 check(accessibility.includes('forced-colors: active'), 'High-contrast forced-colours support must exist.');

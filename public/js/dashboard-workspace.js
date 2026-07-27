@@ -1942,12 +1942,10 @@ window.addEventListener('DOMContentLoaded', function () {
     const hasActiveDriver = hasAssignableDriver;
     const firstBlockedDriver = driverEligibility.find((row) => row && row.eligible === false && Array.isArray(row.reasons) && row.reasons.length);
     const driverWorkflowHint = hasAssignableDriver
-      ? 'Only active driver accounts with accepted membership, verified identity and phone, approved licence, safety clearance, and all required operational permissions can be assigned.'
-      : firstBlockedDriver
-        ? `${firstBlockedDriver.label || 'The driver'} cannot be assigned: ${firstBlockedDriver.reasons.join('; ')}.`
-        : pendingDriverRequests.length
-          ? `${pendingDriverRequests.length} driver request${pendingDriverRequests.length === 1 ? '' : 's'} still need invitation acceptance, verification, safety clearance and activation before assignment.`
-          : 'Create and fully approve a driver before publishing a departure.';
+      ? 'Driver assignment is optional. Any active company driver can be selected now, while licence and safety verification can continue separately.'
+      : pendingDriverRequests.length
+        ? `${pendingDriverRequests.length} driver request${pendingDriverRequests.length === 1 ? '' : 's'} remain in onboarding. You can still publish this departure without a driver and assign one later.`
+        : 'Driver assignment is optional. Publish now and assign an active company driver later when available.';
     const staff = optionFromRows(data.options?.staff || data.staff, pendingStaffInvitations.length ? 'Staff invitations are awaiting acceptance' : 'Activate staff first');
     const seatMapOptions = Array.isArray(data.seatMaps) ? data.seatMaps.flatMap(map => (map.seats || []).map(seat => ({ value: seat.seatNumber || seat.id, scheduleId: map.scheduleId || seat.scheduleId || '', listingId: map.listingId || '', label: `${map.routeLabel || map.scheduleId} - Seat No ${String(seat.seatNumber || seat.id || '').replace(/^seat\s*(no\.?|number)?\s*/i, '').replace(/^[A-Za-z](\d+)$/, '$1')} (${seat.status || 'available'})` }))) : [];
     const inventorySeatOptions = (Array.isArray(data.inventory) ? data.inventory : []).map(row => {
@@ -2594,7 +2592,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, dependsOn:'routeId', filterKey:'routeId', help:'Price, currency and policies are inherited from the selected route fare plan; they are never retyped into a departure.' },
         { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, help:driverWorkflowHint },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock' },
-        { name:'status', label:'Initial status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:hasAssignableDriver ? 'published' : 'draft', help:hasAssignableDriver ? 'Published is required for bus activation and public visibility. Only an approved operational driver can be selected.' : 'Approve a driver before publishing.' },
+        { name:'status', label:'Initial status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:'published', help:'Published makes the departure public. Driver assignment is optional and can be completed later.' },
         { name:'blockedSeats', label:'Blocked seats for this departure', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Loads the actual published seat labels of the selected bus.' },
         { name:'repeatUntil', label:'Repeat daily until', type:'date', icon:'fa-repeat', help:'Optional. Create the same departure every day (at the time above) from the first departure through this date - set a month or more ahead to create a full month of trips in one click.' },
         { name:'repeatDays', label:'Only repeat on these days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Optional. Leave empty to repeat every day in the range above.' },
@@ -2608,7 +2606,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
         { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true, dependsOn:'routeId', filterKey:'listingId', parentMetaKey:'listingId', help:'Automatically selected when only one eligible bus exists.' },
         { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, help:driverWorkflowHint },
-        { name:'status', label:'Rule status', type:'select', icon:'fa-circle-check', options:['active','draft','paused'], value:hasAssignableDriver ? 'active' : 'draft', help:hasAssignableDriver ? 'Active rules generate dated departures automatically. The assigned driver must remain verified and operational.' : 'Approve a driver before activating the recurring rule.' },
+        { name:'status', label:'Rule status', type:'select', icon:'fa-circle-check', options:['active','draft','paused'], value:'active', help:'Active rules generate dated departures automatically. Driver assignment is optional and can be added later.' },
         { name:'departureTime', label:'Departure time (HH:MM, 24h)', icon:'fa-clock', required:true, placeholder:'08:00' },
         { name:'startDate', label:'Starts on', type:'date', icon:'fa-calendar-days', required:true },
         { name:'endDate', label:'Ends on (optional)', type:'date', icon:'fa-calendar-xmark', help:'Leave empty for an indefinite recurring departure.' },

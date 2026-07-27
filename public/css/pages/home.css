@@ -343,3 +343,9 @@ html[data-theme="light"] .blogIconActions .miniIcon{backdrop-filter:none}
 html[data-theme="light"] body{background:#ffffff}
 html[data-theme="light"] body::before{display:none}
 html[data-theme="light"] .heroCard::after{display:none}
+
+/* Seven-service hero switcher: swipe/drag on phones and desktop without crowding the top navigation. */
+#searchTabs.tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:7px;padding:2px 2px 7px;scroll-snap-type:x proximity;scroll-behavior:smooth;overscroll-behavior-inline:contain;scrollbar-width:none;cursor:grab;touch-action:pan-x}
+#searchTabs.tabs::-webkit-scrollbar{display:none}
+#searchTabs.tabs.is-dragging{cursor:grabbing;scroll-behavior:auto;user-select:none}
+#searchTabs .tab{flex:0 0 auto;scroll-snap-align:start;white-space:nowrap}

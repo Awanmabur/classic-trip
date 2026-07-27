@@ -23,8 +23,8 @@ const companyService = read('src/services/company/companyService.js');
 check(setup.includes('async function smartPublishBusListing'), 'Bus listing must expose a smart publish orchestrator.');
 check(setup.includes("if (requestedStatus === 'active')") && setup.includes('await smartPreparePublishedDeparture(companyId, listing.id, actor)'), 'Editing a listing to Active must use the same smart preparation flow.');
 check(setup.includes('async function smartPreparePublishedDeparture'), 'Smart publishing must prepare an existing future dated departure.');
-check(setup.includes('await assignableDrivers(companyId)'), 'Smart publishing must resolve all assignable saved drivers regardless of lifecycle status.');
-check(setup.includes('chooseDriverForSchedule(drivers, schedule)'), 'Smart publishing must choose the best company-owned driver deterministically instead of blocking on multiple records.');
+check(setup.includes('Driver assignment is optional'), 'Smart publishing must explicitly keep driver assignment optional.');
+check(!setup.includes('await assignableDrivers(companyId)'), 'Smart publishing must not block or auto-assign a driver when none is selected.');
 check(!setup.includes('More than one driver is available'), 'The obsolete multi-driver publication blocker must be removed.');
 check(setup.includes('departureService.generateInventory'), 'Smart publishing must rebuild missing seat-segment inventory from canonical records.');
 check(setup.includes('departureService.publishSchedule'), 'Smart publishing must publish the dated departure before listing activation.');
@@ -40,6 +40,6 @@ check(departure.includes("return repository.scheduleOrThrow(companyId, replaceme
 check(companyService.includes("approvalOwner: 'partner_admin'"), 'Partner Admin must own driver status changes after company approval.');
 check(workspace.includes('Partner Admin set driver active') || workspace.includes('Set driver active'), 'Driver rows must expose a direct Partner Admin status action.');
 check(workspace.includes('Finish setup and publish listing'), 'Listing action must clearly indicate the smart completion workflow.');
-check(setup.includes('evaluateDriverAssignment(assignedEmployee || {}, assignedUser || {})'), 'Listing readiness must validate the assigned driver relationship without requiring operational status.');
+check(setup.includes("normalize(assignedEmployee.status) !== 'active'"), 'Listing readiness must only reject an explicitly selected driver whose company membership is inactive.');
 
 if (!process.exitCode) console.log(`Smart listing publication verification passed (${passed}/${passed}).`);

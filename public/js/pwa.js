@@ -8,7 +8,7 @@
   const AUTO_PROMPT_DELAY_MS = 1400;
   const APP_ORIENTATION = 'portrait-primary';
   const LAUNCH_FLASH_KEY = 'classicTripLaunchFlashShown';
-  const LAUNCH_FLASH_DURATION_MS = 1150;
+  const LAUNCH_FLASH_DURATION_MS = 1650;
   const silentPaths = ['/checkout', '/payment', '/tickets/', '/taxi/track', '/flights/order/'];
 
   let deferredInstallPrompt = null;
@@ -29,15 +29,14 @@
   }
 
   function showBrandLaunchFlash() {
-    // Installed PWAs already receive the manifest/native splash. Restrict the web
-    // flash to browser mode so users never see two consecutive splash screens.
-    if (isStandalone() || launchFlashAlreadyShown() || document.querySelector('.pwaLaunchFlash')) return;
+    // Show the branded flash only inside the installed app, never in normal browser pages.
+    if (!isStandalone() || launchFlashAlreadyShown() || document.querySelector('.pwaLaunchFlash')) return;
     rememberLaunchFlash();
     const flash = document.createElement('div');
     flash.className = 'pwaLaunchFlash';
     flash.setAttribute('role', 'status');
     flash.setAttribute('aria-label', `${APP_NAME}. ${APP_SLOGAN}`);
-    flash.innerHTML = `<div class="pwaLaunchIdentity"><img src="/images/logo-maskable-192.png" alt=""><strong>${APP_NAME}</strong><span>${APP_SLOGAN}</span></div>`;
+    flash.innerHTML = `<div class="pwaLaunchIdentity"><img src="/images/logo-symbol-192.png" alt=""><strong>${APP_NAME}</strong><span>${APP_SLOGAN}</span></div>`;
     document.body.appendChild(flash);
     requestAnimationFrame(() => flash.classList.add('is-visible'));
     window.setTimeout(() => {
@@ -198,7 +197,7 @@
     element.innerHTML = `
       <button type="button" class="pwaInstallClose" aria-label="Close install prompt"><i class="fa-solid fa-xmark"></i></button>
       <div class="pwaInstallIdentity">
-        <span class="pwaInstallLogo"><img src="/images/logo-maskable-192.png" alt="Classic Trip logo"></span>
+        <span class="pwaInstallLogo"><img src="/images/logo-symbol-192.png" alt="Classic Trip logo"></span>
         <span class="pwaInstallCopy"><strong>${APP_NAME}</strong><b>${APP_SLOGAN}</b><small data-pwa-install-detail></small></span>
       </div>
       <div class="pwaInstallInstructions" data-pwa-install-instructions hidden></div>

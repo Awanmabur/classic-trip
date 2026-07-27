@@ -317,13 +317,11 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
     else if (!compliantVehicleIds.has(String(vehicle.id))) reasons.push('vehicle compliance or published seat map is incomplete');
     if (!fare || String(fare.routeId || '') !== String(schedule.routeId || '')) reasons.push('active fare link is missing');
     if (!seatMap || String(seatMap.vehicleId || '') !== String(schedule.vehicleId || '')) reasons.push('published seat-map version link is missing');
-    if (!schedule.driverEmployeeId) {
-      reasons.push('driver assignment is missing');
-    } else {
+    if (schedule.driverEmployeeId) {
       const assignedEmployee = await repository.employees.findOne({ id: schedule.driverEmployeeId, companyId });
-      const assignedUser = assignedEmployee?.userId ? await repository.users.findOne({ id: assignedEmployee.userId }) : null;
-      const assignedDriver = evaluateDriverAssignment(assignedEmployee || {}, assignedUser || {});
-      if (!assignedDriver.assignable) reasons.push(`driver assignment is invalid (${assignedDriver.reasons.join(', ')})`);
+      if (!assignedEmployee || normalize(assignedEmployee.status) !== 'active') {
+        reasons.push('selected driver membership is not active');
+      }
     }
     if (!Number(schedule.totalSeats || 0) || !schedule.inventoryReadyAt) reasons.push('seat inventory snapshot is missing');
 
@@ -392,7 +390,7 @@ async function assignableDrivers(companyId) {
   for (const employee of employees) {
     const user = employee.userId ? await repository.users.findOne({ id: employee.userId, companyId }) : null;
     const assignment = evaluateDriverAssignment(employee, user || {});
-    if (!assignment.assignable) continue;
+    if (normalize(employee.status) !== 'active') continue;
     candidates.push({ employee, user, assignment, eligibility: assignment });
   }
   return candidates;
@@ -415,7 +413,7 @@ function chooseDriverForSchedule(drivers = [], schedule = {}) {
 }
 
 async function attachDriverToSchedule(companyId, schedule, driver, actor = 'company-admin') {
-  if (!driver?.employee?.id) throw validationError('Approve at least one active, verified and safety-cleared company driver before publishing the departure.');
+  if (!driver?.employee?.id) throw validationError('Select an active company driver to create this optional assignment.');
   const timestamp = nowIso();
   schedule.driverEmployeeId = driver.employee.id;
   schedule.driverUserId = driver.user?.id || driver.employee.userId || '';
@@ -485,15 +483,7 @@ async function smartPreparePublishedDeparture(companyId, listingId, actor = 'com
   if (alreadyPublished) return alreadyPublished;
 
   const schedule = schedules[0];
-  if (!schedule.driverEmployeeId) {
-    const drivers = await assignableDrivers(companyId);
-    if (!drivers.length) {
-      throw validationError('Bus service cannot be published: Approve at least one active, verified and safety-cleared driver');
-    }
-    const selectedDriver = chooseDriverForSchedule(drivers, schedule);
-    if (!selectedDriver) throw validationError('Bus service cannot be published: Approve at least one active, verified and safety-cleared company driver');
-    await attachDriverToSchedule(companyId, schedule, selectedDriver, actor);
-  }
+  // Driver assignment is optional. Keep an existing active assignment, but never block publication when none exists.
 
   const departureService = require('./busDepartureService');
   const inventoryRows = await repository.segmentInventory.count({ companyId, scheduleId: schedule.id });

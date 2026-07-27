@@ -56,8 +56,8 @@ async function resolveDriver(companyId, value) {
     throw validationError('Selected driver account belongs to a different company');
   }
   const assignment = evaluateDriverAssignment(employee, user || {});
-  if (!assignment.assignable) {
-    throw validationError(`Selected driver is not operational: ${assignment.reasons.join('; ')}`);
+  if (normalize(employee.status) !== 'active') {
+    throw validationError('Selected driver must have an active company membership');
   }
   return {
     employee,
@@ -229,7 +229,7 @@ async function validateSchedulePublish(companyId, schedule = {}) {
   if (!departAt || Number.isNaN(departAt.getTime())) failures.push('departure_time_missing');
   else if (departAt.getTime() <= Date.now()) failures.push('departure_must_be_future');
   if (arriveAt && departAt && arriveAt.getTime() <= departAt.getTime()) failures.push('arrival_must_be_after_departure');
-  if (!driverReady) failures.push('verified_operational_driver_missing');
+  // Driver assignment is optional at publication time. An active company driver can be assigned now or later.
   if (!inventoryCount) failures.push('seat_segment_inventory_missing');
   if (conflicts.length) failures.push('vehicle_time_conflict');
   if (!listing?.cancellationRules && !route?.cancellationRules) warnings.push('cancellation_policy_not_configured');
@@ -265,7 +265,6 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin') 
   const { fareProduct, fares } = await fareContext(companyId, payload.fareProductId, route);
   const requestedStatus = normalize(payload.status || 'draft');
   const driver = await resolveDriver(companyId, payload.driverId || parseList(payload.driverIds)[0]);
-  if (requestedStatus === 'published' && !driver) throw validationError('Assign an active, verified and safety-cleared company driver before publishing the departure');
   const departAt = parseDate(payload.departAt, 'Departure time', { future: true });
   const routeDurationMinutes = Number(route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0);
   const arriveAt = payload.arriveAt
@@ -418,10 +417,9 @@ async function createScheduleRule(companyId, payload = {}, actor = 'company-admi
   const endDate = payload.endDate ? parseDate(`${String(payload.endDate).slice(0, 10)}T23:59:59`, 'End date') : null;
   if (endDate && endDate < startDate) throw validationError('End date must be after start date');
   const requestedDriverId = payload.driverId || parseList(payload.driverIds)[0];
-  const requestedStatus = normalize(payload.status || (requestedDriverId ? 'active' : 'draft'));
+  const requestedStatus = normalize(payload.status || 'active');
   if (!['draft', 'active', 'paused'].includes(requestedStatus)) throw validationError('Recurring schedule status must be Draft, Active, or Paused');
   const driver = requestedDriverId ? await resolveDriver(companyId, requestedDriverId) : null;
-  if (requestedStatus === 'active' && !driver) throw validationError('Assign a saved company driver before activating this recurring departure rule.');
   const blockedSeats = parseList(payload.blockedSeats).map(normalizeSeatNumber);
   const availableSeatLabels = new Set(seatMapVersion.seats.map((seat) => normalizeSeatNumber(seat.seatNumber)));
   const unknownBlockedSeats = blockedSeats.filter((label) => !availableSeatLabels.has(label));
@@ -466,8 +464,7 @@ async function setScheduleRuleStatus(companyId, ruleId, status, actor = 'company
   if (!['active', 'paused', 'cancelled'].includes(next)) throw validationError('Invalid recurring schedule rule status');
   if (next === 'active') {
     const driverIds = parseList(rule.driverIds);
-    if (!driverIds.length) throw validationError('Assign a saved company driver before activating this recurring departure rule');
-    await resolveDriver(companyId, driverIds[0]);
+    if (driverIds.length) await resolveDriver(companyId, driverIds[0]);
   }
   rule.status = next;
   rule.updatedBy = actorId(actor);

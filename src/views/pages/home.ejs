@@ -29,7 +29,7 @@
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=20260727-3" />
+  <link rel="stylesheet" href="/css/pwa.css?v=20260727-app-flash-1" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -43,7 +43,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css?v=20260726-reference-ui-1">
+  <link rel="stylesheet" href="/css/pages/home.css?v=20260727-service-swipe-1">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
@@ -56,7 +56,7 @@
     <div class="navIn">
       <a class="brand" href="/"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
-        <a href="/" class="active">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/airbnb">Airbnb</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="/tours">Tours</a><a href="/car-rentals">Car rentals</a><a href="/cargo">Cargo</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/saved">Saved</a><a href="/booking">My bookings</a>
+        <a href="/" class="active">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/booking">My bookings</a>
       </nav>
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
@@ -428,8 +428,8 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/pwa.js?v=20260727-3" defer></script>
-  <script src="/js/home.js?v=20260727-1" defer></script>
+  <script src="/js/pwa.js?v=20260727-app-flash-1" defer></script>
+  <script src="/js/home.js?v=20260727-service-swipe-1" defer></script>
 </body>
 </html>
 

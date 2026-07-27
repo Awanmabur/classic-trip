@@ -1881,7 +1881,7 @@ function createDashboardProjection(initialState = {}) {
         };
       }) : [];
     const assignableDriverEmployees = driverEligibilityRows.filter((row) => row.eligibility.eligible).map((row) => row.employee);
-    const activeDriverEmployees = driverEligibilityRows.filter((row) => row.eligibility.eligible).map((row) => row.employee);
+    const activeDriverEmployees = driverEligibilityRows.filter((row) => normalize(row.employee.status) === 'active').map((row) => row.employee);
     const activeStaffEmployees = companyEmployees.filter(employee => !isDriverEmployee(employee) && normalize(employee.status) === 'active');
 
     const staffEmployeeRows = companyEmployees.filter(employee => !isDriverEmployee(employee)).map(employee => {
@@ -2251,12 +2251,12 @@ function createDashboardProjection(initialState = {}) {
         driverEligibility: driverEligibilityRows.map(({ employee, assignment, eligibility }) => ({
           id: employee.id, value: employee.id, label: assignment.label || eligibility.label,
           eligible: eligibility.eligible,
-          assignable: eligibility.eligible,
+          assignable: normalize(employee.status) === 'active',
           operational: eligibility.eligible,
           reasons: eligibility.reasons,
           warnings: [],
           operationalReasons: eligibility.reasons,
-          status: eligibility.eligible ? 'assignable_operational' : 'not_assignable'
+          status: normalize(employee.status) === 'active' ? (eligibility.eligible ? 'assignable_operational' : 'assignable_optional') : 'not_assignable'
         })),
         pendingStaffInvitations: companyInvitations.filter(invitation => normalize(invitation.type) === 'staff' && ['sent', 'requested'].includes(normalize(invitation.status))).map(invitation => ({ id: invitation.id, value: invitation.id, label: `${invitation.fullName || invitation.email} - ${invitationStatusLabel(invitation)}`, status: invitation.status })),
         pendingDriverRequests: driverLifecycleRows.filter(row => driverStageIsPending(row[5])).map(row => ({ id: row[6]?.id || row[0], value: row[6]?.id || row[0], label: `${row[0]} - ${row[5]}`, status: row[5] }))
@@ -2455,7 +2455,7 @@ function createDashboardProjection(initialState = {}) {
         pendingDrivers: pendingDriverCount,
         staffInvitations: companyInvitations.filter(invitation => normalize(invitation.type) === 'staff').length,
         driverRequests: driverRequestTickets.length,
-        canPublishDeparture: driverSelectorOptions.length > 0,
+        canPublishDeparture: true,
       },
       staff: staffLifecycleRows,
       drivers: driverLifecycleRows,

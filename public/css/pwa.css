@@ -9,3 +9,11 @@ html[data-theme="dark"] .pwaLaunchFlash{background:#070a12;color:#f8fafc}html[da
 .pwaDrawerInstallAction{width:100%;justify-content:flex-start;gap:10px;margin-top:10px}
 @media(max-width:760px){.pwaInstallPrompt{left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));width:auto;border-radius:22px;padding:13px}.site-drawer-open .pwaInstallPrompt{bottom:12px}.pwaInstallActions{grid-template-columns:1fr 1fr}.pwaInstallActions .btn{width:100%;padding-inline:10px}.pwaInstallIdentity{grid-template-columns:52px minmax(0,1fr)}.pwaInstallLogo{width:52px;height:52px;border-radius:16px}}
 @media(max-width:380px){.pwaInstallActions{grid-template-columns:1fr}.pwaInstallPrompt{left:8px;right:8px}.pwaInstallCopy strong{font-size:16px}}
+
+/* App-only branded launch flash. The symbol PNG keeps its transparent background. */
+.pwaLaunchFlash{background:linear-gradient(160deg,#ffffff 0%,#f8fafc 58%,#eef2ff 100%)}
+.pwaLaunchIdentity{gap:12px;padding:28px 22px}
+.pwaLaunchIdentity img{width:118px;height:118px;border-radius:0;background:transparent;box-shadow:none;filter:drop-shadow(0 20px 30px rgba(15,23,42,.14))}
+.pwaLaunchIdentity strong{font-size:clamp(30px,8vw,44px);letter-spacing:-.045em}
+.pwaLaunchIdentity span{max-width:280px;font-size:14px;line-height:1.45;color:#64748b}
+html[data-theme="dark"] .pwaLaunchFlash{background:linear-gradient(160deg,#070a12 0%,#0f172a 58%,#111827 100%)}

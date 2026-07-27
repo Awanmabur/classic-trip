@@ -458,3 +458,42 @@
     });
   });
 })();
+
+// Allow the complete service tab row to swipe with touch, mouse drag, trackpad, or wheel on every screen size.
+(() => {
+  const tabs = document.getElementById('searchTabs');
+  if (!tabs || tabs.dataset.swipeReady === 'true') return;
+  tabs.dataset.swipeReady = 'true';
+  let dragging = false;
+  let startX = 0;
+  let startScroll = 0;
+  tabs.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    dragging = true;
+    startX = event.clientX;
+    startScroll = tabs.scrollLeft;
+    tabs.classList.add('is-dragging');
+    tabs.setPointerCapture?.(event.pointerId);
+  });
+  tabs.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    tabs.scrollLeft = startScroll - (event.clientX - startX);
+  });
+  const stop = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    tabs.classList.remove('is-dragging');
+    try { tabs.releasePointerCapture?.(event.pointerId); } catch (_) { /* already released */ }
+  };
+  tabs.addEventListener('pointerup', stop);
+  tabs.addEventListener('pointercancel', stop);
+  tabs.addEventListener('wheel', (event) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || tabs.scrollWidth <= tabs.clientWidth) return;
+    event.preventDefault();
+    tabs.scrollLeft += event.deltaY;
+  }, { passive: false });
+  tabs.addEventListener('click', (event) => {
+    const tab = event.target.closest('.tab');
+    if (tab) tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  });
+})();

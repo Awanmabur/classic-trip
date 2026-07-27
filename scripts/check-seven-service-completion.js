@@ -86,8 +86,8 @@ check('Public blog routes are live', includesAll(publicRoutes, ["router.get('/bl
 check('Light mode is the default across public and dashboard shells', /data-theme="light"/.test(siteHead) && /data-theme="light"/.test(home) && /data-theme="light"/.test(workspace) && manifest.theme_color === '#f8fafc' && manifest.background_color === '#f8fafc');
 check('Theme buttons still switch and persist dark mode', /localStorage/.test(homeJs + siteHeaderJs + dashboardJs) && /dark/.test(homeJs + siteHeaderJs + dashboardJs));
 check('Mobile profile drawer links all services and My bookings', includesAll(siteHeader, ['/airbnb', '/tours', '/car-rentals', '/cargo', '/saved', '/booking']) && /data-site-action="drawer-toggle"/.test(siteHeader));
-check('Single launch flash contains logo, name and slogan', /logo-maskable-192/.test(pwa) && /Classic Trip/.test(pwa) && /Move, stay and fly with confidence\./.test(pwa));
-check('Browser flash is session-scoped and skipped for installed app', /sessionStorage/.test(pwa) && /standalone/.test(pwa));
+check('App-only launch flash contains transparent logo, name and slogan', /logo-symbol-192/.test(pwa) && /Classic Trip/.test(pwa) && /Move, stay and fly with confidence\./.test(pwa));
+check('Installed-app flash is session-scoped and skipped in browsers', /sessionStorage/.test(pwa) && /!isStandalone/.test(pwa));
 check('Home exposes direct customer and admin blog navigation', /href="\/booking"/.test(home) && /href="\/admin\/blogs"/.test(home) && /href="\/blogs"/.test(home));
 
 const failed = checks.filter((row) => !row.ok);

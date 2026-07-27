@@ -8,8 +8,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'public/site.webmani
 const sw = fs.readFileSync(path.join(root, 'public/sw.js'), 'utf8');
 let passed = 0;
 function check(name, fn){ fn(); passed += 1; console.log(`✓ ${name}`); }
-check('browser launch flash carries logo, name, and slogan', () => assert(pwa.includes('pwaLaunchFlash') && pwa.includes('logo-maskable-192.png') && pwa.includes('APP_NAME') && pwa.includes('APP_SLOGAN')));
-check('browser flash is suppressed in installed standalone mode', () => assert(pwa.includes('if (isStandalone() || launchFlashAlreadyShown()')));
+check('installed-app launch flash carries transparent logo, name, and slogan', () => assert(pwa.includes('pwaLaunchFlash') && pwa.includes('logo-symbol-192.png') && pwa.includes('APP_NAME') && pwa.includes('APP_SLOGAN')));
+check('launch flash is restricted to installed standalone mode', () => assert(pwa.includes('if (!isStandalone() || launchFlashAlreadyShown()')));
 check('launch flash is session-scoped and does not repeat during navigation', () => assert(pwa.includes('sessionStorage.getItem(LAUNCH_FLASH_KEY)') && pwa.includes('sessionStorage.setItem(LAUNCH_FLASH_KEY')));
 check('launch flash has light and dark visual support', () => assert(pwaCss.includes('.pwaLaunchFlash') && pwaCss.includes('html[data-theme="dark"] .pwaLaunchFlash')));
 check('native manifest carries brand and slogan', () => assert(manifest.name === 'Classic Trip — Move, stay and fly with confidence.' && manifest.short_name === 'Classic Trip'));
