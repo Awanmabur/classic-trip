@@ -338,11 +338,11 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
   function dashboardRecordId(detail = {}) {
-    return detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.routeStop?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.campaign?.id || detail?.promotion?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.seatMap?.scheduleId || detail?.manifest?.scheduleId || detail?.booking?.bookingRef || '';
+    return detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.routeStop?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.campaign?.id || detail?.promotion?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || detail?.vehicle?.id || detail?.scheduleRule?.id || detail?.schedule?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.seatMap?.scheduleId || detail?.manifest?.scheduleId || detail?.booking?.bookingRef || '';
   }
 
   function mutableCompanyEntity(entity = '') {
-    return ['listing','route','routestop','route_stop','vehicle','schedule','room','hotel_property','room_type','rate_plan','room_unit','room_night','service_addon','add-on','fare_product','segment_fare','branch','policy'].includes(String(entity || '').toLowerCase());
+    return ['listing','route','routestop','route_stop','vehicle','schedule','schedule_rule','room','hotel_property','room_type','rate_plan','room_unit','room_night','service_addon','add-on','fare_product','segment_fare','branch','policy','promotion'].includes(String(entity || '').toLowerCase());
   }
 
   function archiveActionFor(entity = '', id = '') {
@@ -361,6 +361,8 @@ window.addEventListener('DOMContentLoaded', function () {
     if (key === 'room_unit') return `/company/hotels/room-units/${safeId}/archive`;
     if (key === 'room_night') return `/company/hotels/inventory/${safeId}/archive`;
     if (key === 'service_addon' || key === 'add-on') return `/company/addons/${safeId}/archive`;
+    if (key === 'fare_product') return `/company/fares/${safeId}/archive`;
+    if (key === 'segment_fare') return `/company/fare-segments/${safeId}/archive`;
     return '';
   }
 
@@ -459,6 +461,7 @@ window.addEventListener('DOMContentLoaded', function () {
           scopedActions += `<form method="POST" action="/company/staff/${id}/role" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="status" value="suspended"><button class="tinyBtn danger" type="submit" title="Suspend employee"><i class="fa-solid fa-user-slash"></i></button></form>`;
         }
         scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="staff status" data-label="${safeLabel}"${detailAttr}${idAttr} title="Manage employee role and status"><i class="fa-solid fa-user-gear"></i></button>`;
+        if (currentStatus !== 'revoked') scopedActions += `<form method="POST" action="/company/staff/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Revoke employee access"><i class="fa-solid fa-user-xmark"></i></button></form>`;
       }
       if (entity === 'driver') {
         const driverDetail = meta?.detail?.driver || {};
@@ -469,7 +472,19 @@ window.addEventListener('DOMContentLoaded', function () {
           const documentReference = escapeHtml(activation.licenseDocumentReference || '');
           scopedActions += `<form method="POST" action="/company/drivers/${id}/activate" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="status" value="active"><input type="hidden" name="safetyStatus" value="cleared"><input type="hidden" name="licenseNumber" value="${licence}"><input type="hidden" name="documentReference" value="${documentReference}"><button class="tinyBtn" type="submit" title="Set driver active"><i class="fa-solid fa-user-check"></i></button></form>`;
         }
-        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="driver activation" data-label="${safeLabel}"${detailAttr}${idAttr} title="Manage driver status"><i class="fa-solid fa-user-gear"></i></button>`;
+        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="driver profile" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit the complete driver record"><i class="fa-solid fa-user-gear"></i></button>`;
+        if (currentStatus !== 'revoked') scopedActions += `<form method="POST" action="/company/drivers/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Revoke driver access"><i class="fa-solid fa-user-xmark"></i></button></form>`;
+      }
+      if (entity === 'staff_invitation' || entity === 'driver_invitation') {
+        const invitationStatus = String(meta?.status || meta?.detail?.invitation?.status || '').toLowerCase();
+        if (['sent','expired'].includes(invitationStatus)) scopedActions += `<form method="POST" action="/company/invitations/${id}/resend" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Resend secure invitation"><i class="fa-solid fa-paper-plane"></i></button></form>`;
+        if (!['accepted','revoked','rejected'].includes(invitationStatus)) scopedActions += `<form method="POST" action="/company/invitations/${id}/revoke" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="reason" value="Revoked by Partner Admin"><button class="tinyBtn danger" type="submit" title="Revoke invitation"><i class="fa-solid fa-ban"></i></button></form>`;
+      }
+      if (entity === 'branch' && String(meta?.status || '').toLowerCase() !== 'archived') {
+        scopedActions += `<form method="POST" action="/company/branches/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive branch"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'policy' && String(meta?.status || '').toLowerCase() !== 'archived') {
+        scopedActions += `<form method="POST" action="/company/policies/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive policy"><i class="fa-solid fa-box-archive"></i></button></form>`;
       }
       if (entity === 'schedule') {
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest" title="Open printable manifest"><i class="fa-solid fa-file-lines"></i></a>`;
@@ -481,6 +496,12 @@ window.addEventListener('DOMContentLoaded', function () {
         scopedActions += `<form method="POST" action="/company/schedules/${id}/complete" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Complete trip and release eligible earnings"><i class="fa-solid fa-flag-checkered"></i></button></form>`;
         scopedActions += `<button class="tinyBtn" data-modal="create" data-type="duplicate schedule" data-label="${safeLabel}"${detailAttr}${idAttr} title="Duplicate schedule"><i class="fa-regular fa-copy"></i></button>`;
         scopedActions += `<form method="POST" action="/company/schedules/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive schedule"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'schedule_rule') {
+        const ruleStatus = String(meta?.status || meta?.detail?.scheduleRule?.status || '').toLowerCase();
+        if (ruleStatus === 'active') scopedActions += `<form method="POST" action="/company/schedule-rules/${id}/pause" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Pause recurring departure"><i class="fa-solid fa-pause"></i></button></form>`;
+        if (['paused','draft'].includes(ruleStatus)) scopedActions += `<form method="POST" action="/company/schedule-rules/${id}/resume" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Activate recurring departure"><i class="fa-solid fa-play"></i></button></form>`;
+        if (ruleStatus !== 'cancelled') scopedActions += `<form method="POST" action="/company/schedule-rules/${id}/cancel" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Cancel recurring departure"><i class="fa-solid fa-ban"></i></button></form>`;
       }
       if (entity === 'booking' || entity === 'checkin' || entity === 'manifest_passenger' || entity === 'hotel_booking') {
         scopedActions += `<a class="tinyBtn" href="${isHotelBooking ? `/company/hotels/bookings/${id}/voucher` : `/company/tickets/${id}`}" title="Open ${isHotelBooking ? 'hotel voucher' : 'operational ticket'}"><i class="fa-solid fa-ticket"></i></a>`;
@@ -530,7 +551,6 @@ window.addEventListener('DOMContentLoaded', function () {
         const roomPaymentStatus = String(roomBooking.paymentStatus || '').toLowerCase();
         const roomBookingStatus = String(roomBooking.bookingStatus || '').toLowerCase().replace(/[\s-]+/g, '_');
         const roomStayStatus = String(roomBooking.hotelStay?.status || roomBookingStatus).toLowerCase().replace(/[\s-]+/g, '_');
-        scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="room night" data-label="${safeLabel}"${detailAttr}${idAttr} title="Update room-night status"><i class="fa-solid fa-calendar-check"></i></button>`;
         if (bookingRef && roomPaymentStatus === 'successful' && ['confirmed', 'booked'].includes(roomBookingStatus) && !['checked_in', 'occupied', 'in_house'].includes(roomStayStatus)) {
           scopedActions += `<form method="POST" action="/company/hotels/bookings/${bookingRef}/check-in" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Guest check-in"><i class="fa-solid fa-person-circle-check"></i></button></form>`;
           scopedActions += `<form method="POST" action="/company/hotels/bookings/${bookingRef}/no-show" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Mark hotel no-show"><i class="fa-solid fa-user-slash"></i></button></form>`;
@@ -542,6 +562,12 @@ window.addEventListener('DOMContentLoaded', function () {
       }
       if (entity === 'service_addon' || entity === 'add-on') {
         scopedActions += `<form method="POST" action="/company/addons/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive optional extra"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'fare_product') {
+        scopedActions += `<form method="POST" action="/company/fares/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive fare plan"><i class="fa-solid fa-box-archive"></i></button></form>`;
+      }
+      if (entity === 'segment_fare') {
+        scopedActions += `<form method="POST" action="/company/fare-segments/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive stop-to-stop fare"><i class="fa-solid fa-box-archive"></i></button></form>`;
       }
       if (entity === 'promotion') {
         const campaignStatus = String(meta?.status || meta?.detail?.campaign?.status || meta?.detail?.promotion?.status || '').toLowerCase();
@@ -1698,7 +1724,7 @@ window.addEventListener('DOMContentLoaded', function () {
       ? explicitLabels
       : browserGeneratedSeatLabels(form, mode);
     const vehicleId = fieldControl(form, 'vehicleId')?.value || '';
-    ['vipSeats','accessibleSeats','crewSeats','disabledSeats','blockedSeats'].forEach((name) => {
+    ['accessibleSeats','crewSeats','disabledSeats','blockedSeats'].forEach((name) => {
       const details = Array.from(form.querySelectorAll('[data-fold-select]')).find(node => node.dataset.fieldName === name);
       if (!details) return;
       const panel = details.querySelector('.foldSelectPanel');
@@ -1747,10 +1773,8 @@ window.addEventListener('DOMContentLoaded', function () {
       autoSetField(form, 'seatLabelMode', vehicle.seatLabels ? 'preserve' : (vehicle.seatLabelMode || 'automatic'), { force:true });
       autoSetField(form, 'seatLabelPrefix', vehicle.seatLabelPrefix || '', { force:true });
       autoSetField(form, 'seatLabels', vehicle.seatLabels || '', { force:true });
-      autoSetField(form, 'defaultSeatClass', vehicle.defaultSeatClass || 'Standard', { force:true });
-      autoSetField(form, 'vipPriceDelta', vehicle.vipPriceDelta || 0, { force:true });
+      autoSetField(form, 'vehicleClass', vehicle.vehicleClass || (String(vehicle.defaultSeatClass || '').toLowerCase() === 'vip' ? 'vip' : 'standard'), { force:true });
       bindDependentFields(form);
-      setFoldSelectValues(form, 'vipSeats', vehicle.vipSeats || '');
       setFoldSelectValues(form, 'accessibleSeats', vehicle.accessibleSeats || '');
       setFoldSelectValues(form, 'crewSeats', vehicle.crewSeats || '');
       setFoldSelectValues(form, 'disabledSeats', vehicle.disabledSeats || '');
@@ -1759,7 +1783,8 @@ window.addEventListener('DOMContentLoaded', function () {
     refreshSeatLabelEditor(form);
     if (vehicle.value) {
       const version = vehicle.seatMapVersion ? `seat-map v${vehicle.seatMapVersion}` : 'published seat map';
-      setSmartSummary(form, `${vehicle.label}: ${vehicle.layoutName || 'layout'} · ${vehicle.totalSeats || 0} seats · ${version}. Choose “Keep current labels” unless you intentionally want to renumber the bus.`, 'ready');
+      const cabin = (vehicle.vehicleClass || '').toLowerCase() === 'vip' ? 'VIP vehicle — every passenger seat is VIP' : 'Standard vehicle — every passenger seat is standard';
+      setSmartSummary(form, `${vehicle.label}: ${cabin} · ${vehicle.layoutName || 'layout'} · ${vehicle.totalSeats || 0} seats · ${version}. Choose “Keep current labels” unless you intentionally want to renumber the bus.`, 'ready');
     }
   }
 
@@ -1770,10 +1795,8 @@ window.addEventListener('DOMContentLoaded', function () {
     const driverSelect = fieldControl(form, 'schedule[driverId]');
     autoSelectRelated(driverSelect);
     const selectedDriver = selectedMeta(driverSelect);
-    if (!selectedDriver.value) {
-      autoSetField(form, 'listing[status]', 'draft', { force:true });
-      autoSetField(form, 'schedule[status]', 'draft', { force:true });
-    }
+    const vehicleClass = fieldControl(form, 'vehicle[vehicleClass]')?.value || 'standard';
+    if (vehicleClass === 'vip') autoSetField(form, 'fare[fareClass]', 'vip');
     const layout = fieldControl(form, 'vehicle[layoutName]');
     const total = fieldControl(form, 'vehicle[totalSeats]');
     const rows = fieldControl(form, 'vehicle[rows]');
@@ -1795,8 +1818,8 @@ window.addEventListener('DOMContentLoaded', function () {
         }
       }
       setSmartSummary(form, selectedDriver.value
-        ? `${routeName}: listing, bus, automatic seat map, route stops, fare and first published departure will be created as one connected service with ${selectedDriver.label}.`
-        : `${routeName}: the full connected service will be saved as Draft because no saved driver record is selected yet. Create or select any driver record, then publish.`, 'ready');
+        ? `${routeName}: listing, ${vehicleClass === 'vip' ? 'full VIP vehicle' : 'standard vehicle'}, automatic seat map, route stops, fare and first departure will be created as one connected service with ${selectedDriver.label}.`
+        : `${routeName}: listing, ${vehicleClass === 'vip' ? 'full VIP vehicle' : 'standard vehicle'}, automatic seat map, route stops, fare and first departure will be created as one connected service. Driver assignment is optional and can be completed later.`, 'ready');
     } else if (origin.value && destination.value) {
       setSmartSummary(form, 'Origin and destination must be different terminals.', 'warning');
     } else if (listingBranch.value) {
@@ -2011,7 +2034,7 @@ window.addEventListener('DOMContentLoaded', function () {
     else if (type === 'listing') syncListingForm(form);
     else if (type === 'route') syncRouteForm(form);
     else if (type === 'vehicle') syncVehicleCreateForm(form);
-    else if (type === 'schedule' || type === 'schedule rule') syncScheduleForm(form);
+    else if (type === 'schedule' || type === 'schedule rule' || type === 'schedule_rule') syncScheduleForm(form);
     else if (type === 'fare product') syncFareForm(form);
     else if (type === 'segment fare') syncSegmentFareForm(form);
     else if (type === 'add-on' || type === 'service_addon') syncAddonForm(form, changedName);
@@ -2113,11 +2136,11 @@ window.addEventListener('DOMContentLoaded', function () {
     const customers = optionFromRows(data.customers, 'Select customer');
     const promoters = optionFromRows(data.promoters, 'Select promoter');
     const employeeProfile = data.profile || {};
-    const recordId = detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.vehicle?.id || detail?.schedule?.id || detail?.routeStop?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || '';
+    const recordId = detail?.id || detail?.listing?.id || detail?.listing?.listingId || detail?.route?.id || detail?.vehicle?.id || detail?.scheduleRule?.id || detail?.schedule?.id || detail?.routeStop?.id || detail?.room?.id || detail?.property?.id || detail?.roomType?.id || detail?.ratePlan?.id || detail?.roomUnit?.id || detail?.roomNight?.id || detail?.serviceAddon?.id || detail?.fareProduct?.id || detail?.segmentFare?.id || detail?.branch?.id || detail?.policy?.id || detail?.review?.id || detail?.ticket?.id || detail?.support?.id || '';
     const recordLabel = label || detail?.label || recordId || 'selected record';
 
 
-    const record = detail?.listing || detail?.route || detail?.routeStop || detail?.vehicle || detail?.schedule || detail?.room || detail?.property || detail?.roomType || detail?.roomUnit || detail?.roomNight || detail?.serviceAddon || detail?.fareProduct || detail?.segmentFare || detail?.branch || detail?.policy || detail?.review || detail?.ticket || detail?.support || detail || {};
+    const record = detail?.listing || detail?.route || detail?.routeStop || detail?.vehicle || detail?.scheduleRule || detail?.schedule || detail?.room || detail?.property || detail?.roomType || detail?.roomUnit || detail?.roomNight || detail?.serviceAddon || detail?.fareProduct || detail?.segmentFare || detail?.branch || detail?.policy || detail?.review || detail?.ticket || detail?.support || detail || {};
     const fieldValue = (...keys) => {
       for (const key of keys) {
         const value = key.split('.').reduce((obj, part) => (obj && typeof obj === 'object') ? obj[part] : undefined, detail);
@@ -2201,7 +2224,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'scheduleId', label:'Schedule', type:'select', icon:'fa-calendar-days', options:schedules, required:true, value: fieldValue('inventory.scheduleId','seat.scheduleId','seatMap.scheduleId','schedule.id') },
         { name:'seatNumber', label:'Seat No', type:'select', icon:'fa-chair', options:seatOptions, required:true, dependsOn:'scheduleId', filterKey:'scheduleId', value: fieldValue('inventory.seatNumber','seat.seatNumber','selected'), help:'Only seats generated for the selected departure are shown. Create and select a schedule first.' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','blocked','maintenance','reserved','disabled'], required:true, value: fieldValue('inventory.status','seat.status','status') || 'blocked' },
-        { name:'priceDelta', label:'Price delta', type:'number', icon:'fa-coins', value: fieldValue('inventory.price','seat.priceDelta','priceDelta') },
         { name:'note', label:'Reason / note', type:'textarea', full:true, placeholder:'Reason for blocked or maintenance seat' }
       ]
     };
@@ -2334,6 +2356,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'name', label:'Vehicle name', icon:'fa-bus-simple', required:true, value: fieldValue('vehicle.name','name') },
         { name:'plateOrCode', label:'Plate / fleet code', icon:'fa-hashtag', required:true, value: fieldValue('vehicle.plateOrCode','plateOrCode') },
+        { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value: fieldValue('vehicle.vehicleClass','vehicleClass') || (String(fieldValue('vehicle.defaultSeatClass','defaultSeatClass')).toLowerCase() === 'vip' ? 'vip' : 'standard'), help:'VIP applies to the complete vehicle and its full passenger seat map.' },
         { name:'manufacturer', label:'Manufacturer', icon:'fa-industry', value: fieldValue('vehicle.manufacturer','manufacturer') },
         { name:'model', label:'Model', icon:'fa-bus', value: fieldValue('vehicle.model','model') },
         { name:'modelYear', label:'Model year', type:'number', icon:'fa-calendar', value: fieldValue('vehicle.modelYear','modelYear') },
@@ -2360,9 +2383,21 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, value: fieldValue('schedule.fareProductId','fareProductId'), dependsOn:'routeId', filterKey:'routeId', help:'Changing a published departure creates a replacement so sold tickets retain their original snapshot.' },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock', value: fieldValue('schedule.boardingStartAt','boardingStartAt') },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: fieldValue('schedule.status','status') || 'draft' },
-        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','driverEmployeeId'), help:'Only an active driver account with accepted membership, verified identity and phone, valid licence, safety clearance, and all operational permissions can be assigned.' },
+        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','driverEmployeeId'), help:'Driver assignment is optional. Any active driver in this company can be selected; compliance details remain visible for operations follow-up.' },
         { name:'blockedSeats', label:'Blocked seats for replacement', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Uses the selected bus’s published seat labels.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, value: fieldValue('schedule.notes','notes') }
+      ]
+    };
+    if (isCompanyRole && mode === 'edit' && key === 'room') return {
+      action: editActionFor('room'), submit: 'Save room inventory summary',
+      fields: [
+        { type:'smart-summary', label:'Room category inventory', help:'This updates the canonical room type and safely creates or archives physical room units to match the requested inventory.' },
+        { name:'roomType', label:'Room type', icon:'fa-bed', required:true, value:fieldValue('room.roomType','room.name','name') },
+        { name:'capacity', label:'Guest capacity', type:'number', icon:'fa-users', required:true, value:fieldValue('room.capacity','capacity') || '1' },
+        { name:'inventory', label:'Physical room units', type:'number', icon:'fa-door-open', required:true, value:fieldValue('room.inventory','inventory') || '0', help:'Reducing inventory archives unused room units only after reservation checks.' },
+        { name:'nightlyPrice', label:'Base nightly price', type:'number', icon:'fa-coins', required:true, value:fieldValue('room.nightlyPrice','room.basePrice','nightlyPrice','basePrice') || '0' },
+        { name:'amenities', label:'Amenities', type:'multiselect', icon:'fa-wifi', options:hotelAmenityOptions, value:fieldValue('room.amenities','amenities') },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','paused'], value:fieldValue('room.status','status') || 'active' }
       ]
     };
     if (isCompanyRole && mode === 'edit' && key === 'hotel_property') return {
@@ -2463,6 +2498,10 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'unitNumber', label:'Room / unit number', icon:'fa-door-open', required:true, value: fieldValue('roomUnit.unitNumber','unitNumber') },
         { name:'floor', label:'Floor', icon:'fa-layer-group', value: fieldValue('roomUnit.floor','floor') },
         { name:'wing', label:'Wing', icon:'fa-building', value: fieldValue('roomUnit.wing','wing') },
+        { name:'viewType', label:'View / position', icon:'fa-mountain-sun', value: fieldValue('roomUnit.viewType','viewType') },
+        { name:'accessible', label:'Accessible room', type:'select', icon:'fa-wheelchair', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomUnit.accessible','accessible') ?? 'false') },
+        { name:'smokingAllowed', label:'Smoking allowed', type:'select', icon:'fa-smoking', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomUnit.smokingAllowed','smokingAllowed') ?? 'false') },
+        { name:'connectingRoom', label:'Connecting room', type:'select', icon:'fa-door-open', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomUnit.connectingRoom','connectingRoom') ?? 'false') },
         { name:'housekeepingStatus', label:'Housekeeping', type:'select', icon:'fa-broom', options:['clean','dirty','cleaning','inspected','ready','maintenance'], value: fieldValue('roomUnit.housekeepingStatus','housekeepingStatus') || 'clean' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','maintenance','cleaning'], value: fieldValue('roomUnit.status','status') || 'available' },
         { name:'notes', label:'Notes', type:'textarea', full:true, value: fieldValue('roomUnit.notes','notes') }
@@ -2473,7 +2512,11 @@ window.addEventListener('DOMContentLoaded', function () {
       fields: [
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','open','maintenance','cleaning','cancelled'], value: fieldValue('roomNight.status','status') || 'available' },
         { name:'price', label:'Night price', type:'number', icon:'fa-coins', value: fieldValue('roomNight.price','price') },
-        { name:'housekeepingStatus', label:'Housekeeping', type:'select', icon:'fa-broom', options:['clean','dirty','cleaning','inspected','maintenance'] },
+        { name:'closedToArrival', label:'Closed to arrival', type:'select', icon:'fa-person-circle-xmark', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomNight.closedToArrival','closedToArrival') ?? 'false') },
+        { name:'closedToDeparture', label:'Closed to departure', type:'select', icon:'fa-person-walking-arrow-right', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomNight.closedToDeparture','closedToDeparture') ?? 'false') },
+        { name:'minStay', label:'Minimum stay', type:'number', icon:'fa-calendar-minus', value:fieldValue('roomNight.minStay','minStay') || '1' },
+        { name:'maxStay', label:'Maximum stay', type:'number', icon:'fa-calendar-plus', value:fieldValue('roomNight.maxStay','maxStay') || '90' },
+        { name:'housekeepingStatus', label:'Housekeeping', type:'select', icon:'fa-broom', options:['clean','dirty','cleaning','inspected','maintenance','ready'], value:fieldValue('roomUnit.housekeepingStatus','roomNight.housekeepingStatus','housekeepingStatus') || 'clean' },
         { name:'notes', label:'Notes', type:'textarea', full:true, value: fieldValue('roomNight.notes','notes') }
       ]
     };
@@ -2503,19 +2546,17 @@ window.addEventListener('DOMContentLoaded', function () {
         fields: [
           { type:'smart-summary', label:'Smart seat map', help:'Select a bus and its live layout, capacity and current labels will load automatically. Normal numbering does not require manual labels.' },
           ...(recordId ? [{ name:'vehicleId', type:'hidden', value:recordId }] : [{ name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true }]),
+          { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value: fieldValue('vehicle.vehicleClass','vehicleClass') || (String(fieldValue('vehicle.defaultSeatClass','defaultSeatClass')).toLowerCase() === 'vip' ? 'vip' : 'standard'), help:'This class is applied to every sellable passenger seat in the vehicle.' },
           { name:'layoutName', label:'Layout pattern', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'1 + 1 with aisle'},{value:'1x2',label:'1 + 2 with aisle'},{value:'2x1',label:'2 + 1 with aisle'},{value:'2x2',label:'2 + 2 with aisle'},{value:'2x3',label:'2 + 3 with aisle'},{value:'3x2',label:'3 + 2 with aisle'},{value:'3x3',label:'3 + 3 with aisle'},{value:'sleeper',label:'Sleeper berths'},{value:'custom',label:'Custom layout'}], value: fieldValue('vehicle.layoutName','layoutName') || '2x2' },
           { name:'rows', label:'Rows', type:'number', icon:'fa-grip', value: fieldValue('vehicle.rows','rows') },
           { name:'totalSeats', label:'Passenger seats', type:'number', icon:'fa-users', required:true, value: fieldValue('vehicle.totalSeats','totalSeats') },
           { name:'seatLabelMode', label:'Seat numbering', type:'select', icon:'fa-wand-magic-sparkles', options:[{value:'preserve',label:'Keep current labels'},{value:'automatic',label:'Automatic 1, 2, 3…'},{value:'row_letters',label:'Rows and positions: A1, A2…'},{value:'prefix_numeric',label:'Prefix and number: S1, S2…'},{value:'custom',label:'Custom labels'}], value: currentLabels.length ? 'preserve' : (fieldValue('vehicle.seatLabelMode','seatLabelMode') || 'automatic') },
           { name:'seatLabelPrefix', label:'Label prefix', icon:'fa-font', value: fieldValue('vehicle.seatLabelPrefix','seatLabelPrefix'), placeholder:'S', help:'Used only for prefix numbering.' },
           { name:'seatLabels', label:'Custom seat labels', type:'seat-labels', full:true, value:currentLabels.join(', '), help:'Required only in Custom mode. It must contain one unique label for every passenger seat.' },
-          { name:'vipSeats', label:'VIP / premium seats', type:'multiselect', icon:'fa-star', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => /vip|premium|business|executive/i.test([seat.seatClass, seat.seatType].join(' '))).map(seat => seat.seatNumber || seat.id).join(',') },
           { name:'accessibleSeats', label:'Accessibility seats', type:'multiselect', icon:'fa-wheelchair', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => seat.accessible || /accessible|wheelchair/i.test(String(seat.seatType || ''))).map(seat => seat.seatNumber || seat.id).join(',') },
           { name:'crewSeats', label:'Crew-only seats', type:'multiselect', icon:'fa-user-shield', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => /crew/i.test(String(seat.seatType || seat.blockedReason || ''))).map(seat => seat.seatNumber || seat.id).join(',') },
           { name:'disabledSeats', label:'Non-sellable spaces', type:'multiselect', icon:'fa-ban', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => seat.enabled === false || seat.isDisabled).map(seat => seat.seatNumber || seat.id).join(','), help:'Doors, aisles, broken seats or other permanent non-passenger positions.' },
-          { name:'blockedSeats', label:'Initially blocked seats', type:'multiselect', icon:'fa-lock', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => /blocked|maintenance|reserved/i.test(String(seat.status || seat.blockedReason || ''))).map(seat => seat.seatNumber || seat.id).join(',') },
-          { name:'defaultSeatClass', label:'Default class', type:'select', icon:'fa-tag', options:['Standard','Economy','Executive','Business','VIP'], value: fieldValue('vehicle.defaultSeatClass','defaultSeatClass') || 'Standard' },
-          { name:'vipPriceDelta', label:'VIP price difference', type:'number', icon:'fa-coins', value: fieldValue('vehicle.vipPriceDelta','vipPriceDelta') || '0' }
+          { name:'blockedSeats', label:'Initially blocked seats', type:'multiselect', icon:'fa-lock', options:templateSeatOptions, dependsOn:recordId ? '' : 'vehicleId', filterKey:'vehicleId', value: templateSeats.filter(seat => /blocked|maintenance|reserved/i.test(String(seat.status || seat.blockedReason || ''))).map(seat => seat.seatNumber || seat.id).join(',') }
         ]
       };
     }
@@ -2705,6 +2746,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'name', label:'Vehicle name', icon:'fa-bus-simple', required:true, placeholder:'Bus 01' },
         { name:'plateOrCode', label:'Plate / fleet code', icon:'fa-hashtag', required:true, placeholder:'UAX 000A' },
+        { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value:'standard', help:'Choose VIP only when the complete vehicle and every sellable passenger seat are VIP.' },
         { name:'layoutName', label:'Layout', type:'select', icon:'fa-chair', options:['1x1','1x2','2x1','2x2','2x3','3x2','3x3','sleeper','custom'], value:'2x2' },
         { name:'rows', label:'Rows', type:'number', icon:'fa-grip', placeholder:'12' },
         { name:'totalSeats', label:'Capacity / seats', type:'number', icon:'fa-users', required:true, value:'48' },
@@ -2745,23 +2787,28 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
-    if (isCompanyRole && key === 'schedule rule') return {
-      action: '/company/schedule-rules', submit: 'Create recurring departure',
-      fields: [
-        { type:'smart-summary', label:'Smart recurring schedule', help:'Route-linked bus, fare, timezone, duration and real seat labels are reused for every generated departure.' },
-        { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
-        { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true, dependsOn:'routeId', filterKey:'listingId', parentMetaKey:'listingId', help:'Automatically selected when only one eligible bus exists.' },
-        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, help:driverWorkflowHint },
-        { name:'status', label:'Rule status', type:'select', icon:'fa-circle-check', options:['active','draft','paused'], value:'active', help:'Active rules generate dated departures automatically. Driver assignment is optional and can be added later.' },
-        { name:'departureTime', label:'Departure time (HH:MM, 24h)', icon:'fa-clock', required:true, placeholder:'08:00' },
-        { name:'startDate', label:'Starts on', type:'date', icon:'fa-calendar-days', required:true },
-        { name:'endDate', label:'Ends on (optional)', type:'date', icon:'fa-calendar-xmark', help:'Leave empty for an indefinite recurring departure.' },
-        { name:'daysOfWeek', label:'Repeats on', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Leave empty to repeat every day.' },
-        { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, dependsOn:'routeId', filterKey:'routeId' },
-        { name:'blockedSeats', label:'Blocked seats', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Applied to every departure generated from this rule.' },
-        { name:'notes', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
-      ]
-    };
+    if (isCompanyRole && (key === 'schedule rule' || key === 'schedule_rule')) {
+      const scheduleRuleId = detail?.scheduleRule?.id || recordId || '';
+      const editing = mode === 'edit' && scheduleRuleId;
+      const dateOnly = (value) => value ? String(value).slice(0, 10) : '';
+      return {
+        action: editing ? `/company/schedule-rules/${encodeURIComponent(scheduleRuleId)}` : '/company/schedule-rules', submit: editing ? 'Save recurring departure' : 'Create recurring departure',
+        fields: [
+          { type:'smart-summary', label:editing ? 'Edit recurring schedule' : 'Smart recurring schedule', help:'Route-linked bus, fare, timezone, duration and real seat labels are reused for every generated departure. Existing dated departures remain independent when this rule changes.' },
+          { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true, value:fieldValue('scheduleRule.routeId','route.id','routeId') },
+          { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true, dependsOn:'routeId', filterKey:'listingId', parentMetaKey:'listingId', value:fieldValue('scheduleRule.vehicleId','vehicle.id','vehicleId'), help:'Automatically selected when only one eligible bus exists.' },
+          { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, value:fieldValue('driver.id','scheduleRule.driverIds.0','driverId'), help:driverWorkflowHint },
+          { name:'status', label:'Rule status', type:'select', icon:'fa-circle-check', options:['active','draft','paused'], value:fieldValue('scheduleRule.status','status') || 'active', help:'Active rules generate dated departures automatically. Driver assignment is optional and can be added later.' },
+          { name:'departureTime', label:'Departure time (HH:MM, 24h)', icon:'fa-clock', required:true, placeholder:'08:00', value:fieldValue('scheduleRule.departureTime','departureTime') },
+          { name:'startDate', label:'Starts on', type:'date', icon:'fa-calendar-days', required:true, value:dateOnly(fieldValue('scheduleRule.startDate','startDate')) },
+          { name:'endDate', label:'Ends on (optional)', type:'date', icon:'fa-calendar-xmark', value:dateOnly(fieldValue('scheduleRule.endDate','endDate')), help:'Leave empty for an indefinite recurring departure.' },
+          { name:'daysOfWeek', label:'Repeats on', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, value:fieldValue('scheduleRule.daysOfWeek','daysOfWeek'), help:'Leave empty to repeat every day.' },
+          { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, dependsOn:'routeId', filterKey:'routeId', value:fieldValue('scheduleRule.fareProductId','fareProduct.id','fareProductId') },
+          { name:'blockedSeats', label:'Blocked seats', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', value:fieldValue('scheduleRule.blockedSeats','blockedSeats'), help:'Applied to every departure generated from this rule.' },
+          { name:'notes', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes', value:fieldValue('scheduleRule.notes','notes') }
+        ]
+      };
+    }
     if (isCompanyRole && (key === 'fare product' || key === 'fare_product')) {
       const fareProductId = detail?.fareProduct?.id || recordId || '';
       const editing = mode === 'edit' && fareProductId;
@@ -2841,10 +2888,11 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'listing[operatorLicenceRef]', label:'Operator licence reference', icon:'fa-id-card', required:true, placeholder:'TSA/OP/2026/001' },
         { name:'listing[baggageRules]', label:'Baggage policy', type:'textarea', full:true, required:true, placeholder:'Included weight, excess baggage rules, restricted items and claim process.' },
         { name:'listing[cancellationRules]', label:'Cancellation and change policy', type:'textarea', full:true, required:true, placeholder:'Refund deadlines, fees, no-show rules and rescheduling conditions.' },
-        { name:'listing[status]', label:'Publish immediately?', type:'select', icon:'fa-circle-check', options:['active','draft'], value:hasActiveDriver ? 'active' : 'draft', help:hasActiveDriver ? 'Active publishes only after every readiness and safety check passes.' : 'No selectable driver exists yet, so the complete setup will be saved safely as Draft.' },
+        { name:'listing[status]', label:'Publish immediately?', type:'select', icon:'fa-circle-check', options:['active','draft'], value:'active', help:'Driver assignment is optional. Active publishes only after the route, vehicle, seat map, fare, compliance, departure, and inventory checks pass.' },
         { name:'vehicle[name]', label:'Vehicle name', icon:'fa-bus-simple', required:true, placeholder:'Bus 01' },
         { name:'vehicle[plateOrCode]', label:'Plate / code', icon:'fa-hashtag', required:true, placeholder:'UAX 000A' },
         { name:'vehicleImageFile', label:'Vehicle photo', type:'file', icon:'fa-camera', required:true },
+        { name:'vehicle[vehicleClass]', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — every passenger seat is standard'},{value:'vip',label:'VIP vehicle — every passenger seat is VIP'}], value:'standard', required:true, help:'VIP is a complete vehicle class. It is never assigned to only a few seats.' },
         { name:'vehicle[layoutName]', label:'Seat layout', type:'select', icon:'fa-chair', options:['1x1','1x2','2x1','2x2','2x3','3x2','3x3','sleeper','custom'], value:'2x2' },
         { name:'vehicle[seatLabelMode]', type:'hidden', value:'automatic' },
         { name:'vehicle[rows]', label:'Rows', type:'number', icon:'fa-grip', placeholder:'12' },
@@ -2874,7 +2922,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fare[changeable]', label:'Changeable', type:'select', icon:'fa-calendar-pen', options:['true','false'], value:'false' },
         { name:'schedule[driverId]', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, help:driverWorkflowHint },
         { name:'fare[fareClass]', label:'Fare class', type:'select', icon:'fa-tag', options:['standard','economy','business','executive','vip','premium'] },
-        { name:'schedule[status]', label:'Departure status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:hasActiveDriver ? 'published' : 'draft', help:hasActiveDriver ? 'Published is required before the bus listing can be activated.' : 'Draft saves the complete connected setup now; select an approved driver and publish later.' },
+        { name:'schedule[status]', label:'Departure status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:'published', help:'Driver assignment is optional. Published departures still require a valid route, vehicle, seat map, fare, future time, and live inventory.' },
         { name:'schedule[notes]', label:'Boarding notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
@@ -3063,25 +3111,39 @@ window.addEventListener('DOMContentLoaded', function () {
       action: `/company/staff/${encodeURIComponent(recordId)}/role`, submit: 'Save employee access',
       fields: [
         { type:'smart-summary', label:'Partner Admin employee control', help:'Super Admin approves the partner company only. The Partner Admin activates, suspends, scopes, and assigns permissions to company employees.' },
+        { name:'fullName', label:'Full name', icon:'fa-user', required:true, value:fieldValue('staff.fullName','user.fullName') },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', required:true, value:fieldValue('staff.email','user.email') },
+        { name:'phone', label:'Phone', icon:'fa-phone', value:fieldValue('staff.phone','user.phone') },
         { name:'roleTitle', label:'Role title', type:'select', icon:'fa-user-tie', options: staffRoleOptions, required:true, value:fieldValue('staff.roleTitle') },
         { name:'status', label:'Employee status', type:'select', icon:'fa-circle-check', options:['active','pending_verification','invited','requested','suspended','rejected','revoked'], required:true, value:fieldValue('staff.status') || 'active' },
         { name:'branchId', label:'Branch / terminal / property desk', type:'select', icon:'fa-location-dot', options:branches, value:fieldValue('staff.branchId') },
         { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, value:fieldValue('staff.listingIds') },
         { name:'scheduleIds', label:'Assigned schedules / departures', type:'multiselect', icon:'fa-calendar-days', options:schedules, value:fieldValue('staff.scheduleIds') },
         { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: staffPermissionOptions, value:fieldValue('staff.permissions') },
+        { name:'shift', label:'Shift / work period', icon:'fa-clock', value:fieldValue('staff.shift') },
+        { name:'notes', label:'Internal notes', type:'textarea', full:true, value:fieldValue('staff.notes') },
       ]
     };
-    if (isCompanyRole && mode === 'edit' && key === 'driver activation') return {
-      action: `/company/drivers/${encodeURIComponent(recordId)}/activate`, submit: 'Activate driver',
+    if (isCompanyRole && mode === 'edit' && (key === 'driver profile' || key === 'driver activation')) return {
+      action: `/company/drivers/${encodeURIComponent(recordId)}/profile`, submit: 'Save driver record',
       fields: [
-        { type:'smart-summary', label:'Partner Admin driver management', help:'Super Admin approves only the partner company. Partner Admin controls this driver’s status, permissions, licence details, and assignments. Account setup may continue separately.' },
+        { type:'smart-summary', label:'Complete driver record', help:'Edit the same driver, account, licence, access scope, safety state, and optional vehicle assignment shown in this row. Activation remains a separate quick action.' },
+        { name:'fullName', label:'Driver name', icon:'fa-user', required:true, value:fieldValue('driver.fullName','user.fullName','invitation.fullName') },
+        { name:'email', label:'Driver email', type:'email', icon:'fa-envelope', required:true, value:fieldValue('driver.email','user.email','invitation.email') },
+        { name:'phone', label:'Driver phone', icon:'fa-phone', value:fieldValue('driver.phone','user.phone','invitation.phone') },
+        { name:'roleTitle', type:'hidden', value:'Driver' },
         { name:'licenseNumber', label:'Driver licence number', icon:'fa-id-card', required:false, value: fieldValue('driver.licenseNumber','invitation.licenseNumber') },
         { name:'licenseClass', label:'Licence class', type:'select', icon:'fa-id-card', options:['A','B','C','D','E','F','G','H'], value: fieldValue('driver.licenseClass','invitation.licenseClass') },
         { name:'licenseExpiresAt', label:'Licence expiry date', type:'date', icon:'fa-calendar-check', value: fieldValue('driver.licenseExpiresAt') },
         { name:'documentReference', label:'Licence document reference', icon:'fa-file-shield', value: fieldValue('partnerActivation.licenseDocumentReference'), help:'Leave unchanged when the driver already uploaded a licence document.' },
         { name:'status', label:'Driver status', type:'select', icon:'fa-circle-check', options:['active','pending_verification','invited','requested','suspended'], required:true, value:fieldValue('driver.status','active') || 'active' },
         { name:'safetyStatus', label:'Safety status', type:'select', icon:'fa-shield-halved', options:['cleared','pending_review','not_submitted','rejected'], required:true, value:fieldValue('driver.safetyStatus','cleared') || 'cleared' },
-        { name:'note', label:'Approval note', type:'textarea', full:true, placeholder:'Optional internal approval note' }
+        { name:'branchId', label:'Branch / terminal', type:'select', icon:'fa-location-dot', options:branches, value:fieldValue('driver.branchId') },
+        { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, value:fieldValue('driver.listingIds') },
+        { name:'scheduleIds', label:'Assigned schedules', type:'multiselect', icon:'fa-calendar-days', options:schedules, value:fieldValue('driver.scheduleIds') },
+        { name:'permissions', label:'Driver permissions', type:'multiselect', icon:'fa-key', options:staffPermissionOptions, value:fieldValue('driver.permissions') },
+        { name:'vehicleId', label:'Assigned vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, value:fieldValue('driver.assignedFleetId','vehicle.id') },
+        { name:'notes', label:'Internal notes', type:'textarea', full:true, value:fieldValue('driver.notes') }
       ]
     };
     if (isCompanyRole && key === 'branch') {
@@ -3129,7 +3191,6 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'scheduleId', label:'Schedule', type:'select', icon:'fa-calendar-days', options:schedules, required:true },
         { name:'seatNumber', label:'Seat No', type:'select', icon:'fa-chair', options:seatOptions, required:true, dependsOn:'scheduleId', filterKey:'scheduleId', placeholder:'1' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','blocked','maintenance','reserved','disabled'], required:true },
-        { name:'priceDelta', label:'Price delta', type:'number', icon:'fa-coins', placeholder:'0' },
         { name:'blockedReason', label:'Reason / note', type:'textarea', full:true, placeholder:'Reason for blocked or maintenance seat' }
       ]
     };
@@ -3141,6 +3202,24 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'note', label:'Finance note', type:'textarea', full:true, placeholder:'Optional payout request note' }
       ]
     };
+    if (isCompanyRole && key === 'promotion') {
+      const campaignId = detail?.campaign?.id || detail?.campaign?.promotionId || recordId || '';
+      const editing = mode === 'edit' && campaignId;
+      const dateTimeValue = (value) => value ? String(value).slice(0, 16) : '';
+      return {
+        action: editing ? `/company/promotions/${encodeURIComponent(campaignId)}` : '/company/promotions',
+        submit: editing ? 'Save promotion changes' : 'Promote service',
+        fields: [
+          { name:'listingId', label:'Published service', type:'select', icon:'fa-layer-group', options:listings, required:true, value:fieldValue('target.listingId','campaign.listingId','listingId') },
+          { name:'name', label:'Campaign name', icon:'fa-rectangle-ad', required:true, value:fieldValue('campaign.name','campaign.title','name') },
+          { name:'placement', label:'Placement', type:'select', icon:'fa-location-crosshairs', options:['marketplace_top','route_boost','route_card','hotel_card','banner','promoter_share'], value:fieldValue('campaign.placement','campaign.type','placement') || 'route_boost' },
+          { name:'budget', label:'Budget', type:'number', icon:'fa-coins', required:true, value:String(fieldValue('campaign.budgetAmount','budget') || '') },
+          { name:'startsAt', label:'Starts', type:'datetime-local', icon:'fa-calendar-days', value:dateTimeValue(fieldValue('campaign.startsAt','campaign.startDate','startsAt')) },
+          { name:'endsAt', label:'Ends', type:'datetime-local', icon:'fa-calendar-check', value:dateTimeValue(fieldValue('campaign.endsAt','campaign.endDate','endsAt')) },
+          { name:'status', label:'Status', type:'select', icon:'fa-toggle-on', options:['active','paused','expired'], value:fieldValue('campaign.status','status') || 'active' }
+        ]
+      };
+    }
     if (isCompanyRole && (key === 'notice' || key === 'support notice')) return {
       action: '/company/support/notices', submit: 'Create support notice',
       fields: [
@@ -4002,6 +4081,7 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#adminRoutesTable', data.routes || data.routeInventory || [], 'routes');
     fillTable('#adminVehiclesTable', data.vehicles || [], 'vehicles');
     fillTable('#adminSchedulesTable', data.schedules || [], 'schedules');
+    fillTable('#companyScheduleRulesTable', data.scheduleRules || [], 'generic');
     fillTable('#companyFareProductsTable', data.fareProductRows || [], 'generic');
     fillTable('#companySegmentFaresTable', data.segmentFareRows || [], 'generic');
     fillTable('#companyServiceAddonsTable', data.serviceAddonRows || [], 'generic');

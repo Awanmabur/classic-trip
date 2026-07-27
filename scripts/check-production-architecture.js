@@ -71,7 +71,7 @@ for (const file of runtimeFiles) {
 }
 const serviceRegistry = source('src/config/serviceRegistry.js');
 check(/bus:.*status:\s*'active'/s.test(serviceRegistry) && /hotel:.*status:\s*'active'/s.test(serviceRegistry) && /flight:.*status:\s*'active'/s.test(serviceRegistry) && /local_transport:.*status:\s*'active'/s.test(serviceRegistry), 'Bus, hotel, flight and local transport must remain operational');
-check(/tour:.*status:\s*'coming_soon'/s.test(serviceRegistry) && /car_rental:.*status:\s*'coming_soon'/s.test(serviceRegistry) && /cargo:.*status:\s*'coming_soon'/s.test(serviceRegistry), 'Only approved future services may remain in the roadmap');
+check(/tour:.*status:\s*'active'/s.test(serviceRegistry) && /car_rental:.*status:\s*'active'/s.test(serviceRegistry) && /cargo:.*status:\s*'active'/s.test(serviceRegistry), 'Tours, car rentals and cargo must remain operational rather than roadmap placeholders');
 
 const currencyAllowed = new Set(['src/models/PlatformSetting.js', 'src/services/platform/platformConfigService.js', 'src/config/countryMarkets.js']);
 for (const file of runtimeFiles) {

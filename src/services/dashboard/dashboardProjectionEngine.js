@@ -1139,6 +1139,7 @@ function createDashboardProjection(initialState = {}) {
     const seatMapVersions = busScope.seatMapVersions;
     const vehicles = busScope.vehicles;
     const schedules = busScope.schedules;
+    const scheduleRules = Array.isArray(state.scheduleRules) ? state.scheduleRules.filter((rule) => String(rule.companyId || '') === String(companyId)) : [];
     const rooms = state.roomSummaries.filter(room => room.companyId === companyId);
     const reviews = state.reviews.filter(review => review.companyId === companyId);
     const companyEmployees = Array.isArray(state.companyEmployees) ? state.companyEmployees.filter(employee => String(employee.companyId || '') === String(companyId)) : [];
@@ -1234,6 +1235,7 @@ function createDashboardProjection(initialState = {}) {
     const visibleRouteIds = new Set(visibleRoutes.map(busScopeRowId).filter(Boolean));
     const visibleRouteStops = serviceProfile.supportsBusOperations ? routeStops.filter(stop => visibleRouteIds.has(String(stop.routeId || ''))) : [];
     const visibleSchedules = serviceProfile.supportsBusOperations ? schedules.filter(schedule => listingSupportsVisibleService(schedule.listingId)) : [];
+    const visibleScheduleRules = serviceProfile.supportsBusOperations ? scheduleRules.filter((rule) => listingSupportsVisibleService(rule.listingId)) : [];
     const busScheduleContext = {
       listingById: new Map(listings.map(item => [String(item.id || ''), item])),
       routeById: new Map(companyRoutes.map(item => [busScopeRowId(item), item]).filter(([id]) => id)),
@@ -1366,14 +1368,13 @@ function createDashboardProjection(initialState = {}) {
         rows: activeVersion.rows || vehicle.rows || '',
         columns: activeVersion.columns || vehicle.cols || '',
         totalSeats: activeVersion.totalSeats || vehicle.totalSeats || versionSeats.length || '',
+        vehicleClass: vehicle.vehicleClass || activeVersion.vehicleClass || (String(vehicle.defaultSeatClass || '').toLowerCase() === 'vip' ? 'vip' : 'standard'),
         seatLabels: versionSeats.map(seatNumber).filter(Boolean).join(','),
-        vipSeats: versionSeats.filter(seat => /vip|premium|business|executive/i.test([seat.seatClass, seat.seatType].join(' '))).map(seatNumber).filter(Boolean).join(','),
         accessibleSeats: versionSeats.filter(seat => seat.accessible || /accessible/i.test([seat.seatClass, seat.seatType].join(' '))).map(seatNumber).filter(Boolean).join(','),
         crewSeats: versionSeats.filter(seat => /crew/i.test([seat.seatClass, seat.seatType, seat.blockedReason].join(' '))).map(seatNumber).filter(Boolean).join(','),
         disabledSeats: versionSeats.filter(seat => seat.enabled === false || seat.isDisabled || /disabled|non-passenger/i.test(String(seat.blockedReason || seat.status || ''))).map(seatNumber).filter(Boolean).join(','),
         blockedSeats: versionSeats.filter(seat => /blocked|maintenance|reserved/i.test(String(seat.blockedReason || seat.status || ''))).map(seatNumber).filter(Boolean).join(','),
-        defaultSeatClass: vehicle.defaultSeatClass || 'Standard',
-        vipPriceDelta: vehicle.vipPriceDelta || 0,
+        defaultSeatClass: vehicle.defaultSeatClass || ((vehicle.vehicleClass || activeVersion.vehicleClass) === 'vip' ? 'VIP' : 'Standard'),
         activeSeatMapVersionId: activeVersion.id || vehicle.activeSeatMapVersionId || '',
         seatMapVersion: activeVersion.version || '',
         seatMapStatus: activeVersion.status || '',
@@ -1818,7 +1819,7 @@ function createDashboardProjection(initialState = {}) {
         || categories.includes('driver');
     };
     const employeeForInvitation = invitation => {
-      const linkedEmployeeId = String(invitation.meta?.driverEmployeeId || invitation.driverEmployeeId || '');
+      const linkedEmployeeId = String(invitation.meta?.driverEmployeeId || invitation.metadata?.driverEmployeeId || invitation.driverEmployeeId || '');
       if (linkedEmployeeId) {
         const linked = companyEmployees.find(employee => String(employee.id || '') === linkedEmployeeId);
         if (linked) return linked;
@@ -1871,7 +1872,10 @@ function createDashboardProjection(initialState = {}) {
     const driverEmployeeStatus = (employee, user, review) => {
       const assignment = evaluateDriverAssignment(employee, user);
       const eligibility = evaluateDriverEligibility(employee, user);
-      if (!assignment.assignable) return `Not assignable: ${assignment.reasons.join('; ')}`;
+      if (!assignment.assignable) {
+        const lifecycle = [employee.status || 'pending', user.status || 'account setup pending', review?.status || employee.safetyStatus || 'verification pending'].filter(Boolean).join(' · ');
+        return `Pending · ${lifecycle} · ${assignment.reasons.join('; ') || 'Partner Admin action required'}`;
+      }
       if (eligibility.eligible) return eligibility.approvalSource === 'partner_admin' ? 'Assignable · Partner Admin approved · operational' : 'Assignable · platform verified · operational';
       const lifecycle = [employee.status || 'unknown membership', user.status || 'no linked account', review?.status || employee.safetyStatus || user.verificationStatus || 'not verified'].filter(Boolean).join(' · ');
       return `Assignable · ${lifecycle} · operational warning: ${eligibility.reasons.join('; ') || 'verification pending'}`;
@@ -1895,7 +1899,7 @@ function createDashboardProjection(initialState = {}) {
           eligibility: evaluateDriverEligibility(employee, account),
         };
       }) : [];
-    const assignableDriverEmployees = driverEligibilityRows.filter((row) => row.eligibility.eligible).map((row) => row.employee);
+    const assignableDriverEmployees = driverEligibilityRows.filter((row) => row.assignment.assignable).map((row) => row.employee);
     const activeDriverEmployees = driverEligibilityRows.filter((row) => normalize(row.employee.status) === 'active').map((row) => row.employee);
     const activeStaffEmployees = companyEmployees.filter(employee => !isDriverEmployee(employee) && normalize(employee.status) === 'active');
 
@@ -1923,7 +1927,11 @@ function createDashboardProjection(initialState = {}) {
     const driverEmployeeRows = (serviceProfile.supportsBusOperations ? companyEmployees.filter(isDriverEmployee) : []).map(employee => {
       const user = userIndex.get(String(employee.userId || '')) || {};
       const review = companyVerificationReviews.find(item => normalize(item.targetType) === 'driver' && String(item.targetId || '') === String(employee.id || '')) || {};
-      const invitation = companyInvitations.find(item => normalize(item.type) === 'driver' && String(item.acceptedBy || item.userId || '') === String(employee.userId || '')) || {};
+      const invitation = companyInvitations.find(item => normalize(item.type) === 'driver' && (
+        String(item.id || '') === String(employee.invitationId || '')
+        || String(item.meta?.driverEmployeeId || item.metadata?.driverEmployeeId || item.driverEmployeeId || '') === String(employee.id || '')
+        || (employee.userId && String(item.acceptedBy || item.userId || '') === String(employee.userId))
+      )) || {};
       const vehicle = visibleVehicles.find(item => String(item.id || '') === String(employee.assignedFleetId || employee.pendingVehicleId || '')) || {};
       const eligibility = evaluateDriverEligibility(employee, user);
       const partnerActivation = evaluatePartnerDriverActivation(employee, user);
@@ -1941,9 +1949,9 @@ function createDashboardProjection(initialState = {}) {
       ];
     });
     const driverInvitationRows = (serviceProfile.supportsBusOperations ? companyInvitations : []).filter(invitation => normalize(invitation.type) === 'driver' && !employeeForInvitation(invitation)).map(invitation => {
-      const ticket = driverRequestByInvitationId.get(String(invitation.id || '')) || driverRequestTickets.find(item => String(item.id || '') === String(invitation.meta?.requestTicketId || '')) || {};
-      const vehicle = visibleVehicles.find(item => String(item.id || '') === String(invitation.vehicleId || invitation.meta?.requestedVehicleId || '')) || {};
-      const schedule = visibleSchedules.find(item => String(item.id || '') === String(invitation.scheduleId || invitation.meta?.requestedScheduleId || '')) || {};
+      const ticket = driverRequestByInvitationId.get(String(invitation.id || '')) || driverRequestTickets.find(item => String(item.id || '') === String(invitation.meta?.requestTicketId || invitation.metadata?.requestTicketId || '')) || {};
+      const vehicle = visibleVehicles.find(item => String(item.id || '') === String(invitation.vehicleId || invitation.meta?.requestedVehicleId || invitation.metadata?.requestedVehicleId || '')) || {};
+      const schedule = visibleSchedules.find(item => String(item.id || '') === String(invitation.scheduleId || invitation.meta?.requestedScheduleId || invitation.metadata?.requestedScheduleId || '')) || {};
       return [
         invitation.fullName || invitation.email,
         invitation.licenseNumber || ticket.requestedDriver?.licenseNumber || '-',
@@ -1957,7 +1965,7 @@ function createDashboardProjection(initialState = {}) {
         }
       ];
     });
-    const invitationTicketIds = new Set((serviceProfile.supportsBusOperations ? companyInvitations : []).map(invitation => String(invitation.meta?.requestTicketId || '')).filter(Boolean));
+    const invitationTicketIds = new Set((serviceProfile.supportsBusOperations ? companyInvitations : []).map(invitation => String(invitation.meta?.requestTicketId || invitation.metadata?.requestTicketId || '')).filter(Boolean));
     const invitationEmails = new Set((serviceProfile.supportsBusOperations ? companyInvitations : []).map(invitation => normalize(invitation.email)).filter(Boolean));
     const driverRequestRows = (serviceProfile.supportsBusOperations ? driverRequestTickets : []).filter(ticket => {
       if (invitationTicketIds.has(String(ticket.id || ''))) return false;
@@ -2022,6 +2030,33 @@ function createDashboardProjection(initialState = {}) {
     const routeByIdForFares = new Map(visibleRoutes.map((route) => [String(route.id || ''), route]));
     const stopByIdForFares = new Map(visibleRouteStops.map((stop) => [String(stop.id || ''), stop]));
     const productByIdForFares = new Map(fareProducts.map((fare) => [String(fare.id || ''), fare]));
+    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const scheduleRuleRows = visibleScheduleRules.filter((rule) => normalize(rule.status) !== 'cancelled').map((rule) => {
+      const route = routeByIdForFares.get(String(rule.routeId || '')) || {};
+      const vehicle = visibleVehicles.find((item) => String(item.id || '') === String(rule.vehicleId || '')) || {};
+      const fareProduct = fareProducts.find((item) => String(item.id || '') === String(rule.fareProductId || '')) || {};
+      const employeeId = (Array.isArray(rule.driverIds) ? rule.driverIds : String(rule.driverIds || '').split(',')).map((value) => String(value || '').trim()).filter(Boolean)[0] || '';
+      const employee = companyEmployees.find((item) => [item.id, item.userId].map(String).includes(String(employeeId))) || {};
+      const driverUser = userIndex.get(String(employee.userId || '')) || {};
+      const repeat = Array.isArray(rule.daysOfWeek) && rule.daysOfWeek.length
+        ? rule.daysOfWeek.map((day) => weekdayLabels[Number(day)] || String(day)).join(', ')
+        : 'Every day';
+      const label = `${route.routeName || [route.origin, route.destination].filter(Boolean).join(' → ') || 'Route'} at ${rule.departureTime || '--:--'}`;
+      return [
+        label,
+        repeat,
+        `${String(rule.startDate || '').slice(0, 10)}${rule.endDate ? ` → ${String(rule.endDate).slice(0, 10)}` : ' onward'}`,
+        vehicle.name || rule.vehicleId || 'Vehicle pending',
+        fareProduct.name || fareProduct.fareClass || 'Fare plan',
+        driverUser.fullName || employee.fullName || 'Optional / unassigned',
+        rule.status || 'draft',
+        {
+          entity: 'schedule_rule', id: rule.id, label, status: rule.status,
+          detail: { scheduleRule: rule, route, vehicle, fareProduct, driver: employee, user: safeEmployeeUser(driverUser), listing: listingDetail(findListing(rule.listingId) || {}), company: companyDetail(company), purpose: 'Recurring rules create future dated departures. Editing the rule changes future materialization; already-created departures remain independent and editable.' }
+        }
+      ];
+    });
+
     const fareProductRows = fareProducts.filter((fare) => normalize(fare.status) !== 'archived').map((fare) => {
       const route = routeByIdForFares.get(String(fare.routeId || '')) || {};
       const fares = segmentFares.filter((row) => String(row.fareProductId || '') === String(fare.id || '') && normalize(row.status) === 'active');
@@ -2334,6 +2369,7 @@ function createDashboardProjection(initialState = {}) {
           }
         }];
       }),
+      scheduleRules: scheduleRuleRows,
       schedules: visibleSchedules.slice(0, 24).map(schedule => {
         const totalSeats = Number(schedule.totalSeats || 0);
         const sold = Math.max(0, totalSeats - Number(schedule.availableSeats || 0) - seatsForSchedule(schedule.id).filter(seat => ['locked', 'blocked'].includes(seat.status)).length);
@@ -2354,7 +2390,7 @@ function createDashboardProjection(initialState = {}) {
           }
         }];
       }),
-      vehicles: visibleVehicles.map(vehicle => [vehicle.name, SERVICE_LABELS[vehicle.serviceType] || vehicle.serviceType || 'Vehicle', vehicle.plateOrCode || '-', `${vehicle.totalSeats || 0} seats`, vehicle.layoutName || 'Layout pending', vehicle.status, {
+      vehicles: visibleVehicles.map(vehicle => [vehicle.name, (vehicle.vehicleClass || '').toLowerCase() === 'vip' || vehicle.defaultSeatClass === 'VIP' ? 'VIP bus' : 'Standard bus', vehicle.plateOrCode || '-', `${vehicle.totalSeats || 0} seats`, vehicle.layoutName || 'Layout pending', vehicle.status, {
         entity: 'vehicle',
         id: vehicle.id,
         label: vehicle.name,
@@ -2538,19 +2574,28 @@ function createDashboardProjection(initialState = {}) {
     const employeeDetail = (employee = {}) => {
       const user = state.users.find(item => String(item.id || item._id || '') === String(employee.userId || '')) || {};
       return {
+        // Preserve the canonical employee fields so Edit opens the same record
+        // the table displays instead of a reduced, differently named summary.
         staff: {
-          staffId: employee.id,
-          userId: user.id,
-          name: user.fullName,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          jobTitle: employee.roleTitle,
-          permissionsLabel: (employee.permissions || []).join(', '),
-          status: employee.status || user.status,
-          invitedBy: employee.invitedBy,
-          invitedAt: employee.invitedAt,
-          onboardedAt: employee.onboardedAt
+          ...employee,
+          fullName: user.fullName || employee.fullName || '',
+          email: user.email || employee.email || '',
+          phone: user.phone || employee.phone || '',
+          userRole: user.role || '',
+        },
+        user: {
+          id: String(user?.id || user?._id || ''),
+          fullName: user?.fullName || '',
+          email: user?.email || '',
+          phone: user?.phone || '',
+          role: user?.role || '',
+          status: user?.status || '',
+          verificationStatus: user?.verificationStatus || '',
+          onboardingStatus: user?.onboardingStatus || '',
+          emailVerifiedAt: user?.emailVerifiedAt || '',
+          phoneVerifiedAt: user?.phoneVerifiedAt || '',
+          lastLoginAt: user?.lastLoginAt || '',
+          companyId: user?.companyId || '',
         },
         company: companyDetail(findCompany(companyId)),
         timestamps: {
@@ -4003,12 +4048,18 @@ function createDashboardProjection(initialState = {}) {
     const company = findCompany(campaign.companyId) || {};
     return {
       campaign: {
+        id: campaign.id,
         promotionId: campaign.id,
+        name: campaign.name || campaign.title,
         title: campaign.name || campaign.title,
+        placement: campaign.placement || campaign.type,
         type: campaign.placement || campaign.type,
         status: campaign.status,
-        startDate: campaign.startDate,
-        endDate: campaign.endDate,
+        startsAt: campaign.startsAt || campaign.startDate,
+        endsAt: campaign.endsAt || campaign.endDate,
+        startDate: campaign.startsAt || campaign.startDate,
+        endDate: campaign.endsAt || campaign.endDate,
+        budgetAmount: Number(campaign.budget || 0),
         budget: formatMoney(campaign.budget || 0),
         spend: formatMoney(campaign.spend || 0),
         clicks: campaign.clicks || 0,

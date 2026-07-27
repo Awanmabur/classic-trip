@@ -20,6 +20,7 @@ const seatMapVersionSchema = new Schema({
   listingId: { type: String, required: true, index: true },
   vehicleId: { type: String, required: true, index: true },
   version: { type: Number, required: true, min: 1 },
+  vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard' },
   layoutName: { type: String, required: true },
   labelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   labelPrefix: String,

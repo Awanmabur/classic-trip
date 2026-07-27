@@ -25,7 +25,8 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
         { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
       ] },
-      { label: 'Bus Finance', items: [
+      { label: 'Bus Growth & Finance', items: [
+        { page: 'ads', label: 'Promote Bus Services', icon: 'fa-rectangle-ad' },
         { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
         { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
@@ -41,7 +42,7 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'staff', label: 'Stay Staff', icon: 'fa-user-tie' },
       ] },
       { label: 'Stay Setup', items: [
-        { page: 'listings', label: 'Stay Listings (Public)', icon: 'fa-hotel' },
+        { page: 'listings', label: 'Stay & Airbnb Listings', icon: 'fa-hotel' },
         { page: 'hotel-rooms', label: 'Properties, Rooms & Inventory', icon: 'fa-bed' },
       ] },
       { label: 'Stay Daily Work', items: [
@@ -51,7 +52,8 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'support', label: 'Support Cases', icon: 'fa-headset' },
         { page: 'reviews', label: 'Reviews', icon: 'fa-star' },
       ] },
-      { label: 'Stay Finance', items: [
+      { label: 'Stay Growth & Finance', items: [
+        { page: 'ads', label: 'Promote Stays & Airbnb', icon: 'fa-rectangle-ad' },
         { page: 'revenue', label: 'Revenue', icon: 'fa-money-bill-wave' },
         { page: 'settlement', label: 'Settlement', icon: 'fa-wallet' },
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
@@ -109,7 +111,73 @@ const COMPANY_SERVICE_MENU_CONFIG = {
         { page: 'reports', label: 'Reports', icon: 'fa-chart-pie' },
       ] },
     ],
-  }
+  },
+  tour: {
+    createLabel: 'Create Tour',
+    groups: [
+      { label: 'Company', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'company-profile', label: 'Tour Company Profile', icon: 'fa-building-circle-check' },
+        { page: 'staff', label: 'Tour Staff & Guides', icon: 'fa-user-tie' },
+      ] },
+      { label: 'Tour Operations', items: [
+        { page: 'listings', label: 'Tours & Activities', icon: 'fa-map-location-dot' },
+        { page: 'bookings', label: 'Tour Bookings', icon: 'fa-ticket' },
+        { page: 'reviews', label: 'Guest Reviews', icon: 'fa-star' },
+        { page: 'support', label: 'Guest Support', icon: 'fa-headset' },
+      ] },
+      { label: 'Growth & Money', items: [
+        { page: 'ads', label: 'Promote Tours', icon: 'fa-rectangle-ad' },
+        { page: 'revenue', label: 'Tour Revenue', icon: 'fa-money-bill-wave' },
+        { page: 'settlement', label: 'Settlement & Payouts', icon: 'fa-wallet' },
+        { page: 'reports', label: 'Tour Reports', icon: 'fa-chart-pie' },
+      ] },
+    ],
+  },
+  car_rental: {
+    createLabel: 'Add Rental Vehicle',
+    groups: [
+      { label: 'Company', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'company-profile', label: 'Rental Company Profile', icon: 'fa-building-circle-check' },
+        { page: 'staff', label: 'Rental Staff', icon: 'fa-user-tie' },
+      ] },
+      { label: 'Car Rental Operations', items: [
+        { page: 'listings', label: 'Rental Vehicles', icon: 'fa-car-side' },
+        { page: 'bookings', label: 'Rental Bookings', icon: 'fa-ticket' },
+        { page: 'reviews', label: 'Customer Reviews', icon: 'fa-star' },
+        { page: 'support', label: 'Rental Support', icon: 'fa-headset' },
+      ] },
+      { label: 'Growth & Money', items: [
+        { page: 'ads', label: 'Promote Rental Vehicles', icon: 'fa-rectangle-ad' },
+        { page: 'revenue', label: 'Rental Revenue', icon: 'fa-money-bill-wave' },
+        { page: 'settlement', label: 'Settlement & Payouts', icon: 'fa-wallet' },
+        { page: 'reports', label: 'Rental Reports', icon: 'fa-chart-pie' },
+      ] },
+    ],
+  },
+  cargo: {
+    createLabel: 'Create Cargo Service',
+    groups: [
+      { label: 'Company', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'company-profile', label: 'Cargo Company Profile', icon: 'fa-building-circle-check' },
+        { page: 'staff', label: 'Cargo Staff', icon: 'fa-user-tie' },
+      ] },
+      { label: 'Cargo Operations', items: [
+        { page: 'listings', label: 'Cargo & Parcel Services', icon: 'fa-boxes-stacked' },
+        { page: 'bookings', label: 'Shipments & Bookings', icon: 'fa-truck-fast' },
+        { page: 'reviews', label: 'Customer Reviews', icon: 'fa-star' },
+        { page: 'support', label: 'Shipment Support', icon: 'fa-headset' },
+      ] },
+      { label: 'Growth & Money', items: [
+        { page: 'ads', label: 'Promote Cargo Services', icon: 'fa-rectangle-ad' },
+        { page: 'revenue', label: 'Cargo Revenue', icon: 'fa-money-bill-wave' },
+        { page: 'settlement', label: 'Settlement & Payouts', icon: 'fa-wallet' },
+        { page: 'reports', label: 'Cargo Reports', icon: 'fa-chart-pie' },
+      ] },
+    ],
+  },
 
 };
 
@@ -197,6 +265,66 @@ const EMPLOYEE_SERVICE_MENU_CONFIG = {
         { page: 'support', label: 'Support Tasks', icon: 'fa-headset' },
         { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
         { page: 'reports', label: 'My Reports', icon: 'fa-file-lines' },
+        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
+      ] },
+    ],
+  },
+  tour: {
+    createLabel: 'Create Tour Booking',
+    groups: [
+      { label: 'Tour Shift', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'bookings', label: 'Assigned Tour Bookings', icon: 'fa-ticket' },
+        { page: 'schedule', label: 'Tour Dates & Assignments', icon: 'fa-calendar-days' },
+        { page: 'inventory', label: 'Participant Capacity', icon: 'fa-users-viewfinder' },
+        { page: 'customers', label: 'Guests & Participants', icon: 'fa-users' },
+      ] },
+      { label: 'Tour Service', items: [
+        { page: 'payments', label: 'Tour Payments', icon: 'fa-wallet' },
+        { page: 'refunds', label: 'Tour Refunds', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Guest Support', icon: 'fa-headset' },
+        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
+        { page: 'reports', label: 'Tour Reports', icon: 'fa-file-lines' },
+        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
+      ] },
+    ],
+  },
+  car_rental: {
+    createLabel: 'Create Rental Booking',
+    groups: [
+      { label: 'Rental Shift', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'bookings', label: 'Assigned Rentals', icon: 'fa-ticket' },
+        { page: 'schedule', label: 'Pickup & Return Schedule', icon: 'fa-calendar-days' },
+        { page: 'inventory', label: 'Rental Vehicle Availability', icon: 'fa-car-side' },
+        { page: 'customers', label: 'Drivers & Customers', icon: 'fa-users' },
+      ] },
+      { label: 'Rental Service', items: [
+        { page: 'payments', label: 'Rental Payments', icon: 'fa-wallet' },
+        { page: 'refunds', label: 'Rental Refunds', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Rental Support', icon: 'fa-headset' },
+        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
+        { page: 'reports', label: 'Rental Reports', icon: 'fa-file-lines' },
+        { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
+      ] },
+    ],
+  },
+  cargo: {
+    createLabel: 'Create Cargo Booking',
+    groups: [
+      { label: 'Cargo Shift', items: [
+        { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
+        { page: 'bookings', label: 'Assigned Shipments', icon: 'fa-box' },
+        { page: 'schedule', label: 'Pickup & Delivery Schedule', icon: 'fa-calendar-days' },
+        { page: 'inventory', label: 'Cargo Capacity', icon: 'fa-boxes-stacked' },
+        { page: 'customers', label: 'Senders & Recipients', icon: 'fa-users' },
+      ] },
+      { label: 'Cargo Service', items: [
+        { page: 'payments', label: 'Shipment Payments', icon: 'fa-wallet' },
+        { page: 'refunds', label: 'Shipment Refunds', icon: 'fa-rotate-left' },
+        { page: 'support', label: 'Shipment Support', icon: 'fa-headset' },
+        { page: 'handover', label: 'Shift Handover', icon: 'fa-clipboard-list' },
+        { page: 'reports', label: 'Cargo Reports', icon: 'fa-file-lines' },
         { page: 'profile', label: 'My Profile', icon: 'fa-user-gear' },
       ] },
     ],

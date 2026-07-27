@@ -21,7 +21,7 @@ check(departure.includes("normalize(employee.status) !== 'active'"), 'An explici
 check(!departure.includes("failures.push('verified_operational_driver_missing')"), 'Departure publication must not require a driver.');
 check(!departure.includes("requestedStatus === 'published' && !driver"), 'Creating a published departure must allow an empty driver selection.');
 check(!departure.includes("requestedStatus === 'active' && !driver"), 'Recurring departure rules must allow an empty driver selection.');
-check(setup.includes("employees.list({ companyId, status: 'active' }"), 'Optional driver choices must load active company memberships.');
+check(!setup.includes('assignableDrivers') && setup.includes('Driver assignment is optional'), 'Listing publication must keep driver selection optional and separate from readiness.');
 check(projection.includes("normalize(row.employee.status) === 'active'"), 'Dashboard selectors must expose active company drivers even when operational verification is incomplete.');
 check(projection.includes('canPublishDeparture: true'), 'Dashboard publication controls must never be gated by driver availability.');
 check(workspace.includes('Driver assignment is optional'), 'Departure forms must clearly explain optional driver assignment.');

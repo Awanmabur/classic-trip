@@ -12,6 +12,7 @@
           <button class="btn" data-modal="create" data-type="fare product"><i class="fa-solid fa-tags"></i> Fare plan</button>
           <button class="btn" data-modal="create" data-type="segment fare"><i class="fa-solid fa-route"></i> Stop-to-stop price</button>
           <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-circle-plus"></i> Add-on</button>
+          <button class="btn" data-modal="create" data-type="schedule rule"><i class="fa-solid fa-repeat"></i> Recurring rule</button>
           <button class="btn btnBlue" data-modal="create" data-type="schedule"><i class="fa-solid fa-plus"></i> Create departure</button>
         </div>
       <% } %>
@@ -20,6 +21,17 @@
   </div>
 
   <% if(!isEmployeeDashboard){ %>
+    <div class="card" style="margin-top:16px">
+      <div class="cardHead">
+        <div class="cardTitle">
+          <h3>Recurring departure rules</h3>
+          <p>Create, edit, pause, resume, or cancel repeating departures. A rule controls future generated departures; already-created dated departures remain independently manageable.</p>
+        </div>
+        <button class="btn" data-modal="create" data-type="schedule rule"><i class="fa-solid fa-plus"></i> Add recurring rule</button>
+      </div>
+      <div class="tableWrap"><table><thead><tr><th>Route & time</th><th>Repeats</th><th>Date range</th><th>Vehicle</th><th>Fare plan</th><th>Driver</th><th>Status</th><th></th></tr></thead><tbody id="companyScheduleRulesTable"></tbody></table></div>
+    </div>
+
     <div class="grid2" style="margin-top:16px">
       <div class="card">
         <div class="cardHead">

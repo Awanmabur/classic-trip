@@ -50,7 +50,7 @@ async function resolveDriver(companyId, value) {
   const id = cleanText(value, 220);
   if (!id) return null;
   const employee = await repository.employees.findOne({ companyId, $or: [{ id }, { userId: id }] });
-  if (!employee) throw validationError('Select an active, verified driver account from this company');
+  if (!employee) throw validationError('Select an active driver account from this company');
   const user = employee.userId ? await repository.users.findOne({ id: employee.userId }) : null;
   if (user?.companyId && String(user.companyId) !== String(companyId)) {
     throw validationError('Selected driver account belongs to a different company');
@@ -458,6 +458,68 @@ async function createScheduleRule(companyId, payload = {}, actor = 'company-admi
   return rule;
 }
 
+async function updateScheduleRule(companyId, ruleId, payload = {}, actor = 'company-admin') {
+  const rule = await repository.oneOrThrow(repository.scheduleRules, { id: ruleId, companyId }, 'Recurring schedule rule not found');
+  if (normalize(rule.status) === 'cancelled') throw conflictError('Cancelled recurring schedule rules cannot be edited; create a replacement rule');
+
+  const routeId = cleanText(payload.routeId || rule.routeId, 180);
+  const vehicleId = cleanText(payload.vehicleId || rule.vehicleId, 180);
+  const fareProductId = cleanText(payload.fareProductId || rule.fareProductId, 180);
+  const { route, listing } = await routeContext(companyId, routeId);
+  const { vehicle, seatMapVersion } = await vehicleContext(companyId, vehicleId, listing.id);
+  const { fareProduct } = await fareContext(companyId, fareProductId, route);
+
+  const departureTime = cleanText(payload.departureTime || rule.departureTime, 10);
+  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(departureTime)) throw validationError('Departure time must use HH:MM in 24-hour format');
+  const startSource = Object.prototype.hasOwnProperty.call(payload, 'startDate') ? payload.startDate : rule.startDate;
+  const endSource = Object.prototype.hasOwnProperty.call(payload, 'endDate') ? payload.endDate : rule.endDate;
+  const startDate = parseDate(`${String(startSource || new Date().toISOString()).slice(0, 10)}T00:00:00`, 'Start date');
+  const endDate = endSource ? parseDate(`${String(endSource).slice(0, 10)}T23:59:59`, 'End date') : null;
+  if (endDate && endDate < startDate) throw validationError('End date must be after start date');
+
+  const requestedDriverId = Object.prototype.hasOwnProperty.call(payload, 'driverId')
+    ? payload.driverId
+    : (parseList(rule.driverIds)[0] || '');
+  const driver = requestedDriverId ? await resolveDriver(companyId, requestedDriverId) : null;
+  const requestedStatus = normalize(payload.status || rule.status || 'active');
+  if (!['draft', 'active', 'paused'].includes(requestedStatus)) throw validationError('Recurring schedule status must be Draft, Active, or Paused');
+
+  const blockedSeats = Object.prototype.hasOwnProperty.call(payload, 'blockedSeats')
+    ? parseList(payload.blockedSeats).map(normalizeSeatNumber)
+    : parseList(rule.blockedSeats).map(normalizeSeatNumber);
+  const availableSeatLabels = new Set((seatMapVersion.seats || []).map((seat) => normalizeSeatNumber(seat.seatNumber)));
+  const unknownBlockedSeats = blockedSeats.filter((label) => !availableSeatLabels.has(label));
+  if (unknownBlockedSeats.length) throw validationError(`Blocked seats are not in the selected vehicle seat map: ${unknownBlockedSeats.join(', ')}`);
+
+  rule.listingId = listing.id;
+  rule.routeId = route.id;
+  rule.vehicleId = vehicle.id;
+  rule.seatMapTemplateId = vehicle.activeSeatMapTemplateId;
+  rule.seatMapVersionId = seatMapVersion.id;
+  rule.fareProductId = fareProduct.id;
+  rule.timezone = cleanText(payload.timezone || rule.timezone || route.timezone || 'Africa/Kampala', 80);
+  rule.departureTime = departureTime;
+  rule.daysOfWeek = Object.prototype.hasOwnProperty.call(payload, 'daysOfWeek')
+    ? [...allowedWeekdaySet(payload.daysOfWeek)]
+    : [...allowedWeekdaySet(rule.daysOfWeek)];
+  rule.startDate = startDate.toISOString();
+  rule.endDate = endDate?.toISOString() || null;
+  rule.durationMinutes = Object.prototype.hasOwnProperty.call(payload, 'durationMinutes') && payload.durationMinutes !== ''
+    ? numberValue(payload.durationMinutes, { field: 'Duration', min: 1, max: 100000, integer: true })
+    : Number(rule.durationMinutes || route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0) || null;
+  rule.fareClass = fareProduct.fareClass;
+  rule.notes = Object.prototype.hasOwnProperty.call(payload, 'notes') ? cleanText(payload.notes, 1200) : cleanText(rule.notes, 1200);
+  rule.blockedSeats = blockedSeats;
+  rule.driverIds = driver ? [driver.employee.id, driver.user?.id].filter(Boolean) : [];
+  rule.vipPriceDelta = 0;
+  rule.status = requestedStatus;
+  rule.updatedBy = actorId(actor);
+  rule.updatedAt = nowIso();
+  await repository.scheduleRules.save(rule, { id: rule.id });
+  await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id, status: requestedStatus } });
+  return rule;
+}
+
 async function setScheduleRuleStatus(companyId, ruleId, status, actor = 'company-admin') {
   const rule = await repository.oneOrThrow(repository.scheduleRules, { id: ruleId, companyId }, 'Recurring schedule rule not found');
   const next = normalize(status);
@@ -767,6 +829,7 @@ module.exports = {
   createSchedule,
   createScheduleBatch,
   createScheduleRule,
+  updateScheduleRule,
   pauseScheduleRule,
   resumeScheduleRule,
   cancelScheduleRule,

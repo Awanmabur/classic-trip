@@ -89,16 +89,23 @@ function evaluateDriverEligibility(employee = {}, user = {}) {
 
 
 function evaluateDriverAssignment(employee = {}, user = {}) {
-  const eligibility = evaluateDriverEligibility(employee, user);
+  const operationalEligibility = evaluateDriverEligibility(employee, user);
+  const reasons = [];
+  if (!employee || !String(employee.id || '').trim()) reasons.push('driver membership is missing');
+  if (!isDriverConfigured(employee, user)) reasons.push('employee role is not configured as Driver');
+  if (normalize(employee.status) !== 'active') reasons.push('company membership is not active');
+  if (['blocked', 'suspended'].includes(normalize(user.status))) reasons.push('linked driver account is blocked or suspended');
+  const assignable = reasons.length === 0;
   return {
-    assignable: eligibility.eligible,
-    eligible: eligibility.eligible,
-    operational: eligibility.eligible,
-    reasons: eligibility.reasons,
-    warnings: [],
-    employeeId: eligibility.employeeId,
-    userId: eligibility.userId,
-    label: eligibility.label,
+    assignable,
+    eligible: assignable,
+    operational: operationalEligibility.eligible,
+    reasons,
+    warnings: assignable && !operationalEligibility.eligible ? operationalEligibility.reasons : [],
+    operationalReasons: operationalEligibility.reasons,
+    employeeId: operationalEligibility.employeeId,
+    userId: operationalEligibility.userId,
+    label: operationalEligibility.label,
     employeeStatus: normalize(employee.status) || 'unknown',
     userStatus: normalize(user.status) || 'not_linked',
     verificationStatus: normalize(user.verificationStatus) || 'not_verified',

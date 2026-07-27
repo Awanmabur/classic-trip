@@ -171,7 +171,7 @@ assert(companyRoutes.includes("router.post('/company/seats/status'"), 'Company s
 assert(html.includes('Vehicle seat templates'), 'Seat maps must include vehicle seat-template workbench.');
 assert(html.includes('Template builder'), 'Seat maps must expose the reusable seat template builder action.');
 assert(html.includes('seatLabels'), 'Seat template modal must support custom seat labels.');
-assert(html.includes('vipSeats'), 'Seat template modal must support VIP/premium seat selection.');
+assert(html.includes("name:'vehicleClass'") && html.includes('VIP vehicle — all passenger seats are VIP'), 'Seat templates must apply VIP as a complete vehicle class.');
 assert(html.includes('disabledSeats'), 'Seat template modal must support disabled/non-passenger space selection.');
 assert(companyRoutes.includes("router.post('/company/vehicles/seat-template'"), 'Company vehicle seat-template POST route must exist before /:id routes.');
 

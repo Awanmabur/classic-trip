@@ -220,8 +220,11 @@ const ROLE_DASHBOARDS = {
         { page: 'links', label: 'Referral Links', icon: 'fa-link' },
         { page: 'share', label: 'Share Listings', icon: 'fa-share-nodes' },
         { page: 'bus-dashboard', label: 'Bus Campaigns', icon: 'fa-bus-simple' },
-        { page: 'hotel-dashboard', label: 'Hotel Campaigns', icon: 'fa-hotel' },
-        { page: 'campaigns', label: 'Campaigns', icon: 'fa-bullhorn' },
+        { page: 'hotel-dashboard', label: 'Stay & Airbnb Campaigns', icon: 'fa-hotel' },
+        { page: 'tour-dashboard', label: 'Tour Campaigns', icon: 'fa-map-location-dot' },
+        { page: 'rental-dashboard', label: 'Car Rental Campaigns', icon: 'fa-car-side' },
+        { page: 'cargo-dashboard', label: 'Cargo Campaigns', icon: 'fa-boxes-stacked' },
+        { page: 'campaigns', label: 'All Campaigns', icon: 'fa-bullhorn' },
         { page: 'performance', label: 'Performance', icon: 'fa-chart-pie' },
       ] },
       { label: 'Agent Sales', items: [

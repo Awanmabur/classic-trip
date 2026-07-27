@@ -88,6 +88,15 @@ async function createRule(req, res, next) {
   }
 }
 
+async function updateRule(req, res, next) {
+  try {
+    await companyService.updateScheduleRule(companyId(req), req.params.id, req.body, req.session?.user?.id || 'company-admin');
+    res.redirect('/company/schedules-fares');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function pauseRule(req, res, next) {
   try {
     await companyService.pauseScheduleRule(companyId(req), req.params.id, req.session?.user?.id || 'company-admin');
@@ -115,4 +124,4 @@ async function cancelRule(req, res, next) {
   }
 }
 
-module.exports = { create, update, archive, publish, updateSeat, transition, duplicate, complete, createRule, pauseRule, resumeRule, cancelRule };
+module.exports = { create, update, archive, publish, updateSeat, transition, duplicate, complete, createRule, updateRule, pauseRule, resumeRule, cancelRule };

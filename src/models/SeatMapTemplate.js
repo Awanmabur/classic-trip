@@ -6,6 +6,7 @@ const seatMapTemplateSchema = new Schema({
   listingId: { type: String, required: true, index: true },
   vehicleId: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true, trim: true },
+  vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard' },
   layoutName: { type: String, required: true, default: '2x2' },
   labelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   labelPrefix: String,

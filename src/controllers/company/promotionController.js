@@ -16,6 +16,15 @@ async function create(req, res, next) {
   } catch (error) { next(error); }
 }
 
+async function update(req, res, next) {
+  try {
+    const companyId = resolveCompanyId(req, { allowOverride: true });
+    const campaign = await promotionService.updateCampaign(req.params.id, companyId, req.body, actorId(req));
+    if (req.flash) req.flash('success', `Promotion “${campaign.name}” was updated.`);
+    res.redirect('/company/dashboard/ads');
+  } catch (error) { next(error); }
+}
+
 function changeStatus(status) {
   return async (req, res, next) => {
     try {
@@ -29,6 +38,7 @@ function changeStatus(status) {
 
 module.exports = {
   create,
+  update,
   pause: changeStatus('paused'),
   resume: changeStatus('active'),
   end: changeStatus('expired'),

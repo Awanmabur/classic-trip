@@ -65,7 +65,7 @@ async function materializeRule(rule, horizonEnd, now) {
     day = new Date(day.getTime() + DAY_MS);
   }
 
-  await companyService.recordScheduleRuleMaterialization(rule.id, windowEnd.toISOString());
+  await companyService.recordScheduleRuleMaterialization(rule.companyId, rule.id, windowEnd.toISOString());
   return { created, skipped };
 }
 

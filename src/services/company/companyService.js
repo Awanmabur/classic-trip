@@ -590,6 +590,25 @@ async function updateEmployeeRole(companyId, employeeId, payload = {}, actorId =
   const employee = await employeeOrThrow(companyId, employeeId);
   const user = await employeeUser(employee);
   const scopes = await validateEmployeeScopes(companyId, payload, employee);
+  if (hasOwn(payload, 'fullName') || hasOwn(payload, 'name')) {
+    const fullName = cleanText(payload.fullName || payload.name, 180);
+    if (!fullName) throw validation('Employee name is required');
+    employee.fullName = fullName;
+    if (user) user.fullName = fullName;
+  }
+  if (hasOwn(payload, 'email')) {
+    const email = cleanText(payload.email, 254).toLowerCase();
+    if (!email) throw validation('Employee email is required');
+    const duplicate = await companyRepository.users.findOne({ email, ...(user?.id ? { id: { $ne: user.id } } : {}) });
+    if (duplicate) throw conflict('Another account already uses this email address');
+    employee.email = email;
+    if (user) user.email = email;
+  }
+  if (hasOwn(payload, 'phone')) {
+    const phone = cleanText(payload.phone, 80);
+    employee.phone = phone;
+    if (user) user.phone = phone;
+  }
   if (payload.roleTitle) employee.roleTitle = cleanText(payload.roleTitle, 120);
   employee.branchId = scopes.branch?.id || '';
   employee.branchName = branchName(scopes.branch);
@@ -598,6 +617,8 @@ async function updateEmployeeRole(companyId, employeeId, payload = {}, actorId =
   employee.scheduleIds = scopes.scheduleIds;
   if (payload.permissions !== undefined) employee.permissions = employeePermissions(employee.roleTitle, payload.permissions);
   if (payload.serviceCategories) employee.serviceCategories = parseList(payload.serviceCategories);
+  if (hasOwn(payload, 'shift')) employee.shift = cleanText(payload.shift, 120);
+  if (hasOwn(payload, 'notes') || hasOwn(payload, 'note')) employee.notes = cleanText(payload.notes || payload.note, 2000);
   if (payload.status) {
     const allowed = ['requested', 'invited', 'pending_verification', 'active', 'suspended', 'rejected', 'revoked'];
     const nextStatus = cleanText(payload.status, 40);
@@ -627,6 +648,7 @@ async function updateEmployeeRole(companyId, employeeId, payload = {}, actorId =
     }
   }
   employee.updatedBy = actorId; employee.updatedAt = new Date().toISOString();
+  if (user) user.permissionsLabel = (employee.permissions || []).join(', ');
   await companyRepository.withTransaction(async (session) => {
     await companyRepository.employees.save(employee, { id: employee.id }, { session });
     if (user) await companyRepository.users.save(user, { id: user.id }, { session });
@@ -635,7 +657,8 @@ async function updateEmployeeRole(companyId, employeeId, payload = {}, actorId =
   return { employee, user: user || {} };
 }
 async function updateDriverProfile(companyId, employeeId, payload = {}, actorId = 'company-admin') {
-  const { employee, user } = await updateEmployeeRole(companyId, employeeId, payload, actorId);
+  const normalizedPayload = { ...payload, roleTitle: payload.roleTitle || 'Driver' };
+  const { employee, user } = await updateEmployeeRole(companyId, employeeId, normalizedPayload, actorId);
   employee.licenseNumber = cleanText(payload.licenseNumber || employee.licenseNumber || '', 120);
   employee.licenseClass = cleanText(payload.licenseClass || employee.licenseClass || '', 80);
   employee.licenseExpiresAt = payload.licenseExpiresAt ? new Date(payload.licenseExpiresAt).toISOString() : employee.licenseExpiresAt;
@@ -656,6 +679,18 @@ async function updateDriverProfile(companyId, employeeId, payload = {}, actorId 
     await writeAudit(actorId, 'company.driver.profile_updated', employee.id, { companyId, safetyStatus: employee.safetyStatus, entityType: 'company_employee' }, { session });
   });
   return { employee, user };
+}
+
+async function archiveBranch(companyId, branchId, actorId = 'company-admin') {
+  return updateBranch(companyId, branchId, { status: 'archived' }, actorId);
+}
+
+async function archivePolicy(companyId, policyId, actorId = 'company-admin') {
+  return updatePolicy(companyId, policyId, { status: 'archived' }, actorId);
+}
+
+async function revokeEmployee(companyId, employeeId, actorId = 'company-admin') {
+  return updateEmployeeRole(companyId, employeeId, { status: 'revoked' }, actorId);
 }
 
 
@@ -1088,6 +1123,7 @@ async function completeScheduleDispatch(companyId, scheduleId, payload = {}, act
 async function duplicateScheduleDispatch(companyId, scheduleId, payload = {}, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.duplicateSchedule(companyId, scheduleId, payload, actor); }
 async function updateSeatStatusDispatch(companyId, payload = {}, actor = 'company-admin') { await assertBusSchedule(companyId, payload.scheduleId); return busDepartureService.updateSeatStatus(companyId, payload, actor); }
 async function createScheduleRuleDispatch(companyId, payload = {}, actor = 'company-admin') { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); return busDepartureService.createScheduleRule(companyId, payload, actor); }
+async function updateScheduleRuleDispatch(companyId, id, payload = {}, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.updateScheduleRule(companyId, id, payload, actor); }
 async function pauseScheduleRuleDispatch(companyId, id, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.pauseScheduleRule(companyId, id, actor); }
 async function resumeScheduleRuleDispatch(companyId, id, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.resumeScheduleRule(companyId, id, actor); }
 async function cancelScheduleRuleDispatch(companyId, id, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.cancelScheduleRule(companyId, id, actor); }
@@ -1098,14 +1134,15 @@ module.exports = {
   createRouteStop: createRouteStopDispatch, updateRouteStop: updateRouteStopDispatch, archiveRouteStop: archiveRouteStopDispatch, moveRouteStop: moveRouteStopDispatch,
   createVehicle: createVehicleDispatch, updateVehicle: updateVehicleDispatch, archiveVehicle: archiveVehicleDispatch,
   updateVehicleSeatTemplate: updateVehicleSeatTemplateDispatch, updateVehicleStatus: updateVehicleStatusDispatch,
-  createSchedule: createScheduleDispatch, createScheduleBatch: createScheduleBatchDispatch, createScheduleRule: createScheduleRuleDispatch,
+  createSchedule: createScheduleDispatch, createScheduleBatch: createScheduleBatchDispatch, createScheduleRule: createScheduleRuleDispatch, updateScheduleRule: updateScheduleRuleDispatch,
   pauseScheduleRule: pauseScheduleRuleDispatch, resumeScheduleRule: resumeScheduleRuleDispatch, cancelScheduleRule: cancelScheduleRuleDispatch,
   recordScheduleRuleMaterialization: busDepartureService.recordScheduleRuleMaterialization, updateSchedule: updateScheduleDispatch,
   publishSchedule: publishScheduleDispatch, archiveSchedule: archiveScheduleDispatch, transitionSchedule: transitionScheduleDispatch,
   completeSchedule: completeScheduleDispatch, duplicateSchedule: duplicateScheduleDispatch, updateSeatStatus: updateSeatStatusDispatch,
-  createFareProduct: busSetupService.createFareProduct, updateFareProduct: busSetupService.updateFareProduct, upsertSegmentFare: busSetupService.upsertSegmentFare,
+  createFareProduct: busSetupService.createFareProduct, updateFareProduct: busSetupService.updateFareProduct, archiveFareProduct: busSetupService.archiveFareProduct,
+  upsertSegmentFare: busSetupService.upsertSegmentFare, archiveSegmentFare: busSetupService.archiveSegmentFare,
   createServiceAddon: busSetupService.createServiceAddon, updateServiceAddon: busSetupService.updateServiceAddon, archiveServiceAddon: busSetupService.archiveServiceAddon, busReadinessReport: busSetupService.readinessReport,
   setRoomTypeInventory: hotelService.setRoomTypeInventory,
-  createBranch, updateBranch, createPolicy, updatePolicy, inviteEmployee, updateEmployeeRole, updateDriverProfile, activateDriverByCompany, assignDriver, updateTripStatus, createDriverIncident,
+  createBranch, updateBranch, archiveBranch, createPolicy, updatePolicy, archivePolicy, inviteEmployee, updateEmployeeRole, revokeEmployee, updateDriverProfile, activateDriverByCompany, assignDriver, updateTripStatus, createDriverIncident,
   attachMedia, removeMedia, companyCanPublish,
 };

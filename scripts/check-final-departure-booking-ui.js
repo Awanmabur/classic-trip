@@ -32,10 +32,10 @@ check('canonical fare engine uses selected stop segment', () => assert(busInvent
 check('return departures use the reversed branch direction', () => assert(busSearch.includes('originBranchId') && busSearch.includes('destinationBranchId')));
 check('return journey requires explicit schedule and equal seat count', () => assert(listingView.includes('Select the return travel date and time.') && listingView.includes('activeReturnSelections.length !== activeSelections.length')));
 check('return schedule and seats are submitted to checkout', () => assert(listingView.includes('returnScheduleId: returnPricing.scheduleId') && listingView.includes('returnSeats: activeReturnSelections') && busBooking.includes('payload.returnScheduleId') && busBooking.includes('payload.returnSeats')));
-check('app branded launch markup is server-rendered', () => assert(head.includes('id="pwaLaunchFlash"') && head.includes('Move, stay and fly with confidence.')));
-check('app flash no longer creates a second DOM overlay', () => assert(pwa.includes("document.getElementById('pwaLaunchFlash')") && !pwa.includes("document.createElement('div');\n    flash.className = 'pwaLaunchFlash'")));
+check('no second web launch screen is server-rendered', () => assert(!head.includes('pwaLaunchFlash')));
+check('PWA JavaScript does not create a second launch overlay', () => assert(!pwa.includes('showBrandLaunchFlash') && !pwa.includes('pwaLaunchFlash')));
 check('installed launch icons use transparent symbols only', () => assert(manifest.icons.length >= 2 && manifest.icons.every((icon) => icon.purpose !== 'maskable')));
-check('app launch is hidden in browser and displayed only standalone', () => assert(pwaCss.includes('@media(display-mode:standalone){.pwaLaunchFlash{display:grid}}') && pwa.includes('if (!isStandalone() || launchFlashAlreadyShown())')));
+check('native manifest carries the launch name and slogan', () => assert(manifest.name.includes('Classic Trip') && manifest.name.includes('Move, stay and fly with confidence.')));
 check('homepage aside exposes tours, rentals, cargo and Airbnb', () => ['Tours','Car rentals','Cargo','Airbnb homes'].forEach((label) => assert(home.includes(label))));
 check('homepage dynamic cards preserve service metadata', () => assert(homeJs.includes('data-service-type') && homeJs.includes('data-stay-type')));
 check('View and Book buttons are locked to one row', () => assert(homeCss.includes('.actions{display:flex;gap:7px;flex-wrap:nowrap')));

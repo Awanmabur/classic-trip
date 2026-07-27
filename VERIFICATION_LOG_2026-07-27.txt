@@ -1,0 +1,538 @@
+Classic Trip 1.3.0 verification log — 27 July 2026
+
+RUN  npm run check
+
+> classic-trip-platform@1.3.0 check
+> node scripts/check-syntax.js && node scripts/check-ejs.js
+
+JavaScript syntax validation passed (530/530).
+EJS validation passed (127/127, dependency-free syntax compiler).
+PASS npm run check
+
+RUN  npm run check:vip-dashboard-crud
+
+> classic-trip-platform@1.3.0 check:vip-dashboard-crud
+> node scripts/check-vip-partner-dashboard-crud.js
+
+PASS VIP class applies to every sellable passenger seat
+PASS VIP seats do not receive per-seat price differences
+PASS Accessible seat on a VIP vehicle remains VIP class
+PASS Explicit standard vehicle ignores legacy per-seat VIP input
+PASS Vehicle schema stores one vehicle class
+PASS Seat-map template stores vehicle class
+PASS Published seat-map version stores vehicle class
+PASS Changing vehicle class publishes a replacement seat-map version
+PASS Compatibility vehicle data inherits the vehicle class
+PASS Current seat-map writes force VIP seat difference to zero
+PASS Vehicle creation explains whole-vehicle VIP
+PASS Vehicle editing explains whole-vehicle VIP
+PASS Dashboard no longer exposes per-seat VIP selection
+PASS Seat status forms no longer expose per-seat price changes
+PASS VIP migration removes historical per-seat price differences
+PASS VIP migration normalises every passenger seat from vehicle class
+PASS Superadmin sidebar includes tour operators
+PASS Superadmin sidebar includes car rentals
+PASS Superadmin sidebar includes cargo providers
+PASS Promoter sidebar includes tour campaigns
+PASS Promoter sidebar includes car-rental campaigns
+PASS Promoter sidebar includes cargo campaigns
+PASS Partner service sidebar has tour configuration
+PASS Partner service sidebar has car-rental configuration
+PASS Partner service sidebar has cargo configuration
+PASS Stay partner sidebar explicitly includes Airbnb
+PASS Bus partner sidebar includes promotion workspace
+PASS Stay partner sidebar includes promotion workspace
+PASS Tour staff sidebar is service-specific
+PASS Car-rental staff sidebar is service-specific
+PASS Cargo staff sidebar is service-specific
+PASS Listing create route
+PASS Listing update route
+PASS Listing publish route
+PASS Listing archive route
+PASS Route create route
+PASS Route update route
+PASS Route archive route
+PASS Route-stop create route
+PASS Route-stop update route
+PASS Route-stop archive route
+PASS Vehicle create route
+PASS Vehicle update route
+PASS Vehicle archive route
+PASS Vehicle seat-map update route
+PASS Departure create route
+PASS Departure update route
+PASS Departure publish route
+PASS Departure archive route
+PASS Recurring departure create route
+PASS Recurring departure update route
+PASS Recurring departure pause route
+PASS Recurring departure resume route
+PASS Recurring departure cancel route
+PASS Fare-plan create route
+PASS Fare-plan update route
+PASS Fare-plan archive route
+PASS Stop-fare upsert route
+PASS Stop-fare archive route
+PASS Service add-on create route
+PASS Service add-on update route
+PASS Service add-on archive route
+PASS Branch create route
+PASS Branch update route
+PASS Branch archive route
+PASS Policy create route
+PASS Policy update route
+PASS Policy archive route
+PASS Staff update route
+PASS Staff revoke route
+PASS Driver update route
+PASS Driver activation route
+PASS Driver revoke route
+PASS Invitation resend route
+PASS Invitation revoke route
+PASS Promotion create route
+PASS Promotion update route
+PASS Promotion pause route
+PASS Promotion resume route
+PASS Promotion end route
+PASS Support response route
+PASS Review reply route
+PASS Property create route
+PASS Property update route
+PASS Property archive route
+PASS Room-type create route
+PASS Room-type update route
+PASS Room-type archive route
+PASS Rate-plan create route
+PASS Rate-plan update route
+PASS Rate-plan archive route
+PASS Room-unit create route
+PASS Room-unit update route
+PASS Room-unit archive route
+PASS Room-night create route
+PASS Room-night update route
+PASS Room-night archive route
+PASS Listing edit form exists
+PASS Route edit form exists
+PASS Route-stop edit form accepts canonical entity key
+PASS Vehicle edit form exists
+PASS Departure edit form exists
+PASS Recurring departure edit form accepts canonical entity key
+PASS Legacy room inventory edit form exists
+PASS Property edit form exists
+PASS Room-type edit form exists
+PASS Rate-plan edit form exists
+PASS Room-unit edit form exists
+PASS Room-night edit form exists
+PASS Add-on edit form accepts canonical entity key
+PASS Fare edit form accepts canonical entity key
+PASS Segment-fare edit form accepts canonical entity key
+PASS Branch create/edit form exists
+PASS Policy create/edit form exists
+PASS Promotion create/edit form exists
+PASS Staff canonical edit form exists
+PASS Driver canonical edit form exists
+PASS Recurring departure smart form synchronises underscore entity key
+PASS Recurring departure edit resolves the real record id
+PASS Room-unit edit preserves view data
+PASS Room-unit edit preserves accessibility data
+PASS Room-night edit preserves arrival controls
+PASS Room-night edit preserves stay limits
+PASS Staff update service exists
+PASS Staff name edit persists
+PASS Staff email edit persists
+PASS Staff listing scope edit persists
+PASS Staff schedule scope edit persists
+PASS Driver update service exists
+PASS Driver licence edit persists
+PASS Driver safety edit persists
+PASS Driver vehicle assignment persists
+PASS Branch update service exists
+PASS Branch archive service exists
+PASS Policy update service exists
+PASS Policy archive service exists
+PASS Room-type update service exists
+PASS Room-unit update service exists
+PASS Room-unit view and position edits persist
+PASS Room-unit attribute edits persist
+PASS Room-night update service exists
+PASS Room-night price edit persists
+PASS Room-night arrival closure edit persists
+PASS Room-night stay-limit edit persists
+PASS Room-night housekeeping edit updates the linked unit
+PASS Recurring schedule update service exists
+PASS Recurring schedule update controller exists
+PASS Company snapshot loads recurring schedule rules
+PASS Recurring schedule rules render in the dashboard
+PASS Generic listing service supports tours, rentals, cargo, and stays
+PASS Tour listing domain data is created
+PASS Car-rental listing domain data is created
+PASS Cargo listing domain data is created
+PASS Service-specific availability modes are persisted
+PASS Service-specific pricing units are persisted
+PASS Publishing validates every new service type
+PASS Tour form fields are service-specific
+PASS Car-rental form fields are service-specific
+PASS Cargo form fields are service-specific
+PASS Staff rows preserve canonical employee records
+PASS Driver rows carry the canonical driver employee record
+PASS Staff rows carry the canonical staff employee record
+PASS Branch rows carry entity metadata
+PASS Policy rows carry entity metadata
+PASS Recurring rules carry entity metadata
+PASS Property rows carry entity metadata
+PASS Room-type rows carry entity metadata
+PASS Rate-plan rows carry entity metadata
+PASS Room-unit rows carry entity metadata
+PASS Room-night rows carry entity metadata
+
+VIP and partner dashboard CRUD audit passed (170/170).
+PASS npm run check:vip-dashboard-crud
+
+RUN  npm run check:dashboard-completeness
+
+> classic-trip-platform@1.3.0 check:dashboard-completeness
+> node scripts/check-dashboard-completeness-final.js
+
+PASS Blue dashboard buttons keep light text
+PASS Blue hover uses a dark blue surface
+PASS Nested button text and icons inherit contrast
+PASS Disabled blue controls retain readable text
+PASS Generic renderer reads real table headers
+PASS Generic rows are rendered by schema
+PASS Generic rows no longer hard-truncate at seven columns
+PASS Overflow values are not merged under a wrong heading
+PASS Full row details remain available
+PASS Tables expose real empty states
+PASS All visible dashboard tables can export CSV
+PASS Booking service type comes from metadata
+PASS Bus bookings use metadata filtering
+PASS Hotel, stay and Airbnb bookings share stay operations
+PASS Company branch edit endpoint exists
+PASS Company branch service enforces ownership
+PASS Company policy edit endpoint exists
+PASS Company policy service enforces ownership
+PASS Fare products have real edit forms
+PASS Segment fares have real edit forms
+PASS Branches and policies are mutable dashboard entities
+PASS Partner promotions have pause/resume/end operations
+PASS Partner reviews have reply operations
+PASS Partner support cases have response operations
+PASS Staff rows have lifecycle management
+PASS Driver rows have complete profile and activation management
+PASS Platform support replies use role-correct paths
+PASS Refund rows expose approve and reject
+PASS Payment rows expose freeze review
+PASS Review rows expose moderation
+PASS Payout entity aliases expose review
+PASS Customer note opens on the selected customer
+PASS Platform price rules are projected as dashboard rows
+PASS Price rule rows carry complete metadata
+PASS Price rules table is connected to renderer
+PASS Price rules have create and update routes
+PASS Price rule controller updates existing records
+PASS Price rule edit form preserves values and status
+PASS Company pricing uses service-owned tools
+PASS Company dashboard no longer posts platform price rules
+PASS Top dashboard role badge is non-interactive status text
+PASS Review export is a real download link
+PASS Flight and taxi manual tables carry detail payloads (found 9 detail controls)
+PASS Flight quotes expose View and private-link copy
+PASS Flight travelers, tickets, changes and refunds expose actions
+PASS Taxi vehicles expose operational status edits
+PASS Taxi drivers, incidents and rides expose View actions
+PASS Admin mobility safety queue exposes View and Review
+PASS Admin mobility incident review is persisted and audited
+PASS Admin mobility dispatch rows expose full details
+PASS Read-only admin flight quotes expose full snapshots
+PASS Every static empty dashboard table body has a renderer
+
+Dashboard completeness audit: 52/52 passed.
+PASS npm run check:dashboard-completeness
+
+RUN  npm run check:dashboard-service-coverage
+
+> classic-trip-platform@1.3.0 check:dashboard-service-coverage
+> node scripts/check-dashboard-service-coverage.js
+
+Dashboard service coverage validation passed (68/68).
+PASS npm run check:dashboard-service-coverage
+
+RUN  npm run check:staff-driver
+
+> classic-trip-platform@1.3.0 check:staff-driver
+> node scripts/check-staff-driver-workflow.js
+
+Staff and driver workflow verification passed (50/50).
+PASS npm run check:staff-driver
+
+RUN  npm run check:single-splash
+
+> classic-trip-platform@1.3.0 check:single-splash
+> node scripts/check-single-native-splash.js
+
+✓ no second in-page launch screen exists
+✓ native launch identity contains the app name and slogan
+✓ native launch uses the transparent Classic Trip symbols
+✓ native launch remains the only installed-app splash path
+✓ manifest keeps the app name concise on the launcher
+✓ manifest defaults to the light launch palette
+✓ service worker cache version is present
+Native single-splash checks passed: 7/7
+PASS npm run check:single-splash
+
+RUN  npm run check:final-departure-booking-ui
+
+> classic-trip-platform@1.3.0 check:final-departure-booking-ui
+> node scripts/check-final-departure-booking-ui.js
+
+✓ legacy departure ownership is repaired from linked company entities
+✓ departure activation still blocks cross-company records
+✓ outbound schedule is not automatically selected
+✓ travel date and time placeholder requires explicit choice
+✓ boarding and drop-off selectors reload server pricing
+✓ canonical fare engine uses selected stop segment
+✓ return departures use the reversed branch direction
+✓ return journey requires explicit schedule and equal seat count
+✓ return schedule and seats are submitted to checkout
+✓ no second web launch screen is server-rendered
+✓ PWA JavaScript does not create a second launch overlay
+✓ installed launch icons use transparent symbols only
+✓ native manifest carries the launch name and slogan
+✓ homepage aside exposes tours, rentals, cargo and Airbnb
+✓ homepage dynamic cards preserve service metadata
+✓ View and Book buttons are locked to one row
+✓ seat controls have a square aspect ratio
+✓ passenger DOB and luggage item fields are absent from checkout
+✓ dashboard assisted booking no longer asks for DOB or luggage item counts
+✓ flight and taxi customer forms no longer collect removed fields
+Final departure, booking and UI checks passed: 20/20
+PASS npm run check:final-departure-booking-ui
+
+RUN  npm run check:seven-services
+
+> classic-trip-platform@1.3.0 check:seven-services
+> node scripts/check-seven-service-completion.js
+
+Seven-service completion checks: 38/38 passed
+PASS npm run check:seven-services
+
+RUN  npm run check:production
+
+> classic-trip-platform@1.3.0 check:production
+> node scripts/check-production-architecture.js
+
+Production architecture validation passed (6632/6632).
+PASS npm run check:production
+
+RUN  npm run check:production-readiness-final
+
+> classic-trip-platform@1.3.0 check:production-readiness-final
+> node scripts/check-production-readiness-final.js
+
+Production readiness final audit passed (76/76).
+PASS npm run check:production-readiness-final
+
+RUN  npm run check:system-completion
+
+> classic-trip-platform@1.3.0 check:system-completion
+> node scripts/check-final-system-completion.js
+
+Final system completion checks passed: 158/158
+1. public/css/base.css matches approved uploaded UI
+2. public/css/components.css matches approved uploaded UI
+3. public/css/dashboard-workspace.css matches approved uploaded UI
+4. public/css/pages/home.css matches approved uploaded UI
+5. public/css/pages/search.css matches approved uploaded UI
+6. public/css/pages/booking.css matches approved uploaded UI
+7. public shell loads reference CSS plus scoped four-service additions
+8. dashboard shell loads reference CSS plus scoped service additions
+9. home loads the approved reference stylesheet
+10. new public additions remain scoped
+11. new dashboard additions remain scoped
+12. travel extension contains real map and phone breakpoints
+13. src/views/dashboards/admin/index.ejs does not load a destructive global override
+14. src/views/dashboards/company/index.ejs does not load a destructive global override
+15. src/views/dashboards/content/index.ejs does not load a destructive global override
+16. src/views/dashboards/customer/index.ejs does not load a destructive global override
+17. src/views/dashboards/driver/index.ejs does not load a destructive global override
+18. src/views/dashboards/employee/index.ejs does not load a destructive global override
+19. src/views/dashboards/finance/index.ejs does not load a destructive global override
+20. src/views/dashboards/operations/index.ejs does not load a destructive global override
+21. src/views/dashboards/promoter/index.ejs does not load a destructive global override
+22. src/views/dashboards/shared/sections/admin-partner-network.ejs does not load a destructive global override
+23. src/views/dashboards/shared/sections/admin-travel-supply-controls.ejs does not load a destructive global override
+24. src/views/dashboards/shared/sections/admins.ejs does not load a destructive global override
+25. src/views/dashboards/shared/sections/ads.ejs does not load a destructive global override
+26. src/views/dashboards/shared/sections/analytics.ejs does not load a destructive global override
+27. src/views/dashboards/shared/sections/audit.ejs does not load a destructive global override
+28. src/views/dashboards/shared/sections/blogs.ejs does not load a destructive global override
+29. src/views/dashboards/shared/sections/bookings.ejs does not load a destructive global override
+30. src/views/dashboards/shared/sections/campaigns.ejs does not load a destructive global override
+31. src/views/dashboards/shared/sections/checkins.ejs does not load a destructive global override
+32. src/views/dashboards/shared/sections/commissions.ejs does not load a destructive global override
+33. src/views/dashboards/shared/sections/company-profile.ejs does not load a destructive global override
+34. src/views/dashboards/shared/sections/customer-notifications.ejs does not load a destructive global override
+35. src/views/dashboards/shared/sections/customer-profile.ejs does not load a destructive global override
+36. src/views/dashboards/shared/sections/customer-refunds.ejs does not load a destructive global override
+37. src/views/dashboards/shared/sections/customer-reviews.ejs does not load a destructive global override
+38. src/views/dashboards/shared/sections/customer-support.ejs does not load a destructive global override
+39. src/views/dashboards/shared/sections/customers.ejs does not load a destructive global override
+40. src/views/dashboards/shared/sections/driver-incidents.ejs does not load a destructive global override
+41. src/views/dashboards/shared/sections/driver-manifest.ejs does not load a destructive global override
+42. src/views/dashboards/shared/sections/driver-ops.ejs does not load a destructive global override
+43. src/views/dashboards/shared/sections/dynamic-page.ejs does not load a destructive global override
+44. src/views/dashboards/shared/sections/dynamic-service.ejs does not load a destructive global override
+45. src/views/dashboards/shared/sections/flight-taxi.ejs does not load a destructive global override
+46. src/views/dashboards/shared/sections/fraud.ejs does not load a destructive global override
+47. src/views/dashboards/shared/sections/handover.ejs does not load a destructive global override
+48. src/views/dashboards/shared/sections/hotel-rooms.ejs does not load a destructive global override
+49. src/views/dashboards/shared/sections/kyc.ejs does not load a destructive global override
+50. src/views/dashboards/shared/sections/links.ejs does not load a destructive global override
+51. src/views/dashboards/shared/sections/listings.ejs does not load a destructive global override
+52. src/views/dashboards/shared/sections/manifests.ejs does not load a destructive global override
+53. src/views/dashboards/shared/sections/notifications.ejs does not load a destructive global override
+54. src/views/dashboards/shared/sections/offline-sales.ejs does not load a destructive global override
+55. src/views/dashboards/shared/sections/partners.ejs does not load a destructive global override
+56. src/views/dashboards/shared/sections/passengers.ejs does not load a destructive global override
+57. src/views/dashboards/shared/sections/payments.ejs does not load a destructive global override
+58. src/views/dashboards/shared/sections/payouts.ejs does not load a destructive global override
+59. src/views/dashboards/shared/sections/performance.ejs does not load a destructive global override
+60. src/views/dashboards/shared/sections/profile.ejs does not load a destructive global override
+61. src/views/dashboards/shared/sections/promoter-profile.ejs does not load a destructive global override
+62. src/views/dashboards/shared/sections/promoter-support.ejs does not load a destructive global override
+63. src/views/dashboards/shared/sections/promoters.ejs does not load a destructive global override
+64. src/views/dashboards/shared/sections/receipts.ejs does not load a destructive global override
+65. src/views/dashboards/shared/sections/refunds.ejs does not load a destructive global override
+66. src/views/dashboards/shared/sections/reports.ejs does not load a destructive global override
+67. src/views/dashboards/shared/sections/revenue.ejs does not load a destructive global override
+68. src/views/dashboards/shared/sections/reviews.ejs does not load a destructive global override
+69. src/views/dashboards/shared/sections/routes.ejs does not load a destructive global override
+70. src/views/dashboards/shared/sections/saved.ejs does not load a destructive global override
+71. src/views/dashboards/shared/sections/schedules.ejs does not load a destructive global override
+72. src/views/dashboards/shared/sections/seat-maps.ejs does not load a destructive global override
+73. src/views/dashboards/shared/sections/security.ejs does not load a destructive global override
+74. src/views/dashboards/shared/sections/settings.ejs does not load a destructive global override
+75. src/views/dashboards/shared/sections/settlement.ejs does not load a destructive global override
+76. src/views/dashboards/shared/sections/setup-guide.ejs does not load a destructive global override
+77. src/views/dashboards/shared/sections/share.ejs does not load a destructive global override
+78. src/views/dashboards/shared/sections/staff.ejs does not load a destructive global override
+79. src/views/dashboards/shared/sections/support.ejs does not load a destructive global override
+80. src/views/dashboards/shared/sections/system.ejs does not load a destructive global override
+81. src/views/dashboards/shared/sections/ticket.ejs does not load a destructive global override
+82. src/views/dashboards/shared/sections/vehicles.ejs does not load a destructive global override
+83. src/views/dashboards/shared/sections/wallet.ejs does not load a destructive global override
+84. src/views/dashboards/shared/sections/withdrawals.ejs does not load a destructive global override
+85. src/views/dashboards/shared/sections/workflow-guide.ejs does not load a destructive global override
+86. src/views/dashboards/shared/workspace.ejs does not load a destructive global override
+87. src/views/dashboards/support/index.ejs does not load a destructive global override
+88. src/views/pages/auth/_partner-signup.ejs does not load a destructive global override
+89. src/views/pages/auth/login.ejs does not load a destructive global override
+90. src/views/pages/auth/mfa-challenge.ejs does not load a destructive global override
+91. src/views/pages/auth/mfa-setup.ejs does not load a destructive global override
+92. src/views/pages/auth/onboarding-status.ejs does not load a destructive global override
+93. src/views/pages/auth/phone-verification.ejs does not load a destructive global override
+94. src/views/pages/auth/reset-password.ejs does not load a destructive global override
+95. src/views/pages/auth/verify-email.ejs does not load a destructive global override
+96. src/views/pages/blog-post.ejs does not load a destructive global override
+97. src/views/pages/blogs.ejs does not load a destructive global override
+98. src/views/pages/booking-form.ejs does not load a destructive global override
+99. src/views/pages/booking-success.ejs does not load a destructive global override
+100. src/views/pages/companies.ejs does not load a destructive global override
+101. src/views/pages/company-customer-manifest.ejs does not load a destructive global override
+102. src/views/pages/company-profile.ejs does not load a destructive global override
+103. src/views/pages/driver-manifest-print.ejs does not load a destructive global override
+104. src/views/pages/driver-ticket-detail.ejs does not load a destructive global override
+105. src/views/pages/error.ejs does not load a destructive global override
+106. src/views/pages/flight-order.ejs does not load a destructive global override
+107. src/views/pages/flights.ejs does not load a destructive global override
+108. src/views/pages/home.ejs does not load a destructive global override
+109. src/views/pages/hotel-manifest-print.ejs does not load a destructive global override
+110. src/views/pages/hotel-voucher-detail.ejs does not load a destructive global override
+111. src/views/pages/how-it-works.ejs does not load a destructive global override
+112. src/views/pages/invite-accept.ejs does not load a destructive global override
+113. src/views/pages/listing-details.ejs does not load a destructive global override
+114. src/views/pages/my-bookings.ejs does not load a destructive global override
+115. src/views/pages/offline-sale-receipt.ejs does not load a destructive global override
+116. src/views/pages/partner-commission.ejs does not load a destructive global override
+117. src/views/pages/privacy.ejs does not load a destructive global override
+118. src/views/pages/promoter-qr-card.ejs does not load a destructive global override
+119. src/views/pages/promoters.ejs does not load a destructive global override
+120. src/views/pages/routes.ejs does not load a destructive global override
+121. src/views/pages/saved.ejs does not load a destructive global override
+122. src/views/pages/search.ejs does not load a destructive global override
+123. src/views/pages/services.ejs does not load a destructive global override
+124. src/views/pages/support.ejs does not load a destructive global override
+125. src/views/pages/taxi-track.ejs does not load a destructive global override
+126. src/views/pages/taxi.ejs does not load a destructive global override
+127. src/views/pages/terms.ejs does not load a destructive global override
+128. src/views/pages/ticket-lookup.ejs does not load a destructive global override
+129. src/views/pages/ticket.ejs does not load a destructive global override
+130. src/views/partials/dashboard-sidebar.ejs does not load a destructive global override
+131. src/views/partials/dashboard-topbar.ejs does not load a destructive global override
+132. src/views/partials/home/hero-search.ejs does not load a destructive global override
+133. src/views/partials/listing-card.ejs does not load a destructive global override
+134. src/views/partials/marketplace-aside.ejs does not load a destructive global override
+135. src/views/partials/pagination.ejs does not load a destructive global override
+136. src/views/partials/site-flash.ejs does not load a destructive global override
+137. src/views/partials/site-footer.ejs does not load a destructive global override
+138. src/views/partials/site-head.ejs does not load a destructive global override
+139. src/views/partials/site-header.ejs does not load a destructive global override
+140. taxi customer page uses a real map surface
+141. taxi booking client renders map and road geometry
+142. taxi tracking page loads map assets
+143. taxi tracking client refreshes securely and supports customer actions
+144. backend road-routing adapter supports route geometry and production fail-closed mode
+145. backend geofence enforcement supports polygons and radius zones
+146. taxi cancellation creates a real refund workflow
+147. flight cancellation creates a real refund workflow
+148. refund workflow can participate in caller transaction
+149. Contact and Help use rounded shared cards and complete service topics
+150. Contact and Help contains no page-level inline style block
+151. src/views/pages/company-customer-manifest.ejs contains responsive table containment
+152. src/views/pages/driver-manifest-print.ejs contains responsive table containment
+153. offline receipt is responsive on phones
+154. driver ticket detail is responsive without inline layout overrides
+155. homepage presents all seven live service domains
+156. homepage exposes search and AI-readable metadata
+157. Ferry and Train services are absent from application source
+158. map and routing production settings are documented
+PASS npm run check:system-completion
+
+RUN  npm run check:final-regression
+
+> classic-trip-platform@1.3.0 check:final-regression
+> node scripts/check-final-regression-repair.js
+
+Final regression repair checks passed: 42/42
+PASS npm run check:final-regression
+
+RUN  npm run check:routes
+
+> classic-trip-platform@1.3.0 check:routes
+> node scripts/route-security-audit.js
+
+Route security audit passed.
+PASS npm run check:routes
+
+RUN  npm run check:entity-relations
+
+> classic-trip-platform@1.3.0 check:entity-relations
+> node scripts/entity-relationship-ui-audit.js
+
+Entity relationship UI audit passed. Internal relationships are selected, filtered, or generated.
+PASS npm run check:entity-relations
+
+RUN  npm run check:dashboards
+
+> classic-trip-platform@1.3.0 check:dashboards
+> node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js
+
+Dashboard scope validation passed.
+Hotel operations validation passed.
+Bus production hardening validation passed.
+Hotel housekeeping and settlement validation passed.
+Dashboard route smoke static validation passed.
+PASS npm run check:dashboards
+
+DEPENDENCY NOTE
+npm ci was attempted but the container's internal npm gateway returned repeated HTTP 503 responses. Runtime-module and Jest tests require npm ci locally or in CI.

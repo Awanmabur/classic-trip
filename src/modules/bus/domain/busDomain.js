@@ -245,6 +245,8 @@ function buildSeatDefinitions({
   disabledSeats = [],
   blockedSeats = [],
   vipPriceDelta = 0,
+  vehicleClass = '',
+  defaultSeatClass = '',
 } = {}) {
   const rawLabels = parseList(labels).map((value) => normalizeSeatNumber(value));
   const duplicateLabels = rawLabels.filter((value, index) => rawLabels.indexOf(value) !== index);
@@ -286,7 +288,13 @@ function buildSeatDefinitions({
     customLabels = generatedSeatLabels({ mode: normalizedLabelMode, totalSeats: requestedTotal, columns: resolvedColumns, prefix: labelPrefix });
   }
 
-  const vip = normalizeSpecialSeatList(vipSeats, 'VIP seats', customLabels);
+  const submittedVehicleClass = normalize(vehicleClass || defaultSeatClass);
+  const classIsExplicit = Boolean(submittedVehicleClass);
+  const normalizedVehicleClass = ['vip', 'premium', 'business', 'executive'].includes(submittedVehicleClass) ? 'vip' : 'standard';
+  // Older records may still contain per-seat VIP selections. They remain
+  // readable for migration, but every current vehicle/seat-map write sends an
+  // explicit vehicleClass and therefore applies the class to the whole bus.
+  const vip = classIsExplicit ? new Set() : normalizeSpecialSeatList(vipSeats, 'VIP seats', customLabels);
   const accessible = normalizeSpecialSeatList(accessibleSeats, 'Accessible seats', customLabels);
   const crew = normalizeSpecialSeatList(crewSeats, 'Crew seats', customLabels);
   const disabled = normalizeSpecialSeatList(disabledSeats, 'Disabled seats', customLabels);
@@ -302,11 +310,16 @@ function buildSeatDefinitions({
     const seatNumber = customLabels[index] || String(index + 1);
     const row = Math.floor(index / resolvedColumns) + 1;
     const column = (index % resolvedColumns) + 1;
-    let seatClass = 'Standard';
+    let seatClass = normalizedVehicleClass === 'vip' ? 'VIP' : 'Standard';
     let seatType = inferSeatType(column, resolvedColumns);
     let priceDelta = 0;
     if (vip.has(seatNumber)) { seatClass = 'VIP'; priceDelta = delta; }
-    if (accessible.has(seatNumber)) { seatClass = 'Accessible'; seatType = 'accessible'; }
+    if (accessible.has(seatNumber)) {
+      // Accessibility is a seat characteristic, not a lower cabin class.
+      // A wheelchair-accessible place inside a VIP bus remains VIP.
+      if (!classIsExplicit) seatClass = 'Accessible';
+      seatType = 'accessible';
+    }
     if (crew.has(seatNumber)) { seatClass = 'Crew'; seatType = 'crew'; }
     seats.push({
       seatNumber,
@@ -328,6 +341,7 @@ function buildSeatDefinitions({
     });
   }
   return {
+    vehicleClass: normalizedVehicleClass,
     rows: resolvedRows,
     columns: resolvedColumns,
     totalSeats: requestedTotal,
@@ -339,6 +353,7 @@ function buildSeatDefinitions({
 
 function seatMapChecksum(value = {}) {
   const normalized = {
+    vehicleClass: normalize(value.vehicleClass || value.defaultSeatClass) === 'vip' ? 'vip' : 'standard',
     layoutName: cleanText(value.layoutName, 40),
     rows: Number(value.rows || 0),
     columns: Number(value.columns || 0),

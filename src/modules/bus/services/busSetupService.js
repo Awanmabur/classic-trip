@@ -11,6 +11,7 @@ const {
   moneyValue,
   parseList,
   validationError,
+  notFoundError,
   conflictError,
   requireText,
   buildSeatDefinitions,
@@ -27,6 +28,14 @@ const {
 
 function actorId(value) { return cleanText(value || 'company-admin', 180); }
 function nowIso() { return new Date().toISOString(); }
+
+function normalizeVehicleClass(value = '') {
+  return ['vip', 'premium', 'business', 'executive'].includes(normalize(value)) ? 'vip' : 'standard';
+}
+
+function seatClassForVehicleClass(value = '') {
+  return normalizeVehicleClass(value) === 'vip' ? 'VIP' : 'Standard';
+}
 
 function timezoneForCountry(country = '') {
   const normalized = normalize(country);
@@ -384,86 +393,7 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
 }
 
 
-async function assignableDrivers(companyId) {
-  const employees = await repository.employees.list({ companyId, status: 'active' }, { limit: 1000 });
-  const candidates = [];
-  for (const employee of employees) {
-    const user = employee.userId ? await repository.users.findOne({ id: employee.userId, companyId }) : null;
-    const assignment = evaluateDriverAssignment(employee, user || {});
-    if (normalize(employee.status) !== 'active') continue;
-    candidates.push({ employee, user, assignment, eligibility: assignment });
-  }
-  return candidates;
-}
 
-
-function chooseDriverForSchedule(drivers = [], schedule = {}) {
-  const scored = drivers.filter((driver) => driver?.employee?.id).map((driver) => {
-    const employee = driver.employee || {};
-    let score = 0;
-    if (String(employee.pendingScheduleId || '') === String(schedule.id || '')) score += 100;
-    if (Array.isArray(employee.scheduleIds) && employee.scheduleIds.map(String).includes(String(schedule.id || ''))) score += 90;
-    if (String(employee.assignedFleetId || employee.pendingVehicleId || '') === String(schedule.vehicleId || '')) score += 50;
-    if (String(employee.status || '').toLowerCase() === 'active') score += 20;
-    if (String(employee.safetyStatus || '').toLowerCase() === 'cleared') score += 10;
-    return { driver, score, order: String(employee.createdAt || employee.updatedAt || employee.id || '') };
-  });
-  scored.sort((a, b) => b.score - a.score || a.order.localeCompare(b.order) || String(a.driver.employee.id).localeCompare(String(b.driver.employee.id)));
-  return scored[0]?.driver || null;
-}
-
-async function attachDriverToSchedule(companyId, schedule, driver, actor = 'company-admin') {
-  if (!driver?.employee?.id) throw validationError('Select an active company driver to create this optional assignment.');
-  const timestamp = nowIso();
-  schedule.driverEmployeeId = driver.employee.id;
-  schedule.driverUserId = driver.user?.id || driver.employee.userId || '';
-  schedule.driverIds = [schedule.driverEmployeeId, schedule.driverUserId].filter(Boolean);
-  schedule.driverName = cleanText(driver.eligibility?.label || driver.user?.fullName || driver.employee.roleTitle || driver.employee.id, 180);
-  schedule.assignmentStatus = 'assigned';
-  schedule.updatedBy = actorId(actor);
-  schedule.updatedAt = timestamp;
-
-  await repository.withTransaction(async (session) => {
-    await repository.schedules.save(schedule, { id: schedule.id }, { session });
-    const existing = await repository.driverAssignments.findOne({
-      companyId,
-      scheduleId: schedule.id,
-      assignmentRole: 'driver',
-      status: 'active',
-    }, { session });
-    if (!existing) {
-      const assignment = {
-        id: await repository.nextId('driver-assignment'),
-        companyId,
-        employeeId: driver.employee.id,
-        driverUserId: schedule.driverUserId,
-        vehicleId: schedule.vehicleId,
-        scheduleId: schedule.id,
-        routeId: schedule.routeId,
-        listingId: schedule.listingId,
-        assignmentType: 'schedule',
-        assignmentRole: 'driver',
-        startsAt: schedule.boardingStartAt || schedule.departAt,
-        endsAt: schedule.arriveAt || null,
-        safetyStatus: driver.employee.safetyStatus || 'not_submitted',
-        status: 'active',
-        assignedBy: actorId(actor),
-        createdAt: timestamp,
-      };
-      await repository.driverAssignments.save(assignment, { id: assignment.id }, { session });
-    }
-    await repository.audit({
-      actorId: actorId(actor),
-      action: 'bus.departure.driver_auto_assigned',
-      targetType: 'trip_schedule',
-      targetId: schedule.id,
-      companyId,
-      metadata: { employeeId: driver.employee.id, listingId: schedule.listingId },
-      session,
-    });
-  });
-  return schedule;
-}
 
 async function smartPreparePublishedDeparture(companyId, listingId, actor = 'company-admin') {
   const listing = await repository.listingOrThrow(companyId, listingId);
@@ -927,6 +857,7 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
   const layoutName = cleanText(payload.layoutName || payload.layout || template.layoutName || '2x2', 40);
   const requestedLabelMode = cleanText(payload.seatLabelMode || payload.labelMode || template.labelMode || (payload.seatLabels || payload.labels ? 'custom' : 'automatic'), 40);
   const requestedLabelPrefix = cleanText(payload.seatLabelPrefix || payload.labelPrefix || template.labelPrefix, 8).toUpperCase().replace(/\s+/g, '');
+  const vehicleClass = normalizeVehicleClass(payload.vehicleClass || payload.defaultSeatClass || template.vehicleClass || 'standard');
   const definitions = buildSeatDefinitions({
     totalSeats: payload.totalSeats || template.totalSeats,
     rows: payload.rows || template.rows,
@@ -940,7 +871,9 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
     crewSeats: payload.crewSeats,
     disabledSeats: payload.disabledSeats,
     blockedSeats: payload.blockedSeats,
-    vipPriceDelta: payload.vipPriceDelta,
+    vipPriceDelta: 0,
+    vehicleClass,
+    defaultSeatClass: seatClassForVehicleClass(vehicleClass),
   });
   const nextVersion = Number(template.versionCounter || 0) + 1;
   const version = {
@@ -950,6 +883,7 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
     listingId,
     vehicleId,
     version: nextVersion,
+    vehicleClass,
     layoutName,
     labelMode: definitions.labelMode,
     labelPrefix: definitions.labelPrefix,
@@ -963,6 +897,7 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
   await repository.seatMapVersions.save(version, { id: version.id }, session ? { session } : {});
   Object.assign(template, {
     name: cleanText(payload.templateName || payload.seatTemplateName || template.name, 180),
+    vehicleClass,
     layoutName,
     labelMode: definitions.labelMode,
     labelPrefix: definitions.labelPrefix,
@@ -990,6 +925,7 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
   const cols = numberValue(payload.columns || payload.cols || columnsForLayout(layoutName), { field: 'Seat columns', min: 1, max: 12, integer: true });
   const rows = numberValue(payload.rows || Math.ceil(totalSeats / cols), { field: 'Seat rows', min: 1, max: 100, integer: true });
   const requestedStatus = normalize(payload.status || 'active');
+  const vehicleClass = normalizeVehicleClass(payload.vehicleClass || payload.defaultSeatClass || 'standard');
   const vehicle = {
     id: await repository.nextId('vehicle'),
     companyId,
@@ -997,6 +933,7 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
     serviceType: 'bus',
     name,
     plateOrCode: plate,
+    vehicleClass,
     layoutName,
     seatLabelMode: cleanText(payload.seatLabelMode || payload.labelMode || (payload.seatLabels || payload.labels ? 'custom' : 'automatic'), 40),
     seatLabelPrefix: cleanText(payload.seatLabelPrefix || payload.labelPrefix, 8).toUpperCase().replace(/\s+/g, ''),
@@ -1017,8 +954,8 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
     insuranceRef: cleanText(payload.insuranceRef, 160),
     insuranceExpiresAt: payload.insuranceExpiresAt || undefined,
     maintenanceReason: cleanText(payload.maintenanceReason || payload.maintenanceNote, 600),
-    defaultSeatClass: 'Standard',
-    vipPriceDelta: moneyValue(payload.vipPriceDelta, 'VIP price difference', 0),
+    defaultSeatClass: seatClassForVehicleClass(vehicleClass),
+    vipPriceDelta: 0,
     status: ['active', 'maintenance', 'paused', 'archived'].includes(requestedStatus) ? requestedStatus : 'active',
     createdBy: actorId(actor),
     createdAt: timestamp,
@@ -1030,6 +967,7 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
     listingId: listing.id,
     vehicleId: vehicle.id,
     name: cleanText(payload.templateName || `${name} seat map`, 180),
+    vehicleClass,
     layoutName: vehicle.layoutName,
     labelMode: vehicle.seatLabelMode,
     labelPrefix: vehicle.seatLabelPrefix,
@@ -1044,7 +982,7 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
   await repository.withTransaction(async (session) => {
     await repository.vehicles.save(vehicle, { id: vehicle.id }, { session });
     await repository.seatMapTemplates.save(template, { id: template.id }, { session });
-    const version = await createSeatMapVersion({ companyId, listingId: listing.id, vehicleId: vehicle.id, template, payload, actor, session });
+    const version = await createSeatMapVersion({ companyId, listingId: listing.id, vehicleId: vehicle.id, template, payload: { ...payload, vehicleClass }, actor, session });
     Object.assign(vehicle, {
       activeSeatMapTemplateId: template.id,
       activeSeatMapVersionId: version.id,
@@ -1054,6 +992,8 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
       rows: version.rows,
       cols: version.columns,
       totalSeats: version.totalSeats,
+      vehicleClass: version.vehicleClass || vehicleClass,
+      defaultSeatClass: seatClassForVehicleClass(version.vehicleClass || vehicleClass),
       seatTemplate: compatibilitySeats(version),
       updatedAt: nowIso(),
     });
@@ -1079,6 +1019,14 @@ async function updateVehicle(companyId, vehicleId, payload = {}, actor = 'compan
     vehicle.plateOrCode = nextPlate;
   }
   if (payload.modelYear || payload.year) vehicle.modelYear = numberValue(payload.modelYear || payload.year, { field: 'Model year', min: 1950, max: new Date().getFullYear() + 2, integer: true });
+  const previousVehicleClass = normalizeVehicleClass(vehicle.vehicleClass || vehicle.defaultSeatClass || 'standard');
+  const nextVehicleClass = Object.prototype.hasOwnProperty.call(payload, 'vehicleClass') || Object.prototype.hasOwnProperty.call(payload, 'defaultSeatClass')
+    ? normalizeVehicleClass(payload.vehicleClass || payload.defaultSeatClass)
+    : previousVehicleClass;
+  const vehicleClassChanged = nextVehicleClass !== previousVehicleClass;
+  vehicle.vehicleClass = nextVehicleClass;
+  vehicle.defaultSeatClass = seatClassForVehicleClass(nextVehicleClass);
+  vehicle.vipPriceDelta = 0;
   for (const field of ['operatorPermitExpiresAt', 'inspectionExpiresAt', 'insuranceExpiresAt']) if (Object.prototype.hasOwnProperty.call(payload, field)) vehicle[field] = payload[field] || null;
   if (Object.prototype.hasOwnProperty.call(payload, 'amenities')) vehicle.amenities = parseList(payload.amenities);
   if (Object.prototype.hasOwnProperty.call(payload, 'status')) {
@@ -1094,6 +1042,25 @@ async function updateVehicle(companyId, vehicleId, payload = {}, actor = 'compan
   vehicle.updatedBy = actorId(actor);
   vehicle.updatedAt = nowIso();
   await repository.vehicles.save(vehicle, { id: vehicle.id });
+  if (vehicleClassChanged && vehicle.activeSeatMapVersionId) {
+    const currentVersion = await repository.seatMapVersions.findOne({ id: vehicle.activeSeatMapVersionId, companyId, vehicleId: vehicle.id });
+    if (currentVersion) {
+      const seatNumbers = (currentVersion.seats || []).map((seat) => seat.seatNumber);
+      await updateVehicleSeatTemplate(companyId, vehicle.id, {
+        vehicleClass: nextVehicleClass,
+        layoutName: currentVersion.layoutName || vehicle.layoutName,
+        rows: currentVersion.rows || vehicle.rows,
+        columns: currentVersion.columns || vehicle.cols,
+        totalSeats: currentVersion.totalSeats || vehicle.totalSeats,
+        seatLabelMode: 'preserve',
+        seatLabels: seatNumbers,
+        accessibleSeats: (currentVersion.seats || []).filter((seat) => seat.accessible || seat.seatType === 'accessible').map((seat) => seat.seatNumber),
+        crewSeats: (currentVersion.seats || []).filter((seat) => seat.seatType === 'crew').map((seat) => seat.seatNumber),
+        disabledSeats: (currentVersion.seats || []).filter((seat) => seat.enabled === false && seat.seatType !== 'crew').map((seat) => seat.seatNumber),
+        blockedSeats: (currentVersion.seats || []).filter((seat) => /blocked|maintenance|reserved/i.test(String(seat.blockedReason || ''))).map((seat) => seat.seatNumber),
+      }, actor);
+    }
+  }
   await repository.audit({ actorId: actorId(actor), action: 'bus.vehicle.updated', targetType: 'vehicle', targetId: vehicle.id, companyId, metadata: {} });
   return vehicle;
 }
@@ -1106,7 +1073,7 @@ async function updateVehicleSeatTemplate(companyId, vehicleId, payload = {}, act
     ? await repository.seatMapVersions.findOne({ id: vehicle.activeSeatMapVersionId, companyId, vehicleId: vehicle.id })
     : null;
   if (!template) {
-    template = { id: await repository.nextId('seat-map-template'), companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, name: cleanText(payload.templateName || `${vehicle.name} seat map`, 180), layoutName: payload.layoutName || vehicle.layoutName || '2x2', labelMode: payload.seatLabelMode || payload.labelMode || vehicle.seatLabelMode || 'automatic', labelPrefix: payload.seatLabelPrefix || payload.labelPrefix || vehicle.seatLabelPrefix || '', rows: payload.rows || vehicle.rows || 8, columns: payload.columns || payload.cols || vehicle.cols || 4, totalSeats: payload.totalSeats || vehicle.totalSeats || 32, versionCounter: 0, status: 'draft', createdBy: actorId(actor), createdAt: nowIso() };
+    template = { id: await repository.nextId('seat-map-template'), companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, name: cleanText(payload.templateName || `${vehicle.name} seat map`, 180), vehicleClass: normalizeVehicleClass(payload.vehicleClass || vehicle.vehicleClass || vehicle.defaultSeatClass || 'standard'), layoutName: payload.layoutName || vehicle.layoutName || '2x2', labelMode: payload.seatLabelMode || payload.labelMode || vehicle.seatLabelMode || 'automatic', labelPrefix: payload.seatLabelPrefix || payload.labelPrefix || vehicle.seatLabelPrefix || '', rows: payload.rows || vehicle.rows || 8, columns: payload.columns || payload.cols || vehicle.cols || 4, totalSeats: payload.totalSeats || vehicle.totalSeats || 32, versionCounter: 0, status: 'draft', createdBy: actorId(actor), createdAt: nowIso() };
   }
   const requestedMode = cleanText(payload.seatLabelMode || payload.labelMode, 40);
   const hasSubmittedLabels = Boolean(parseList(payload.seatLabels || payload.labels).length);
@@ -1116,9 +1083,10 @@ async function updateVehicleSeatTemplate(companyId, vehicleId, payload = {}, act
     effectivePayload.seatLabels = (currentVersion?.seats || []).map((seat) => seat.seatNumber);
   }
   let version;
+  const vehicleClass = normalizeVehicleClass(payload.vehicleClass || vehicle.vehicleClass || vehicle.defaultSeatClass || template.vehicleClass || 'standard');
   await repository.withTransaction(async (session) => {
-    version = await createSeatMapVersion({ companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, template, payload: { ...effectivePayload, totalSeats: effectivePayload.totalSeats || vehicle.totalSeats, rows: effectivePayload.rows || vehicle.rows, columns: effectivePayload.columns || effectivePayload.cols || vehicle.cols, layoutName: effectivePayload.layoutName || effectivePayload.layout || vehicle.layoutName }, actor, session });
-    Object.assign(vehicle, { activeSeatMapTemplateId: template.id, activeSeatMapVersionId: version.id, layoutName: version.layoutName, seatLabelMode: version.labelMode, seatLabelPrefix: version.labelPrefix, rows: version.rows, cols: version.columns, totalSeats: version.totalSeats, seatTemplate: compatibilitySeats(version), vipPriceDelta: moneyValue(payload.vipPriceDelta, 'VIP price difference', vehicle.vipPriceDelta || 0), updatedBy: actorId(actor), updatedAt: nowIso() });
+    version = await createSeatMapVersion({ companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, template, payload: { ...effectivePayload, vehicleClass, totalSeats: effectivePayload.totalSeats || vehicle.totalSeats, rows: effectivePayload.rows || vehicle.rows, columns: effectivePayload.columns || effectivePayload.cols || vehicle.cols, layoutName: effectivePayload.layoutName || effectivePayload.layout || vehicle.layoutName }, actor, session });
+    Object.assign(vehicle, { activeSeatMapTemplateId: template.id, activeSeatMapVersionId: version.id, vehicleClass, defaultSeatClass: seatClassForVehicleClass(vehicleClass), layoutName: version.layoutName, seatLabelMode: version.labelMode, seatLabelPrefix: version.labelPrefix, rows: version.rows, cols: version.columns, totalSeats: version.totalSeats, seatTemplate: compatibilitySeats(version), vipPriceDelta: 0, updatedBy: actorId(actor), updatedAt: nowIso() });
     await repository.vehicles.save(vehicle, { id: vehicle.id }, { session });
     await repository.audit({ actorId: actorId(actor), action: 'bus.seat_map.version_published', targetType: 'seat_map_version', targetId: version.id, companyId, metadata: { vehicleId, version: version.version }, session });
   });
@@ -1226,6 +1194,33 @@ async function updateFareProduct(companyId, fareProductId, payload = {}, actor =
   return product;
 }
 
+async function archiveFareProduct(companyId, fareProductId, actor = 'company-admin') {
+  const product = await repository.fareProductOrThrow(companyId, fareProductId);
+  const futureDeparture = await repository.schedules.findOne({
+    companyId,
+    fareProductId: product.id,
+    departAt: { $gte: new Date().toISOString() },
+    status: { $nin: ['archived', 'cancelled', 'completed'] },
+  });
+  if (futureDeparture) throw conflictError('This fare plan is still used by an active or future departure');
+  product.status = 'archived';
+  product.updatedBy = actorId(actor);
+  product.updatedAt = nowIso();
+  await repository.withTransaction(async (session) => {
+    await repository.fareProducts.save(product, { id: product.id }, { session });
+    await repository.segmentFares.updateMany({ companyId, fareProductId: product.id }, { $set: { status: 'archived', updatedBy: actorId(actor), updatedAt: nowIso() } }, { session });
+    const route = await repository.routes.findOne({ companyId, id: product.routeId }, { session });
+    if (route?.activeFareProductId === product.id) {
+      route.activeFareProductId = '';
+      route.updatedAt = nowIso();
+      await repository.routes.save(route, { id: route.id }, { session });
+    }
+    await syncListingFareSummary(companyId, product.listingId, session);
+    await repository.audit({ actorId: actorId(actor), action: 'bus.fare_product.archived', targetType: 'fare_product', targetId: product.id, companyId, metadata: { routeId: product.routeId }, session });
+  });
+  return product;
+}
+
 async function upsertSegmentFare(companyId, fareProductId, payload = {}, actor = 'company-admin') {
   const product = await repository.fareProductOrThrow(companyId, fareProductId);
   const route = await repository.routeOrThrow(companyId, product.routeId);
@@ -1257,6 +1252,20 @@ async function upsertSegmentFare(companyId, fareProductId, payload = {}, actor =
     await repository.segmentFares.save(row, { id: row.id }, { session });
     await syncListingFareSummary(companyId, product.listingId, session);
     await repository.audit({ actorId: actorId(actor), action: 'bus.segment_fare.saved', targetType: 'segment_fare', targetId: row.id, companyId, metadata: { fareProductId: product.id, routeId: route.id }, session });
+  });
+  return row;
+}
+
+async function archiveSegmentFare(companyId, segmentFareId, actor = 'company-admin') {
+  const row = await repository.segmentFares.findOne({ companyId, id: cleanText(segmentFareId, 180) });
+  if (!row) throw notFoundError('Stop-to-stop fare not found for this company');
+  row.status = 'archived';
+  row.updatedBy = actorId(actor);
+  row.updatedAt = nowIso();
+  await repository.withTransaction(async (session) => {
+    await repository.segmentFares.save(row, { id: row.id }, { session });
+    await syncListingFareSummary(companyId, row.listingId, session);
+    await repository.audit({ actorId: actorId(actor), action: 'bus.segment_fare.archived', targetType: 'segment_fare', targetId: row.id, companyId, metadata: { fareProductId: row.fareProductId, routeId: row.routeId }, session });
   });
   return row;
 }
@@ -1400,7 +1409,9 @@ module.exports = {
   updateVehicleStatus,
   createFareProduct,
   updateFareProduct,
+  archiveFareProduct,
   upsertSegmentFare,
+  archiveSegmentFare,
   createServiceAddon,
   updateServiceAddon,
   archiveServiceAddon,

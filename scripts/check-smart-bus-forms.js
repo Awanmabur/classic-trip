@@ -38,8 +38,10 @@ check('custom labels require one label per seat', () => {
 check('duplicate custom labels are rejected', () => {
   assert.throws(() => buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'custom', labels:['A','A','B'] }), /duplicate/i);
 });
-check('special seats must exist in selected seat map', () => {
-  assert.throws(() => buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', vipSeats:['99'] }), /not in this seat map/i);
+check('VIP vehicle applies VIP class to every passenger seat', () => {
+  const result = buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', vehicleClass:'vip' });
+  assert(result.seats.every((seat) => seat.seatClass === 'VIP'));
+  assert(result.seats.every((seat) => Number(seat.priceDelta || 0) === 0));
 });
 check('disabled seats are non-sellable', () => {
   const result = buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', disabledSeats:['2'] });
@@ -50,7 +52,9 @@ check('semicolon-separated custom labels are accepted consistently', () => {
   assert.deepStrictEqual(result.seats.map(seat => seat.seatNumber), ['A','B','C']);
 });
 check('crew and disabled category conflicts are rejected', () => {
-  assert.throws(() => buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', vipSeats:['1'], crewSeats:['1'] }), /Crew-only seats/i);
+  const vip = buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', vehicleClass:'vip', crewSeats:['1'] });
+  assert.strictEqual(vip.seats[0].seatClass, 'Crew');
+  assert(vip.seats.slice(1).every((seat) => seat.seatClass === 'VIP'));
   assert.throws(() => buildSeatDefinitions({ totalSeats:3, rows:1, columns:3, labelMode:'automatic', accessibleSeats:['2'], disabledSeats:['2'] }), /Non-sellable spaces/i);
 });
 check('duration text is converted consistently', () => assert.strictEqual(parseDurationMinutes('1d 2h 30m'), 1590));

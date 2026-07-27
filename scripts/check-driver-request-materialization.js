@@ -44,7 +44,7 @@ async function main() {
   }];
   const users = [{
     id: 'driver-user-1', companyId: 'company-1', role: 'driver', status: 'active',
-    verificationStatus: 'company_verified', passwordHash: 'stored-hash', fullName: 'Verified Driver',
+    verificationStatus: 'company_verified', passwordHash: 'stored-hash', fullName: 'Partner Admin Activated Driver',
   }];
   const repository = {
     employees: collection(employees), users: collection(users),
@@ -68,26 +68,33 @@ async function main() {
 
     let rejectedCandidate = false;
     try { await service.resolveDriver('company-1', 'request:request-1'); } catch (error) {
-      rejectedCandidate = /active, verified driver/i.test(String(error.message || ''));
+      rejectedCandidate = /active driver account from this company/i.test(String(error.message || ''));
     }
-    check(rejectedCandidate, 'A saved request must not be assignable before invitation acceptance and verification.');
+    check(rejectedCandidate, 'A saved request must not be selectable before it becomes an active company driver membership.');
 
     const resolved = await service.resolveDriver('company-1', 'driver-membership-1');
     check(resolved.employee.id === 'driver-membership-1', 'The canonical active driver membership must resolve.');
     check(resolved.user.id === 'driver-user-1', 'The linked dedicated driver account must resolve.');
-    check(resolved.assignment.assignable === true, 'A fully verified driver must be assignable.');
+    check(resolved.assignment.assignable === true, 'A Partner Admin activated driver must be selectable for a departure.');
+    check(resolved.assignment.operational === true, 'A cleared and verified activated driver must be operational.');
 
-    employees[0].safetyStatus = 'pending';
-    let blockedUnsafe = false;
+    employees[0].safetyStatus = 'pending_review';
+    const pendingSafety = await service.resolveDriver('company-1', 'driver-membership-1');
+    check(pendingSafety.assignment.assignable === true, 'An active company driver remains optionally selectable while compliance is pending.');
+    check(pendingSafety.assignment.operational === false, 'Pending safety clearance remains visible as an operational warning.');
+    check(pendingSafety.assignment.warnings.some((reason) => /safety clearance/i.test(reason)), 'The selector keeps the pending safety warning.');
+
+    employees[0].status = 'suspended';
+    let blockedSuspended = false;
     try { await service.resolveDriver('company-1', 'driver-membership-1'); } catch (error) {
-      blockedUnsafe = /safety clearance/i.test(String(error.message || ''));
+      blockedSuspended = /active company membership/i.test(String(error.message || ''));
     }
-    check(blockedUnsafe, 'A driver without cleared safety status must be blocked.');
+    check(blockedSuspended, 'A suspended membership must not be selectable.');
   } finally {
     Module._load = originalLoad;
   }
 
-  console.log(`Strict driver assignment source verification passed (${passed}/${passed}).`);
+  console.log(`Active-driver assignment source verification passed (${passed}/${passed}).`);
 }
 
 main().catch((error) => {

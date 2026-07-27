@@ -24,6 +24,9 @@ const vehicleSchema = new Schema({
   serviceType: { type: String, default: 'bus', index: true, enum: ['bus'] },
   name: { type: String, required: true },
   plateOrCode: String,
+  // A bus is sold as one cabin class. VIP is a complete vehicle class, not
+  // a handful of individually upgraded seats inside a standard bus.
+  vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard', index: true },
   layoutName: { type: String, default: '2x2' },
   seatLabelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   seatLabelPrefix: String,
@@ -48,7 +51,7 @@ const vehicleSchema = new Schema({
   amenities: [String],
   media: [mediaSchema],
   status: { type: String, enum: ['active', 'maintenance', 'paused', 'archived'], default: 'active', index: true },
-  defaultSeatClass: { type: String, enum: ['Standard', 'VIP', 'Disabled'] },
+  defaultSeatClass: { type: String, enum: ['Standard', 'VIP', 'Disabled'], default: 'Standard' },
   vipPriceDelta: { type: Number, default: 0 },
   assignedDriverId: String,
   assignedDriverUserId: String,

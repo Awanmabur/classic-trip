@@ -32,7 +32,7 @@ check(invitationService.includes('driverEmployeeId: cleanText(payload.driverEmpl
 check(invitationService.includes('employee.userId = user.id'), 'Invitation acceptance must attach the created account to the existing driver record.');
 check(!departureService.includes('if (!employee) employee = await materializeDriverCandidate'), 'Pending requests and invitations must not materialize during departure assignment.');
 check(departureService.includes('Selected driver must have an active company membership'), 'An explicitly selected departure driver must have an active company membership.');
-check(setupService.includes("employees.list({ companyId, status: 'active' }"), 'Smart publication must consider active employee memberships only.');
+check(setupService.includes('Driver assignment is optional') && !setupService.includes('await assignableDrivers(companyId)'), 'Smart publication must not require or auto-assign a driver.');
 check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose active company drivers.');
 check(projection.includes('driverSelectorOptions'), 'One merged driver selector contract must exist.');
 check(workspace.includes('Driver assignment is optional'), 'The UI must describe the optional assignment rule.');

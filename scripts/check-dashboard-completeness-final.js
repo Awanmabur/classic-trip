@@ -60,7 +60,7 @@ check('Partner promotions have pause/resume/end operations', contains(workspace,
 check('Partner reviews have reply operations', contains(workspace, 'data-type="review reply"') && contains(companyRoutes, "router.post('/company/reviews/:id/reply'"));
 check('Partner support cases have response operations', contains(workspace, 'data-type="support response"') && contains(companyRoutes, "router.post('/company/support/:id'"));
 check('Staff rows have lifecycle management', contains(workspace, 'data-type="staff status"') && contains(workspace, '/company/staff/${id}/role'));
-check('Driver rows have activation management', contains(workspace, 'data-type="driver activation"') && contains(workspace, '/company/drivers/${id}/activate'));
+check('Driver rows have complete profile and activation management', contains(workspace, 'data-type="driver profile"') && contains(companyRoutes, "router.post('/company/drivers/:id/profile'") && contains(workspace, '/company/drivers/${id}/activate'));
 
 check('Platform support replies use role-correct paths', contains(workspace, "dashboardRoleKey === 'support'") && contains(workspace, '`/support/${encodeURIComponent(recordId)}/reply`'));
 check('Refund rows expose approve and reject', contains(workspace, '/refunds/${id}/approve') && contains(workspace, '/refunds/${id}/reject'));

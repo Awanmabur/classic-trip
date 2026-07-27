@@ -48,10 +48,40 @@ async function updatePolicy(req, res, next) {
   }
 }
 
+async function archiveBranch(req, res, next) {
+  try {
+    await companyService.archiveBranch(companyId(req), req.params.id, actorId(req));
+    if (req.flash) req.flash('success', 'Branch was archived. Existing historical records remain intact.');
+    res.redirect('/company/profile#branches');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function archivePolicy(req, res, next) {
+  try {
+    await companyService.archivePolicy(companyId(req), req.params.id, actorId(req));
+    if (req.flash) req.flash('success', 'Policy was archived.');
+    res.redirect('/company/profile#policies');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function updateStaffRole(req, res, next) {
   try {
     await companyService.updateEmployeeRole(companyId(req), req.params.id, req.body, actorId(req));
     if (req.flash) req.flash('success', 'Employee role, status, and access were updated.');
+    res.redirect('/company/staff#staff');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function revokeStaff(req, res, next) {
+  try {
+    await companyService.revokeEmployee(companyId(req), req.params.id, actorId(req));
+    if (req.flash) req.flash('success', 'Employee access was revoked.');
     res.redirect('/company/staff#staff');
   } catch (error) {
     next(error);
@@ -89,9 +119,12 @@ async function assignDriver(req, res, next) {
 module.exports = {
   createBranch,
   updateBranch,
+  archiveBranch,
   createPolicy,
   updatePolicy,
+  archivePolicy,
   updateStaffRole,
+  revokeStaff,
   updateDriverProfile,
   activateDriver,
   assignDriver,

@@ -9,7 +9,7 @@ const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
   .filter((key) => !['notificationTemplates', 'serviceCategories', 'tripSchedules', 'holds', 'inventoryHolds', 'walletLedgerEntries', 'campaigns', 'refunds', 'blogPosts'].includes(key));
 
 const COMPANY_SCOPED = new Set([
-  'companyEmployees','companyBranches','companyPolicies','listings','routes','routeStops','routeSegments','vehicles','seatMapTemplates','seatMapVersions','fareProducts','busSegmentFares','serviceAddons','schedules','seats','busSeatSegmentInventories',
+  'companyEmployees','companyBranches','companyPolicies','listings','routes','routeStops','routeSegments','vehicles','seatMapTemplates','seatMapVersions','fareProducts','busSegmentFares','serviceAddons','schedules','scheduleRules','seats','busSeatSegmentInventories',
   'places','airlines','flightSuppliers','aircraft','flightSeatMapVersions','flightRoutes','flightFareFamilies','flightDepartures','flightSeatInventories','flightOffers','flightOrders','flightTravelers','flightSeatAssignments','flightTickets','flightAncillaries','flightScheduleChanges','flightAgentQuotes','flightChangeRequests','flightRefundRequests',
   'vehicleClasses','taxiVehicles','taxiDriverProfiles','taxiServiceZones','taxiFareRules','driverAvailabilities','driverLocations','rideQuotes','rideRequests','taxiRides','rideAssignments','rideEvents','taxiIncidents','driverEarnings',
   'driverAssignments','driverIncidents','tripStatusUpdates','hotelProperties','roomTypes','roomUnits','roomNightInventories','ratePlans','hotelReservations','hotelGuests','roomAssignments','housekeepingTasks','maintenanceBlocks',

@@ -7,8 +7,6 @@
   const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
   const AUTO_PROMPT_DELAY_MS = 1400;
   const APP_ORIENTATION = 'portrait-primary';
-  const LAUNCH_FLASH_KEY = 'classicTripLaunchFlashShown';
-  const LAUNCH_FLASH_DURATION_MS = 1650;
   const silentPaths = ['/checkout', '/payment', '/tickets/', '/taxi/track', '/flights/order/'];
 
   let deferredInstallPrompt = null;
@@ -17,33 +15,6 @@
 
   function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  }
-
-
-  function launchFlashAlreadyShown() {
-    try { return sessionStorage.getItem(LAUNCH_FLASH_KEY) === 'true'; } catch (_) { return false; }
-  }
-
-  function rememberLaunchFlash() {
-    try { sessionStorage.setItem(LAUNCH_FLASH_KEY, 'true'); } catch (_) { /* Session storage may be unavailable. */ }
-  }
-
-  function showBrandLaunchFlash() {
-    const flash = document.getElementById('pwaLaunchFlash');
-    if (!flash) return;
-    // The markup is server-rendered so the installed app moves directly from the
-    // native launch surface into the same branded screen without creating a
-    // second animated overlay. Normal browser pages never display it.
-    if (!isStandalone() || launchFlashAlreadyShown()) {
-      flash.remove();
-      return;
-    }
-    rememberLaunchFlash();
-    flash.classList.add('is-visible');
-    window.setTimeout(() => {
-      flash.classList.add('is-leaving');
-      window.setTimeout(() => flash.remove(), 260);
-    }, LAUNCH_FLASH_DURATION_MS);
   }
 
 
@@ -294,7 +265,6 @@
   };
 
   async function initialise() {
-    showBrandLaunchFlash();
     await keepInstalledAppPortrait();
     addDrawerInstallAction();
     registerServiceWorker();

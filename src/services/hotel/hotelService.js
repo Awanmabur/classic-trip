@@ -508,6 +508,19 @@ async function updateNightStatus(companyId, inventoryId, payload = {}, actorId =
     throw error;
   }
   const now = new Date().toISOString();
+  if (Object.prototype.hasOwnProperty.call(payload, 'price') || Object.prototype.hasOwnProperty.call(payload, 'nightlyPrice')) {
+    night.price = Math.max(0, num(payload.price ?? payload.nightlyPrice, night.price || 0));
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'closedToArrival')) night.closedToArrival = bool(payload.closedToArrival, night.closedToArrival);
+  if (Object.prototype.hasOwnProperty.call(payload, 'closedToDeparture')) night.closedToDeparture = bool(payload.closedToDeparture, night.closedToDeparture);
+  if (Object.prototype.hasOwnProperty.call(payload, 'minStay') && payload.minStay !== '') night.minStay = Math.max(1, Math.round(num(payload.minStay, night.minStay || 1)));
+  if (Object.prototype.hasOwnProperty.call(payload, 'maxStay') && payload.maxStay !== '') night.maxStay = Math.max(1, Math.round(num(payload.maxStay, night.maxStay || 90)));
+  if (Number(night.maxStay || 1) < Number(night.minStay || 1)) {
+    const error = new Error('Maximum stay must be greater than or equal to minimum stay');
+    error.status = 422;
+    error.code = 'hotel_inventory_invalid_stay_limits';
+    throw error;
+  }
   Object.assign(night, {
     status: requested,
     availableInventory: ['available', 'open'].includes(requested) ? 1 : 0,
@@ -523,6 +536,8 @@ async function updateNightStatus(companyId, inventoryId, payload = {}, actorId =
     if (requested === 'maintenance') { unit.status = 'maintenance'; unit.housekeepingStatus = 'maintenance'; }
     else if (requested === 'cleaning') { unit.status = 'cleaning'; unit.housekeepingStatus = 'cleaning'; }
     else if (['available', 'open'].includes(requested)) { unit.status = 'available'; if (!['dirty', 'cleaning'].includes(unit.housekeepingStatus)) unit.housekeepingStatus = 'ready'; }
+    if (payload.housekeepingStatus) unit.housekeepingStatus = enumValue(payload.housekeepingStatus, HOUSEKEEPING_STATUSES, unit.housekeepingStatus || 'clean', 'housekeeping status');
+    night.housekeepingStatus = unit.housekeepingStatus;
     unit.updatedBy = actorId; unit.updatedAt = now;
   }
   await hotelRepository.transaction(async (session) => {

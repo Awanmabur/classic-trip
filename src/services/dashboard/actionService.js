@@ -426,8 +426,6 @@ async function updateEmployeeInventory(companyId, payload = {}, actorId = 'emplo
     seatNumber: payload.seatNumber,
     seatId: payload.seatId,
     status: payload.status || 'blocked',
-    seatClass: payload.seatClass,
-    priceDelta: payload.priceDelta,
   });
   await audit(actorId, 'employee.seat.updated', `${payload.scheduleId}:${payload.seatNumber}`, { entityType: 'seat', companyId }, { entityType: 'seat' });
   return result;

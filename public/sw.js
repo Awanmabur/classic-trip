@@ -1,12 +1,10 @@
-const STATIC_CACHE = 'classic-trip-static-v1.2.8';
+const STATIC_CACHE = 'classic-trip-static-v1.3.0';
 const STATIC_ASSETS = [
   '/site.webmanifest',
   '/images/favicon-48.png',
   '/images/logo-symbol-128.png',
   '/images/logo-symbol-192.png',
   '/images/logo-symbol-512.png',
-  '/images/logo-maskable-192.png',
-  '/images/logo-maskable-512.png',
   '/images/apple-touch-icon.png',
   '/css/base.css',
   '/css/components.css',
@@ -64,7 +62,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.message || data.body || '',
     icon: '/images/logo-symbol-192.png',
-    badge: '/images/logo-maskable-192.png',
+    badge: '/images/logo-symbol-192.png',
     data: { url: data.url || '/account' },
     tag: data.referenceId || 'classic-trip-notification',
     renotify: false,

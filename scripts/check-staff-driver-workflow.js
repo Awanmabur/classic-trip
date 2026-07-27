@@ -36,8 +36,8 @@ check(companyService.includes("approvalOwner: 'partner_admin'"), 'Partner Admin 
 check(companyService.includes('...REQUIRED_DRIVER_PERMISSIONS'), 'Partner Admin activation must grant the complete required driver permission set.');
 check(companyRoutes.includes("/company/drivers/:id/activate"), 'Company dashboard must expose a scoped driver activation route.');
 check(companyOperationsController.includes('activateDriverByCompany'), 'Company activation controller must call the scoped service.');
-check(workspace.includes("key === 'driver activation'"), 'Dashboard must provide the Partner Admin driver activation form.');
-check(workspace.includes('Manage driver status') && workspace.includes('Set driver active'), 'Driver rows must expose Partner Admin status controls regardless of account stage.');
+check(workspace.includes("key === 'driver profile'") && workspace.includes("/company/drivers/${encodeURIComponent(recordId)}/profile"), 'Dashboard must provide the complete Partner Admin driver profile form.');
+check(workspace.includes('Edit the complete driver record') && workspace.includes('Set driver active'), 'Driver rows must expose complete Partner Admin profile and activation controls.');
 check(userModel.includes("'company_verified'"), 'User model must support company-verified operational drivers.');
 check(verificationReviewModel.includes("'company_activated'"), 'Verification review must preserve the Partner Admin activation audit state.');
 
@@ -52,23 +52,23 @@ check(projection.includes('operational warning:'), 'Driver lifecycle rows must e
 check(projection.includes('Assignable · Partner Admin approved · operational') && projection.includes('Assignable · platform verified · operational'), 'Operational driver stages must remain visible while assignment stays separate.');
 check(projection.includes('pendingStaffInvitations:'), 'Pending staff invitations must be exposed to the frontend.');
 check(projection.includes('pendingDriverRequests:'), 'Pending driver requests must be exposed to the frontend.');
-check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Only operational drivers must populate dependent selectors.');
+check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Active company drivers must populate dependent selectors even while safety verification continues.');
 check(projection.includes('evaluateDriverAssignment(employee, account)'), 'Driver selectors must use the shared assignment resolver.');
 check(eligibilityService.includes("normalize(employee.safetyStatus) !== 'cleared'"), 'Shared driver eligibility must require safety clearance.');
 check(eligibilityService.includes('REQUIRED_DRIVER_PERMISSIONS.filter'), 'Shared driver eligibility must require operational permissions.');
 check(workspace.includes("required:false, help:driverWorkflowHint"), 'Draft departure form must not require a driver unconditionally.');
-check(workspace.includes("key === 'schedule rule'") && workspace.includes("value:hasAssignableDriver ? 'active' : 'draft'"), 'Recurring schedule setup may activate only when an operational driver is selectable.');
+check(workspace.includes("key === 'schedule rule'") && workspace.includes("Active rules generate dated departures automatically. Driver assignment is optional"), 'Recurring schedule rules must activate without making driver assignment mandatory.');
 check(workspace.includes("name:'schedule[driverId]'") && workspace.includes("options:drivers, required:false, help:driverWorkflowHint"), 'Complete bus setup must not require a driver before Draft save.');
-check(busOnboarding.includes('publicationDeferred: requestedPublishListing && !publishListing'), 'Complete bus setup must downgrade safely to Draft when publication was requested without a driver.');
-check(workspace.includes("value:hasAssignableDriver ? 'published' : 'draft'"), 'Departure form may default to Published only when an operational driver is selectable.');
-check(workspace.includes('Draft departure ready:'), 'Smart form must explain that dependencies can be saved while driver approval is pending.');
+check(busOnboarding.includes('publicationDeferred:'), 'Complete bus setup must report any readiness-based publication deferral without treating driver assignment as mandatory.');
+check(workspace.includes("value:'published', help:'Published makes the departure public. Driver assignment is optional"), 'Departure form must allow Published while driver assignment remains optional.');
+check(workspace.includes('Driver assignment is optional'), 'Smart forms must explain that driver assignment can be completed later.');
 check(workspace.includes('pendingDriverRequests.length'), 'Schedule form must surface pending driver workflow count.');
 check(departure.includes('evaluateDriverAssignment(employee, user || {})'), 'Backend driver selection must use the same shared assignment resolver as the dashboard.');
 check(eligibilityService.includes("OPERATIONAL_DRIVER_VERIFICATION_STATUSES"), 'Driver eligibility must accept audited Partner Admin or platform verification.');
-check(departure.includes("failures.push('verified_operational_driver_missing')"), 'Publish validation must require an assigned operational driver.');
+check(departure.includes('Driver assignment is optional at publication time') && !departure.includes("failures.push('verified_operational_driver_missing')"), 'Publish validation must not require an assigned driver.');
 check(staffView.includes('Super Admin approves only the partner company') && staffView.includes('Partner Admin creates, invites, activates'), 'Staff page must explain final approval ownership.');
 check(staffView.includes('pendingDriverCount'), 'Staff page must display pending driver count.');
-check(setupGuide.includes('Only an active, verified, licensed and safety-cleared driver'), 'Setup guide must explain strict operational driver assignment.');
+check(setupGuide.includes('Driver assignment is optional when creating or publishing a departure'), 'Setup guide must explain optional driver assignment.');
 check(snapshot.includes('linkedEmployeeUserIds'), 'Company snapshot must load accounts linked by company employee membership.');
 
 
@@ -145,7 +145,7 @@ try {
   check(pendingDashboard.staffDriverWorkflow.pendingDrivers === 1, 'Pending driver workflow count must include Partner Admin invitations.');
   check(pendingDashboard.options.drivers.length === 0, 'A pending Partner Admin driver record must not enter operational selectors.');
   check(pendingDashboard.options.pendingDriverRequests.length === 1, 'Pending Partner Admin driver invitation must be exposed to smart forms.');
-  check(pendingDashboard.staffDriverWorkflow.canPublishDeparture === false, 'A pending driver request must not unlock departure publication.');
+  check(pendingDashboard.staffDriverWorkflow.canPublishDeparture === true, 'Departure publication must not depend on driver lifecycle state.');
 
   const blockedDriverState = projectionState({
     companies: pendingState.companies, listings: pendingState.listings,
@@ -153,8 +153,8 @@ try {
     companyEmployees: [{ id: 'driver-employee-blocked', companyId: 'company-1', userId: 'driver-user-blocked', roleTitle: 'Driver', status: 'active', safetyStatus: 'pending_review', licenseNumber: 'DL-3', permissions: ['manifest.view', 'checkin.assist', 'trip.status.update', 'incident.create'], serviceCategories: ['driver'] }],
   });
   const blockedDashboard = createDashboardProjection(blockedDriverState).dashboardData('company', { companyId: 'company-1' });
-  check(blockedDashboard.options.drivers.length === 0, 'A safety-pending driver must be excluded from departure selectors.');
-  check(blockedDashboard.options.driverEligibility.some((row) => row.value === 'driver-employee-blocked' && row.assignable === false && row.operational === false && row.operationalReasons.some((reason) => /safety clearance/i.test(reason))), 'Driver diagnostics must explain the blocking safety requirement.');
+  check(blockedDashboard.options.drivers.length === 1, 'An active safety-pending driver must remain selectable while verification continues.');
+  check(blockedDashboard.options.driverEligibility.some((row) => row.value === 'driver-employee-blocked' && row.assignable === true && row.operational === false && row.operationalReasons.some((reason) => /safety clearance/i.test(reason))), 'Driver diagnostics must preserve the non-blocking safety warning.');
 
   const activeDriverState = projectionState({
     companies: pendingState.companies,
