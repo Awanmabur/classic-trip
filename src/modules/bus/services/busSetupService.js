@@ -16,6 +16,7 @@ const {
   conflictError,
   requireText,
   buildSeatDefinitions,
+  normalizeRowLayoutOverrides,
   seatMapChecksum,
   buildRouteSegments,
   sortStops,
@@ -845,6 +846,7 @@ function compatibilitySeats(version) {
     seatNumber: seat.seatNumber,
     row: seat.row,
     col: seat.column,
+    side: seat.side,
     deck: seat.deck,
     displayLabel: seat.seatNumber,
     label: seat.seatNumber,
@@ -878,6 +880,14 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
     vipPriceDelta: 0,
     vehicleClass,
     defaultSeatClass: seatClassForVehicleClass(vehicleClass),
+    numberingStartSide: payload.numberingStartSide || template.numberingStartSide || 'left',
+    driverPosition: payload.driverPosition || template.driverPosition || 'right',
+    frontRowPassengerSeats: Object.prototype.hasOwnProperty.call(payload, 'frontRowPassengerSeats')
+      ? payload.frontRowPassengerSeats
+      : template.frontRowPassengerSeats || 0,
+    rowLayoutOverrides: Object.prototype.hasOwnProperty.call(payload, 'rowLayoutOverrides')
+      ? payload.rowLayoutOverrides
+      : template.rowLayoutOverrides || [],
   });
   const nextVersion = Number(template.versionCounter || 0) + 1;
   const version = {
@@ -889,6 +899,10 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
     version: nextVersion,
     vehicleClass,
     layoutName,
+    numberingStartSide: definitions.numberingStartSide,
+    driverPosition: definitions.driverPosition,
+    frontRowPassengerSeats: definitions.frontRowPassengerSeats,
+    rowLayoutOverrides: definitions.rowLayoutOverrides,
     labelMode: definitions.labelMode,
     labelPrefix: definitions.labelPrefix,
     ...definitions,
@@ -903,6 +917,10 @@ async function createSeatMapVersion({ companyId, listingId, vehicleId, template,
     name: cleanText(payload.templateName || payload.seatTemplateName || template.name, 180),
     vehicleClass,
     layoutName,
+    numberingStartSide: definitions.numberingStartSide,
+    driverPosition: definitions.driverPosition,
+    frontRowPassengerSeats: definitions.frontRowPassengerSeats,
+    rowLayoutOverrides: definitions.rowLayoutOverrides,
     labelMode: definitions.labelMode,
     labelPrefix: definitions.labelPrefix,
     rows: definitions.rows,
@@ -927,7 +945,12 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
   const layoutName = cleanText(payload.layoutName || payload.layout || '2x2', 40);
   const totalSeats = numberValue(payload.totalSeats || 32, { field: 'Total seats', min: 1, max: 300, integer: true });
   const cols = numberValue(payload.columns || payload.cols || columnsForLayout(layoutName), { field: 'Seat columns', min: 1, max: 12, integer: true });
-  const rows = numberValue(payload.rows || Math.ceil(totalSeats / cols), { field: 'Seat rows', min: 1, max: 100, integer: true });
+  const frontRowPassengerSeats = Number(payload.frontRowPassengerSeats) === 1 ? 1 : 0;
+  const defaultRows = (frontRowPassengerSeats ? 1 : 0) + Math.ceil(Math.max(0, totalSeats - frontRowPassengerSeats) / cols);
+  const rowOverrideRows = Array.isArray(payload.rowLayoutOverrides)
+    ? payload.rowLayoutOverrides.map((entry) => Number(entry?.row || 0))
+    : [...String(payload.rowLayoutOverrides || '').matchAll(/(\d+)\s*:/g)].map((match) => Number(match[1]));
+  const rows = numberValue(payload.rows || Math.max(defaultRows, ...rowOverrideRows, 1), { field: 'Seat rows', min: 1, max: 100, integer: true });
   const requestedStatus = normalize(payload.status || 'active');
   const vehicleClass = normalizeVehicleClass(payload.vehicleClass || payload.defaultSeatClass || 'standard');
   const vehicle = {
@@ -939,6 +962,10 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
     plateOrCode: plate,
     vehicleClass,
     layoutName,
+    numberingStartSide: normalize(payload.numberingStartSide) === 'right' ? 'right' : 'left',
+    driverPosition: normalize(payload.driverPosition) === 'left' ? 'left' : 'right',
+    frontRowPassengerSeats,
+    rowLayoutOverrides: normalizeRowLayoutOverrides(payload.rowLayoutOverrides),
     seatLabelMode: cleanText(payload.seatLabelMode || payload.labelMode || (payload.seatLabels || payload.labels ? 'custom' : 'automatic'), 40),
     seatLabelPrefix: cleanText(payload.seatLabelPrefix || payload.labelPrefix, 8).toUpperCase().replace(/\s+/g, ''),
     rows,
@@ -973,6 +1000,10 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
     name: cleanText(payload.templateName || `${name} seat map`, 180),
     vehicleClass,
     layoutName: vehicle.layoutName,
+    numberingStartSide: vehicle.numberingStartSide,
+    driverPosition: vehicle.driverPosition,
+    frontRowPassengerSeats: vehicle.frontRowPassengerSeats,
+    rowLayoutOverrides: vehicle.rowLayoutOverrides,
     labelMode: vehicle.seatLabelMode,
     labelPrefix: vehicle.seatLabelPrefix,
     rows: vehicle.rows,
@@ -991,6 +1022,10 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
       activeSeatMapTemplateId: template.id,
       activeSeatMapVersionId: version.id,
       layoutName: version.layoutName,
+      numberingStartSide: version.numberingStartSide,
+      driverPosition: version.driverPosition,
+      frontRowPassengerSeats: version.frontRowPassengerSeats,
+      rowLayoutOverrides: version.rowLayoutOverrides,
       seatLabelMode: version.labelMode,
       seatLabelPrefix: version.labelPrefix,
       rows: version.rows,
@@ -1053,6 +1088,10 @@ async function updateVehicle(companyId, vehicleId, payload = {}, actor = 'compan
       await updateVehicleSeatTemplate(companyId, vehicle.id, {
         vehicleClass: nextVehicleClass,
         layoutName: currentVersion.layoutName || vehicle.layoutName,
+        numberingStartSide: currentVersion.numberingStartSide || vehicle.numberingStartSide || 'left',
+        driverPosition: currentVersion.driverPosition || vehicle.driverPosition || 'right',
+        frontRowPassengerSeats: currentVersion.frontRowPassengerSeats ?? vehicle.frontRowPassengerSeats ?? 0,
+        rowLayoutOverrides: currentVersion.rowLayoutOverrides || vehicle.rowLayoutOverrides || [],
         rows: currentVersion.rows || vehicle.rows,
         columns: currentVersion.columns || vehicle.cols,
         totalSeats: currentVersion.totalSeats || vehicle.totalSeats,
@@ -1077,7 +1116,7 @@ async function updateVehicleSeatTemplate(companyId, vehicleId, payload = {}, act
     ? await repository.seatMapVersions.findOne({ id: vehicle.activeSeatMapVersionId, companyId, vehicleId: vehicle.id })
     : null;
   if (!template) {
-    template = { id: await repository.nextId('seat-map-template'), companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, name: cleanText(payload.templateName || `${vehicle.name} seat map`, 180), vehicleClass: normalizeVehicleClass(payload.vehicleClass || vehicle.vehicleClass || vehicle.defaultSeatClass || 'standard'), layoutName: payload.layoutName || vehicle.layoutName || '2x2', labelMode: payload.seatLabelMode || payload.labelMode || vehicle.seatLabelMode || 'automatic', labelPrefix: payload.seatLabelPrefix || payload.labelPrefix || vehicle.seatLabelPrefix || '', rows: payload.rows || vehicle.rows || 8, columns: payload.columns || payload.cols || vehicle.cols || 4, totalSeats: payload.totalSeats || vehicle.totalSeats || 32, versionCounter: 0, status: 'draft', createdBy: actorId(actor), createdAt: nowIso() };
+    template = { id: await repository.nextId('seat-map-template'), companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, name: cleanText(payload.templateName || `${vehicle.name} seat map`, 180), vehicleClass: normalizeVehicleClass(payload.vehicleClass || vehicle.vehicleClass || vehicle.defaultSeatClass || 'standard'), layoutName: payload.layoutName || vehicle.layoutName || '2x2', numberingStartSide: payload.numberingStartSide || vehicle.numberingStartSide || 'left', driverPosition: payload.driverPosition || vehicle.driverPosition || 'right', frontRowPassengerSeats: Number(payload.frontRowPassengerSeats ?? vehicle.frontRowPassengerSeats ?? 0) === 1 ? 1 : 0, rowLayoutOverrides: payload.rowLayoutOverrides || vehicle.rowLayoutOverrides || [], labelMode: payload.seatLabelMode || payload.labelMode || vehicle.seatLabelMode || 'automatic', labelPrefix: payload.seatLabelPrefix || payload.labelPrefix || vehicle.seatLabelPrefix || '', rows: payload.rows || vehicle.rows || 8, columns: payload.columns || payload.cols || vehicle.cols || 4, totalSeats: payload.totalSeats || vehicle.totalSeats || 32, versionCounter: 0, status: 'draft', createdBy: actorId(actor), createdAt: nowIso() };
   }
   const requestedMode = cleanText(payload.seatLabelMode || payload.labelMode, 40);
   const hasSubmittedLabels = Boolean(parseList(payload.seatLabels || payload.labels).length);
@@ -1090,7 +1129,7 @@ async function updateVehicleSeatTemplate(companyId, vehicleId, payload = {}, act
   const vehicleClass = normalizeVehicleClass(payload.vehicleClass || vehicle.vehicleClass || vehicle.defaultSeatClass || template.vehicleClass || 'standard');
   await repository.withTransaction(async (session) => {
     version = await createSeatMapVersion({ companyId, listingId: vehicle.listingId, vehicleId: vehicle.id, template, payload: { ...effectivePayload, vehicleClass, totalSeats: effectivePayload.totalSeats || vehicle.totalSeats, rows: effectivePayload.rows || vehicle.rows, columns: effectivePayload.columns || effectivePayload.cols || vehicle.cols, layoutName: effectivePayload.layoutName || effectivePayload.layout || vehicle.layoutName }, actor, session });
-    Object.assign(vehicle, { activeSeatMapTemplateId: template.id, activeSeatMapVersionId: version.id, vehicleClass, defaultSeatClass: seatClassForVehicleClass(vehicleClass), layoutName: version.layoutName, seatLabelMode: version.labelMode, seatLabelPrefix: version.labelPrefix, rows: version.rows, cols: version.columns, totalSeats: version.totalSeats, seatTemplate: compatibilitySeats(version), vipPriceDelta: 0, updatedBy: actorId(actor), updatedAt: nowIso() });
+    Object.assign(vehicle, { activeSeatMapTemplateId: template.id, activeSeatMapVersionId: version.id, vehicleClass, defaultSeatClass: seatClassForVehicleClass(vehicleClass), layoutName: version.layoutName, numberingStartSide: version.numberingStartSide, driverPosition: version.driverPosition, frontRowPassengerSeats: version.frontRowPassengerSeats, rowLayoutOverrides: version.rowLayoutOverrides, seatLabelMode: version.labelMode, seatLabelPrefix: version.labelPrefix, rows: version.rows, cols: version.columns, totalSeats: version.totalSeats, seatTemplate: compatibilitySeats(version), vipPriceDelta: 0, updatedBy: actorId(actor), updatedAt: nowIso() });
     await repository.vehicles.save(vehicle, { id: vehicle.id }, { session });
     await repository.audit({ actorId: actorId(actor), action: 'bus.seat_map.version_published', targetType: 'seat_map_version', targetId: version.id, companyId, metadata: { vehicleId, version: version.version }, session });
   });

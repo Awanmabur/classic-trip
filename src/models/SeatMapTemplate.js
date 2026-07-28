@@ -1,5 +1,11 @@
 const { Schema, model } = require('./_helpers');
 
+const rowLayoutSchema = new Schema({
+  row: { type: Number, required: true, min: 1, max: 100 },
+  leftSeats: { type: Number, required: true, min: 0, max: 6 },
+  rightSeats: { type: Number, required: true, min: 0, max: 6 },
+}, { _id: false });
+
 const seatMapTemplateSchema = new Schema({
   id: { type: String, unique: true, required: true, index: true },
   companyId: { type: String, required: true, index: true },
@@ -8,6 +14,10 @@ const seatMapTemplateSchema = new Schema({
   name: { type: String, required: true, trim: true },
   vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard' },
   layoutName: { type: String, required: true, default: '2x2' },
+  numberingStartSide: { type: String, enum: ['left', 'right'], default: 'left' },
+  driverPosition: { type: String, enum: ['left', 'right'], default: 'right' },
+  frontRowPassengerSeats: { type: Number, enum: [0, 1], default: 0 },
+  rowLayoutOverrides: [rowLayoutSchema],
   labelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   labelPrefix: String,
   rows: { type: Number, required: true, min: 1, max: 100 },

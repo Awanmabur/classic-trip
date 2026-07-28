@@ -79,6 +79,7 @@
     "migrate:vip-vehicle-class": "node scripts/migrate-vip-vehicle-class.js --apply",
     "check:vip-dashboard-crud": "node scripts/check-vip-partner-dashboard-crud.js",
     "check:final-polish": "node scripts/check-final-speed-content-drawer-splash.js"
+    ,"check:stop-fares-seat-rows": "node scripts/check-stop-fares-and-row-layouts.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

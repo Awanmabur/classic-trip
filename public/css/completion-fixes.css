@@ -399,6 +399,379 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
   .dashboardBody .dashboardSchedulePage .rowActions{grid-template-columns:minmax(0,1fr)!important}
 }
 
+/* One dashboard layout contract: every destination follows the same card rhythm,
+   natural action wrapping, and table scrolling used by the established pages. */
+.dashboardBody .section.is-open{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  align-content:start!important;
+  gap:14px!important;
+}
+.dashboardBody .section.is-open>*{
+  position:relative;
+  min-width:0!important;
+  max-width:100%!important;
+  width:100%;
+  margin-top:0!important;
+  margin-bottom:0!important;
+}
+.dashboardBody .section :is(.card,.hero,.grid2,.grid3,.grid4,.splitGrid,.statsGrid,.quickGrid,.financeTableGrid,.financeSubgrid,.reportGrid){
+  min-width:0;
+  max-width:100%;
+}
+.dashboardBody .section .card{
+  overflow:hidden;
+}
+.dashboardBody .section .cardHead,
+.dashboardBody .section .financeHeroTop,
+.dashboardBody .section .seatOpsHeader{
+  min-width:0;
+}
+.dashboardBody .section :is(.cardTitle,.cardTitle h3,.cardTitle p,.financeHeroTop>div,.seatOpsHeader>div){
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.dashboardBody .section .rowActions,
+.dashboardBody .section .financeActions,
+.dashboardBody .section .documentActions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:auto!important;
+  min-width:0!important;
+}
+.dashboardBody .section .rowActions :is(.btn,a),
+.dashboardBody .section .financeActions :is(.btn,a){
+  flex:0 1 auto!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:100%;
+}
+.dashboardBody .section .tableWrap{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  overflow-x:auto!important;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.dashboardBody .section .tableWrap table{
+  width:100%;
+}
+.dashboardBody .seatMapFilterGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:16px;
+  min-width:0;
+}
+
+@media(max-width:980px){
+  .dashboardBody .section>.grid2,
+  .dashboardBody .section>.grid3,
+  .dashboardBody .section>.grid4,
+  .dashboardBody .section .financeSubgrid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .dashboardBody .seatMapFilterGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+/* Live Departure Seat Maps: the row contains two seat groups and one aisle.
+   Let those three tracks keep their natural size and lock every seat square. */
+.dashboardBody #seat-maps .busCabinDeck{
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  justify-content:start!important;
+}
+.dashboardBody #seat-maps .busSeatRow{
+  grid-template-columns:max-content 34px max-content!important;
+  width:max-content!important;
+  min-width:max-content!important;
+  max-width:none!important;
+  justify-content:start!important;
+  align-items:center!important;
+  margin-inline:auto!important;
+}
+.dashboardBody #seat-maps .busSeatGroup{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:66px!important;
+  gap:12px!important;
+  width:max-content!important;
+  min-width:max-content!important;
+}
+.dashboardBody #seat-maps .busSeatRow .seat{
+  box-sizing:border-box!important;
+  flex:0 0 66px!important;
+  width:66px!important;
+  min-width:66px!important;
+  max-width:66px!important;
+  height:66px!important;
+  min-height:66px!important;
+  max-height:66px!important;
+  aspect-ratio:1 / 1!important;
+  padding:0!important;
+}
+.dashboardBody #seat-maps .busAisle{
+  width:34px!important;
+  min-width:34px!important;
+  height:66px!important;
+  min-height:66px!important;
+}
+
+/* Manifest and shared dashboard filters stay in normal flow. Their own height
+   grows with wrapped controls, so tables and cards always start below them. */
+.dashboardBody .section :is(.dashboardFilters,.filterRow,.tableTools){
+  position:static!important;
+  inset:auto!important;
+  transform:none!important;
+  float:none!important;
+  clear:both!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  z-index:auto!important;
+  overflow:visible!important;
+}
+.dashboardBody #manifests .manifestLayout,
+.dashboardBody #manifests .busManifestCard,
+.dashboardBody #manifests .hotelManifestCard,
+.dashboardBody #manifests .manifestPassengerBlock{
+  position:relative!important;
+  min-width:0!important;
+  height:auto!important;
+  overflow:visible!important;
+}
+.dashboardBody #manifests .busManifestFilters,
+.dashboardBody #manifests .hotelManifestFilters{
+  display:flex!important;
+  flex-flow:row wrap!important;
+  align-items:flex-end!important;
+  gap:8px!important;
+  margin:0 12px 12px!important;
+  width:auto!important;
+}
+.dashboardBody #manifests .busManifestFilters .field,
+.dashboardBody #manifests .hotelManifestFilters .field{
+  flex:1 1 170px!important;
+  width:auto!important;
+  min-width:145px!important;
+  max-width:280px!important;
+}
+.dashboardBody #manifests .filterActions{
+  position:static!important;
+  display:flex!important;
+  flex:0 1 auto!important;
+  flex-flow:row wrap!important;
+  align-items:flex-end!important;
+  justify-content:flex-start!important;
+  gap:8px!important;
+  width:auto!important;
+  min-width:0!important;
+  margin:0!important;
+}
+.dashboardBody #manifests .filterActions .btn{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:0!important;
+}
+.dashboardBody #manifests :is(.busManifestTableWrap,.manifestPassengerBlock,.hotelManifestTabs){
+  position:relative!important;
+  clear:both!important;
+  margin-top:0!important;
+}
+
+@media(max-width:760px){
+  .dashboardBody #seat-maps .busSeatRow{
+    grid-template-columns:max-content 22px max-content!important;
+    gap:8px!important;
+  }
+  .dashboardBody #seat-maps .busSeatGroup{
+    grid-auto-columns:56px!important;
+    gap:8px!important;
+  }
+  .dashboardBody #seat-maps .busSeatRow .seat{
+    flex-basis:56px!important;
+    width:56px!important;
+    min-width:56px!important;
+    max-width:56px!important;
+    height:56px!important;
+    min-height:56px!important;
+    max-height:56px!important;
+  }
+  .dashboardBody #seat-maps .busAisle{
+    width:22px!important;
+    min-width:22px!important;
+    height:56px!important;
+    min-height:56px!important;
+  }
+  .dashboardBody #manifests .busManifestFilters,
+  .dashboardBody #manifests .hotelManifestFilters{
+    margin:0 10px 10px!important;
+  }
+  .dashboardBody #manifests .busManifestFilters .field,
+  .dashboardBody #manifests .hotelManifestFilters .field{
+    flex:1 1 145px!important;
+    min-width:135px!important;
+    max-width:240px!important;
+  }
+}
+
+@media(max-width:760px){
+  .dashboardBody .section.is-open{
+    gap:10px!important;
+  }
+  .dashboardBody .section .cardHead,
+  .dashboardBody .section .financeHeroTop,
+  .dashboardBody .section .seatOpsHeader{
+    gap:10px!important;
+  }
+  .dashboardBody .section .rowActions,
+  .dashboardBody .section .financeActions,
+  .dashboardBody .section .documentActions{
+    justify-content:flex-start!important;
+  }
+  .dashboardBody .section .rowActions :is(.btn,a),
+  .dashboardBody .section .financeActions :is(.btn,a){
+    flex:0 1 auto!important;
+    width:auto!important;
+    min-height:36px;
+    padding-inline:11px;
+    white-space:normal;
+  }
+  .dashboardBody .section .tableTools{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    gap:8px!important;
+  }
+  .dashboardBody .section .tableTools .control{
+    flex:1 1 180px!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+  .dashboardBody .section .tableTools .btn{
+    flex:0 1 auto;
+    width:auto;
+  }
+  .dashboardBody .seatMapFilterGrid{
+    grid-template-columns:minmax(0,1fr);
+    gap:8px;
+    margin-bottom:12px;
+  }
+}
+
+/* Keep dashboard tables free and straight: columns use their natural width and
+   the table swipes horizontally instead of squeezing or becoming tall. */
+.dashboardBody .section .tableWrap{
+  display:block!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+.dashboardBody .section .tableWrap table{
+  width:max-content!important;
+  min-width:100%!important;
+  max-width:none!important;
+  table-layout:auto!important;
+}
+.dashboardBody .section .tableWrap :is(th,td){
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  line-height:1.2!important;
+  white-space:nowrap!important;
+}
+.dashboardBody .section .tableWrap th{
+  padding:0 9px 2px!important;
+}
+.dashboardBody .section .tableWrap td{
+  padding:9px 10px!important;
+}
+.dashboardBody .section .tableWrap .nameCell{
+  min-height:32px!important;
+}
+.dashboardBody .section .tableWrap .miniLogo{
+  width:32px!important;
+  height:32px!important;
+  border-radius:12px!important;
+}
+.dashboardBody .section .tableWrap .tinyBtn{
+  width:31px!important;
+  height:31px!important;
+}
+
+/* Filters are a normal sequence, never a forced grid. */
+.dashboardBody .section .tableTools,
+.dashboardBody .seatMapFilterGrid,
+.dashboardBody .dashboardFilters,
+.dashboardBody .filterRow{
+  display:flex!important;
+  flex-flow:row wrap!important;
+  align-items:flex-end!important;
+  justify-content:flex-start!important;
+  gap:8px!important;
+}
+.dashboardBody .seatMapFilterGrid{
+  margin-bottom:12px!important;
+}
+.dashboardBody .section .tableTools .control,
+.dashboardBody .seatMapFilterGrid .field,
+.dashboardBody .dashboardFilters .field,
+.dashboardBody .filterRow .control{
+  flex:0 1 220px!important;
+  width:auto!important;
+  min-width:170px!important;
+  max-width:280px!important;
+}
+.dashboardBody .section .tableTools .btn,
+.dashboardBody .dashboardFilters .btn,
+.dashboardBody .filterRow .btn{
+  flex:0 0 auto!important;
+  width:auto!important;
+}
+
+@media(max-width:760px){
+  .dashboardBody .section .tableWrap{
+    padding:8px 10px 11px!important;
+  }
+  .dashboardBody .section .tableWrap table{
+    width:max-content!important;
+    min-width:100%!important;
+  }
+  .dashboardBody .section .tableWrap td{
+    padding:9px 10px!important;
+  }
+  .dashboardBody .section .tableTools,
+  .dashboardBody .seatMapFilterGrid,
+  .dashboardBody .dashboardFilters,
+  .dashboardBody .filterRow{
+    display:flex!important;
+    flex-direction:row!important;
+    flex-wrap:wrap!important;
+    align-items:flex-end!important;
+  }
+  .dashboardBody .section .tableTools .control,
+  .dashboardBody .seatMapFilterGrid .field,
+  .dashboardBody .dashboardFilters .field,
+  .dashboardBody .filterRow .control{
+    flex:1 1 150px!important;
+    width:auto!important;
+    min-width:135px!important;
+    max-width:240px!important;
+  }
+  .dashboardBody .section .tableTools .btn,
+  .dashboardBody .dashboardFilters .btn,
+  .dashboardBody .filterRow .btn{
+    flex:0 0 auto!important;
+    align-self:flex-end!important;
+    width:auto!important;
+  }
+}
+
 /* Final mobile navigation and install experience: scoped additions only. */
 .bottomNav{transition:transform .22s ease,opacity .22s ease,visibility .22s ease!important;will-change:transform,opacity}
 .bottomNav.is-scroll-hidden,.site-drawer-open .bottomNav,.site-input-active .bottomNav{transform:translate(-50%,calc(100% + 34px))!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
@@ -506,5 +879,201 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
     display:grid!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:8px!important;
+  }
+}
+
+/* Final manifest containment: every filter occupies its own measured flex row,
+   and every following table/card is a separate vertical flex item. */
+.dashboardBody #manifests .manifestLayout{
+  display:grid!important;
+  align-items:start!important;
+  gap:14px!important;
+  overflow:visible!important;
+}
+.dashboardBody #manifests :is(.busManifestCard,.hotelManifestCard){
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:12px!important;
+  min-width:0!important;
+  height:auto!important;
+  overflow:hidden!important;
+  isolation:isolate;
+}
+.dashboardBody #manifests .manifestPassengerBlock{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:12px!important;
+  min-width:0!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+.dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters){
+  position:relative!important;
+  display:flex!important;
+  flex-flow:row wrap!important;
+  align-items:flex-end!important;
+  align-content:flex-start!important;
+  gap:8px!important;
+  box-sizing:border-box!important;
+  flex:0 0 auto!important;
+  width:calc(100% - 24px)!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0 12px!important;
+  overflow:visible!important;
+  z-index:0!important;
+}
+.dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters)>.field{
+  position:relative!important;
+  flex:1 1 160px!important;
+  width:auto!important;
+  min-width:140px!important;
+  max-width:260px!important;
+  margin:0!important;
+}
+.dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters)>.filterActions{
+  position:relative!important;
+  display:flex!important;
+  flex:0 1 auto!important;
+  flex-flow:row wrap!important;
+  align-items:center!important;
+  align-self:flex-end!important;
+  gap:8px!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  margin:0!important;
+  inset:auto!important;
+  transform:none!important;
+  z-index:0!important;
+}
+.dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters)>.filterActions>.btn{
+  position:relative!important;
+  flex:0 0 auto!important;
+  width:auto!important;
+  margin:0!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.dashboardBody #manifests :is(.busManifestTableWrap,.hotelManifestTabs,.manifestPassengerBlock,.filterEmpty){
+  position:relative!important;
+  flex:0 0 auto!important;
+  clear:both!important;
+  inset:auto!important;
+  transform:none!important;
+  z-index:0!important;
+}
+
+/* Wider clean cabin; seats retain the square dimensions defined above. */
+.dashboardBody #seat-maps .busCabin{
+  width:min(620px,100%)!important;
+  max-width:620px!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+.dashboardBody #seat-maps .busCabin[data-driver-position="left"] .busDoor{grid-column:3;}
+.dashboardBody #seat-maps .busCabin[data-driver-position="left"] .busWindshield{grid-column:2;grid-row:1;}
+.dashboardBody #seat-maps .busCabin[data-driver-position="left"] .driverPod{grid-column:1;grid-row:1;}
+
+@media(max-width:760px){
+  .dashboardBody #manifests :is(.busManifestCard,.hotelManifestCard,.manifestPassengerBlock){
+    gap:10px!important;
+  }
+  .dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters){
+    width:calc(100% - 20px)!important;
+    margin:0 10px!important;
+  }
+  .dashboardBody #manifests :is(.busManifestFilters,.hotelManifestFilters)>.field{
+    flex:1 1 140px!important;
+    min-width:130px!important;
+    max-width:230px!important;
+  }
+  .dashboardBody #seat-maps .busCabin{
+    width:100%!important;
+    max-width:620px!important;
+  }
+  .dashboardBody #seat-maps .busCabin[data-driver-position] .busCabinFront>*{
+    grid-column:auto!important;
+    grid-row:auto!important;
+  }
+}
+
+/* Support queue actions must remain inside their card at every dashboard width. */
+.dashboardBody #support .grid2>.card{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.dashboardBody #support .grid2>.card>.btn{
+  display:inline-flex!important;
+  width:max-content!important;
+  max-width:calc(100% - 32px)!important;
+  margin:0 16px 16px!important;
+  white-space:normal!important;
+}
+
+/* Physical seat groups support asymmetric 2 + 3 and 3 + 2 cabins. */
+:is(.homePage,.sitePage) .seatRow{
+  display:grid!important;
+  grid-template-columns:max-content 24px max-content!important;
+  justify-content:center!important;
+  align-items:center!important;
+}
+:is(.homePage,.sitePage) .seatGroup{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:64px!important;
+  gap:8px!important;
+}
+
+/* A confirmed/booked seat uses the same unmistakable red everywhere. */
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).booked,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).taken,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).sold,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).checked_in,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).checked-in{
+  background:#ef4444!important;
+  border-color:#dc2626!important;
+  color:#fff!important;
+}
+
+@media(max-width:760px){
+  .dashboardBody #seat-maps .seatPreviewCardHead{
+    position:relative!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+    gap:10px!important;
+    min-height:0!important;
+    height:auto!important;
+    padding-bottom:12px!important;
+    margin-bottom:12px!important;
+  }
+  .dashboardBody #seat-maps .seatPreviewCardHead .seatLegend{
+    position:static!important;
+    display:flex!important;
+    flex-flow:row wrap!important;
+    justify-content:flex-start!important;
+    align-items:center!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    inset:auto!important;
+    transform:none!important;
+    gap:7px 12px!important;
+  }
+  :is(.homePage,.sitePage) .seatRow{
+    grid-template-columns:max-content 18px max-content!important;
+  }
+  :is(.homePage,.sitePage) .seatGroup{
+    grid-auto-columns:56px!important;
+    gap:6px!important;
   }
 }

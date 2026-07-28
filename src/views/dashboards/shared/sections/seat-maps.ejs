@@ -56,7 +56,7 @@
               </div>
               <span class="badge info">Company scoped</span>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px">
+            <div class="seatMapFilterGrid">
               <div class="field" style="margin:0">
                 <label>Route / schedule</label>
                 <div class="control"><i class="fa-solid fa-route"></i>
@@ -131,10 +131,10 @@
                 <% if(!previewSeats.length){ %>
                   <div class="notice" style="margin:0 0 12px"><strong>This departure has no persisted seat inventory.</strong> Delete the incomplete departure and create it again after publishing the selected vehicle template. Canonical departures generate their inventory transactionally.</div>
                 <% } %>
-                <div class="busCabin" aria-label="Realistic bus cabin seat map">
+                <div class="busCabin" aria-label="Realistic bus cabin seat map" data-driver-position="<%= map.driverPosition || 'right' %>">
                   <div class="busCabinFront"><div class="busDoor"><i class="fa-solid fa-door-open"></i>&nbsp; Front door</div><div class="busWindshield"><i class="fa-solid fa-bus"></i>&nbsp; Front windshield</div><div class="driverPod"><i class="fa-solid fa-steering-wheel"></i>&nbsp; Driver</div></div>
                   <div class="busCabinDeck">
-                    <% rows.forEach(function(row){ const sides = [row.slice(0, layoutSides[0]), row.slice(layoutSides[0])]; %>
+                    <% rows.forEach(function(row){ const hasPhysicalSides = row.some(function(seat){ return seat.side === 'left' || seat.side === 'right'; }); const hasPhysicalColumns = row.some(function(seat){ return Number(seat.column || seat.col || 0) > 0; }); const sides = hasPhysicalSides ? [row.filter(function(seat){ return seat.side === 'left'; }), row.filter(function(seat){ return seat.side === 'right'; })] : hasPhysicalColumns ? [row.filter(function(seat){ return Number(seat.column || seat.col || 0) <= layoutSides[0]; }), row.filter(function(seat){ return Number(seat.column || seat.col || 0) > layoutSides[0]; })] : [row.slice(0, layoutSides[0]), row.slice(layoutSides[0])]; %>
                       <div class="busSeatRow" data-layout="<%= layoutName %>">
                         <% sides.forEach(function(side, sideIndex){ %>
                           <% if(sideIndex === 1){ %><span class="busAisle" aria-hidden="true"></span><% } %>

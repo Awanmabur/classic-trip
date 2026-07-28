@@ -231,6 +231,35 @@ function normalizeSpecialSeatList(values, label, availableLabels) {
   return new Set(normalized);
 }
 
+function normalizeRowLayoutOverrides(value) {
+  let rows = value;
+  if (typeof rows === 'string') {
+    const text = rows.trim();
+    if (!text) return [];
+    if (text.startsWith('[')) {
+      try { rows = JSON.parse(text); } catch (_) { throw validationError('Row layout exceptions must use entries like 1:1+1, 2:2+3'); }
+    } else {
+      rows = text.split(/[\n,;]+/).map((entry) => {
+        const match = entry.trim().match(/^(\d+)\s*:\s*(\d+)\s*(?:\+|x|\/)\s*(\d+)$/i);
+        if (!match) throw validationError(`Invalid row layout "${entry.trim()}". Use row:left+right, for example 1:1+1`);
+        return { row: Number(match[1]), leftSeats: Number(match[2]), rightSeats: Number(match[3]) };
+      });
+    }
+  }
+  if (!Array.isArray(rows)) return [];
+  const normalized = rows.map((entry = {}) => ({
+    row: numberValue(entry.row, { field: 'Row layout row', min: 1, max: 100, integer: true }),
+    leftSeats: numberValue(entry.leftSeats ?? entry.left ?? 0, { field: 'Left seats in row', min: 0, max: 6, integer: true }),
+    rightSeats: numberValue(entry.rightSeats ?? entry.right ?? 0, { field: 'Right seats in row', min: 0, max: 6, integer: true }),
+  }));
+  normalized.forEach((entry) => {
+    if (entry.leftSeats + entry.rightSeats < 1) throw validationError(`Row ${entry.row} must have at least one passenger seat`);
+  });
+  const duplicateRows = normalized.filter((entry, index) => normalized.findIndex((candidate) => candidate.row === entry.row) !== index);
+  if (duplicateRows.length) throw validationError(`Row layout exceptions contain duplicate rows: ${unique(duplicateRows.map((entry) => entry.row)).join(', ')}`);
+  return normalized.sort((a, b) => a.row - b.row);
+}
+
 function buildSeatDefinitions({
   totalSeats,
   rows,
@@ -247,6 +276,10 @@ function buildSeatDefinitions({
   vipPriceDelta = 0,
   vehicleClass = '',
   defaultSeatClass = '',
+  numberingStartSide = 'left',
+  driverPosition = 'right',
+  frontRowPassengerSeats = 0,
+  rowLayoutOverrides = [],
 } = {}) {
   const rawLabels = parseList(labels).map((value) => normalizeSeatNumber(value));
   const duplicateLabels = rawLabels.filter((value, index) => rawLabels.indexOf(value) !== index);
@@ -262,10 +295,29 @@ function buildSeatDefinitions({
     totalSeats == null || totalSeats === '' ? rawLabels.length : totalSeats,
     { field: 'Total seats', min: 1, max: 300, integer: true },
   );
+  const normalizedNumberingStartSide = normalize(numberingStartSide) === 'right' ? 'right' : 'left';
+  const normalizedDriverPosition = normalize(driverPosition) === 'left' ? 'left' : 'right';
+  const normalizedFrontRowPassengerSeats = Number(frontRowPassengerSeats) === 1 ? 1 : 0;
+  const normalizedRowLayoutOverrides = normalizeRowLayoutOverrides(rowLayoutOverrides);
+  if (normalizedFrontRowPassengerSeats && normalizedRowLayoutOverrides.some((entry) => entry.row === 1)) {
+    throw validationError('Row 1 is controlled by the driver plus one passenger setting; start row exceptions from row 2');
+  }
+  const layoutMatch = normalize(layoutName).match(/^(\d+)x(\d+)$/);
+  const defaultLeftSeats = layoutMatch ? Number(layoutMatch[1]) : Math.max(1, Math.floor(resolvedColumns / 2));
+  const defaultRightSeats = layoutMatch ? Number(layoutMatch[2]) : Math.max(0, resolvedColumns - defaultLeftSeats);
+  const normalSeatCount = Math.max(0, requestedTotal - normalizedFrontRowPassengerSeats);
+  const highestOverrideRow = normalizedRowLayoutOverrides.reduce((max, entry) => Math.max(max, entry.row), 0);
   const resolvedRows = rows == null || rows === ''
-    ? Math.ceil(requestedTotal / resolvedColumns)
+    ? Math.max(1, highestOverrideRow, (normalizedFrontRowPassengerSeats ? 1 : 0) + Math.ceil(normalSeatCount / resolvedColumns))
     : numberValue(rows, { field: 'Seat rows', min: 1, max: 100, integer: true });
-  if (resolvedRows * resolvedColumns < requestedTotal) throw validationError('Rows and columns do not have enough positions for the total seats');
+  if (highestOverrideRow > resolvedRows) throw validationError(`Row layout exception ${highestOverrideRow} is beyond the configured ${resolvedRows} rows`);
+  const rowLayoutByNumber = new Map(normalizedRowLayoutOverrides.map((entry) => [entry.row, entry]));
+  const availablePositions = Array.from({ length: resolvedRows }, (_, index) => index + 1).reduce((sum, row) => {
+    if (normalizedFrontRowPassengerSeats && row === 1) return sum + 1;
+    const layout = rowLayoutByNumber.get(row);
+    return sum + (layout ? layout.leftSeats + layout.rightSeats : resolvedColumns);
+  }, 0);
+  if (availablePositions < requestedTotal) throw validationError('Rows, front-row choice and columns do not have enough positions for the total passenger seats');
 
   let customLabels = [];
   if (['custom', 'preserve'].includes(normalizedLabelMode)) {
@@ -305,13 +357,39 @@ function buildSeatDefinitions({
   if (disabledCategoryConflicts.length) throw validationError(`Non-sellable spaces cannot also be assigned a passenger or crew category: ${disabledCategoryConflicts.join(', ')}`);
   const delta = moneyValue(vipPriceDelta, 'VIP price difference', 0);
 
+  const maxLeftSeats = Math.max(defaultLeftSeats, ...normalizedRowLayoutOverrides.map((entry) => entry.leftSeats));
+  const maxRightSeats = Math.max(defaultRightSeats, ...normalizedRowLayoutOverrides.map((entry) => entry.rightSeats));
+  const positions = [];
+  if (normalizedFrontRowPassengerSeats) {
+    positions.push({
+      row: 1,
+      column: normalizedDriverPosition === 'left' ? maxLeftSeats + Math.max(1, maxRightSeats) : 1,
+      side: normalizedDriverPosition === 'left' ? 'right' : 'left',
+    });
+  }
+  const firstNormalRow = normalizedFrontRowPassengerSeats ? 2 : 1;
+  for (let row = firstNormalRow; positions.length < requestedTotal && row <= resolvedRows; row += 1) {
+    const override = rowLayoutByNumber.get(row);
+    const leftCount = override?.leftSeats ?? defaultLeftSeats;
+    const rightCount = override?.rightSeats ?? defaultRightSeats;
+    const leftPositions = Array.from({ length: leftCount }, (_, index) => ({ row, column: index + 1, side: 'left' }));
+    const rightPositions = Array.from({ length: rightCount }, (_, index) => ({ row, column: maxLeftSeats + index + 1, side: 'right' }));
+    const orderedPositions = normalizedNumberingStartSide === 'right'
+      ? [...rightPositions].reverse().concat([...leftPositions].reverse())
+      : leftPositions.concat(rightPositions);
+    for (const position of orderedPositions) {
+      if (positions.length >= requestedTotal) break;
+      positions.push(position);
+    }
+  }
+
   const seats = [];
   for (let index = 0; index < requestedTotal; index += 1) {
     const seatNumber = customLabels[index] || String(index + 1);
-    const row = Math.floor(index / resolvedColumns) + 1;
-    const column = (index % resolvedColumns) + 1;
+    const row = positions[index].row;
+    const column = positions[index].column;
     let seatClass = normalizedVehicleClass === 'vip' ? 'VIP' : 'Standard';
-    let seatType = inferSeatType(column, resolvedColumns);
+    let seatType = inferSeatType(column, maxLeftSeats + maxRightSeats);
     let priceDelta = 0;
     if (vip.has(seatNumber)) { seatClass = 'VIP'; priceDelta = delta; }
     if (accessible.has(seatNumber)) {
@@ -325,6 +403,7 @@ function buildSeatDefinitions({
       seatNumber,
       row,
       column,
+      side: positions[index].side,
       deck: 'lower',
       seatClass,
       seatType,
@@ -345,6 +424,10 @@ function buildSeatDefinitions({
     rows: resolvedRows,
     columns: resolvedColumns,
     totalSeats: requestedTotal,
+    numberingStartSide: normalizedNumberingStartSide,
+    driverPosition: normalizedDriverPosition,
+    frontRowPassengerSeats: normalizedFrontRowPassengerSeats,
+    rowLayoutOverrides: normalizedRowLayoutOverrides,
     labelMode: normalizedLabelMode,
     labelPrefix: cleanText(labelPrefix, 8).toUpperCase().replace(/\s+/g, ''),
     seats,
@@ -355,6 +438,10 @@ function seatMapChecksum(value = {}) {
   const normalized = {
     vehicleClass: normalize(value.vehicleClass || value.defaultSeatClass) === 'vip' ? 'vip' : 'standard',
     layoutName: cleanText(value.layoutName, 40),
+    numberingStartSide: normalize(value.numberingStartSide) === 'right' ? 'right' : 'left',
+    driverPosition: normalize(value.driverPosition) === 'left' ? 'left' : 'right',
+    frontRowPassengerSeats: Number(value.frontRowPassengerSeats) === 1 ? 1 : 0,
+    rowLayoutOverrides: normalizeRowLayoutOverrides(value.rowLayoutOverrides),
     rows: Number(value.rows || 0),
     columns: Number(value.columns || 0),
     totalSeats: Number(value.totalSeats || 0),
@@ -362,6 +449,7 @@ function seatMapChecksum(value = {}) {
       seatNumber: normalizeSeatNumber(seat.seatNumber),
       row: Number(seat.row),
       column: Number(seat.column),
+      side: normalize(seat.side) === 'right' ? 'right' : 'left',
       seatClass: seat.seatClass,
       seatType: seat.seatType,
       priceDelta: Number(seat.priceDelta || 0),
@@ -512,14 +600,39 @@ function calculateFare({ fares = [], originStopId, destinationStopId, segments =
   const directRouteFare = active.find((fare) => Number(fare.fromOrder) === routeStartOrder
     && Number(fare.toOrder) === routeEndOrder);
   if (directRouteFare) {
+    const selectedRouteSegments = requiredSegments(segments, range);
+    const allRouteSegments = [...segments].filter((segment) => (
+      Number(segment.fromOrder) >= routeStartOrder
+      && Number(segment.toOrder) <= routeEndOrder
+    ));
+    const selectedDistance = selectedRouteSegments.reduce((sum, segment) => sum + Math.max(0, Number(segment.distanceKm || 0)), 0);
+    const fullDistance = allRouteSegments.reduce((sum, segment) => sum + Math.max(0, Number(segment.distanceKm || 0)), 0);
+    const selectedWeight = selectedDistance > 0 && fullDistance > 0 ? selectedDistance : selectedRouteSegments.length;
+    const fullWeight = selectedDistance > 0 && fullDistance > 0 ? fullDistance : allRouteSegments.length;
+    const fullAmount = moneyValue(directRouteFare.amount, 'Direct route fare');
+    const isFullRoute = originOrder === routeStartOrder && destinationOrder === routeEndOrder;
     return {
-      amount: moneyValue(directRouteFare.amount, 'Direct route fare'),
-      source: 'direct_route_fare_fallback',
+      amount: isFullRoute ? fullAmount : Math.max(1, Math.round(fullAmount * selectedWeight / Math.max(1, fullWeight))),
+      source: isFullRoute ? 'exact_full_route' : (selectedDistance > 0 && fullDistance > 0 ? 'distance_prorated_full_route' : 'segment_prorated_full_route'),
       fareIds: [directRouteFare.id].filter(Boolean),
     };
   }
   if (fallbackAmount !== undefined) {
-    return { amount: moneyValue(fallbackAmount, 'Fallback fare'), source: 'schedule_base_fare_fallback', fareIds: [] };
+    const selectedRouteSegments = requiredSegments(segments, range);
+    const allRouteSegments = [...segments].filter((segment) => (
+      Number(segment.fromOrder) >= routeStartOrder
+      && Number(segment.toOrder) <= routeEndOrder
+    ));
+    const selectedDistance = selectedRouteSegments.reduce((sum, segment) => sum + Math.max(0, Number(segment.distanceKm || 0)), 0);
+    const fullDistance = allRouteSegments.reduce((sum, segment) => sum + Math.max(0, Number(segment.distanceKm || 0)), 0);
+    const selectedWeight = selectedDistance > 0 && fullDistance > 0 ? selectedDistance : selectedRouteSegments.length;
+    const fullWeight = selectedDistance > 0 && fullDistance > 0 ? fullDistance : allRouteSegments.length;
+    const fullAmount = moneyValue(fallbackAmount, 'Fallback fare');
+    return {
+      amount: Math.max(1, Math.round(fullAmount * selectedWeight / Math.max(1, fullWeight))),
+      source: selectedDistance > 0 && fullDistance > 0 ? 'distance_prorated_schedule_fare' : 'segment_prorated_schedule_fare',
+      fareIds: [],
+    };
   }
   throw validationError('This departure has no usable fare configured');
 }
@@ -584,6 +697,7 @@ module.exports = {
   normalizeSeatNumber,
   columnsForLayout,
   buildSeatDefinitions,
+  normalizeRowLayoutOverrides,
   seatMapChecksum,
   sortStops,
   validateOrderedStops,

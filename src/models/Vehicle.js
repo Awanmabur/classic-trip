@@ -5,6 +5,7 @@ const vehicleSeatSchema = new Schema({
   seatNumber: String,
   row: Number,
   col: Number,
+  side: { type: String, enum: ['left', 'right'] },
   isAisle: { type: Boolean, default: false },
   isDisabled: { type: Boolean, default: false },
   label: String,
@@ -15,6 +16,12 @@ const vehicleSeatSchema = new Schema({
   priceDelta: { type: Number, default: 0 },
   status: { type: String, enum: ['available', 'blocked', 'disabled'] },
   blockedReason: String,
+}, { _id: false });
+
+const vehicleRowLayoutSchema = new Schema({
+  row: { type: Number, required: true, min: 1, max: 100 },
+  leftSeats: { type: Number, required: true, min: 0, max: 6 },
+  rightSeats: { type: Number, required: true, min: 0, max: 6 },
 }, { _id: false });
 
 const vehicleSchema = new Schema({
@@ -28,6 +35,10 @@ const vehicleSchema = new Schema({
   // a handful of individually upgraded seats inside a standard bus.
   vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard', index: true },
   layoutName: { type: String, default: '2x2' },
+  numberingStartSide: { type: String, enum: ['left', 'right'], default: 'left' },
+  driverPosition: { type: String, enum: ['left', 'right'], default: 'right' },
+  frontRowPassengerSeats: { type: Number, enum: [0, 1], default: 0 },
+  rowLayoutOverrides: [vehicleRowLayoutSchema],
   seatLabelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   seatLabelPrefix: String,
   rows: Number,

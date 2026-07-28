@@ -457,8 +457,12 @@
     return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([rowNumber, rowSeats]) => {
       rowSeats.sort((a, b) => Number(a.column || 0) - Number(b.column || 0));
       const [leftCount] = layoutSides(layoutName, rowSeats.length);
-      const left = rowSeats.slice(0, leftCount).map((seat) => seatButtonHtml(seat, kind)).join('');
-      const right = rowSeats.slice(leftCount).map((seat) => seatButtonHtml(seat, kind)).join('');
+      const hasPhysicalSides = rowSeats.some((seat) => seat.side === 'left' || seat.side === 'right');
+      const hasPhysicalColumns = rowSeats.some((seat) => Number(seat.column || seat.col || 0) > 0);
+      const leftSeats = hasPhysicalSides ? rowSeats.filter((seat) => seat.side === 'left') : hasPhysicalColumns ? rowSeats.filter((seat) => Number(seat.column || seat.col || 0) <= leftCount) : rowSeats.slice(0, leftCount);
+      const rightSeats = hasPhysicalSides ? rowSeats.filter((seat) => seat.side === 'right') : hasPhysicalColumns ? rowSeats.filter((seat) => Number(seat.column || seat.col || 0) > leftCount) : rowSeats.slice(leftCount);
+      const left = leftSeats.map((seat) => seatButtonHtml(seat, kind)).join('');
+      const right = rightSeats.map((seat) => seatButtonHtml(seat, kind)).join('');
       return `<div class="seatRow" data-seat-row="${rowNumber}"><span class="seatGroup">${left}</span><span class="aisle" aria-hidden="true"></span><span class="seatGroup">${right}</span></div>`;
     }).join('');
   }
@@ -536,7 +540,7 @@
     const hint = document.querySelector('.scheduleSelector .journeyPriceHint');
     if (!hint) return;
     if (loading) hint.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${escapeHtml(label || 'Updating seats and fare...')}`;
-    else hint.innerHTML = '<i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.';
+    else hint.innerHTML = `<i class="fa-solid fa-route"></i> Current fare per seat: <strong>${escapeHtml(moneyPreview(previewPricing.basePrice))}</strong>. This price follows the selected boarding and drop-off stops.`;
   }
   async function fetchScheduleAvailability(scheduleId, originStopId = '', destinationStopId = '', holdId = '') {
     const key = availabilityKey(scheduleId, originStopId, destinationStopId, holdId);

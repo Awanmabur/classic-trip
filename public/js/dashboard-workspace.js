@@ -1425,7 +1425,7 @@ window.addEventListener('DOMContentLoaded', function () {
   const OPTION_META_KEYS = [
     'id','companyId','listingId','routeId','scheduleId','vehicleId','fareProductId','originStopId','destinationStopId','branchId','propertyId','roomTypeId','roomUnitId','serviceType','branchType','status','userId','driverEmployeeId',
     'title','currency','country','city','address','timezone','terminalCode','routeName','routeCode','origin','destination','estimatedDuration','estimatedDurationMinutes','operatingDays','activeFareProductId',
-    'layoutName','seatLabelMode','seatLabelPrefix','rows','columns','cols','totalSeats','seatLabels','vipSeats','accessibleSeats','crewSeats','disabledSeats','blockedSeats','defaultSeatClass','vipPriceDelta','activeSeatMapVersionId','seatMapVersionId','seatMapVersion','seatMapStatus',
+    'layoutName','numberingStartSide','driverPosition','frontRowPassengerSeats','rowLayoutOverrides','seatLabelMode','seatLabelPrefix','rows','columns','cols','totalSeats','seatLabels','vipSeats','accessibleSeats','crewSeats','disabledSeats','blockedSeats','defaultSeatClass','vipPriceDelta','activeSeatMapVersionId','seatMapVersionId','seatMapVersion','seatMapStatus',
     'plateOrCode','manufacturer','modelName','modelYear','operatorPermitRef','operatorPermitExpiresAt','inspectionRef','inspectionExpiresAt','insuranceRef','insuranceExpiresAt','amenities',
     'fareClass','amount','baggageAllowanceKg','refundable','changeable','departAt','arriveAt','stopOrder','stopType','pickupAllowed','dropoffAllowed','baggageRules','cancellationRules'
   ];
@@ -1797,6 +1797,13 @@ window.addEventListener('DOMContentLoaded', function () {
     const vehicle = selectedMeta(vehicleSelect);
     if (vehicleSelect && vehicle.value && (!changedName || changedName === 'vehicleId')) {
       autoSetField(form, 'layoutName', vehicle.layoutName || '2x2', { force:true });
+      autoSetField(form, 'numberingStartSide', vehicle.numberingStartSide || 'left', { force:true });
+      autoSetField(form, 'driverPosition', vehicle.driverPosition || 'right', { force:true });
+      autoSetField(form, 'frontRowPassengerSeats', Number(vehicle.frontRowPassengerSeats || 0) === 1 ? '1' : '0', { force:true });
+      const rowOverrides = Array.isArray(vehicle.rowLayoutOverrides)
+        ? vehicle.rowLayoutOverrides.map((row) => `${row.row}:${row.leftSeats}+${row.rightSeats}`).join(', ')
+        : String(vehicle.rowLayoutOverrides || '');
+      autoSetField(form, 'rowLayoutOverrides', rowOverrides, { force:true });
       autoSetField(form, 'rows', vehicle.rows || '', { force:true });
       autoSetField(form, 'totalSeats', vehicle.totalSeats || csvValues(vehicle.seatLabels).length || '', { force:true });
       autoSetField(form, 'seatLabelMode', vehicle.seatLabels ? 'preserve' : (vehicle.seatLabelMode || 'automatic'), { force:true });
@@ -1830,7 +1837,8 @@ window.addEventListener('DOMContentLoaded', function () {
     const total = fieldControl(form, 'vehicle[totalSeats]');
     const rows = fieldControl(form, 'vehicle[rows]');
     if (layout && total && rows && !rows.dataset.smartUserEdited && Number(total.value) > 0) {
-      autoSetField(form, 'vehicle[rows]', Math.ceil(Number(total.value) / layoutColumns(layout.value || '2x2')), { force:true });
+      const front = Number(fieldControl(form, 'vehicle[frontRowPassengerSeats]')?.value || 0) === 1 ? 1 : 0;
+      autoSetField(form, 'vehicle[rows]', (front ? 1 : 0) + Math.ceil(Math.max(0, Number(total.value) - front) / layoutColumns(layout.value || '2x2')), { force:true });
     }
     if (origin.value && destination.value && origin.value !== destination.value) {
       const routeName = `${origin.title || origin.label} to ${destination.title || destination.label}`;
@@ -1898,7 +1906,10 @@ window.addEventListener('DOMContentLoaded', function () {
     const layout = fieldControl(form, 'layoutName');
     const total = fieldControl(form, 'totalSeats');
     const rows = fieldControl(form, 'rows');
-    if (layout && total && rows && !rows.dataset.smartUserEdited && Number(total.value) > 0) autoSetField(form, 'rows', Math.ceil(Number(total.value) / layoutColumns(layout.value)), { force:true });
+    if (layout && total && rows && !rows.dataset.smartUserEdited && Number(total.value) > 0) {
+      const front = Number(fieldControl(form, 'frontRowPassengerSeats')?.value || 0) === 1 ? 1 : 0;
+      autoSetField(form, 'rows', (front ? 1 : 0) + Math.ceil(Math.max(0, Number(total.value) - front) / layoutColumns(layout.value)), { force:true });
+    }
     refreshSeatLabelEditor(form);
     const listing = selectedMeta(fieldControl(form, 'listingId'));
     if (listing.value) setSmartSummary(form, `${listing.label}: vehicle identity and compliance are entered once. A published seat-map version will be generated automatically from the layout, capacity and numbering method.`, 'ready');
@@ -2576,7 +2587,11 @@ window.addEventListener('DOMContentLoaded', function () {
           { type:'smart-summary', label:'Smart seat map', help:'Select a bus and its live layout, capacity and current labels will load automatically. Normal numbering does not require manual labels.' },
           ...(recordId ? [{ name:'vehicleId', type:'hidden', value:recordId }] : [{ name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true }]),
           { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value: fieldValue('vehicle.vehicleClass','vehicleClass') || (String(fieldValue('vehicle.defaultSeatClass','defaultSeatClass')).toLowerCase() === 'vip' ? 'vip' : 'standard'), help:'This class is applied to every sellable passenger seat in the vehicle.' },
-          { name:'layoutName', label:'Layout pattern', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'1 + 1 with aisle'},{value:'1x2',label:'1 + 2 with aisle'},{value:'2x1',label:'2 + 1 with aisle'},{value:'2x2',label:'2 + 2 with aisle'},{value:'2x3',label:'2 + 3 with aisle'},{value:'3x2',label:'3 + 2 with aisle'},{value:'3x3',label:'3 + 3 with aisle'},{value:'sleeper',label:'Sleeper berths'},{value:'custom',label:'Custom layout'}], value: fieldValue('vehicle.layoutName','layoutName') || '2x2' },
+          { name:'layoutName', label:'Normal row layout', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'Left 1 + right 1'},{value:'1x2',label:'Left 1 + right 2'},{value:'2x1',label:'Left 2 + right 1'},{value:'2x2',label:'Left 2 + right 2'},{value:'2x3',label:'Left 2 + right 3'},{value:'3x2',label:'Left 3 + right 2'},{value:'3x3',label:'Left 3 + right 3'},{value:'sleeper',label:'Sleeper berths'},{value:'custom',label:'Custom base layout'}], value: fieldValue('vehicle.layoutName','layoutName') || '2x2', help:'Left and right are viewed while facing the front of the bus.' },
+          { name:'numberingStartSide', label:'Seat 1 starts on', type:'select', icon:'fa-arrow-right-arrow-left', options:[{value:'left',label:'Left side of the bus'},{value:'right',label:'Right side of the bus'}], value:fieldValue('vehicle.numberingStartSide','numberingStartSide') || 'left', help:'Controls the physical side where numbering begins, including 2 + 3 and 3 + 2 layouts.' },
+          { name:'driverPosition', label:'Driver position', type:'select', icon:'fa-steering-wheel', options:[{value:'right',label:'Right side'},{value:'left',label:'Left side'}], value:fieldValue('vehicle.driverPosition','driverPosition') || 'right' },
+          { name:'frontRowPassengerSeats', label:'Front row arrangement', type:'select', icon:'fa-bus-simple', options:[{value:'0',label:'Passenger rows begin behind driver'},{value:'1',label:'Driver plus one passenger seat'}], value:String(fieldValue('vehicle.frontRowPassengerSeats','frontRowPassengerSeats') ?? '0'), help:'When enabled, the single passenger seat is placed opposite the driver; normal rows continue behind it.' },
+          { name:'rowLayoutOverrides', label:'Different rows', type:'textarea', full:true, icon:'fa-grip-lines', value:(Array.isArray(fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides')) ? fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides').map((row) => `${row.row}:${row.leftSeats}+${row.rightSeats}`).join(', ') : fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides')), placeholder:'1:1+1, 2:2+3, 8:1+2', help:'Optional. Use row:left+right for rows that differ from the normal layout. Example: 1:1+1 means one seat left and one right in row 1.' },
           { name:'rows', label:'Rows', type:'number', icon:'fa-grip', value: fieldValue('vehicle.rows','rows') },
           { name:'totalSeats', label:'Passenger seats', type:'number', icon:'fa-users', required:true, value: fieldValue('vehicle.totalSeats','totalSeats') },
           { name:'seatLabelMode', label:'Seat numbering', type:'select', icon:'fa-wand-magic-sparkles', options:[{value:'preserve',label:'Keep current labels'},{value:'automatic',label:'Automatic 1, 2, 3…'},{value:'row_letters',label:'Rows and positions: A1, A2…'},{value:'prefix_numeric',label:'Prefix and number: S1, S2…'},{value:'custom',label:'Custom labels'}], value: currentLabels.length ? 'preserve' : (fieldValue('vehicle.seatLabelMode','seatLabelMode') || 'automatic') },
@@ -2775,7 +2790,11 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'name', label:'Vehicle name', icon:'fa-bus-simple', required:true, placeholder:'Bus 01' },
         { name:'plateOrCode', label:'Plate / fleet code', icon:'fa-hashtag', required:true, placeholder:'UAX 000A' },
         { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value:'standard', help:'Choose VIP only when the complete vehicle and every sellable passenger seat are VIP.' },
-        { name:'layoutName', label:'Layout', type:'select', icon:'fa-chair', options:['1x1','1x2','2x1','2x2','2x3','3x2','3x3','sleeper','custom'], value:'2x2' },
+        { name:'layoutName', label:'Normal row layout', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'Left 1 + right 1'},{value:'1x2',label:'Left 1 + right 2'},{value:'2x1',label:'Left 2 + right 1'},{value:'2x2',label:'Left 2 + right 2'},{value:'2x3',label:'Left 2 + right 3'},{value:'3x2',label:'Left 3 + right 2'},{value:'3x3',label:'Left 3 + right 3'}], value:'2x2' },
+        { name:'numberingStartSide', label:'Seat 1 starts on', type:'select', icon:'fa-arrow-right-arrow-left', options:[{value:'left',label:'Left side'},{value:'right',label:'Right side'}], value:'left' },
+        { name:'driverPosition', label:'Driver position', type:'select', icon:'fa-steering-wheel', options:[{value:'right',label:'Right side'},{value:'left',label:'Left side'}], value:'right' },
+        { name:'frontRowPassengerSeats', label:'Front row arrangement', type:'select', icon:'fa-bus-simple', options:[{value:'0',label:'Passenger rows begin behind driver'},{value:'1',label:'Driver plus one passenger seat'}], value:'0', help:'The optional passenger seat is placed opposite the driver.' },
+        { name:'rowLayoutOverrides', label:'Different rows', type:'textarea', full:true, icon:'fa-grip-lines', placeholder:'1:1+1, 2:2+3, 8:1+2', help:'Optional row exceptions in row:left+right format.' },
         { name:'rows', label:'Rows', type:'number', icon:'fa-grip', placeholder:'12' },
         { name:'totalSeats', label:'Capacity / seats', type:'number', icon:'fa-users', required:true, value:'48' },
         { name:'seatLabelMode', label:'Seat numbering', type:'select', icon:'fa-wand-magic-sparkles', options:[{value:'automatic',label:'Automatic 1, 2, 3…'},{value:'row_letters',label:'Rows and positions: A1, A2…'},{value:'prefix_numeric',label:'Prefix and number: S1, S2…'},{value:'custom',label:'Custom labels'}], value:'automatic' },
@@ -2921,7 +2940,11 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'vehicle[plateOrCode]', label:'Plate / code', icon:'fa-hashtag', required:true, placeholder:'UAX 000A' },
         { name:'vehicleImageFile', label:'Vehicle photo', type:'file', icon:'fa-camera', required:true },
         { name:'vehicle[vehicleClass]', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — every passenger seat is standard'},{value:'vip',label:'VIP vehicle — every passenger seat is VIP'}], value:'standard', required:true, help:'VIP is a complete vehicle class. It is never assigned to only a few seats.' },
-        { name:'vehicle[layoutName]', label:'Seat layout', type:'select', icon:'fa-chair', options:['1x1','1x2','2x1','2x2','2x3','3x2','3x3','sleeper','custom'], value:'2x2' },
+        { name:'vehicle[layoutName]', label:'Normal row layout', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'Left 1 + right 1'},{value:'1x2',label:'Left 1 + right 2'},{value:'2x1',label:'Left 2 + right 1'},{value:'2x2',label:'Left 2 + right 2'},{value:'2x3',label:'Left 2 + right 3'},{value:'3x2',label:'Left 3 + right 2'},{value:'3x3',label:'Left 3 + right 3'}], value:'2x2' },
+        { name:'vehicle[numberingStartSide]', label:'Seat 1 starts on', type:'select', icon:'fa-arrow-right-arrow-left', options:[{value:'left',label:'Left side'},{value:'right',label:'Right side'}], value:'left' },
+        { name:'vehicle[driverPosition]', label:'Driver position', type:'select', icon:'fa-steering-wheel', options:[{value:'right',label:'Right side'},{value:'left',label:'Left side'}], value:'right' },
+        { name:'vehicle[frontRowPassengerSeats]', label:'Front row arrangement', type:'select', icon:'fa-bus-simple', options:[{value:'0',label:'Passenger rows begin behind driver'},{value:'1',label:'Driver plus one passenger seat'}], value:'0', help:'The optional front passenger seat is placed opposite the driver.' },
+        { name:'vehicle[rowLayoutOverrides]', label:'Different rows', type:'textarea', full:true, icon:'fa-grip-lines', placeholder:'1:1+1, 2:2+3, 8:1+2', help:'Optional row exceptions in row:left+right format.' },
         { name:'vehicle[seatLabelMode]', type:'hidden', value:'automatic' },
         { name:'vehicle[rows]', label:'Rows', type:'number', icon:'fa-grip', placeholder:'12' },
         { name:'vehicle[totalSeats]', label:'Capacity / seats', type:'number', icon:'fa-users', required:true, value:'48' },

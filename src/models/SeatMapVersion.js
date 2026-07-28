@@ -4,6 +4,7 @@ const seatDefinitionSchema = new Schema({
   seatNumber: { type: String, required: true },
   row: { type: Number, required: true, min: 1 },
   column: { type: Number, required: true, min: 1 },
+  side: { type: String, enum: ['left', 'right'], required: true },
   deck: { type: String, default: 'lower' },
   seatClass: { type: String, enum: ['Standard', 'VIP', 'Accessible', 'Crew'], default: 'Standard' },
   seatType: { type: String, enum: ['window', 'aisle', 'middle', 'accessible', 'crew'], default: 'aisle' },
@@ -11,6 +12,12 @@ const seatDefinitionSchema = new Schema({
   accessible: { type: Boolean, default: false },
   enabled: { type: Boolean, default: true },
   blockedReason: String,
+}, { _id: false });
+
+const rowLayoutSchema = new Schema({
+  row: { type: Number, required: true, min: 1, max: 100 },
+  leftSeats: { type: Number, required: true, min: 0, max: 6 },
+  rightSeats: { type: Number, required: true, min: 0, max: 6 },
 }, { _id: false });
 
 const seatMapVersionSchema = new Schema({
@@ -22,6 +29,10 @@ const seatMapVersionSchema = new Schema({
   version: { type: Number, required: true, min: 1 },
   vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard' },
   layoutName: { type: String, required: true },
+  numberingStartSide: { type: String, enum: ['left', 'right'], default: 'left' },
+  driverPosition: { type: String, enum: ['left', 'right'], default: 'right' },
+  frontRowPassengerSeats: { type: Number, enum: [0, 1], default: 0 },
+  rowLayoutOverrides: [rowLayoutSchema],
   labelMode: { type: String, enum: ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'], default: 'automatic' },
   labelPrefix: String,
   rows: { type: Number, required: true },
