@@ -11,7 +11,8 @@ function activePageFromRequest(req) {
 }
 
 async function renderAdminShell(req, res, role, title) {
-  const dashboardData = await mongoDashboardService.roleDashboard(role);
+  const activePage = activePageFromRequest(req);
+  const dashboardData = await mongoDashboardService.roleDashboard(role, { activePage });
   // The dashboard snapshot already contains role-scoped notifications and partner
   // rows. Re-querying them here added three Atlas round trips to every page load.
   const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
@@ -27,7 +28,7 @@ async function renderAdminShell(req, res, role, title) {
       companies: role === 'admin' ? (dashboardData.partners || []) : [],
       notifications: notificationRows,
       notificationCount,
-      activePage: activePageFromRequest(req),
+      activePage,
     }),
   });
 }

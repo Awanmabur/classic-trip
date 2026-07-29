@@ -12,4 +12,5 @@ const promoterLinkSchema = new Schema({
   status: { type: String, default: 'active', index: true, enum: ['active', 'archived'] },
 }, { timestamps: true });
 
+promoterLinkSchema.index({ listingId: 1, status: 1, createdAt: -1 });
 module.exports = model('PromoterLink', promoterLinkSchema);

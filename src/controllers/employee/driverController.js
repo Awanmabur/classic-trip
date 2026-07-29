@@ -4,7 +4,6 @@ const companyService = require('../../services/company/companyService');
 const bookingService = require('../../services/booking/bookingService');
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
-const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
 
@@ -23,13 +22,18 @@ function actorId(req) {
 
 async function driverDashboard(req, res, next) {
   try {
-    const context = { companyId: companyId(req), employeeId: actorId(req) };
+    const activePage = String(req.params?.page || 'overview').trim().toLowerCase();
+    const context = { companyId: companyId(req), employeeId: actorId(req), activePage };
     const dashboardData = await mongoDashboardService.roleDashboard('driver', context);
-    const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId: companyId(req) });
-    const [notificationRows, notificationCount, companies] = await Promise.all([notificationService.dashboardRowsLive('driver', context), notificationService.unreadCountLive('driver', context), mongoDashboardService.listEntity('companies', {}, { limit: 250 })]);
+    const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
+    const notificationCount = notificationRows.filter((row) => {
+      const status = String(Array.isArray(row) ? (row[4] || row[5] || '') : row.status || '').toLowerCase();
+      return !['read', 'dismissed', 'archived'].includes(status);
+    }).length;
+    const companies = dashboardData.company ? [dashboardData.company] : [];
     res.render('dashboards/driver/index', {
       seo: { title: 'Driver dashboard | Classic Trip' },
-      dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
+      dashboardData: { ...dashboardData, notifications: notificationRows, dashboardFeatures: { services: scopedServices(dashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES } },
       dashboardMode: 'driver',
       dashboardShell: buildDashboardShell('driver', {
         user: req.session?.user,
@@ -37,9 +41,9 @@ async function driverDashboard(req, res, next) {
         companies,
         notifications: notificationRows,
         notificationCount,
-        activePage: req.params?.page || 'overview',
-        company: companyDashboardData.company,
-        serviceProfile: companyDashboardData.serviceProfile,
+        activePage,
+        company: dashboardData.company,
+        serviceProfile: dashboardData.serviceProfile,
       }),
     });
   } catch (error) {

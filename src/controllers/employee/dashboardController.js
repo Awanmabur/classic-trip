@@ -1,6 +1,5 @@
 const { buildDashboardShell, employeePageAllowed } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
-const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
 const { effectivePermissionsFresh } = require('../../middlewares/permissions');
@@ -22,21 +21,18 @@ async function index(req, res, next) {
       throw error;
     }
     const dashboardData = await mongoDashboardService.roleDashboard('employee', { companyId, employeeId, permissions, activePage });
-    const companyDashboardData = await mongoDashboardService.roleDashboard('company', { companyId });
-    const notificationContext = { companyId, employeeId };
-    const [notificationRows, notificationCount] = await Promise.all([
-      notificationService.dashboardRowsLive('employee', notificationContext),
-      notificationService.unreadCountLive('employee', notificationContext),
-    ]);
-    const companies = companyDashboardData.company ? [companyDashboardData.company] : [];
+    const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
+    const notificationCount = notificationRows.filter((row) => {
+      const status = String(Array.isArray(row) ? (row[4] || row[5] || '') : row.status || '').toLowerCase();
+      return !['read', 'dismissed', 'archived'].includes(status);
+    }).length;
+    const companies = dashboardData.company ? [dashboardData.company] : [];
     res.render('dashboards/employee/index', {
       seo: { title: 'Employee dashboard | Classic Trip' },
       dashboardData: {
         ...dashboardData,
         notifications: notificationRows,
-        company: dashboardData.company || companyDashboardData.company,
-        serviceProfile: dashboardData.serviceProfile || companyDashboardData.serviceProfile,
-        dashboardFeatures: { services: scopedServices(companyDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
+        dashboardFeatures: { services: scopedServices(dashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
         permissions,
       },
       dashboardShell: buildDashboardShell('employee', {
@@ -47,8 +43,8 @@ async function index(req, res, next) {
         notificationCount,
         activePage,
         permissions,
-        company: companyDashboardData.company,
-        serviceProfile: companyDashboardData.serviceProfile,
+        company: dashboardData.company,
+        serviceProfile: dashboardData.serviceProfile,
       }),
     });
   } catch (error) {

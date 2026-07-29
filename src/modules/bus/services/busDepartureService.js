@@ -626,11 +626,12 @@ async function synchronizeListingPublicationAfterDeparture(companyId, listingId,
     // Publishing a departure completes readiness, but never bypasses the operator's explicit
     // listing activation action. This keeps the workflow deterministic and auditable.
     if (alreadyPublished && !readiness.ok) {
-      listing.status = 'draft';
-      listing.releaseStatus = 'draft';
+      // A temporary inventory gap must not erase an operator's public service
+      // from the marketplace. Preserve publication and disable booking until a
+      // valid future departure is published.
       listing.bookable = false;
       listing.publication.public = false;
-      listing.publication.state = 'draft';
+      listing.publication.state = 'published';
     } else if (alreadyPublished && readiness.ok) {
       listing.bookable = true;
     } else {

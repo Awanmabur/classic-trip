@@ -31,4 +31,5 @@ const roomTypeSchema = new Schema({
   updatedBy: String,
 }, { timestamps: true });
 roomTypeSchema.index({ companyId: 1, propertyId: 1, normalizedName: 1 }, { unique: true });
+roomTypeSchema.index({ listingId: 1, status: 1 });
 module.exports = model('RoomType', roomTypeSchema);

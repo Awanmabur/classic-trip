@@ -33,4 +33,5 @@ const routeSchema = new Schema({
   status: { type: String, default: 'active', index: true, enum: ['active', 'archived'] },
 }, { timestamps: true });
 
+routeSchema.index({ listingId: 1, status: 1, createdAt: -1 });
 module.exports = model('Route', routeSchema);

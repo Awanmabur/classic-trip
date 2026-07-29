@@ -3750,19 +3750,27 @@ window.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('click', function (e) {
       const nav = e.target.closest('.navBtn');
       if (nav && nav.dataset.page) {
+        const href = nav.getAttribute('href') || '';
+        // Dashboard routes now load only the records required by the requested
+        // page. Follow real links so the next page receives its own scoped data;
+        // hash-only controls can still switch an already-rendered section.
+        if (href && href.charAt(0) !== '#') {
+          closeMenu();
+          return;
+        }
         e.preventDefault();
         nav.blur();
         showPage(nav.dataset.page);
-        if (nav.getAttribute('href') && nav.getAttribute('href').charAt(0) !== '#') {
-          history.pushState({ page: nav.dataset.page }, '', nav.getAttribute('href'));
-        }
         return;
       }
 
       const jump = e.target.closest('[data-jump]');
       if (jump && jump.dataset.jump) {
         e.preventDefault();
-        showPage(jump.dataset.jump);
+        const targetNav = $$('.navBtn').find(btn => btn.dataset.page === jump.dataset.jump);
+        const targetHref = targetNav?.getAttribute('href') || '';
+        if (targetHref && targetHref.charAt(0) !== '#') window.location.assign(targetHref);
+        else showPage(jump.dataset.jump);
         return;
       }
 

@@ -31,6 +31,13 @@ function cleanFieldName(value) {
 function normalizeOperationalError(error) {
   if (!error || error.status) return error;
 
+  if (/timed out while checking out a connection from connection pool|wait queue timeout/i.test(String(error.message || ''))) {
+    error.status = 503;
+    error.code = 'database_busy';
+    error.publicMessage = 'Classic Trip is temporarily busy. Please retry in a moment; your data has not been lost.';
+    return error;
+  }
+
   if (error.name === 'ValidationError' || error.name === 'ValidatorError') {
     const details = Object.values(error.errors || {})
       .map((entry) => String(entry?.message || '').trim())

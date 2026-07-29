@@ -7,7 +7,6 @@ const { verifiedSessionIsFresh } = require('../../middlewares/mfa');
 const QRCode = require('qrcode');
 const { env } = require('../../config/env');
 const { isDriverAccountOperational } = require('../../services/company/driverEligibilityService');
-const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const logger = require('../../config/logger');
 
 function welcomeName(user = {}) {
@@ -125,9 +124,6 @@ async function login(req, res, next) {
       return res.redirect('/login?error=invalid');
     }
     const nextUrl = safeRedirectUrl(req.body.next || req.query.next, authService.redirectAfterAuthentication(user));
-    // Start the first dashboard projection while the secure session and audit records are prepared.
-    // The request that follows the redirect reuses the same in-flight snapshot instead of repeating all reads.
-    mongoDashboardService.prewarmForUser(user).catch(() => {});
     if (env.platformMfaEnabled && mfaService.isPlatformAdmin(user.role) && user.mfaConfigured) {
       await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
       req.session.mfaChallenge = {

@@ -32,4 +32,6 @@ const seatSchema = new Schema({
 }, { timestamps: true });
 
 seatSchema.index({ scheduleId: 1, seatNumber: 1 }, { unique: true });
+seatSchema.index({ scheduleId: 1, status: 1 });
+seatSchema.index({ status: 1, scheduleId: 1 });
 module.exports = model('Seat', seatSchema);

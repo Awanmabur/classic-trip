@@ -40,10 +40,10 @@ expect('query login errors render human-readable feedback', authController.inclu
 expect('account lock and pending states create flash', authController.includes("error.code === 'account_locked'") && authController.includes("error.code === 'account_pending'"));
 expect('auth limiter gives browser flash feedback', rateLimit.includes('safeRateLimitRedirect') && rateLimit.includes("req.flash('error', message)"));
 expect('login identity and lockout reads run concurrently', /const \[failed, user\] = await Promise\.all/.test(authService));
-expect('session account checks use short GET cache', accountState.includes('authCheckedAt') && accountState.includes('15_000'));
+expect('session account checks use short GET cache', accountState.includes('authCheckedAt') && accountState.includes('60_000'));
 expect('dashboard snapshot has ttl cache', snapshot.includes('SNAPSHOT_TTL_MS') && snapshot.includes('snapshotInflight'));
 expect('dashboard snapshot uses stale while revalidate', snapshot.includes('Stale-while-revalidate'));
-expect('dashboard prewarm helper is exported', mongoDashboard.includes('prewarmForUser') && server.includes("dashboardSnapshotService.prewarm('admin')"));
+expect('startup avoids full admin snapshot pool pressure', mongoDashboard.includes('prewarmForUser') && !server.includes("dashboardSnapshotService.prewarm('admin')") && server.includes('catalogService.prewarmHome()'));
 expect('login audits write in parallel', /await Promise\.all\(\[[\s\S]*securityRepository\.loginAudits\.save/.test(security));
 expect('notification panel follows active theme', notifications.includes('background:var(--panel') && notifications.includes('color:var(--text'));
 expect('successful writes invalidate dashboard snapshots', flashMiddleware.includes("dashboardSnapshotService').invalidate()"));

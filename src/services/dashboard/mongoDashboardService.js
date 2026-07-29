@@ -5,7 +5,7 @@ const { createDashboardProjection } = require('./dashboardProjectionEngine');
 const roleProjectionCache = new Map();
 
 function projectionCacheKey(role, context = {}) {
-  return [role, context.companyId || '', context.customerId || '', context.promoterId || '', (context.permissions || []).join(',')].join(':');
+  return [role, context.companyId || '', context.customerId || '', context.promoterId || '', context.activePage || 'overview', (context.permissions || []).join(',')].join(':');
 }
 
 
@@ -98,7 +98,7 @@ function restrictEmployeeOptions(options = {}, granted) {
 function restrictEmployeeDashboard(data = {}, permissions = []) {
   const granted = new Set(permissions || []);
   const restricted = {};
-  for (const key of ['mode', 'company', 'profile', 'serviceProfile']) {
+  for (const key of ['mode', 'company', 'profile', 'serviceProfile', 'notifications']) {
     if (data[key] !== undefined) restricted[key] = data[key];
   }
   restricted.stats = restrictEmployeeStats(data.stats || {}, granted);

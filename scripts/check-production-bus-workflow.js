@@ -36,7 +36,7 @@ check(/seat_segment_inventory_missing/.test(departures), 'Departure publication 
 check(/departure_must_be_future/.test(departures), 'Departure publication must reject past departures');
 check(!/repairSchedule|resolveOwnedBusListing|infer/i.test(departures), 'Departure service must not infer or repair incomplete records');
 
-check(/listing\.bookable === true && hasPublishedDeparture/.test(visibility), 'Public bus visibility must require bookable status and a real departure');
+check(/Publication controls marketplace visibility/.test(visibility), 'Published bus listings must remain discoverable between dated departures');
 check(/schedule\.companyId/.test(visibility) && /schedule\.listingId/.test(visibility), 'Public schedule matching must use exact ownership links');
 check(!/SERVICE_ALIASES|coach|bus_company|publishedBusDeparture/.test(visibility), 'Public visibility must not use old service aliases or auto-publication inference');
 

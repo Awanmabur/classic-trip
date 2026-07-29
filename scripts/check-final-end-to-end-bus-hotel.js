@@ -40,8 +40,8 @@ const roomReservation = read('src/services/booking/roomReservationService.js');
 // Bus stop-to-stop pricing and route stop selection.
 check('Exact stop-pair fare has first priority', busDomain.includes("source: 'exact'"));
 check('Connected configured fares are supported', busDomain.includes("source: adjacentOnly ? 'segment_sum' : 'configured_fare_path'"));
-check('Full-route fare is a fallback', busDomain.includes("source: 'direct_route_fare_fallback'"));
-check('Schedule base fare is the final fallback', busDomain.includes("source: 'schedule_base_fare_fallback'"));
+check('Full-route fare is a distance/segment-aware fallback', busDomain.includes("'exact_full_route'") && busDomain.includes("'distance_prorated_full_route'") && busDomain.includes("'segment_prorated_full_route'"));
+check('Schedule base fare is the final distance/segment-aware fallback', busDomain.includes("'distance_prorated_schedule_fare'") && busDomain.includes("'segment_prorated_schedule_fare'"));
 check('Boarding stop labels are rendered from route stops', listingDetails.includes('Board at: <%= stop.name %>'));
 check('Drop-off stop labels are rendered from route stops', listingDetails.includes('Drop at: <%= stop.name %>'));
 check('Dynamic route-stop choices preserve stop order', listingDetails.includes('data-stop-order'));

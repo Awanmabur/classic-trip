@@ -15,4 +15,5 @@ const promotionCampaignSchema = new Schema({
   endsAt: Date,
 }, { timestamps: true });
 
+promotionCampaignSchema.index({ listingId: 1, status: 1, createdAt: -1 });
 module.exports = model('PromotionCampaign', promotionCampaignSchema);

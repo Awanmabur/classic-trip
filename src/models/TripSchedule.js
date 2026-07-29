@@ -46,4 +46,6 @@ const tripScheduleSchema = new Schema({
   scheduleRuleId: { type: String, index: true },
 }, { timestamps: true });
 
+tripScheduleSchema.index({ status: 1, departAt: 1 });
+tripScheduleSchema.index({ companyId: 1, listingId: 1, status: 1, departAt: 1 });
 module.exports = model('TripSchedule', tripScheduleSchema);

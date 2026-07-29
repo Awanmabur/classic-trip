@@ -27,28 +27,79 @@ let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
 
+async function runCatalogTasks(tasks = []) {
+  const values = new Array(tasks.length);
+  const concurrency = Math.max(2, Math.min(4, Number(env.mongoPool?.max || 5) - 1));
+  let cursor = 0;
+  async function worker() {
+    while (cursor < tasks.length) {
+      const index = cursor;
+      cursor += 1;
+      values[index] = await tasks[index]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return values;
+}
+
 async function loadSnapshotFresh() {
-  const [categories, listings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig] = await Promise.all([
-    commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
-    commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
-    commerceRepository.companies.list({}, { sort: { name: 1 }, limit: 2000 }),
-    commerceRepository.routes.list({ status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 5000 }),
-    commerceRepository.routeStops.list({ status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 20000 }),
-    commerceRepository.fareProducts.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 10000 }),
-    commerceRepository.segmentFares.list({ status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 }),
-    commerceRepository.serviceAddons.list({ status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
-    commerceRepository.schedules.list({ status: { $in: ['published', 'boarding', 'delayed'] } }, { sort: { departAt: 1 }, limit: 10000 }),
-    commerceRepository.seats.list({ status: 'available' }, { limit: 50000 }),
-    commerceRepository.vehicles.list({ status: { $ne: 'archived' } }, { limit: 10000 }),
-    commerceRepository.roomTypes.list({ status: 'active' }, { limit: 10000 }),
-    commerceRepository.roomUnits.list({ status: { $nin: ['archived', 'maintenance'] } }, { limit: 20000 }),
-    commerceRepository.roomNights.list({ status: { $in: ['available', 'open'] } }, { limit: 50000 }),
-    promoterRepository.links.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
-    contentRepository.promotionCampaigns.list({ status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
-    contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
-    getPlatformConfig(),
+  const [categories, listingRows, blogs, platformConfig] = await runCatalogTasks([
+    () => commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
+    () => commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
+    () => contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
+    () => getPlatformConfig(),
   ]);
-  const productionListings = listings.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings, companies })));
+  const initialCompanyIds = unique(listingRows.map((row) => row.companyId).map(text));
+  const companies = initialCompanyIds.length
+    ? await commerceRepository.companies.list({ id: { $in: initialCompanyIds } }, { sort: { name: 1 }, limit: 5000 })
+    : [];
+  const productionListings = listingRows.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings: listingRows, companies })));
+  const listingIds = unique(productionListings.map(entityId));
+  const currentTime = new Date();
+  const today = currentTime.toISOString().slice(0, 10);
+  const none = { id: '__no_public_inventory__' };
+  const listingFilter = listingIds.length ? { listingId: { $in: listingIds } } : none;
+  const [routes, serviceAddons, schedules, roomTypes, roomUnits, links, campaigns] = await runCatalogTasks([
+    () => commerceRepository.routes.list({ ...listingFilter, status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 10000 }),
+    () => commerceRepository.serviceAddons.list({ ...listingFilter, status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
+    () => commerceRepository.schedules.list({
+      ...listingFilter,
+      status: { $in: ['published', 'boarding', 'delayed'] },
+      $or: [
+        { departAt: { $gte: currentTime } },
+        { status: 'boarding' },
+        { status: 'delayed', arriveAt: { $gte: currentTime } },
+      ],
+    }, { sort: { departAt: 1 }, limit: 10000 }),
+    () => commerceRepository.roomTypes.list({ ...listingFilter, status: 'active' }, { limit: 10000 }),
+    () => commerceRepository.roomUnits.list({ ...listingFilter, status: { $nin: ['archived', 'maintenance'] } }, { limit: 20000 }),
+    () => promoterRepository.links.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+    () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+  ]);
+  const routeIds = unique(routes.map(entityId));
+  const scheduleIds = unique(schedules.map(entityId));
+  const vehicleIds = unique(schedules.map((row) => row.vehicleId).map(text));
+  const roomTypeIds = unique(roomTypes.map(entityId));
+  const [routeStops, fareProducts, segmentFares, seats, vehicles, roomNights] = await runCatalogTasks([
+    () => routeIds.length
+      ? commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 20000 })
+      : [],
+    () => routeIds.length
+      ? commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 10000 })
+      : [],
+    () => routeIds.length
+      ? commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 })
+      : [],
+    () => scheduleIds.length
+      ? commerceRepository.seats.list({ scheduleId: { $in: scheduleIds } }, { limit: 50000 })
+      : [],
+    () => vehicleIds.length
+      ? commerceRepository.vehicles.list({ id: { $in: vehicleIds }, status: { $ne: 'archived' } }, { limit: 10000 })
+      : [],
+    () => roomTypeIds.length
+      ? commerceRepository.roomNights.list({ roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 50000 })
+      : [],
+  ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
 }
@@ -72,11 +123,19 @@ async function snapshot(options = {}) {
     refreshSnapshot().catch(() => {});
     return snapshotCache;
   }
-  return refreshSnapshot();
+  try {
+    return await refreshSnapshot();
+  } catch (error) {
+    // A previously completed catalog is safer than replacing the marketplace
+    // with a 500 page during a brief Atlas pool/network incident.
+    if (snapshotCache) return snapshotCache;
+    throw error;
+  }
 }
 
 function invalidateMarketplaceCache() {
-  snapshotCache = null;
+  // Keep the last known-good catalog as an emergency fallback while forcing
+  // the next request to refresh it from MongoDB.
   snapshotCachedAt = 0;
 }
 
@@ -188,7 +247,12 @@ function catalogItem(data, listing) {
   const stableId = entityId(listing);
   const company = companyFor(data, listing.companyId || listing.companySlug);
   const schedules = listingSchedules(data, stableId).filter((row) => active(row));
-  const nextSchedule = schedules.filter((row) => !asDate(row.departAt) || asDate(row.departAt) >= new Date()).sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0))[0] || schedules[0];
+  const now = new Date();
+  const nextSchedule = schedules.filter((row) => {
+    const status = normalize(row.status);
+    if (status === 'boarding' || status === 'delayed') return !asDate(row.arriveAt || row.departAt) || asDate(row.arriveAt || row.departAt) >= now;
+    return asDate(row.departAt) && asDate(row.departAt) >= now;
+  }).sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0))[0] || null;
   const seats = nextSchedule ? scheduleSeats(data, entityId(nextSchedule)) : [];
   const rooms = listingRooms(data, stableId);
   const availableSeats = seats.filter((row) => normalize(row.status) === 'available').length;
@@ -205,7 +269,8 @@ function catalogItem(data, listing) {
   const to = listing.to || route.destination || route.to || listing.location || '';
   const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
   const inventoryRequired = ['bus', 'hotel', 'flight', 'tour', 'car_rental'].includes(serviceType);
-  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && (!inventoryRequired || remainingInventory > 0);
+  const hasRequiredDatedInventory = serviceType !== 'bus' || Boolean(nextSchedule);
+  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && hasRequiredDatedInventory && (!inventoryRequired || remainingInventory > 0);
   const policy = text(listing.policy || listing.cancellationRules || listing.cancellationPolicy || listing.refundPolicy);
   const nextDepartAt = nextSchedule?.departAt || listing.nextDepartAt || null;
   const nextDepartDate = asDate(nextDepartAt);
@@ -214,7 +279,7 @@ function catalogItem(data, listing) {
     : serviceType === 'hotel' ? 'Choose stay dates' : serviceType === 'local_transport' ? 'Request now or schedule' : serviceType === 'tour' ? 'Choose an activity date' : serviceType === 'car_rental' ? 'Choose pickup and return dates' : serviceType === 'cargo' ? 'Choose pickup details' : '';
   const bookableReason = bookable
     ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : serviceType === 'tour' ? 'Tour capacity available' : serviceType === 'car_rental' ? 'Vehicle available' : serviceType === 'cargo' ? 'Cargo booking available' : 'Live inventory available')
-    : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
+    : serviceType === 'bus' && !nextSchedule ? 'No upcoming departure' : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
   const enriched = {
     id: stableId,
     slug: listing.slug || stableId,

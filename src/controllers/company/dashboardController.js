@@ -1,6 +1,5 @@
 const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
-const notificationService = require('../../services/notification/notificationService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
 
@@ -93,16 +92,23 @@ async function index(req, res, next) {
     const requestedSubview = requestedSubviewFromRequest(req);
     const requestedManifestDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.date || '')) ? String(req.query.date) : '';
     const requestedHotelListingId = String(req.query?.listingId || '').trim();
-    let baseDashboardData = await mongoDashboardService.roleDashboard('company', { companyId, hotelManifestDate: requestedManifestDate, hotelManifestListingId: requestedHotelListingId });
+    let baseDashboardData = await mongoDashboardService.roleDashboard('company', {
+      companyId,
+      activePage: requestedPage,
+      hotelManifestDate: requestedManifestDate,
+      hotelManifestListingId: requestedHotelListingId,
+    });
     const dashboardData = {
       ...baseDashboardData,
       dashboardFeatures: { services: companyServiceDashboards(baseDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
       ...requestedSubview,
     };
-    const companies = await mongoDashboardService.listEntity('companies', {}, { limit: 250 });
-    const notificationContext = { companyId };
-    const [notificationRows, notificationCount] = await Promise.all([notificationService.dashboardRowsLive('company', notificationContext), notificationService.unreadCountLive('company', notificationContext)]);
-    dashboardData.notifications = notificationRows;
+    const companies = dashboardData.company ? [dashboardData.company] : [];
+    const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
+    const notificationCount = notificationRows.filter((row) => {
+      const status = String(Array.isArray(row) ? (row[4] || row[5] || '') : row.status || '').toLowerCase();
+      return !['read', 'dismissed', 'archived'].includes(status);
+    }).length;
     res.render('dashboards/company/index', {
       seo: { title: `${dashboardData.serviceProfile?.dashboardLabel || 'Company'} dashboard | Classic Trip` },
       dashboardData,

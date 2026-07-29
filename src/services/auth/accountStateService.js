@@ -94,7 +94,10 @@ async function refreshSessionUser(req, options = {}) {
   const sessionUser = req?.session?.user;
   if (!sessionUser) return null;
   const force = Boolean(options.force);
-  const maxAgeMs = Math.max(0, Number(options.maxAgeMs ?? 15_000));
+  // GET navigation uses the signed session copy for one minute. Mutations still
+  // force an immediate refresh, so access changes are enforced at write boundaries
+  // without adding two or three MongoDB reads to every dashboard click.
+  const maxAgeMs = Math.max(0, Number(options.maxAgeMs ?? 60_000));
   const checkedAt = Date.parse(String(sessionUser.authCheckedAt || ''));
   if (!force && Number.isFinite(checkedAt) && Date.now() - checkedAt < maxAgeMs) return sessionUser;
   const fresh = await currentUser(sessionUser);

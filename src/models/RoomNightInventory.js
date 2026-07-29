@@ -29,4 +29,5 @@ const roomNightInventorySchema = new Schema({
   updatedBy: String,
 }, { timestamps: true });
 roomNightInventorySchema.index({ roomUnitId: 1, date: 1 }, { unique: true });
+roomNightInventorySchema.index({ roomTypeId: 1, date: 1, status: 1 });
 module.exports = model('RoomNightInventory', roomNightInventorySchema);

@@ -28,4 +28,5 @@ const roomUnitSchema = new Schema({
   documents: [mediaSchema],
 }, { timestamps: true });
 roomUnitSchema.index({ companyId: 1, propertyId: 1, normalizedUnitNumber: 1 }, { unique: true });
+roomUnitSchema.index({ listingId: 1, status: 1 });
 module.exports = model('RoomUnit', roomUnitSchema);

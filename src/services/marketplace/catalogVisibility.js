@@ -50,10 +50,10 @@ function isPublicListing(listing, context = {}) {
   if (!listing) return false;
   if (normalize(listing.status) !== 'active') return false;
   if (normalize(listing.releaseStatus) !== 'published') return false;
-  if (canonicalServiceType(listing) === 'bus') {
-    return listing.bookable === true && hasPublishedDeparture(listing, context);
-  }
-  return listing.bookable !== false;
+  // Publication controls marketplace visibility. Inventory controls whether
+  // the Book action is enabled. An active bus operator listing must not vanish
+  // merely because its last dated departure has passed.
+  return true;
 }
 
 module.exports = {

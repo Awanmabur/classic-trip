@@ -57,6 +57,10 @@ const listingSchema = new Schema({
   isVerified: { type: Boolean, default: false, index: true },
   bookable: { type: Boolean, default: false },
   releaseStatus: String,
+  publishedAt: Date,
+  unpublishedAt: Date,
+  pausedAt: Date,
+  archivedAt: Date,
   status: { type: String, enum: ['draft', 'active', 'paused', 'archived'], default: 'draft', index: true },
   policy: String,
   layout: String,
@@ -66,4 +70,6 @@ const listingSchema = new Schema({
 }, { timestamps: true });
 
 listingSchema.index({ title: 'text', city: 'text', from: 'text', to: 'text', companyName: 'text' });
+listingSchema.index({ status: 1, releaseStatus: 1, serviceType: 1, isFeatured: -1, createdAt: -1 });
+listingSchema.index({ companyId: 1, status: 1, releaseStatus: 1 });
 module.exports = model('Listing', listingSchema);

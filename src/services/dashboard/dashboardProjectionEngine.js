@@ -1260,6 +1260,17 @@ function createDashboardProjection(initialState = {}) {
     const visibleMaintenanceBlocks = hasOwnedHotelInventory ? maintenanceBlocks : [];
     const hotelBookings = hasOwnedHotelInventory ? bookings.filter(booking => booking.serviceType === 'hotel') : [];
     const supportTickets = state.supportTickets.filter(ticket => ticket.companyId === companyId || ticket.ownerType === 'company' && (!ticket.ownerId || ticket.ownerId === companyId));
+    const companyNotificationRows = (state.notifications || [])
+      .filter(note => !note.companyId || note.companyId === companyId || note.ownerId === companyId)
+      .slice(0, 12)
+      .map(note => [
+        note.title || note.subject || note.id,
+        note.type || note.channel || (Array.isArray(note.channels) ? note.channels.join(', ') : 'Notification'),
+        note.message || note.body || '',
+        dateValue(note.createdAt || note.updatedAt || new Date()),
+        note.status || note.deliveryStatus || 'Unread',
+        dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'mark_read', 'export']),
+      ]);
     const companyCurrency = company.operatingCurrency || company.settings?.defaultCurrency || platformCurrency();
     const grossRevenue = financialBookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
     const companyEarnings = financialBookings.reduce((total, booking) => total + Number(booking.pricing?.split?.companyAmount || 0), 0);
@@ -2553,6 +2564,7 @@ function createDashboardProjection(initialState = {}) {
           company: companyDetail(company)
         }
       }]),
+      notifications: companyNotificationRows,
       support: supportTickets.map(ticket => [ticket.id, ticket.audience || ticket.ownerType, ticket.subject, ticket.priority, ticket.status, ticket.updatedAt ? dateValue(ticket.updatedAt) : dateValue(ticket.createdAt), {
         entity: 'support',
         id: ticket.id,
@@ -2819,6 +2831,8 @@ function createDashboardProjection(initialState = {}) {
         name: company.name || 'Company partner',
         slug: company.slug || companyId
       },
+      serviceProfile: companyDashboard.serviceProfile,
+      notifications: companyDashboard.notifications || [],
       profile: {
         id: employeeUser.id || employeeId,
         fullName: employeeUser.fullName || 'Company employee',
@@ -3504,6 +3518,17 @@ function createDashboardProjection(initialState = {}) {
       signal,
       booking: signal.bookingRef ? bookingDetail(findBooking(signal.bookingRef)) : null
     }, ['view', 'booking', 'export'])]);
+    const promoterNotificationRows = (state.notifications || [])
+      .filter(note => !note.ownerType || note.ownerType === 'promoter' || note.audience === 'promoter' || note.promoterId === promoterId || note.userId === promoterId)
+      .slice(0, 12)
+      .map(note => [
+        note.title || note.subject || note.id,
+        note.type || note.channel || (Array.isArray(note.channels) ? note.channels.join(', ') : 'Notification'),
+        note.message || note.body || '',
+        dateValue(note.createdAt || note.updatedAt || new Date()),
+        note.status || note.deliveryStatus || 'Unread',
+        dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'mark_read', 'export']),
+      ]);
     return {
       profile: {
         ...(promoter.promoter || {}),
@@ -3597,6 +3622,7 @@ function createDashboardProjection(initialState = {}) {
       campaignConversions: promoterConversionRows,
       referralCards: promoterReferralCardRows,
       fraudSignals: promoterFraudSignalRows,
+      notifications: promoterNotificationRows,
       support: supportRows.map(ticket => [ticket.id, ticket.subject, ticket.priority, ticket.status, dateValue(ticket.createdAt || ticket.updatedAt), dashboardMeta('support_case', ticket.id, ticket.id, ticket.status, supportDetail(ticket), ['view', 'export'])]),
       performance: {
         bars: Array.from({ length: 7 }, (_, offset) => {
