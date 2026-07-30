@@ -62,7 +62,7 @@ async function requestCode(userId, options = {}) {
   user.updatedAt = new Date(now).toISOString();
   await identityRepository.users.save(user, { id: user.id });
   try {
-    await notificationService.queueNotification({
+    await notificationService.enqueueNotification({
       userId: user.id,
       ownerType: 'user',
       ownerId: user.id,
@@ -75,7 +75,7 @@ async function requestCode(userId, options = {}) {
       meta: { expiresAt: user.phoneVerification.expiresAt },
       persistedMessage: 'A phone verification code was sent. The code is not stored in notification history.',
       persistedMeta: { expiresAt: user.phoneVerification.expiresAt, codeStored: false },
-    });
+    }, { aggregateType: 'user', aggregateId: user.id, dedupeKey: `phone-verification:${user.id}:${user.phoneVerification.requestedAt}` });
   } catch (error) {
     logger.error('Phone verification SMS could not be queued', { userId: user.id, error: error.message });
   }

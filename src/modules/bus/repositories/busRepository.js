@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const { MongoCollection } = require('../../../repositories/domain/mongoCollection');
 const { runMongoUnitOfWork } = require('../../../services/shared/mongoUnitOfWork');
 const { nextId } = require('../../../services/data/idService');
@@ -94,7 +95,7 @@ async function seatMapVersionOrThrow(companyId, versionId, options = {}) {
 
 async function audit({ actorId = 'system', action, targetType = 'bus', targetId, companyId = '', metadata = {}, session = null }) {
   const row = {
-    id: await nextId('audit'),
+    id: `audit-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
     actorId,
     actorRole: metadata.actorRole || '',
     action,
@@ -112,7 +113,7 @@ async function audit({ actorId = 'system', action, targetType = 'bus', targetId,
 
 async function outbox({ eventType, aggregateType, aggregateId, companyId = '', payload = {}, dedupeKey, session = null }) {
   const row = {
-    id: await nextId('outbox'),
+    id: `outbox-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
     dedupeKey: dedupeKey || `${eventType}:${aggregateId}`,
     topic: eventType,
     type: eventType,

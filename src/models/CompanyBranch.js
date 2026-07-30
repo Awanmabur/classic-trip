@@ -21,5 +21,6 @@ const companyBranchSchema = new Schema({
 }, { timestamps: true });
 
 companyBranchSchema.index({ companyId: 1, name: 1 });
+companyBranchSchema.index({ companyId: 1, status: 1, createdAt: -1 });
 
 module.exports = model('CompanyBranch', companyBranchSchema);

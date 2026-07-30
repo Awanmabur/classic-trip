@@ -55,7 +55,6 @@ async function catalogContext(identifier, serviceType = '', selection = {}) {
         destinationName: canonical.journey.originName,
         originBranchId: canonical.journey.destinationBranchId,
         destinationBranchId: canonical.journey.originBranchId,
-        afterDate: canonical.schedule.arriveAt || canonical.schedule.departAt,
       });
       availability = { ...availability, ...canonical, scheduleId: catalogService.entityId(requested), schedules, returnSchedules };
       listing.priceFrom = Number(canonical.fare.baseAmountPerSeat || listing.priceFrom || 0);

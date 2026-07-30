@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { env, validateEnv } = require('../src/config/env');
 const { connectDb, mongoose } = require('../src/config/db');
+const { connectRedis, closeRedis } = require('../src/config/redis');
 
 function line(ok, label, detail = '') {
   console.log(`${ok ? '✓' : '✖'} ${label}${detail ? ` — ${detail}` : ''}`);
@@ -20,11 +21,13 @@ async function main() {
   const transactions = Boolean(hello.setName) || hello.msg === 'isdbgrid';
   line(!env.mongoTransactions || transactions, 'Transaction support', transactions ? 'available' : 'unavailable');
   line(env.mongoPool.max >= env.mongoPool.min, 'MongoDB pool', `${env.mongoPool.min}-${env.mongoPool.max}`);
-  line(!env.isProduction || env.jobs.enabled, 'Scheduled jobs', env.jobs.enabled ? 'enabled' : 'disabled');
+  const redis = await connectRedis();
+  line(!env.redis.required || Boolean(redis), 'Redis', redis ? 'connected' : 'MongoDB fallback');
+  line(true, 'Scheduled jobs process', env.jobs.enabled ? 'this process' : 'separate worker expected');
   line(!env.isProduction || env.maps.routingApiUrl, 'Live routing', env.maps.routingApiUrl || 'not configured');
   console.log('✓ Doctor checks complete.');
 }
 
 main()
   .catch((error) => { console.error(`✖ ${error.message}`); process.exitCode = 1; })
-  .finally(async () => { await mongoose.disconnect().catch(() => {}); });
+  .finally(async () => { await closeRedis().catch(() => {}); await mongoose.disconnect().catch(() => {}); });

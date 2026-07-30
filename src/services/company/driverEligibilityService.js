@@ -25,7 +25,11 @@ function isDriverConfigured(employee = {}, user = {}) {
   const membershipIsDriver = /driver/i.test(String(employee.roleTitle || ''))
     || serviceCategories.some((category) => normalize(category) === 'driver')
     || REQUIRED_DRIVER_PERMISSIONS.every((permission) => permissions.includes(permission));
-  return accountIsDriver && membershipIsDriver;
+  // The company membership is created before an invited driver accepts and gets
+  // a User account. Either side is enough to identify the saved record as a
+  // driver; operational access still requires both sides in
+  // evaluateDriverEligibility().
+  return accountIsDriver || membershipIsDriver;
 }
 
 
@@ -93,8 +97,6 @@ function evaluateDriverAssignment(employee = {}, user = {}) {
   const reasons = [];
   if (!employee || !String(employee.id || '').trim()) reasons.push('driver membership is missing');
   if (!isDriverConfigured(employee, user)) reasons.push('employee role is not configured as Driver');
-  if (normalize(employee.status) !== 'active') reasons.push('company membership is not active');
-  if (['blocked', 'suspended'].includes(normalize(user.status))) reasons.push('linked driver account is blocked or suspended');
   const assignable = reasons.length === 0;
   return {
     assignable,

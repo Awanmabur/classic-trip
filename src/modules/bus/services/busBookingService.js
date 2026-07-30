@@ -386,13 +386,9 @@ async function buildCanonicalRows(payload = {}, req = null) {
     if (outboundHold.originStopId !== returnHold.destinationStopId || outboundHold.destinationStopId !== returnHold.originStopId) {
       throw validationError('Return journey must reverse the outbound origin and destination');
     }
-    const [outboundSchedule, returnSchedule] = await Promise.all([
-      repository.schedules.findOne({ id: outboundHold.scheduleId }),
-      repository.schedules.findOne({ id: returnHold.scheduleId }),
-    ]);
-    const outboundJourneyEndsAt = outboundSchedule?.arriveAt || outboundSchedule?.departAt;
-    if (!outboundSchedule || !returnSchedule || new Date(returnSchedule.departAt).getTime() <= new Date(outboundJourneyEndsAt).getTime()) {
-      throw validationError('Return departure must be after the outbound journey arrives');
+    const returnSchedule = await repository.schedules.findOne({ id: returnHold.scheduleId });
+    if (!returnSchedule || new Date(returnSchedule.departAt).getTime() <= Date.now()) {
+      throw validationError('The selected return departure is no longer bookable');
     }
   }
 

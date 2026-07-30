@@ -17,6 +17,7 @@ const { offlineSaleRules } = require('../../validators/promoterOfflineSaleValida
 const { validateRequest } = require('../../middlewares/validate');
 const { sensitiveActionLimiter } = require('../../middlewares/rateLimit');
 const { requireVerifiedPromoter } = require('../../middlewares/promoterVerification');
+const archiveController = require('../../controllers/archiveController');
 const router = express.Router();
 
 router.use('/promoter', requireAuth, requireRole('promoter', 'super_admin'));
@@ -48,5 +49,6 @@ router.post('/promoter/support', supportRules, validateRequest, supportControlle
 router.get('/promoter/api/campaigns', campaignController.index);
 router.get('/promoter/:page', dashboardController.index);
 router.post('/promoter/campaigns', campaignController.create);
+router.post('/promoter/archive/:model/:id/restore', archiveController.restoreFor('promoter'));
 
 module.exports = router;

@@ -31,12 +31,12 @@ check(actionService.includes('driverEmployeeId: driverEmployee.id'), 'The suppor
 check(invitationService.includes('driverEmployeeId: cleanText(payload.driverEmployeeId'), 'Driver invitations must retain the canonical driver record link.');
 check(invitationService.includes('employee.userId = user.id'), 'Invitation acceptance must attach the created account to the existing driver record.');
 check(!departureService.includes('if (!employee) employee = await materializeDriverCandidate'), 'Pending requests and invitations must not materialize during departure assignment.');
-check(departureService.includes('Selected driver must have an active company membership'), 'An explicitly selected departure driver must have an active company membership.');
+check(departureService.includes('Select a saved driver record from this company'), 'An explicitly selected departure driver must be a saved company driver record.');
 check(setupService.includes('Driver assignment is optional') && !setupService.includes('await assignableDrivers(companyId)'), 'Smart publication must not require or auto-assign a driver.');
-check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose active company drivers.');
+check(projection.includes('const driverSelectorOptions = assignableDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose all saved assignable company drivers.');
 check(projection.includes('driverSelectorOptions'), 'One merged driver selector contract must exist.');
 check(workspace.includes('Driver assignment is optional'), 'The UI must describe the optional assignment rule.');
-check(workspace.includes('Any active company driver can be selected'), 'The UI must explain that active company drivers remain selectable.');
+check(workspace.includes('Any saved company driver can be selected'), 'The UI must explain that saved company drivers remain selectable.');
 check(accessibility.includes(':focus-visible'), 'A keyboard focus accessibility layer must exist.');
 check(accessibility.includes('prefers-reduced-motion: reduce'), 'Reduced-motion support must exist.');
 check(accessibility.includes('forced-colors: active'), 'High-contrast forced-colours support must exist.');

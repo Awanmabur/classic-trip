@@ -285,6 +285,7 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
     repository.fareProducts.list({ companyId, listingId: listingKey, status: 'active' }, { limit: 1000 }),
     repository.schedules.list({
       companyId,
+      listingId: listingKey,
       departAt: { $gt: nowDate },
       status: { $in: ['draft', 'active', 'published'] },
     }, { sort: { departAt: 1 }, limit: 3000 }),
@@ -313,13 +314,31 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
   });
   const compliantVehicleIds = new Set(compliantVehicles.map((row) => String(row.id)));
 
-  const listingDepartures = futureCompanyDepartures.filter((schedule) => String(schedule.listingId || '') === listingKey);
+  const listingDepartures = futureCompanyDepartures;
   const publishedCandidates = listingDepartures.filter((schedule) => normalize(schedule.status) === 'published');
+  const scheduleIds = listingDepartures.map((schedule) => schedule.id).filter(Boolean);
+  const driverIds = [...new Set(listingDepartures.map((schedule) => schedule.driverEmployeeId).filter(Boolean))];
+  const [assignedEmployees, inventoryGroups] = await Promise.all([
+    driverIds.length
+      ? repository.employees.list({ id: { $in: driverIds }, companyId }, { limit: driverIds.length })
+      : [],
+    scheduleIds.length
+      ? repository.segmentInventory.countGroupedBy('scheduleId', {
+        companyId,
+        listingId: listingKey,
+        scheduleId: { $in: scheduleIds },
+      })
+      : [],
+  ]);
+  const employeeById = new Map(assignedEmployees.map((employee) => [String(employee.id), employee]));
+  const inventoryCountBySchedule = new Map(inventoryGroups.map((row) => [String(row.key), Number(row.count || 0)]));
   const departureDiagnostics = [];
   const validPublishedDepartures = [];
 
   for (const schedule of listingDepartures) {
     const reasons = [];
+    const warnings = [];
+    if (String(schedule.listingId || '') !== listingKey) reasons.push('departure listing link is invalid');
     if (normalize(schedule.status) !== 'published') reasons.push(`departure status is ${normalize(schedule.status || 'draft')}; publish this dated departure`);
     const route = routeById.get(String(schedule.routeId || ''));
     const vehicle = vehicleById.get(String(schedule.vehicleId || ''));
@@ -331,25 +350,21 @@ async function listingReadiness(companyId, listingId, listingCandidate = null) {
     if (!fare || String(fare.routeId || '') !== String(schedule.routeId || '')) reasons.push('active fare link is missing');
     if (!seatMap || String(seatMap.vehicleId || '') !== String(schedule.vehicleId || '')) reasons.push('published seat-map version link is missing');
     if (schedule.driverEmployeeId) {
-      const assignedEmployee = await repository.employees.findOne({ id: schedule.driverEmployeeId, companyId });
-      if (!assignedEmployee || normalize(assignedEmployee.status) !== 'active') {
-        reasons.push('selected driver membership is not active');
-      }
+      const assignedEmployee = employeeById.get(String(schedule.driverEmployeeId));
+      if (!assignedEmployee) warnings.push('selected driver record is no longer available; assign another driver when ready');
+      else if (!evaluateDriverAssignment(assignedEmployee, {}).assignable) warnings.push('selected employee record is not configured as a driver');
+      else if (normalize(assignedEmployee.status) !== 'active') warnings.push(`selected driver membership is ${normalize(assignedEmployee.status) || 'pending'}; operational approval can continue separately`);
     }
     if (!Number(schedule.totalSeats || 0) || !schedule.inventoryReadyAt) reasons.push('seat inventory snapshot is missing');
 
     const relationshipFailures = reasons.filter((reason) => !reason.startsWith('departure status is'));
     const inventoryRows = relationshipFailures.length
       ? 0
-      : await repository.segmentInventory.count({
-        companyId,
-        listingId: listingKey,
-        scheduleId: schedule.id,
-      });
+      : Number(inventoryCountBySchedule.get(String(schedule.id)) || 0);
     if (!inventoryRows) reasons.push('live seat-segment inventory is missing');
 
-    if (reasons.length) departureDiagnostics.push({ scheduleId: schedule.id, departAt: schedule.departAt, status: schedule.status, reasons });
-    else validPublishedDepartures.push(schedule);
+    if (reasons.length || warnings.length) departureDiagnostics.push({ scheduleId: schedule.id, departAt: schedule.departAt, status: schedule.status, reasons, warnings });
+    if (!reasons.length) validPublishedDepartures.push(schedule);
   }
 
   const failures = [];

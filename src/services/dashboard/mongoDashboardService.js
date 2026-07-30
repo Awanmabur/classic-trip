@@ -5,7 +5,16 @@ const { createDashboardProjection } = require('./dashboardProjectionEngine');
 const roleProjectionCache = new Map();
 
 function projectionCacheKey(role, context = {}) {
-  return [role, context.companyId || '', context.customerId || '', context.promoterId || '', context.activePage || 'overview', (context.permissions || []).join(',')].join(':');
+  return [
+    role,
+    context.companyId || '',
+    context.customerId || '',
+    context.promoterId || '',
+    context.activePage || 'overview',
+    context.hotelManifestDate || '',
+    context.hotelManifestListingId || '',
+    (context.permissions || []).join(','),
+  ].join(':');
 }
 
 
@@ -152,8 +161,8 @@ async function prewarmRoleDashboard(role, context = {}) {
 function prewarmForUser(user = {}) {
   const role = String(user.role || '');
   if (['super_admin', 'admin', 'finance_admin', 'support_admin', 'operations_admin', 'content_admin'].includes(role)) return prewarmRoleDashboard('admin');
-  if (role === 'company_admin') return prewarmRoleDashboard('company', { companyId: user.companyId });
-  if (role === 'company_employee' || role === 'driver') return prewarmRoleDashboard('employee', { companyId: user.companyId });
+  if (role === 'company_admin') return prewarmRoleDashboard('company', { companyId: user.companyId, activePage: 'overview' });
+  if (role === 'company_employee' || role === 'driver') return prewarmRoleDashboard('employee', { companyId: user.companyId, activePage: 'overview' });
   if (role === 'customer') return prewarmRoleDashboard('customer', { customerId: user.id });
   if (role === 'promoter') return prewarmRoleDashboard('promoter', { promoterId: user.id });
   return Promise.resolve(null);

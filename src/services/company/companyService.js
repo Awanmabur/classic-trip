@@ -211,7 +211,7 @@ async function createCompany(payload = {}) {
         updatedAt: new Date().toISOString(),
         updatedBy: cleanText(payload.ownerId || payload.acceptedBy || 'system', 180),
       },
-      settings: { instantConfirmation: false, canPublish: false, profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: 'percentage_commission', partnerCategory: cleanText(payload.partnerCategory, 60), accountModel: cleanText(payload.accountModel, 40), platformManagedPricing: normalizeServiceType(payload.companyType || payload.type) === 'local_transport', supplierManagedInventory: normalizeServiceType(payload.companyType || payload.type) === 'flight' }, createdAt: new Date().toISOString(),
+      settings: { instantConfirmation: false, canPublish: false, onboardingStep: 'verification', profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: 'percentage_commission', partnerCategory: cleanText(payload.partnerCategory, 60), accountModel: cleanText(payload.accountModel, 40), platformManagedPricing: normalizeServiceType(payload.companyType || payload.type) === 'local_transport', supplierManagedInventory: normalizeServiceType(payload.companyType || payload.type) === 'flight' }, createdAt: new Date().toISOString(),
     };
     try {
       // Creation must be insert-only. Upsert-by-id could overwrite an existing

@@ -8,6 +8,13 @@ function companyId(req) {
 async function create(req, res, next) {
   try {
     const result = await companyService.createScheduleBatch(companyId(req), req.body);
+    if (result.publicationDeferred?.length && req.flash) {
+      const failures = [...new Set(result.publicationDeferred.flatMap((item) => item.failures || []))];
+      req.flash(
+        'warning',
+        `${result.count} departure${result.count === 1 ? ' was' : 's were'} created safely; ${result.draftCount} remain Draft until ${failures.join(', ') || 'publication checks are completed'}.`,
+      );
+    }
     const suffix = result.count > 1 ? `?created=${result.count}` : '';
     res.redirect(`/company/schedules${suffix}`);
   } catch (error) {
@@ -81,7 +88,15 @@ async function duplicate(req, res, next) {
 
 async function createRule(req, res, next) {
   try {
-    await companyService.createScheduleRule(companyId(req), req.body, req.session?.user?.id || 'company-admin');
+    const rule = await companyService.createScheduleRule(companyId(req), req.body, req.session?.user?.id || 'company-admin');
+    if (req.flash) {
+      req.flash(
+        'success',
+        rule.status === 'active'
+          ? 'Recurring rule saved. The worker is preparing a rolling 30-day departure window; ready dates publish automatically and any date needing attention remains Draft.'
+          : 'Recurring rule saved. Activate it when you want the rolling 30-day departure window to begin.',
+      );
+    }
     res.redirect('/company/schedules-fares');
   } catch (error) {
     next(error);

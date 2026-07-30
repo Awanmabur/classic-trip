@@ -3,6 +3,7 @@ const mongoDashboardService = require('../../services/dashboard/mongoDashboardSe
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
 const { effectivePermissionsFresh } = require('../../middlewares/permissions');
+const archiveService = require('../../services/archive/archiveService');
 
 function scopedServices(serviceProfile = {}) {
   const type = serviceProfile.primaryServiceType;
@@ -21,6 +22,9 @@ async function index(req, res, next) {
       throw error;
     }
     const dashboardData = await mongoDashboardService.roleDashboard('employee', { companyId, employeeId, permissions, activePage });
+    const archiveRows = activePage === 'archive'
+      ? await archiveService.listForDashboard('employee', { companyId })
+      : [];
     const notificationRows = Array.isArray(dashboardData.notifications) ? dashboardData.notifications : [];
     const notificationCount = notificationRows.filter((row) => {
       const status = String(Array.isArray(row) ? (row[4] || row[5] || '') : row.status || '').toLowerCase();
@@ -31,6 +35,7 @@ async function index(req, res, next) {
       seo: { title: 'Employee dashboard | Classic Trip' },
       dashboardData: {
         ...dashboardData,
+        archiveRows,
         notifications: notificationRows,
         dashboardFeatures: { services: scopedServices(dashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
         permissions,

@@ -39,11 +39,11 @@ expect('NODE_ENV typo is normalised', env.includes("develoment: 'development'"))
 expect('slow logging is configurable', env.includes('LOG_SLOW_REQUESTS') && app.includes('env.performance.logSlowRequests'));
 expect('routine disabled jobs are silent in development', scheduler.includes("if (env.isProduction) logger.warn('Scheduled jobs are disabled in production'"));
 expect('MongoDB uses an explicit pool', db.includes('minPoolSize: env.mongoPool.min') && db.includes('maxPoolSize: env.mongoPool.max'));
-expect('production auto-indexing is disabled', db.includes('autoIndex: !env.isProduction'));
+expect('runtime auto-indexing is disabled by default', db.includes('autoIndex: env.mongoConnection.autoIndex') && env.includes("booleanFlag('MONGO_AUTO_INDEX', false)"));
 expect('index deployment command exists', pkg.scripts['db:indexes'] && fs.existsSync(path.join(root, 'scripts/ensure-production-indexes.js')));
 expect('production doctor command exists', pkg.scripts.doctor && fs.existsSync(path.join(root, 'scripts/production-doctor.js')));
 expect('homepage catalogue has TTL and stale cache', catalog.includes('snapshotCache') && catalog.includes('homeCacheStaleMs'));
-expect('homepage cache prewarms on startup', server.includes('catalogService.prewarmHome()'));
+expect('homepage cache does not compete with web startup', !server.includes('catalogService.prewarmHome()'));
 expect('all seven services are in the public catalogue', catalog.includes("TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']") && grouping.includes("'tour', 'car_rental', 'cargo'"));
 expect('successful writes invalidate public and dashboard caches', flash.includes('invalidateMarketplaceCache') && flash.includes('dashboardSnapshotService'));
 expect('dashboard cache defaults are production-friendly', dashboardSnapshot.includes('dashboardCacheTtlMs') && dashboardSnapshot.includes('dashboardCacheStaleMs'));
@@ -55,7 +55,7 @@ expect('server keeps only meaningful startup messages', server.includes("logger.
 
 expect('homepage reads only live public catalogue records', catalog.includes("status: 'active', releaseStatus: 'published'") && catalog.includes("status: { $in: ['published', 'boarding', 'delayed'] }"));
 expect('login lockout query has a matching compound index', loginAudit.includes("{ identity: 1, result: 1, createdAt: -1 }"));
-expect('HTTP server has bounded request handling', server.includes('requestTimeout = 30_000') && server.includes('maxRequestsPerSocket'));
+expect('HTTP server has bounded request handling', server.includes('requestTimeout = 45_000') && server.includes('maxRequestsPerSocket'));
 expect('production uses plain Node rather than nodemon', pkg.scripts['start:prod'] === 'node scripts/start-production.js' && start.includes("if (!watch)"));
 expect('revenue filters cover every live service', revenue.includes('value="flight"') && revenue.includes('value="local_transport"'));
 expect('public legal wording covers every live service', terms.includes('flight agents') && terms.includes('local-mobility partners'));

@@ -219,9 +219,8 @@ async function createBusService(companyId, payload = {}, options = {}) {
   const farePayload = payload.fare || {};
   const schedulePayload = payload.schedule || {};
   const requestedPublishListing = ['active', 'published'].includes(normalizedStatus(listingPayload.status));
-  const requestedDriverId = cleanText(schedulePayload.driverId || '', 180);
-  const publishListing = requestedPublishListing && Boolean(requestedDriverId);
-  const departureStatus = publishListing ? 'published' : 'draft';
+  const publishListing = requestedPublishListing;
+  const departureStatus = requestedPublishListing ? 'published' : 'draft';
   const created = {};
 
   try {
@@ -290,15 +289,18 @@ async function createBusService(companyId, payload = {}, options = {}) {
     created.schedule = scheduleResult.schedule;
     created.seats = scheduleResult.seats;
 
-    if (publishListing) {
+    if (publishListing && created.schedule.status === 'published') {
       created.listing = await companyService.publishListing(companyId, created.listing.id, actorId);
     }
 
+    const publicationDeferred = requestedPublishListing
+      && (!publishListing || created.schedule.status !== 'published' || created.listing.status !== 'active');
     const result = {
       ...summarize(created), replayed: false,
-      publicationDeferred: requestedPublishListing && !publishListing,
-      publicationMessage: requestedPublishListing && !publishListing
-        ? 'The complete bus setup was saved as Draft because no saved company driver was selected.' : '',
+      publicationDeferred,
+      publicationMessage: publicationDeferred
+        ? scheduleResult.publicationDeferred?.message || 'The complete bus setup was saved, but remains Draft until the remaining publication checks are completed.'
+        : '',
     };
     await busRepository.audit({
       actorId,

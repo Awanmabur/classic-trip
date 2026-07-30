@@ -2,6 +2,7 @@ const { buildDashboardShell } = require('../../services/dashboard/shellConfig');
 const mongoDashboardService = require('../../services/dashboard/mongoDashboardService');
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
+const archiveService = require('../../services/archive/archiveService');
 
 function requestedPageFromRequest(req) {
   const raw = req.params?.page || '';
@@ -73,6 +74,7 @@ function requestedSubviewFromRequest(req) {
 }
 
 function allowedCompanyPage(page, serviceProfile = {}) {
+  if (page === 'archive') return 'archive';
   const serviceDashboardPages = new Set(SERVICE_DASHBOARDS.map((service) => service.key));
   if (serviceDashboardPages.has(page)) return 'overview';
   const visiblePages = new Set(serviceProfile.visiblePages || []);
@@ -98,8 +100,12 @@ async function index(req, res, next) {
       hotelManifestDate: requestedManifestDate,
       hotelManifestListingId: requestedHotelListingId,
     });
+    const archiveRows = requestedPage === 'archive'
+      ? await archiveService.listForDashboard('company', { companyId })
+      : [];
     const dashboardData = {
       ...baseDashboardData,
+      archiveRows,
       dashboardFeatures: { services: companyServiceDashboards(baseDashboardData.serviceProfile), roles: ROLE_DASHBOARD_FEATURES },
       ...requestedSubview,
     };

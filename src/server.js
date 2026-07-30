@@ -1,43 +1,31 @@
-const app = require('./app');
 const { env, validateEnv } = require('./config/env');
 const { connectDb, mongoose } = require('./config/db');
+const { connectRedis, closeRedis } = require('./config/redis');
 const logger = require('./config/logger');
 const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
-const { startScheduledJobs } = require('./jobs/scheduler');
 const repositories = require('./repositories');
-const catalogService = require('./services/marketplace/catalogService');
-const { restoreLegacyDemotedBusListings } = require('./services/migrations/legacyBusListingPublicationRepair');
 
 let httpServer = null;
 let shuttingDown = false;
+let app = null;
 
 async function start() {
   validateEnv();
-  await connectDb();
+  await Promise.all([connectDb(), connectRedis()]);
   repositories.readyRepository('companies');
   await ensurePlatformConfig();
-  startScheduledJobs();
+  // Session and rate-limit middleware choose their backing stores while app.js
+  // is loaded, so Redis must be connected before the application is required.
+  app = require('./app');
   if (env.nodeEnvWasNormalized) {
     logger.warn('NODE_ENV spelling was corrected', { from: env.rawNodeEnv, to: env.nodeEnv });
   }
   httpServer = app.listen(env.port, () => {
     logger.startup(`${env.appName} listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
   });
-  // Warm only the public catalog after the port is available. A complete
-  // super-admin snapshot can contain hundreds of collections and must never
-  // compete with login/session traffic during startup.
-  Promise.allSettled([
-    restoreLegacyDemotedBusListings().then((restored) => {
-      if (restored) logger.info('Restored legacy-demoted bus listings', { restored });
-      return catalogService.prewarmHome();
-    }),
-  ]).then((results) => {
-    const failed = results.filter((result) => result.status === 'rejected');
-    if (failed.length) logger.warn('One or more read-model prewarms failed', { count: failed.length });
-  });
   httpServer.keepAliveTimeout = 65_000;
   httpServer.headersTimeout = 66_000;
-  httpServer.requestTimeout = 30_000;
+  httpServer.requestTimeout = 45_000;
   httpServer.maxRequestsPerSocket = 1_000;
   return httpServer;
 }
@@ -55,6 +43,7 @@ async function shutdown(signal, exitCode = 0) {
     if (httpServer) {
       await new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
     }
+    await closeRedis();
     if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
     clearTimeout(forceTimer);
     logger.info('Graceful shutdown complete', { signal });

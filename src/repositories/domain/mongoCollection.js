@@ -34,9 +34,19 @@ class MongoCollection {
     return this.repository.count(filter, options);
   }
 
+  async countGroupedBy(field, filter = {}, options = {}) {
+    this.assertReady();
+    return this.repository.countGroupedBy(field, filter, options);
+  }
+
   async insert(row, options = {}) {
     this.assertReady();
     return this.repository.insert(row, options);
+  }
+
+  async insertMany(rows = [], options = {}) {
+    this.assertReady();
+    return this.repository.insertMany(rows, options);
   }
 
   async save(row, filter = null, options = {}) {
@@ -69,9 +79,9 @@ class MongoCollection {
 
   async deleteMany(filter = {}, options = {}) {
     this.assertReady();
-    const existing = await this.repository.list(filter, options);
-    await this.repository.deleteMany(filter, options);
-    return existing;
+    // Cleanup callers never use the deleted documents. Avoid materializing the
+    // full result set before deleting it, and preserve the transaction/session.
+    return this.repository.deleteMany(filter, options);
   }
 
   async refresh(filter = {}, options = {}) {

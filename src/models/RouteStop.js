@@ -17,4 +17,5 @@ const routeStopSchema = new Schema({
 }, { timestamps: true });
 
 routeStopSchema.index({ routeId: 1, stopOrder: 1 });
+routeStopSchema.index({ companyId: 1, routeId: 1, status: 1, stopOrder: 1 });
 module.exports = model('RouteStop', routeStopSchema);

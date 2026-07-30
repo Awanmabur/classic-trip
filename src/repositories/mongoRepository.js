@@ -131,6 +131,19 @@ class MongoRepository {
     return query;
   }
 
+  async countGroupedBy(field, filter = {}, options = {}) {
+    requireMongo(this.entity);
+    const safeField = String(field || '').trim();
+    if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(safeField)) throw new Error('countGroupedBy requires a safe field name');
+    let aggregate = this.Model.aggregate([
+      { $match: this.normalizeFilter(filter) },
+      { $group: { _id: `$${safeField}`, count: { $sum: 1 } } },
+    ]);
+    if (options.session) aggregate = aggregate.session(options.session);
+    const rows = await aggregate.exec();
+    return rows.map((row) => ({ key: row._id, count: Number(row.count || 0) }));
+  }
+
   async insert(row, options = {}) {
     requireMongo(this.entity);
     if (!row) return row;
@@ -159,10 +172,10 @@ class MongoRepository {
     return rows;
   }
 
-  async insertMany(rows = [], options = { ordered: false }) {
+  async insertMany(rows = [], options = {}) {
     requireMongo(this.entity);
     if (!rows.length) return rows;
-    await this.Model.insertMany(rows.map((row) => this.prepareRow(row, { insert: true })), options);
+    await this.Model.insertMany(rows.map((row) => this.prepareRow(row, { insert: true })), { ordered: false, ...options });
     return rows;
   }
 
@@ -181,9 +194,9 @@ class MongoRepository {
     return clean(await this.Model.findOneAndUpdate(this.normalizeFilter(filter), this.prepareUpdate(update), { new: true, runValidators: true, ...options }).lean());
   }
 
-  async deleteMany(filter = {}) {
+  async deleteMany(filter = {}, options = {}) {
     requireMongo(this.entity);
-    return this.Model.deleteMany(this.normalizeFilter(filter));
+    return this.Model.deleteMany(this.normalizeFilter(filter), options);
   }
 }
 

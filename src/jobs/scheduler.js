@@ -43,10 +43,15 @@ const jobs = {
     schedule: () => env.jobs.expireFlightHolds,
     module: () => require('./expireFlightHolds'),
   },
+  purgeArchivedRecords: {
+    schedule: () => env.jobs.purgeArchivedRecords,
+    module: () => require('./purgeArchivedRecords'),
+  },
 };
 
 const scheduledTasks = new Map();
 const lastRuns = new Map();
+const runningJobs = new Map();
 
 async function runJob(name) {
   const definition = jobs[name];
@@ -55,8 +60,18 @@ async function runJob(name) {
     error.status = 404;
     throw error;
   }
+  if (runningJobs.has(name)) {
+    return {
+      name,
+      ok: true,
+      skipped: true,
+      reason: 'previous_run_still_active',
+      startedAt: runningJobs.get(name).toISOString(),
+    };
+  }
 
   const startedAt = new Date();
+  runningJobs.set(name, startedAt);
   try {
     const result = await definition.module().run();
     const finishedAt = new Date();
@@ -84,6 +99,8 @@ async function runJob(name) {
     lastRuns.set(name, status);
     logger.error('Scheduled job failed', status);
     return status;
+  } finally {
+    runningJobs.delete(name);
   }
 }
 

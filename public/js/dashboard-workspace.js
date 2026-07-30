@@ -2153,10 +2153,10 @@ window.addEventListener('DOMContentLoaded', function () {
     const hasActiveDriver = hasAssignableDriver;
     const firstBlockedDriver = driverEligibility.find((row) => row && row.eligible === false && Array.isArray(row.reasons) && row.reasons.length);
     const driverWorkflowHint = hasAssignableDriver
-      ? 'Driver assignment is optional. Any active company driver can be selected now, while licence and safety verification can continue separately.'
+      ? 'Driver assignment is optional. Any saved company driver can be selected now; account, licence, safety and operational approval remain visible as separate warnings.'
       : pendingDriverRequests.length
         ? `${pendingDriverRequests.length} driver request${pendingDriverRequests.length === 1 ? '' : 's'} remain in onboarding. You can still publish this departure without a driver and assign one later.`
-        : 'Driver assignment is optional. Publish now and assign an active company driver later when available.';
+        : 'Driver assignment is optional. Publish now and assign a saved company driver later when available.';
     const staff = optionFromRows(data.options?.staff || data.staff, pendingStaffInvitations.length ? 'Staff invitations are awaiting acceptance' : 'Activate staff first');
     const seatMapOptions = Array.isArray(data.seatMaps) ? data.seatMaps.flatMap(map => (map.seats || []).map(seat => ({ value: seat.seatNumber || seat.id, scheduleId: map.scheduleId || seat.scheduleId || '', listingId: map.listingId || '', label: `${map.routeLabel || map.scheduleId} - Seat No ${String(seat.seatNumber || seat.id || '').replace(/^seat\s*(no\.?|number)?\s*/i, '').replace(/^[A-Za-z](\d+)$/, '$1')} (${seat.status || 'available'})` }))) : [];
     const inventorySeatOptions = (Array.isArray(data.inventory) ? data.inventory : []).map(row => {
@@ -2423,7 +2423,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, value: fieldValue('schedule.fareProductId','fareProductId'), dependsOn:'routeId', filterKey:'routeId', help:'Changing a published departure creates a replacement so sold tickets retain their original snapshot.' },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock', value: fieldValue('schedule.boardingStartAt','boardingStartAt') },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: fieldValue('schedule.status','status') || 'draft' },
-        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','driverEmployeeId'), help:'Driver assignment is optional. Any active driver in this company can be selected; compliance details remain visible for operations follow-up.' },
+        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','driverEmployeeId'), help:'Driver assignment is optional. Any saved company driver can be selected; account, membership and compliance details remain visible as operational warnings.' },
         { name:'blockedSeats', label:'Blocked seats for replacement', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Uses the selected bus’s published seat labels.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, value: fieldValue('schedule.notes','notes') }
       ]

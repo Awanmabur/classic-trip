@@ -114,12 +114,13 @@ async function login(req, res, next) {
   try {
     const user = await authService.verifyLogin(req.body.identity || req.body.email, req.body.password);
     if (!user) {
-      await securityService.recordLoginAttempt({
+      const auditReq = securityRequestSnapshot(req);
+      securityService.recordLoginAttempt({
         identity: req.body.identity || req.body.email,
         result: 'failure',
         reason: 'invalid_credentials',
-        req,
-      });
+        req: auditReq,
+      }).catch((auditError) => logger.error('Failed login audit could not be recorded', { error: auditError.message }));
       if (req.flash) req.flash('error', 'The email, phone number, or password is incorrect. Please check your details and try again.');
       return res.redirect('/login?error=invalid');
     }
@@ -143,6 +144,11 @@ async function login(req, res, next) {
     // still recorded, but no longer hold the user on the login page for several
     // extra Atlas round trips.
     await saveSession(req);
+    // Begin the exact first dashboard snapshot before the browser follows the
+    // redirect. The dashboard request joins the same in-flight read instead of
+    // starting another set of MongoDB queries.
+    require('../../services/dashboard/mongoDashboardService').prewarmForUser(user)
+      .catch((prewarmError) => logger.warn('Dashboard prewarm could not complete', { error: prewarmError.message, userId: user.id }));
     const auditReq = securityRequestSnapshot(req);
     setImmediate(() => {
       securityService.recordLoginAttempt({

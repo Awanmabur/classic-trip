@@ -27,6 +27,7 @@ const { validateRequest } = require('../../middlewares/validate');
 const { sensitiveActionLimiter } = require('../../middlewares/rateLimit');
 const { rewriteAdminRedirect } = require('../../middlewares/adminRoleRedirect');
 const { requirePlatformMfa } = require('../../middlewares/mfa');
+const archiveController = require('../../controllers/archiveController');
 const router = express.Router();
 
 router.use('/admin', requireAuth, requireRole('super_admin'), requirePlatformMfa);
@@ -96,6 +97,9 @@ router.post('/content/blogs/:id/update', requirePermission('content.manage'), bl
 router.post('/content/blogs/:id/publish', requirePermission('content.manage'), blogController.publish);
 router.post('/content/blogs/:id/draft', requirePermission('content.manage'), blogController.draft);
 router.post('/content/blogs/:id/archive', requirePermission('content.manage'), blogController.archive);
+router.post('/content/archive/:model/:id/restore', requirePermission('content.manage'), archiveController.restoreFor('content'));
+router.post('/support/archive/:model/:id/restore', requirePermission('support.manage'), archiveController.restoreFor('support'));
+router.post('/operations/archive/:model/:id/restore', requirePermission('operations.manage'), archiveController.restoreFor('operations'));
 
 router.get('/admin/companies', dashboardController.index);
 router.get('/admin/bookings', dashboardController.index);
@@ -179,5 +183,6 @@ router.post('/admin/internal-notes', actionController.createInternalNote);
 router.post('/admin/reschedules/:id/approve', actionController.approveReschedule);
 router.post('/admin/reschedules/:id/reject', actionController.rejectReschedule);
 router.post('/admin/fraud-signals/:id/review', promoterNetworkController.reviewFraudSignal);
+router.post('/admin/archive/:model/:id/restore', archiveController.restoreFor('admin'));
 
 module.exports = router;

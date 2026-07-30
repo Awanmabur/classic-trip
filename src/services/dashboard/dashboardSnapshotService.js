@@ -1,9 +1,19 @@
 const repositories = require('../../repositories');
 const { env } = require('../../config/env');
+const redisRuntime = require('../../config/redis');
 
 const SNAPSHOT_TTL_MS = Math.max(1000, Number(env.performance.dashboardCacheTtlMs || 60000));
 const SNAPSHOT_STALE_MS = Math.max(SNAPSHOT_TTL_MS, Number(env.performance.dashboardCacheStaleMs || 300000));
-const DB_READ_CONCURRENCY = Math.max(2, Math.min(4, Number(env.mongoPool?.max || 5) - 1));
+const DB_READ_CONCURRENCY = Math.max(
+  2,
+  Math.min(
+    12,
+    Number(env.performance.dashboardReadConcurrency || 4),
+    // Reserve connections for sessions, authentication, cache invalidation and
+    // the request currently coordinating this snapshot.
+    Math.max(2, Number(env.mongoPool?.max || 10) - 4),
+  ),
+);
 const snapshotCache = new Map();
 const snapshotInflight = new Map();
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
@@ -54,9 +64,15 @@ const COMPANY_SERVICE_ENTITIES = Object.freeze({
   ]),
 });
 const COMPANY_PAGE_ENTITIES = Object.freeze({
+  archive: new Set(['notifications']),
   overview: new Set([
-    'companyEmployees', 'listings', 'bookings', 'payments', 'supportTickets', 'reviews',
-    'notifications', 'schedules', 'seats', 'hotelReservations', 'flightOrders', 'taxiRides',
+    'companyEmployees', 'companyBranches', 'invitations', 'verificationReviews',
+    'listings', 'routes', 'vehicles', 'fareProducts', 'schedules', 'seats',
+    'bookings', 'payments', 'supportTickets', 'reviews', 'notifications',
+    'hotelProperties', 'roomTypes', 'roomUnits', 'roomNightInventories',
+    'hotelReservations', 'housekeepingTasks',
+    'aircraft', 'flightDepartures', 'flightSeatInventories', 'flightOrders',
+    'taxiVehicles', 'taxiDriverProfiles', 'driverAvailabilities', 'taxiRides',
     'wallets', 'walletTransactions', 'commissions',
   ]),
   'company-profile': new Set([
@@ -66,16 +82,18 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
     'companyEmployees', 'invitations', 'verificationReviews', 'notifications',
   ]),
   listings: new Set([
-    'categories', 'listings', 'routes', 'vehicles', 'hotelProperties', 'roomTypes',
-    'airlines', 'aircraft', 'flightRoutes', 'vehicleClasses', 'taxiVehicles',
-    'taxiDriverProfiles', 'notifications',
+    'categories', 'companyBranches', 'companyEmployees', 'invitations',
+    'verificationReviews', 'listings', 'routes', 'vehicles', 'hotelProperties',
+    'roomTypes', 'airlines', 'aircraft', 'flightRoutes', 'vehicleClasses',
+    'taxiVehicles', 'taxiDriverProfiles', 'notifications',
   ]),
   routes: new Set([
-    'listings', 'routes', 'routeStops', 'routeSegments', 'places', 'fareProducts',
-    'busSegmentFares', 'notifications',
+    'companyBranches', 'listings', 'routes', 'routeStops', 'routeSegments',
+    'places', 'fareProducts', 'busSegmentFares', 'notifications',
   ]),
   vehicles: new Set([
-    'listings', 'vehicles', 'seatMapTemplates', 'seatMapVersions', 'notifications',
+    'companyEmployees', 'listings', 'vehicles', 'seatMapTemplates',
+    'seatMapVersions', 'notifications',
   ]),
   'seat-maps': new Set([
     'listings', 'routes', 'vehicles', 'seatMapTemplates', 'seatMapVersions',
@@ -83,36 +101,46 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
     'busSeatAssignments', 'notifications',
   ]),
   schedules: new Set([
-    'listings', 'routes', 'routeStops', 'routeSegments', 'vehicles', 'seatMapTemplates',
-    'seatMapVersions', 'fareProducts', 'busSegmentFares', 'serviceAddons', 'schedules',
-    'scheduleRules', 'seats', 'busSeatSegmentInventories', 'driverAssignments',
-    'driverIncidents', 'tripStatusUpdates', 'notifications',
+    'companyEmployees', 'invitations', 'verificationReviews', 'listings', 'routes',
+    'routeStops', 'routeSegments', 'vehicles', 'seatMapTemplates',
+    'seatMapVersions', 'fareProducts', 'busSegmentFares', 'serviceAddons',
+    'schedules', 'scheduleRules', 'seats', 'busSeatSegmentInventories',
+    'driverAssignments', 'driverIncidents', 'tripStatusUpdates', 'notifications',
   ]),
   'hotel-rooms': new Set([
-    'listings', 'hotelProperties', 'roomTypes', 'roomUnits', 'roomNightInventories',
-    'ratePlans', 'stayRules', 'hotelReservations', 'hotelGuests', 'roomAssignments',
-    'housekeepingTasks', 'maintenanceBlocks', 'notifications',
+    'companyBranches', 'listings', 'hotelProperties', 'roomTypes', 'roomUnits',
+    'roomNightInventories', 'ratePlans', 'stayRules', 'hotelReservations',
+    'hotelGuests', 'roomAssignments', 'housekeepingTasks', 'maintenanceBlocks',
+    'notifications',
   ]),
   bookings: new Set([
-    'listings', 'bookings', 'bookingItems', 'bookingGroups', 'payments', 'passengers',
-    'busReservations', 'busSeatAssignments', 'busTickets', 'hotelReservations',
-    'hotelGuests', 'flightOrders', 'flightTravelers', 'flightTickets', 'taxiRides',
-    'receiptInvoices', 'bookingTimelineEvents', 'notifications',
+    'listings', 'routes', 'routeStops', 'vehicles', 'fareProducts',
+    'busSegmentFares', 'serviceAddons', 'schedules', 'seats',
+    'busSeatSegmentInventories', 'bookings', 'bookingItems', 'bookingGroups',
+    'payments', 'passengers', 'busReservations', 'busSeatAssignments',
+    'busTickets', 'hotelProperties', 'roomTypes', 'roomUnits',
+    'roomNightInventories', 'ratePlans', 'hotelReservations', 'hotelGuests',
+    'roomAssignments', 'flightDepartures', 'flightFareFamilies',
+    'flightSeatInventories', 'flightOrders', 'flightTravelers', 'flightTickets',
+    'taxiRides', 'receiptInvoices', 'bookingTimelineEvents', 'notifications',
   ]),
   manifests: new Set([
-    'listings', 'bookings', 'passengers', 'schedules', 'seats', 'ticketScans',
+    'companyEmployees', 'listings', 'routes', 'routeStops', 'vehicles',
+    'bookings', 'passengers', 'schedules', 'seats', 'ticketScans',
     'busReservations', 'busSeatAssignments', 'busTickets', 'hotelReservations',
     'hotelGuests', 'roomAssignments', 'roomTypes', 'roomUnits', 'notifications',
   ]),
   checkins: new Set([
-    'listings', 'bookings', 'passengers', 'schedules', 'seats', 'ticketScans',
+    'companyEmployees', 'listings', 'routes', 'routeStops', 'vehicles',
+    'bookings', 'passengers', 'schedules', 'seats', 'ticketScans',
     'busReservations', 'busSeatAssignments', 'busTickets', 'hotelReservations',
     'hotelGuests', 'roomAssignments', 'notifications',
   ]),
   support: new Set([
-    'listings', 'bookings', 'payments', 'passengers', 'supportTickets', 'refundRequests',
-    'correspondenceMessages', 'bookingTimelineEvents', 'notificationDeliveryAttempts',
-    'notifications',
+    'listings', 'routes', 'schedules', 'hotelReservations', 'flightOrders',
+    'taxiRides', 'bookings', 'payments', 'passengers', 'supportTickets',
+    'refundRequests', 'rescheduleRequests', 'correspondenceMessages',
+    'bookingTimelineEvents', 'notificationDeliveryAttempts', 'notifications',
   ]),
   reviews: new Set(['listings', 'reviews', 'notifications']),
   ads: new Set(['listings', 'promotionCampaigns', 'promoterLinks', 'notifications']),
@@ -128,7 +156,8 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
     ...COMPANY_SERVICE_ENTITIES.flight,
   ]),
   mobility: new Set([
-    'listings', 'bookings', 'payments', 'supportTickets', 'reviews', 'notifications',
+    'companyEmployees', 'invitations', 'verificationReviews', 'listings',
+    'bookings', 'payments', 'supportTickets', 'reviews', 'notifications',
     ...COMPANY_SERVICE_ENTITIES.local_transport,
   ]),
   employee: new Set([
@@ -159,6 +188,7 @@ const ADMIN_OVERVIEW_ENTITIES = new Set([
   'supportTickets', 'seats', 'auditLogs',
 ]);
 const ADMIN_ENTITY_GROUPS = Object.freeze({
+  archive: new Set([]),
   identity: new Set([
     'users', 'companies', 'companyEmployees', 'companyBranches', 'companyPolicies',
     'invitations', 'verificationReviews', 'partnerLeads', 'discoverySessions',
@@ -221,6 +251,7 @@ const ADMIN_ENTITY_GROUPS = Object.freeze({
   ]),
 });
 const ADMIN_PAGE_GROUP = Object.freeze({
+  archive: 'archive',
   partners: 'identity', admins: 'identity', kyc: 'identity',
   bookings: 'booking', customers: 'booking', refunds: 'booking',
   support: 'support', notifications: 'support', handover: 'support',
@@ -300,6 +331,30 @@ async function one(entity, filter = {}) {
   return repository.findOne(filter);
 }
 
+function companyEntityFilter(entity, companyId) {
+  if (entity === 'bookings') {
+    return { $or: [
+      { companyId },
+      { agentCompanyId: companyId },
+      { providerCompanyId: companyId },
+      { supplierId: companyId },
+    ] };
+  }
+  if (entity === 'notifications') {
+    return { $or: [
+      { ownerType: 'company', ownerId: companyId },
+      { audience: 'partners', ownerId: companyId },
+    ] };
+  }
+  if (['flightAgentQuotes', 'flightChangeRequests', 'flightRefundRequests'].includes(entity)) {
+    return { agentCompanyId: companyId };
+  }
+  if (entity === 'flightOrders') {
+    return { $or: [{ companyId }, { agentCompanyId: companyId }] };
+  }
+  return { companyId };
+}
+
 async function mapWithConcurrency(items, worker, concurrency = DB_READ_CONCURRENCY) {
   const rows = [...items];
   const results = new Array(rows.length);
@@ -337,14 +392,20 @@ async function adminSnapshot(context = {}) {
 
 async function companySnapshot(companyId, context = {}) {
   const snapshot = emptySnapshot();
-  snapshot.companies = [await one('companies', { id: companyId })].filter(Boolean);
-  snapshot.users = await list('users', { companyId }, 500);
+  const [company, directUsers, platformSettings] = await Promise.all([
+    one('companies', { id: companyId }),
+    list('users', { companyId }, 500),
+    one('platformSettings', {}),
+  ]);
+  snapshot.companies = [company].filter(Boolean);
+  snapshot.users = directUsers;
+  snapshot.platformSettings = platformSettings || {};
 
   const desiredEntities = desiredCompanyEntities(snapshot.companies[0], context);
   const directEntities = scopedCompanyEntities(snapshot.companies[0], context).filter((entity) => repositories[entity]);
   await mapWithConcurrency(directEntities, async (entity) => {
     if (entity === 'seats') return;
-    snapshot[entity] = await list(entity, { companyId });
+    snapshot[entity] = await list(entity, companyEntityFilter(entity, companyId));
   });
 
   // Membership is the authoritative tenant link. Include linked accounts even
@@ -390,7 +451,6 @@ async function companySnapshot(companyId, context = {}) {
     snapshot.airports = await list('airports', { status: 'active' }, 2000);
     snapshot.aircraftTypes = await list('aircraftTypes', { status: 'active' }, 500);
   }
-  snapshot.platformSettings = await one('platformSettings', {}) || {};
   return snapshot;
 }
 
@@ -489,18 +549,53 @@ async function loadFresh(role, context = {}) {
   return emptySnapshot();
 }
 
-function remember(key, value) {
+function remember(key, value, createdAt = Date.now()) {
   // Repository rows are plain read models. Dashboard projections treat them as
   // immutable, so retaining the snapshot avoids cloning tens of thousands of
   // records on every navigation request.
-  snapshotCache.set(key, { value, createdAt: Date.now() });
+  snapshotCache.set(key, { value, createdAt });
   while (snapshotCache.size > 24) snapshotCache.delete(snapshotCache.keys().next().value);
+}
+
+function sharedCacheKey(key) {
+  return redisRuntime.key('dashboard-snapshot', key);
+}
+
+async function readSharedSnapshot(key) {
+  const client = redisRuntime.activeClient();
+  if (!client) return null;
+  try {
+    const encoded = await client.get(sharedCacheKey(key));
+    if (!encoded) return null;
+    const parsed = JSON.parse(encoded);
+    if (!parsed || !parsed.value || !Number(parsed.createdAt)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function writeSharedSnapshot(key, value, createdAt) {
+  const client = redisRuntime.activeClient();
+  if (!client) return;
+  try {
+    await client.set(
+      sharedCacheKey(key),
+      JSON.stringify({ createdAt, value }),
+      { PX: SNAPSHOT_STALE_MS },
+    );
+  } catch (_) {}
 }
 
 async function refreshKey(key, role, context) {
   if (snapshotInflight.has(key)) return snapshotInflight.get(key);
   const promise = loadFresh(role, context)
-    .then((value) => { remember(key, value); return value; })
+    .then(async (value) => {
+      const createdAt = Date.now();
+      remember(key, value, createdAt);
+      await writeSharedSnapshot(key, value, createdAt);
+      return value;
+    })
     .finally(() => snapshotInflight.delete(key));
   snapshotInflight.set(key, promise);
   return promise;
@@ -508,7 +603,14 @@ async function refreshKey(key, role, context) {
 
 async function load(role, context = {}, options = {}) {
   const key = cacheKey(role, context);
-  const cached = snapshotCache.get(key);
+  let cached = snapshotCache.get(key);
+  if (!options.force && !cached) {
+    const shared = await readSharedSnapshot(key);
+    if (shared) {
+      remember(key, shared.value, shared.createdAt);
+      cached = snapshotCache.get(key);
+    }
+  }
   const age = cached ? Date.now() - cached.createdAt : Infinity;
   if (!options.force && cached && age <= SNAPSHOT_TTL_MS) return cached.value;
   // Stale-while-revalidate keeps dashboard navigation responsive while a short-lived
@@ -525,10 +627,32 @@ async function load(role, context = {}, options = {}) {
   }
 }
 
+async function invalidateSharedSnapshots(pattern) {
+  const client = redisRuntime.activeClient();
+  if (!client) return;
+  try {
+    const keys = [];
+    for await (const found of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+      if (Array.isArray(found)) keys.push(...found);
+      else keys.push(found);
+      if (keys.length >= 100) {
+        await client.sendCommand(['UNLINK', ...keys.splice(0, keys.length)]);
+      }
+    }
+    if (keys.length) await client.sendCommand(['UNLINK', ...keys]);
+  } catch (_) {}
+}
+
 function invalidate(role = '', context = {}) {
-  if (!role) { snapshotCache.clear(); return; }
+  if (!role) {
+    snapshotCache.clear();
+    invalidateSharedSnapshots(`${sharedCacheKey('')}*`);
+    return;
+  }
   if (context.activePage) {
-    snapshotCache.delete(cacheKey(role, context));
+    const exactKey = cacheKey(role, context);
+    snapshotCache.delete(exactKey);
+    invalidateSharedSnapshots(sharedCacheKey(exactKey));
     return;
   }
   const prefix = role === 'company' || role === 'employee' || role === 'driver'
@@ -537,6 +661,7 @@ function invalidate(role = '', context = {}) {
   for (const key of snapshotCache.keys()) {
     if (key.startsWith(prefix)) snapshotCache.delete(key);
   }
+  invalidateSharedSnapshots(`${sharedCacheKey(prefix)}*`);
 }
 
 async function prewarm(role = 'admin', context = {}) {

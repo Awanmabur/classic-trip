@@ -15,14 +15,15 @@ const pendingEmployee = { id: 'driver-pending', roleTitle: 'Driver', status: 'pe
 const pendingUser = { id: 'user-pending', role: 'driver', status: 'suspended', verificationStatus: 'pending' };
 const pendingAssignment = evaluateDriverAssignment(pendingEmployee, pendingUser);
 const pendingOperational = evaluateDriverEligibility(pendingEmployee, pendingUser);
-check(pendingAssignment.assignable === false, 'Strict operational eligibility must still identify unverified drivers correctly.');
+check(pendingAssignment.assignable === true, 'Any saved company driver must remain assignable while verification is pending.');
 check(pendingOperational.eligible === false, 'Operational readiness remains available for safety and compliance reporting.');
-check(departure.includes("normalize(employee.status) !== 'active'"), 'An explicitly selected departure driver must have an active company membership.');
+check(!departure.includes("normalize(employee.status) !== 'active'"), 'Departure assignment must not silently hide saved drivers because of lifecycle status.');
+check(departure.includes('Select a saved driver record from this company'), 'Departure assignment must still require a real saved company driver record.');
 check(!departure.includes("failures.push('verified_operational_driver_missing')"), 'Departure publication must not require a driver.');
 check(!departure.includes("requestedStatus === 'published' && !driver"), 'Creating a published departure must allow an empty driver selection.');
 check(!departure.includes("requestedStatus === 'active' && !driver"), 'Recurring departure rules must allow an empty driver selection.');
 check(!setup.includes('assignableDrivers') && setup.includes('Driver assignment is optional'), 'Listing publication must keep driver selection optional and separate from readiness.');
-check(projection.includes("normalize(row.employee.status) === 'active'"), 'Dashboard selectors must expose active company drivers even when operational verification is incomplete.');
+check(projection.includes('assignableDriverEmployees.map(driverOption)'), 'Dashboard selectors must expose every saved assignable company driver.');
 check(projection.includes('canPublishDeparture: true'), 'Dashboard publication controls must never be gated by driver availability.');
 check(workspace.includes('Driver assignment is optional'), 'Departure forms must clearly explain optional driver assignment.');
 check(workspace.includes("value:'published'"), 'New departures must default to Published even without a driver.');

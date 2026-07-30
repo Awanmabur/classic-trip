@@ -16,6 +16,7 @@ const actionController = require('../../controllers/company/actionController');
 const onboardingController = require('../../controllers/company/onboardingController');
 const verificationController = require('../../controllers/company/verificationController');
 const operationsController = require('../../controllers/company/operationsController');
+const archiveController = require('../../controllers/archiveController');
 const hotelController = require('../../controllers/company/hotelController');
 const manifestController = require('../../controllers/employee/manifestController');
 const publicListingController = require('../../controllers/public/listingController');
@@ -174,6 +175,7 @@ router.post('/company/branches/:id/archive', operationsController.archiveBranch)
 router.post('/company/policies', operationsController.createPolicy);
 router.post('/company/policies/:id', operationsController.updatePolicy);
 router.post('/company/policies/:id/archive', operationsController.archivePolicy);
+router.post('/company/archive/:model/:id/restore', archiveController.restoreFor('company'));
 router.post('/company/employees/invite', requireVerifiedCompany, employeeController.invite);
 router.post('/company/invitations/:id/resend', requireVerifiedCompany, employeeController.resend);
 router.post('/company/invitations/:id/revoke', requireVerifiedCompany, employeeController.revoke);

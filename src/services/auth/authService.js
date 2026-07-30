@@ -17,6 +17,7 @@ const { cleanEmail, cleanPhone, phoneVariants, identityLookup } = require('./ide
 const { duplicateKeyFields } = require('../../utils/mongoDuplicate');
 const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
 const sensitiveFieldService = require('../security/sensitiveFieldService');
+const outboxService = require('../shared/outboxService');
 
 const DUMMY_PASSWORD_HASH = '$2a$12$MW0.CBMwAw3YYPsCTztILu3yznr0RfMePYZWCM9H6XpBBE7.SWFY6';
 const { isDriverAccountOperational } = require('../company/driverEligibilityService');
@@ -76,9 +77,11 @@ async function findUserByIdentity(identity) {
 async function findRegistrationConflict({ email, phone } = {}) {
   const normalizedEmail = cleanEmail(email);
   const normalizedPhone = cleanPhone(phone);
-  const emailUser = normalizedEmail ? await identityRepository.users.findOne({ email: normalizedEmail }) : null;
   const phones = phoneVariants(normalizedPhone);
-  const phoneUser = phones.length ? await identityRepository.users.findOne({ phone: { $in: phones } }) : null;
+  const [emailUser, phoneUser] = await Promise.all([
+    normalizedEmail ? identityRepository.users.findOne({ email: normalizedEmail }) : null,
+    phones.length ? identityRepository.users.findOne({ phone: { $in: phones } }) : null,
+  ]);
   if (!emailUser && !phoneUser) return null;
   const matchedFields = [];
   if (emailUser) matchedFields.push('email');
@@ -111,8 +114,15 @@ async function uniqueReferralCode(seed, userId) {
 }
 
 async function recordAudit(action, actorId, entityType, entityId, status = 'pending') {
-  const audit = { id: await nextId('audit'), actorId, action, target: entityId, entityType, entityId, status, createdAt: new Date().toISOString() };
-  await identityRepository.auditLogs.save(audit, { id: audit.id }); return audit;
+  const event = outboxService.createEvent({
+    topic: 'audit.write',
+    aggregateType: entityType,
+    aggregateId: entityId,
+    dedupeKey: `audit:${action}:${entityType}:${entityId}`,
+    payload: { actorId, action, target: entityId, entityType, entityId, status, createdAt: new Date().toISOString() },
+  });
+  await outboxService.enqueue(event);
+  return event;
 }
 
 async function provisionPromoter(user, payload = {}) {
@@ -202,23 +212,15 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
     acceptedBy: user.id,
     allowIncompleteProfile: true,
   });
-  company.onboardingSource = cleanText(payload.signupSource || 'auth_register', 80);
-  company.settings = {
-    ...(company.settings || {}),
-    canPublish: false,
-    instantConfirmation: false,
-    onboardingStep: 'verification',
-    partnerCategory: profile.key,
-    accountModel: profile.accountModel,
-    platformManagedPricing: profile.companyType === 'local_transport',
-    supplierManagedInventory: profile.companyType === 'flight',
-  };
-  await identityRepository.companies.save(company, { id: company.id });
   return company;
 }
 
 async function provisionCompanyAdmin(user, payload = {}) {
-  const company = await findOrCreateSignupCompany(user, payload, user.id); const wallet = await walletService.getOrCreateWallet('company', company.id, company.operatingCurrency);
+  const company = await findOrCreateSignupCompany(user, payload, user.id);
+  const [wallet] = await Promise.all([
+    walletService.getOrCreateWallet('company', company.id, company.operatingCurrency),
+    verificationService.getReview('company', company.id, { includeInventorySummary: false }),
+  ]);
   Object.assign(company, { ownerId: company.ownerId || user.id, walletId: wallet.id, updatedAt: new Date().toISOString() });
   Object.assign(user, {
     role: 'company_admin',
@@ -230,7 +232,6 @@ async function provisionCompanyAdmin(user, payload = {}) {
     updatedAt: new Date().toISOString(),
   });
   await Promise.all([identityRepository.companies.save(company, { id: company.id }), identityRepository.users.save(user, { id: user.id })]);
-  await verificationService.getReview('company', company.id);
   await recordAudit('auth.company_admin_registered', user.id, 'company', company.id, 'pending_verification');
   return { user, company, wallet };
 }
@@ -285,7 +286,7 @@ async function sendEmailVerification(user) {
   user.emailVerifyTokenExpiresAt = new Date(Date.now() + 86400000).toISOString();
   await identityRepository.users.save(user, { id: user.id });
   try {
-    await require('../notification/notificationService').queueNotification({
+    await require('../notification/notificationService').enqueueNotification({
       userId: user.id,
       channels: ['email'],
       title: 'Verify your Classic Trip email',
@@ -301,7 +302,7 @@ This link expires in 24 hours.`,
       referenceId: user.id,
       persistedMessage: 'A secure email verification link was sent. The token is not stored in notification history.',
       persistedMeta: { expiresAt: user.emailVerifyTokenExpiresAt, tokenStored: false },
-    });
+    }, { aggregateType: 'user', aggregateId: user.id, dedupeKey: `email-verification:${user.id}:${user.emailVerifyTokenExpiresAt}` });
   } catch (error) {
     // A temporary notification outage must not make an otherwise valid signup
     // appear to have failed. The saved token can be resent from the account.

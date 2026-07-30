@@ -50,15 +50,13 @@ async function resolveDriver(companyId, value) {
   const id = cleanText(value, 220);
   if (!id) return null;
   const employee = await repository.employees.findOne({ companyId, $or: [{ id }, { userId: id }] });
-  if (!employee) throw validationError('Select an active driver account from this company');
+  if (!employee) throw validationError('Select a saved driver record from this company');
   const user = employee.userId ? await repository.users.findOne({ id: employee.userId }) : null;
   if (user?.companyId && String(user.companyId) !== String(companyId)) {
     throw validationError('Selected driver account belongs to a different company');
   }
   const assignment = evaluateDriverAssignment(employee, user || {});
-  if (normalize(employee.status) !== 'active') {
-    throw validationError('Selected driver must have an active company membership');
-  }
+  if (!assignment.assignable) throw validationError('Selected company record is not configured as a driver');
   return {
     employee,
     user,
@@ -71,9 +69,12 @@ async function resolveDriver(companyId, value) {
 async function routeContext(companyId, routeId) {
   const route = await repository.routeOrThrow(companyId, routeId);
   if (route.status !== 'active') throw validationError('Select an active route');
-  const listing = await repository.listingOrThrow(companyId, route.listingId);
-  const stops = sortStops(await repository.routeStops.list({ companyId, routeId: route.id, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 } }));
-  const segments = await repository.routeSegments.list({ companyId, routeId: route.id, status: 'active' }, { sort: { segmentOrder: 1 } });
+  const [listing, rawStops, segments] = await Promise.all([
+    repository.listingOrThrow(companyId, route.listingId),
+    repository.routeStops.list({ companyId, routeId: route.id, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 } }),
+    repository.routeSegments.list({ companyId, routeId: route.id, status: 'active' }, { sort: { segmentOrder: 1 } }),
+  ]);
+  const stops = sortStops(rawStops);
   if (stops.length < 2 || segments.length !== stops.length - 1) throw validationError('Route stops and route segments must be completed before creating a departure');
   return { route, listing, stops, segments };
 }
@@ -104,6 +105,20 @@ async function fareContext(companyId, fareProductId, route) {
   const fares = await repository.segmentFares.list({ companyId, fareProductId: fareProduct.id, status: 'active' });
   if (!fares.length) throw validationError('Configure at least one route fare before creating a departure');
   return { fareProduct, fares };
+}
+
+async function scheduleCreationContext(companyId, payload = {}) {
+  const [company, routeBundle] = await Promise.all([
+    repository.companyOrThrow(companyId),
+    routeContext(companyId, payload.routeId),
+  ]);
+  const { route, listing } = routeBundle;
+  const [vehicleBundle, fareBundle, driver] = await Promise.all([
+    vehicleContext(companyId, payload.vehicleId, listing.id),
+    fareContext(companyId, payload.fareProductId, route),
+    resolveDriver(companyId, payload.driverId || parseList(payload.driverIds)[0]),
+  ]);
+  return { company, ...routeBundle, ...vehicleBundle, ...fareBundle, driver };
 }
 
 async function findVehicleConflicts(companyId, vehicleId, departAt, arriveAt, excludeId = '') {
@@ -146,7 +161,16 @@ function compatibilitySeatRow({ schedule, version, seat, timestamp, blockedSeatS
   };
 }
 
-async function generateInventory({ schedule, routeSegments, seatMapVersion, blockedSeats = [], actor = 'system', session = null }) {
+async function generateInventory({
+  schedule,
+  routeSegments,
+  seatMapVersion,
+  blockedSeats = [],
+  actor = 'system',
+  session = null,
+  replaceExisting = true,
+  persistSchedule = true,
+}) {
   const timestamp = nowIso();
   const requestedBlockedSeats = parseList(blockedSeats).map(normalizeSeatNumber);
   const knownSeatLabels = new Set(seatMapVersion.seats.map((seat) => normalizeSeatNumber(seat.seatNumber)));
@@ -158,7 +182,10 @@ async function generateInventory({ schedule, routeSegments, seatMapVersion, bloc
   for (const seat of seatMapVersion.seats) {
     for (const segment of routeSegments) {
       inventory.push({
-        id: await repository.nextId('bus-seat-segment'),
+        // This row already has a canonical unique identity. Allocating it through
+        // MongoDB's counter one row at a time turned a 60-seat/10-segment bus into
+        // 600 sequential writes before inventory could even be inserted.
+        id: `bus-seat-segment:${schedule.id}:${seat.seatNumber}:${segment.id}`,
         companyId: schedule.companyId,
         listingId: schedule.listingId,
         routeId: schedule.routeId,
@@ -179,8 +206,12 @@ async function generateInventory({ schedule, routeSegments, seatMapVersion, bloc
       });
     }
   }
-  await repository.seats.deleteMany({ scheduleId: schedule.id }, session ? { session } : {});
-  await repository.segmentInventory.deleteMany({ scheduleId: schedule.id }, session ? { session } : {});
+  if (replaceExisting) {
+    await Promise.all([
+      repository.seats.deleteMany({ scheduleId: schedule.id }, session ? { session } : {}),
+      repository.segmentInventory.deleteMany({ scheduleId: schedule.id }, session ? { session } : {}),
+    ]);
+  }
   if (seats.length) await repository.seats.saveMany(seats, null, session ? { session } : {});
   if (inventory.length) await repository.segmentInventory.saveMany(inventory, null, session ? { session } : {});
   const available = seats.filter((seat) => seat.status === 'available').length;
@@ -188,31 +219,48 @@ async function generateInventory({ schedule, routeSegments, seatMapVersion, bloc
   schedule.availableSeats = available;
   schedule.inventoryReadyAt = timestamp;
   schedule.seatInventorySnapshot = seats.map((seat) => ({ seatNumber: seat.seatNumber, seatClass: seat.seatClass, seatType: seat.seatType, priceDelta: seat.priceDelta, status: seat.status, blockedReason: seat.blockedReason }));
-  await repository.schedules.save(schedule, { id: schedule.id }, session ? { session } : {});
+  if (persistSchedule) await repository.schedules.save(schedule, { id: schedule.id }, session ? { session } : {});
   await repository.audit({ actorId: actorId(actor), action: 'bus.departure.inventory_generated', targetType: 'trip_schedule', targetId: schedule.id, companyId: schedule.companyId, metadata: { seatCount: seats.length, segmentCount: routeSegments.length, inventoryRows: inventory.length }, session });
   return { seats, inventory };
 }
 
-async function validateSchedulePublish(companyId, schedule = {}) {
+async function validateSchedulePublish(companyId, schedule = {}, known = {}) {
   const failures = [];
   const warnings = [];
-  const company = await repository.companyOrThrow(companyId);
-  const route = await repository.routes.findOne({ id: schedule.routeId, companyId });
-  const listing = route ? await repository.listings.findOne({ id: route.listingId, companyId, serviceType: 'bus' }) : null;
-  const vehicle = await repository.vehicles.findOne({ id: schedule.vehicleId, companyId, serviceType: 'bus' });
-  const seatMapVersion = await repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId, status: 'published' });
-  const fareProduct = await repository.fareProducts.findOne({ id: schedule.fareProductId, companyId, routeId: schedule.routeId, status: 'active' });
-  const stops = route ? await repository.routeStops.list({ routeId: route.id, companyId, status: { $ne: 'archived' } }) : [];
-  const segments = route ? await repository.routeSegments.list({ routeId: route.id, companyId, status: 'active' }) : [];
-  const inventoryCount = schedule.id ? await repository.segmentInventory.count({ scheduleId: schedule.id }) : 0;
-  const driver = schedule.driverEmployeeId ? await repository.employees.findOne({ id: schedule.driverEmployeeId, companyId }) : null;
-  const driverUser = driver?.userId ? await repository.users.findOne({ id: driver.userId }) : null;
+  const routeId = schedule.routeId;
+  const [
+    company,
+    route,
+    vehicle,
+    seatMapVersion,
+    fareProduct,
+    stops,
+    segments,
+    inventoryCount,
+    driver,
+  ] = await Promise.all([
+    known.company || repository.companyOrThrow(companyId),
+    known.route || repository.routes.findOne({ id: routeId, companyId }),
+    known.vehicle || repository.vehicles.findOne({ id: schedule.vehicleId, companyId, serviceType: 'bus' }),
+    known.seatMapVersion || repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId, status: 'published' }),
+    known.fareProduct || repository.fareProducts.findOne({ id: schedule.fareProductId, companyId, routeId, status: 'active' }),
+    known.stops || (routeId ? repository.routeStops.list({ routeId, companyId, status: { $ne: 'archived' } }) : []),
+    known.segments || (routeId ? repository.routeSegments.list({ routeId, companyId, status: 'active' }) : []),
+    known.inventoryCount !== undefined
+      ? known.inventoryCount
+      : (schedule.id ? repository.segmentInventory.count({ scheduleId: schedule.id }) : 0),
+    known.driver?.employee || (schedule.driverEmployeeId ? repository.employees.findOne({ id: schedule.driverEmployeeId, companyId }) : null),
+  ]);
+  const listing = known.listing || (route ? await repository.listings.findOne({ id: route.listingId, companyId, serviceType: 'bus' }) : null);
+  const driverUser = known.driver?.user || (driver?.userId ? await repository.users.findOne({ id: driver.userId }) : null);
   const driverAssignment = evaluateDriverAssignment(driver || {}, driverUser || {});
   const driverOperational = evaluateDriverEligibility(driver || {}, driverUser || {});
   const driverReady = Boolean(driver) && driverAssignment.assignable;
   const departAt = schedule.departAt ? new Date(schedule.departAt) : null;
   const arriveAt = schedule.arriveAt ? new Date(schedule.arriveAt) : null;
-  const conflicts = schedule.vehicleId && departAt ? await findVehicleConflicts(companyId, schedule.vehicleId, departAt, arriveAt, schedule.id) : [];
+  const conflicts = Array.isArray(known.conflicts)
+    ? known.conflicts
+    : (schedule.vehicleId && departAt ? await findVehicleConflicts(companyId, schedule.vehicleId, departAt, arriveAt, schedule.id) : []);
 
   if (company.status !== 'active' || company.verificationStatus !== 'verified') failures.push('company_not_active_and_verified');
   if (!listing || listing.status === 'archived') failures.push('bus_service_listing_missing');
@@ -229,7 +277,8 @@ async function validateSchedulePublish(companyId, schedule = {}) {
   if (!departAt || Number.isNaN(departAt.getTime())) failures.push('departure_time_missing');
   else if (departAt.getTime() <= Date.now()) failures.push('departure_must_be_future');
   if (arriveAt && departAt && arriveAt.getTime() <= departAt.getTime()) failures.push('arrival_must_be_after_departure');
-  // Driver assignment is optional at publication time. An active company driver can be assigned now or later.
+  // Driver assignment is optional at publication time. Any saved company driver
+  // can be assigned now or later; operational readiness remains a separate check.
   if (!inventoryCount) failures.push('seat_segment_inventory_missing');
   if (conflicts.length) failures.push('vehicle_time_conflict');
   if (!listing?.cancellationRules && !route?.cancellationRules) warnings.push('cancellation_policy_not_configured');
@@ -258,13 +307,21 @@ async function validateSchedulePublish(companyId, schedule = {}) {
   };
 }
 
-async function createSchedule(companyId, payload = {}, actor = 'company-admin') {
-  await repository.companyOrThrow(companyId);
-  const { route, listing, stops, segments } = await routeContext(companyId, payload.routeId);
-  const { vehicle, seatMapVersion } = await vehicleContext(companyId, payload.vehicleId, listing.id);
-  const { fareProduct, fares } = await fareContext(companyId, payload.fareProductId, route);
+async function createSchedule(companyId, payload = {}, actor = 'company-admin', options = {}) {
+  const context = options.context || await scheduleCreationContext(companyId, payload);
+  const {
+    company,
+    route,
+    listing,
+    stops,
+    segments,
+    vehicle,
+    seatMapVersion,
+    fareProduct,
+    fares,
+    driver,
+  } = context;
   const requestedStatus = normalize(payload.status || 'draft');
-  const driver = await resolveDriver(companyId, payload.driverId || parseList(payload.driverIds)[0]);
   const departAt = parseDate(payload.departAt, 'Departure time', { future: true });
   const routeDurationMinutes = Number(route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0);
   const arriveAt = payload.arriveAt
@@ -280,7 +337,9 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin') 
     ? parseDate(payload.boardingStartAt, 'Boarding start time')
     : new Date(departAt.getTime() - (boardingLeadMinutes * 60_000));
   if (boardingStartAt && boardingStartAt >= departAt) throw validationError('Boarding must start before departure');
-  const conflicts = await findVehicleConflicts(companyId, vehicle.id, departAt, arriveAt, cleanText(payload.replacesScheduleId, 180));
+  const conflicts = options.conflictsChecked
+    ? []
+    : await findVehicleConflicts(companyId, vehicle.id, departAt, arriveAt, cleanText(payload.replacesScheduleId, 180));
   if (conflicts.length) throw conflictError('Selected vehicle is already assigned to an overlapping departure', 'vehicle_schedule_conflict');
   const range = routeRange(stops, route.originStopId || stops[0].id, route.destinationStopId || stops[stops.length - 1].id);
   const fare = calculateFare({ fares, originStopId: range.origin.id, destinationStopId: range.destination.id, segments, range });
@@ -349,11 +408,39 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin') 
 
   let generated;
   await repository.withTransaction(async (session) => {
+    generated = await generateInventory({
+      schedule,
+      routeSegments: segments,
+      seatMapVersion,
+      blockedSeats: payload.blockedSeats,
+      actor,
+      session,
+      replaceExisting: false,
+      persistSchedule: false,
+    });
+    schedule.publishValidation = await validateSchedulePublish(companyId, schedule, {
+      company,
+      route,
+      listing,
+      stops,
+      segments,
+      vehicle,
+      seatMapVersion,
+      fareProduct,
+      driver,
+      conflicts,
+      inventoryCount: generated.inventory.length,
+    });
+    if (requestedStatus === 'published' && schedule.publishValidation.ok) {
+      schedule.status = 'published';
+      schedule.publishedAt = nowIso();
+      schedule.updatedBy = actorId(actor);
+      schedule.updatedAt = schedule.publishedAt;
+    }
     await repository.schedules.save(schedule, { id: schedule.id }, { session });
-    generated = await generateInventory({ schedule, routeSegments: segments, seatMapVersion, blockedSeats: payload.blockedSeats, actor, session });
     if (driver) {
       const assignment = {
-        id: await repository.nextId('driver-assignment'),
+        id: `driver-assignment:${schedule.id}:${driver.employee.id}:primary`,
         companyId,
         employeeId: driver.employee.id,
         driverUserId: driver.user?.id || '',
@@ -374,11 +461,29 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin') 
       await repository.driverAssignments.save(assignment, { id: assignment.id }, { session });
     }
     await repository.audit({ actorId: actorId(actor), action: 'bus.departure.created', targetType: 'trip_schedule', targetId: schedule.id, companyId, metadata: { routeId: route.id, vehicleId: vehicle.id, fareProductId: fareProduct.id, seatMapVersionId: seatMapVersion.id }, session });
+    if (requestedStatus === 'published' && schedule.publishValidation.ok) {
+      await repository.outbox({ eventType: 'BusDeparturePublished', aggregateType: 'trip_schedule', aggregateId: schedule.id, companyId, payload: { listingId: schedule.listingId, routeId: schedule.routeId, departAt: schedule.departAt }, dedupeKey: `BusDeparturePublished:${schedule.id}:${schedule.publishedAt}`, session });
+      await repository.audit({ actorId: actorId(actor), action: 'bus.departure.published', targetType: 'trip_schedule', targetId: schedule.id, companyId, metadata: schedule.publishValidation.summary, session });
+    }
   });
-  schedule.publishValidation = await validateSchedulePublish(companyId, schedule);
-  await repository.schedules.save(schedule, { id: schedule.id });
-  if (requestedStatus === 'published') await publishSchedule(companyId, schedule.id, actor);
-  return { schedule: await repository.scheduleOrThrow(companyId, schedule.id), seats: generated.seats, segmentInventory: generated.inventory };
+  const publicationDeferred = requestedStatus === 'published' && !schedule.publishValidation.ok
+    ? {
+      failures: schedule.publishValidation.failures,
+      warnings: schedule.publishValidation.warnings,
+      message: `Departure was saved as Draft because publishing still requires: ${schedule.publishValidation.failures.join(', ')}`,
+    }
+    : null;
+  if (schedule.status === 'published' && !options.deferListingSync) {
+    const listingPublication = await synchronizeListingPublicationAfterDeparture(companyId, schedule.listingId, actor);
+    schedule.listingPublication = {
+      published: Boolean(listingPublication.published),
+      reason: listingPublication.reason,
+      checkedAt: nowIso(),
+      failures: listingPublication.readiness?.failures || (listingPublication.error ? [listingPublication.error] : []),
+    };
+    await repository.schedules.save(schedule, { id: schedule.id });
+  }
+  return { schedule, seats: generated.seats, segmentInventory: generated.inventory, publicationDeferred };
 }
 
 async function createScheduleBatch(companyId, payload = {}, actor = 'company-admin') {
@@ -398,13 +503,86 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
     }
   }
   if (!dates.length) throw validationError('No departure dates matched the repeat range');
-  const schedules = [];
-  for (const departAt of dates) {
-    const arriveAt = duration == null ? undefined : new Date(departAt.getTime() + duration).toISOString();
-    const result = await createSchedule(companyId, { ...payload, departAt: departAt.toISOString(), arriveAt, repeatUntil: undefined, repeatDays: undefined }, actor);
-    schedules.push(result.schedule);
+
+  // Resolve the route, vehicle, seat map, fare, company, and driver once for the
+  // whole date range. Previously the same records were reread for every day.
+  const context = await scheduleCreationContext(companyId, payload);
+  const routeDuration = Number(context.route.estimatedDurationMinutes || parseDurationMinutes(context.route.estimatedDuration, 0) || 0) * 60_000;
+  const proposed = dates.map((departAt) => ({
+    departAt,
+    arriveAt: duration != null
+      ? new Date(departAt.getTime() + duration)
+      : (routeDuration > 0 ? new Date(departAt.getTime() + routeDuration) : null),
+  }));
+  const existing = await repository.schedules.list({
+    companyId,
+    vehicleId: context.vehicle.id,
+    status: { $in: ['draft', 'active', 'published', 'boarding', 'delayed', 'departed'] },
+  }, { sort: { departAt: 1 }, limit: 5000 });
+  const overlaps = (left, right) => {
+    const leftStart = new Date(left.departAt).getTime();
+    const rightStart = new Date(right.departAt).getTime();
+    const leftEnd = left.arriveAt ? new Date(left.arriveAt).getTime() : leftStart + 86_400_000;
+    const rightEnd = right.arriveAt ? new Date(right.arriveAt).getTime() : rightStart + 86_400_000;
+    return leftStart < rightEnd && rightStart < leftEnd;
+  };
+  for (let index = 0; index < proposed.length; index += 1) {
+    if (existing.some((row) => overlaps(proposed[index], row))) {
+      throw conflictError('Selected vehicle is already assigned to an overlapping departure', 'vehicle_schedule_conflict');
+    }
+    if (proposed.slice(0, index).some((row) => overlaps(proposed[index], row))) {
+      throw conflictError('The requested repeat range creates overlapping departures for the same vehicle', 'vehicle_schedule_conflict');
+    }
   }
-  return { schedules, count: schedules.length };
+
+  const results = new Array(proposed.length);
+  let cursor = 0;
+  async function createNext() {
+    while (cursor < proposed.length) {
+      const index = cursor;
+      cursor += 1;
+      const item = proposed[index];
+      results[index] = await createSchedule(companyId, {
+        ...payload,
+        departAt: item.departAt.toISOString(),
+        arriveAt: item.arriveAt?.toISOString(),
+        repeatUntil: undefined,
+        repeatDays: undefined,
+      }, actor, { context, conflictsChecked: true, deferListingSync: true });
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(2, proposed.length) }, createNext));
+  const schedules = results.map((result) => result.schedule);
+
+  // Publication readiness is listing-wide and was formerly recalculated once
+  // per date. Reconcile it once after the complete batch is committed.
+  const publishedSchedules = schedules.filter((schedule) => normalize(schedule.status) === 'published');
+  if (publishedSchedules.length) {
+    const publication = await synchronizeListingPublicationAfterDeparture(companyId, context.listing.id, actor);
+    const checkedAt = nowIso();
+    publishedSchedules.forEach((schedule) => {
+      schedule.listingPublication = {
+        published: Boolean(publication.published),
+        reason: publication.reason,
+        checkedAt,
+        failures: publication.readiness?.failures || (publication.error ? [publication.error] : []),
+      };
+    });
+    await repository.schedules.saveMany(publishedSchedules, (schedule) => ({ id: schedule.id }));
+  }
+  return {
+    schedules,
+    count: schedules.length,
+    publishedCount: publishedSchedules.length,
+    draftCount: schedules.length - publishedSchedules.length,
+    publicationDeferred: results
+      .map((result, index) => result.publicationDeferred ? {
+        scheduleId: result.schedule.id,
+        departAt: proposed[index].departAt.toISOString(),
+        ...result.publicationDeferred,
+      } : null)
+      .filter(Boolean),
+  };
 }
 
 async function createScheduleRule(companyId, payload = {}, actor = 'company-admin') {
@@ -455,6 +633,16 @@ async function createScheduleRule(companyId, payload = {}, actor = 'company-admi
   };
   await repository.scheduleRules.save(rule, { id: rule.id });
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.created', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id } });
+  if (requestedStatus === 'active') {
+    await repository.outbox({
+      eventType: 'ScheduleRuleMaterializationRequested',
+      aggregateType: 'schedule_rule',
+      aggregateId: rule.id,
+      companyId,
+      payload: { companyId, ruleId: rule.id },
+      dedupeKey: `ScheduleRuleMaterializationRequested:${rule.id}:${rule.createdAt}`,
+    });
+  }
   return rule;
 }
 
@@ -533,6 +721,16 @@ async function setScheduleRuleStatus(companyId, ruleId, status, actor = 'company
   rule.updatedAt = nowIso();
   await repository.scheduleRules.save(rule, { id: rule.id });
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.status_updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { status: next } });
+  if (next === 'active') {
+    await repository.outbox({
+      eventType: 'ScheduleRuleMaterializationRequested',
+      aggregateType: 'schedule_rule',
+      aggregateId: rule.id,
+      companyId,
+      payload: { companyId, ruleId: rule.id },
+      dedupeKey: `ScheduleRuleMaterializationRequested:${rule.id}:${rule.updatedAt}`,
+    });
+  }
   return rule;
 }
 
@@ -661,10 +859,10 @@ async function synchronizeListingPublicationAfterDeparture(companyId, listingId,
   }
 }
 
-async function publishSchedule(companyId, scheduleId, actor = 'company-admin') {
-  const schedule = await repository.scheduleOrThrow(companyId, scheduleId);
+async function publishSchedule(companyId, scheduleId, actor = 'company-admin', options = {}) {
+  const schedule = options.schedule || await repository.scheduleOrThrow(companyId, scheduleId);
   if (!['draft', 'active'].includes(schedule.status)) throw conflictError('Only draft or active departures can be published');
-  const validation = await validateSchedulePublish(companyId, schedule);
+  const validation = options.validation || await validateSchedulePublish(companyId, schedule);
   schedule.publishValidation = validation;
   if (!validation.ok) {
     await repository.schedules.save(schedule, { id: schedule.id });
@@ -679,6 +877,7 @@ async function publishSchedule(companyId, scheduleId, actor = 'company-admin') {
     await repository.outbox({ eventType: 'BusDeparturePublished', aggregateType: 'trip_schedule', aggregateId: schedule.id, companyId, payload: { listingId: schedule.listingId, routeId: schedule.routeId, departAt: schedule.departAt }, dedupeKey: `BusDeparturePublished:${schedule.id}:${schedule.publishedAt}`, session });
     await repository.audit({ actorId: actorId(actor), action: 'bus.departure.published', targetType: 'trip_schedule', targetId: schedule.id, companyId, metadata: validation.summary, session });
   });
+  if (options.deferListingSync) return schedule;
   const listingPublication = await synchronizeListingPublicationAfterDeparture(companyId, schedule.listingId, actor);
   schedule.listingPublication = {
     published: Boolean(listingPublication.published),

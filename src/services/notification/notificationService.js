@@ -6,6 +6,8 @@ const { sendEmail } = require('./emailService');
 const { sendSms } = require('./smsService');
 const { sendWhatsapp } = require('./whatsappService');
 const pushService = require('./pushService');
+const outboxService = require('../shared/outboxService');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 
 async function persistNotifications(rows, attempts = []) {
   await notificationRepository.notifications.saveMany(rows, (row) => ({ id: row.id }));
@@ -18,6 +20,22 @@ function cleanText(value) {
 
 function nextNotificationId() {
   return `notification-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+}
+
+async function enqueueNotification(payload = {}, options = {}) {
+  const aggregateId = String(options.aggregateId || payload.referenceId || payload.userId || nextNotificationId());
+  const event = outboxService.createEvent({
+    topic: 'notification.secure_requested',
+    aggregateType: String(options.aggregateType || payload.referenceType || 'notification'),
+    aggregateId,
+    companyId: String(options.companyId || payload.meta?.companyId || ''),
+    dedupeKey: String(options.dedupeKey || `notification:${payload.referenceType || 'general'}:${aggregateId}:${Date.now()}`),
+    payload: {
+      encrypted: sensitiveFieldService.encrypt(JSON.stringify(payload), 'outbox-notification'),
+    },
+  });
+  await outboxService.enqueue(event);
+  return event;
 }
 
 async function queueNotification({
@@ -284,6 +302,7 @@ async function markRead(notificationId, user = {}) {
 
 module.exports = {
   queueNotification,
+  enqueueNotification,
   bookingConfirmed,
   bookingConfirmationChannels,
   hasCommunicationTicketAddon,

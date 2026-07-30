@@ -43,10 +43,29 @@ const env = {
   mongoDbName: configuredValue('MONGO_DB_NAME'),
   mongoTransactions: ['true', '1', 'yes'].includes(String(process.env.MONGO_TRANSACTIONS || '').toLowerCase()),
   mongoPool: {
-    min: Math.max(0, number('MONGO_MIN_POOL_SIZE', 2)),
-    max: Math.max(5, number('MONGO_MAX_POOL_SIZE', 30)),
+    min: Math.max(0, number('MONGO_MIN_POOL_SIZE', 1)),
+    max: Math.max(5, number('MONGO_MAX_POOL_SIZE', 24)),
     maxIdleTimeMs: Math.max(10000, number('MONGO_MAX_IDLE_TIME_MS', 60000)),
-    waitQueueTimeoutMs: Math.max(1000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 10000)),
+    // Keep a meaningful queue window even when an older .env still contains
+    // the former 8-second value. Normal traffic should be bounded by the
+    // dashboard read limiter; this window absorbs brief Atlas topology changes.
+    waitQueueTimeoutMs: Math.max(30000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 30000)),
+    maxConnecting: Math.max(2, number('MONGO_MAX_CONNECTING', 4)),
+  },
+  mongoConnection: {
+    serverSelectionTimeoutMs: Math.max(30000, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 30000)),
+    connectTimeoutMs: Math.max(30000, number('MONGO_CONNECT_TIMEOUT_MS', 30000)),
+    socketTimeoutMs: Math.max(45000, number('MONGO_SOCKET_TIMEOUT_MS', 90000)),
+    retryAttempts: Math.max(1, Math.min(5, number('MONGO_CONNECT_RETRY_ATTEMPTS', 3))),
+    retryDelayMs: Math.max(250, number('MONGO_CONNECT_RETRY_DELAY_MS', 750)),
+    autoIndex: booleanFlag('MONGO_AUTO_INDEX', false),
+    ipFamily: [0, 4, 6].includes(number('MONGO_IP_FAMILY', 4)) ? number('MONGO_IP_FAMILY', 4) : 4,
+  },
+  redis: {
+    url: configuredValue('REDIS_URL'),
+    prefix: process.env.REDIS_PREFIX || 'classic-trip:',
+    required: booleanFlag('REDIS_REQUIRED', false),
+    connectTimeoutMs: Math.max(500, number('REDIS_CONNECT_TIMEOUT_MS', 4000)),
   },
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
   mfaEncryptionKey: configuredValue('MFA_ENCRYPTION_KEY') || (process.env.NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_mfa_key')),
@@ -171,11 +190,12 @@ const env = {
     homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 300000),
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 300000),
+    dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 4),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
-    processOutbox: process.env.JOB_PROCESS_OUTBOX || '* * * * *',
+    processOutbox: process.env.JOB_PROCESS_OUTBOX || '*/10 * * * * *',
     expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
     releaseCommission: process.env.JOB_RELEASE_COMMISSION || '*/10 * * * *',
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
@@ -184,6 +204,7 @@ const env = {
     materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '0 3 * * *',
     dispatchTaxiRides: process.env.JOB_DISPATCH_TAXI_RIDES || '* * * * *',
     expireFlightHolds: process.env.JOB_EXPIRE_FLIGHT_HOLDS || '*/2 * * * *',
+    purgeArchivedRecords: process.env.JOB_PURGE_ARCHIVED_RECORDS || '30 4 * * *',
   },
 };
 
@@ -219,6 +240,14 @@ function validateEnv() {
     let siteUrl;
     try { siteUrl = new URL(env.seo.siteUrl); } catch (error) { throw new Error('SITE_URL must be a valid absolute URL'); }
     if (siteUrl.protocol !== 'https:') throw new Error('SITE_URL must use HTTPS in production');
+  }
+  if (env.redis.required && !env.redis.url) {
+    throw new Error('REDIS_URL is required when REDIS_REQUIRED=true');
+  }
+  if (env.redis.url) {
+    let redisUrl;
+    try { redisUrl = new URL(env.redis.url); } catch (error) { throw new Error('REDIS_URL must be a valid Redis connection URL'); }
+    if (!['redis:', 'rediss:'].includes(redisUrl.protocol)) throw new Error('REDIS_URL must use redis:// or rediss://');
   }
   if (env.maps.routingApiUrl) {
     let routingUrl;

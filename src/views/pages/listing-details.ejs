@@ -127,7 +127,7 @@
                 </div>
               <% } %>
             </div>
-            <div class="layoutBox" id="layoutBox">
+            <div class="layoutBox <%= listing.serviceType === 'bus' ? 'busSeatLayoutBox' : '' %>" id="layoutBox">
               <% if (listing.serviceType === 'bus') { %>
                 <div class="vehicleFront">DRIVER - FRONT</div>
                 <div class="seatRows" id="outboundSeatGrid"></div>
@@ -193,7 +193,7 @@
                 <span class="badge badgeInfo" id="ticketCountBadge">1 ticket</span>
               </div>
               <label class="switchLine"><input type="checkbox" id="returnTripToggle" data-listing-action="return-toggle"> Add a return journey</label>
-              <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Choose a reverse departure after arrival, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
+              <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Choose any available reverse departure, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
               <div class="bookingForm" id="returnTripFields" style="display:none">
                 <select class="full" id="returnScheduleSelect" aria-label="Return schedule" data-listing-action="return-schedule">
                   <option value="" selected disabled>Select return date and time</option>
@@ -203,7 +203,7 @@
                   <% if (!returnSchedules.length) { %><option value="" disabled>No reverse trips available</option><% } %>
                 </select>
                 <% if (!returnSchedules.length) { %>
-                  <div class="notice full" id="returnTripNotice">No reverse trips are scheduled after this outbound journey.</div>
+                  <div class="notice full" id="returnTripNotice">No bookable reverse trips are currently scheduled for this route.</div>
                 <% } %>
                 <div class="full returnSeatGrid" id="returnSeatGrid"></div>
               </div>
@@ -802,7 +802,7 @@
         if (toggle) toggle.checked = false;
         if (fields) fields.style.display = 'none';
         syncAddonAvailability();
-        notify('No reverse trips are scheduled after this outbound journey.');
+        notify('No bookable reverse trips are currently scheduled for this route.');
         return;
       }
       await onReturnScheduleChange();

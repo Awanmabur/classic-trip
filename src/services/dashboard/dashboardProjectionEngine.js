@@ -2036,7 +2036,7 @@ function createDashboardProjection(initialState = {}) {
           };
         }),
     ];
-    const driverSelectorOptions = activeDriverEmployees.map(driverOption)
+    const driverSelectorOptions = assignableDriverEmployees.map(driverOption)
       .filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
     const pendingStaffCount = companyInvitations.filter(invitation => normalize(invitation.type) === 'staff' && ['sent', 'requested'].includes(normalize(invitation.status)) && !employeeForInvitation(invitation)).length;
     const driverStageIsPending = value => /awaiting|pending|sent|accepted|under review|approved|documents required|onboarding|not started/i.test(String(value || ''));
@@ -2316,12 +2316,12 @@ function createDashboardProjection(initialState = {}) {
         driverEligibility: driverEligibilityRows.map(({ employee, assignment, eligibility }) => ({
           id: employee.id, value: employee.id, label: assignment.label || eligibility.label,
           eligible: eligibility.eligible,
-          assignable: normalize(employee.status) === 'active',
+          assignable: assignment.assignable,
           operational: eligibility.eligible,
           reasons: eligibility.reasons,
-          warnings: [],
+          warnings: assignment.warnings,
           operationalReasons: eligibility.reasons,
-          status: normalize(employee.status) === 'active' ? (eligibility.eligible ? 'assignable_operational' : 'assignable_optional') : 'not_assignable'
+          status: assignment.assignable ? (eligibility.eligible ? 'assignable_operational' : 'assignable_optional') : 'not_assignable'
         })),
         pendingStaffInvitations: companyInvitations.filter(invitation => normalize(invitation.type) === 'staff' && ['sent', 'requested'].includes(normalize(invitation.status))).map(invitation => ({ id: invitation.id, value: invitation.id, label: `${invitation.fullName || invitation.email} - ${invitationStatusLabel(invitation)}`, status: invitation.status })),
         pendingDriverRequests: driverLifecycleRows.filter(row => driverStageIsPending(row[5])).map(row => ({ id: row[6]?.id || row[0], value: row[6]?.id || row[0], label: `${row[0]} - ${row[5]}`, status: row[5] }))

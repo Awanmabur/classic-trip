@@ -155,7 +155,9 @@ async function getReview(targetType, targetId, options = {}) {
       documents: [],
       payoutAccount: {},
       supportContacts: {},
-      inventorySummary: target.type === 'company' ? await summarizeInventory(target.companyId) : {},
+      inventorySummary: target.type === 'company' && options.includeInventorySummary !== false
+        ? await summarizeInventory(target.companyId)
+        : {},
       agreementSummary: '',
       auditTrail: [],
       createdAt: new Date().toISOString(),

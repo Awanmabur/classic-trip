@@ -68,9 +68,9 @@ async function main() {
 
     let rejectedCandidate = false;
     try { await service.resolveDriver('company-1', 'request:request-1'); } catch (error) {
-      rejectedCandidate = /active driver account from this company/i.test(String(error.message || ''));
+      rejectedCandidate = /saved driver record from this company/i.test(String(error.message || ''));
     }
-    check(rejectedCandidate, 'A saved request must not be selectable before it becomes an active company driver membership.');
+    check(rejectedCandidate, 'A request token that is not a saved company driver record must not be selectable.');
 
     const resolved = await service.resolveDriver('company-1', 'driver-membership-1');
     check(resolved.employee.id === 'driver-membership-1', 'The canonical active driver membership must resolve.');
@@ -85,16 +85,14 @@ async function main() {
     check(pendingSafety.assignment.warnings.some((reason) => /safety clearance/i.test(reason)), 'The selector keeps the pending safety warning.');
 
     employees[0].status = 'suspended';
-    let blockedSuspended = false;
-    try { await service.resolveDriver('company-1', 'driver-membership-1'); } catch (error) {
-      blockedSuspended = /active company membership/i.test(String(error.message || ''));
-    }
-    check(blockedSuspended, 'A suspended membership must not be selectable.');
+    const suspended = await service.resolveDriver('company-1', 'driver-membership-1');
+    check(suspended.assignment.assignable === true, 'A saved suspended driver membership remains selectable for planning.');
+    check(suspended.assignment.operational === false, 'A suspended membership remains clearly blocked from operational readiness.');
   } finally {
     Module._load = originalLoad;
   }
 
-  console.log(`Active-driver assignment source verification passed (${passed}/${passed}).`);
+  console.log(`Saved-driver assignment source verification passed (${passed}/${passed}).`);
 }
 
 main().catch((error) => {

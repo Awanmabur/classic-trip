@@ -14,6 +14,7 @@ const { supportRules } = require('../../validators/supportValidator');
 const { validateRequest } = require('../../middlewares/validate');
 const { sensitiveActionLimiter } = require('../../middlewares/rateLimit');
 const customerService = require('../../services/customer/customerService');
+const archiveController = require('../../controllers/archiveController');
 const router = express.Router();
 
 router.use('/account', requireAuth, requireRole('customer', 'super_admin'));
@@ -37,6 +38,7 @@ router.post('/account/saved', actionController.saveTrip);
 router.post('/account/wallet/top-up', actionController.topUpWallet);
 router.post('/account/promoter', actionController.becomePromoter);
 router.post('/account/security', actionController.updateSecurity);
+router.post('/account/archive/:model/:id/restore', archiveController.restoreFor('customer'));
 
 router.get('/saved', requireAuth, requireRole('customer', 'super_admin'), async (req, res, next) => {
   try {

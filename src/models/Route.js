@@ -34,4 +34,5 @@ const routeSchema = new Schema({
 }, { timestamps: true });
 
 routeSchema.index({ listingId: 1, status: 1, createdAt: -1 });
+routeSchema.index({ companyId: 1, listingId: 1, status: 1, createdAt: -1 });
 module.exports = model('Route', routeSchema);

@@ -466,6 +466,7 @@ function applyEmployeeServiceProfile(menu, serviceProfile = {}) {
 
 const EMPLOYEE_PAGE_PERMISSIONS = {
   overview: [],
+  archive: [],
   bookings: ['booking.view', 'booking.create_manual'],
   checkin: ['checkin.scan', 'checkin.manage'],
   schedule: ['schedule.update', 'schedule.delay_notice', 'manifest.view', 'booking.view'],
@@ -540,6 +541,7 @@ function menuHref(roleKey, page) {
   if (roleKey === 'support') return page === 'overview' ? '/support/dashboard' : `/support/dashboard/${page}`;
   if (roleKey === 'finance') return page === 'overview' ? '/finance/dashboard' : `/finance/dashboard/${page}`;
   if (roleKey === 'operations') return page === 'overview' ? '/operations/dashboard' : `/operations/dashboard/${page}`;
+  if (roleKey === 'content') return page === 'overview' ? '/content/dashboard' : `/content/dashboard/${page}`;
   if (servicePages.has(page)) return `/${roleKey}/dashboard/${page}`;
   return `#${page}`;
 }
@@ -580,6 +582,23 @@ function injectNotificationsItem(menu) {
   return Object.assign({}, menu, { groups: groups });
 }
 
+function injectArchiveItem(menu) {
+  const alreadyHas = (menu.groups || []).some((group) => (
+    (group.items || []).some((item) => item.page === 'archive')
+  ));
+  if (alreadyHas) return menu;
+  return {
+    ...menu,
+    groups: [
+      ...(menu.groups || []),
+      {
+        label: 'Records',
+        items: [{ page: 'archive', label: 'Archive', icon: 'fa-box-archive' }],
+      },
+    ],
+  };
+}
+
 function buildDashboardShell(requestedRole, options = {}) {
   const user = options.user || {};
   let menu = cloneMenu(getDashboardMenu(requestedRole));
@@ -592,6 +611,7 @@ function buildDashboardShell(requestedRole, options = {}) {
   }
   menu = injectWorkflowGuideItem(menu);
   menu = injectNotificationsItem(menu);
+  menu = injectArchiveItem(menu);
   menu = attachMenuHrefs(menu);
   const preferMenuIdentity = menu.roleKey === 'company' && menu.profileName;
   const userName = preferMenuIdentity ? menu.profileName : (user.fullName || user.name || menu.profileName);

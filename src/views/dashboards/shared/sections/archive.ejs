@@ -1,0 +1,99 @@
+<%
+  const archiveRows = Array.isArray(dashboardData?.archiveRows) ? dashboardData.archiveRows : [];
+  const archiveRestoreBases = {
+    admin: '/admin/archive',
+    company: '/company/archive',
+    customer: '/account/archive',
+    promoter: '/promoter/archive',
+    support: '/support/archive',
+    operations: '/operations/archive',
+    content: '/content/archive',
+  };
+  const archiveRestoreBase = archiveRestoreBases[dashboardRoleKey] || '';
+  function archiveDateLabel(value) {
+    if (!value) return 'Not recorded';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Not recorded';
+    return date.toLocaleString('en-GB', {
+      timeZone: 'Africa/Kampala',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }
+%>
+<section class="section" id="archive">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3>Archive</h3>
+        <p>Removed records remain here for 30 days before permanent cleanup. Restored items return as Draft, Paused, Offline, or Maintenance and must be reviewed before reuse.</p>
+      </div>
+      <span class="badge"><i class="fa-solid fa-clock-rotate-left"></i> 30-day retention</span>
+    </div>
+    <% if (archiveRows.length) { %>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Archived item</th>
+              <th>Type</th>
+              <th>Archived</th>
+              <th>Removal</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% archiveRows.forEach(function(row){ %>
+              <tr>
+                <td>
+                  <strong><%= row.name || row.id %></strong>
+                  <small class="muted"><%= row.id %></small>
+                </td>
+                <td><%= row.type %></td>
+                <td><time datetime="<%= row.archivedAt ? new Date(row.archivedAt).toISOString() : '' %>"><%= archiveDateLabel(row.archivedAt) %></time></td>
+                <td>
+                  <% if (row.retentionHold) { %>
+                    <strong>Kept for integrity</strong>
+                    <small class="muted"><%= row.retentionHoldReason || 'A historical record still references this item.' %></small>
+                  <% } else { %>
+                    <strong><%= row.daysRemaining %> day<%= row.daysRemaining === 1 ? '' : 's' %> left</strong>
+                    <small class="muted"><%= archiveDateLabel(row.purgeAfter) %></small>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (row.retentionHold) { %>
+                    <span class="badge warn"><i class="fa-solid fa-link"></i> Integrity hold</span>
+                  <% } else { %>
+                    <span class="badge"><i class="fa-solid fa-box-archive"></i> Archived</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (row.restoreAllowed && archiveRestoreBase) { %>
+                    <form method="POST" action="<%= archiveRestoreBase %>/<%= encodeURIComponent(row.model) %>/<%= encodeURIComponent(row.id) %>/restore">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+                      <button class="btn tinyBtn" type="submit">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        Restore as <%= row.restoreTarget || 'inactive' %>
+                      </button>
+                    </form>
+                  <% } else { %>
+                    <span class="muted">View only</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="notice">
+        <i class="fa-solid fa-box-open"></i>
+        <div>
+          <strong>No archived records in this dashboard</strong>
+          <span>Items removed from the areas you can access will appear here during their 30-day retention period. Protected booking and financial history is never silently deleted.</span>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>

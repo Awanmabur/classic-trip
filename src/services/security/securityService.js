@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 const securityRepository = require('../../repositories/domain/securityRepository');
 const { nextId } = require('../data/idService');
+const redisRuntime = require('../../config/redis');
 const SENSITIVE_KEYS = /password|token|secret|signature|authorization|cookie|card|cvv|pin|rawpayload|reset/i;
+const localLoginFailures = new Map();
 function nowIso() { return new Date().toISOString(); }
 function sha256(value = '') { return crypto.createHash('sha256').update(String(value || '')).digest('hex'); }
 function fingerprint(req = {}) { return sha256([req.ip || '', req.headers?.['user-agent'] || '', req.headers?.['accept-language'] || ''].join('|')).slice(0, 32); }
@@ -9,6 +11,36 @@ function sessionHash(req = {}) { return sha256(req.sessionID || req.session?.id 
 function maskValue(value = '') { const text = String(value ?? ''); if (!text) return ''; if (text.includes('@')) { const [name, domain] = text.split('@'); return `${name.slice(0, 2)}***@${domain}`; } if (text.length <= 4) return '***'; return `${text.slice(0, 2)}***${text.slice(-2)}`; }
 function maskSensitive(value) { if (Array.isArray(value)) return value.map(maskSensitive); if (!value || typeof value !== 'object') return value; return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, SENSITIVE_KEYS.test(key) ? maskValue(item) : maskSensitive(item)])); }
 function requestContext(req = {}) { return { ip: req.ip || '', userAgent: req.headers?.['user-agent'] || '', requestId: req.id || '' }; }
+function loginFailureKey(identity = '') { return redisRuntime.key('login-failures', sha256(String(identity || '').trim().toLowerCase())); }
+function localFailureCount(cacheKey) {
+  const record = localLoginFailures.get(cacheKey);
+  if (!record) return 0;
+  if (record.expiresAt <= Date.now()) {
+    localLoginFailures.delete(cacheKey);
+    return 0;
+  }
+  return Number(record.count || 0);
+}
+function updateLocalFailureCount(cacheKey, result, windowMs = 15 * 60 * 1000) {
+  if (result === 'success') {
+    localLoginFailures.delete(cacheKey);
+    return 0;
+  }
+  const count = localFailureCount(cacheKey) + 1;
+  localLoginFailures.set(cacheKey, { count, expiresAt: Date.now() + windowMs });
+  if (localLoginFailures.size > 5000) {
+    for (const [key, value] of localLoginFailures) {
+      if (value.expiresAt <= Date.now()) localLoginFailures.delete(key);
+    }
+    // Map iteration follows insertion order. If an attack fills the cache with
+    // unexpired identities, evict the oldest entries so the fast fallback
+    // remains strictly bounded. Redis remains the shared production guard.
+    while (localLoginFailures.size > 4000) {
+      localLoginFailures.delete(localLoginFailures.keys().next().value);
+    }
+  }
+  return count;
+}
 
 async function recordAudit({ action, actorId = '', actorRole = '', entityType = '', entityId = '', beforeSummary = null, afterSummary = null, status = 'success', reason = '', metadata = {}, req = null }) {
   const user = req?.session?.user || {}; const ctx = requestContext(req || {});
@@ -20,11 +52,39 @@ async function recordSecurityEvent({ eventType, severity = 'low', actorId = '', 
   await securityRepository.securityEvents.save(event, { id: event.id });
   await recordAudit({ action: `security.${eventType}`, actorId, actorRole, entityType: entityType || 'security_event', entityId: entityId || event.id, status, reason, metadata: { severity, ...maskSensitive(metadata) }, req }); return event;
 }
-async function recentFailedLoginCountLive(identity, windowMs) { if (!identity) return 0; const masked = maskValue(identity); return securityRepository.loginAudits.count({ identity: masked, result: 'failure', createdAt: { $gte: new Date(Date.now() - windowMs) } }); }
+async function recentFailedLoginCountLive(identity, windowMs) {
+  if (!identity) return 0;
+  const client = redisRuntime.activeClient();
+  const cacheKey = loginFailureKey(identity);
+  const localCount = localFailureCount(cacheKey);
+  if (client) {
+    try {
+      const cached = await client.get(cacheKey);
+      if (cached !== null) return Math.max(localCount, Number(cached || 0));
+    } catch (_) {}
+  }
+  // Production requires Redis. The bounded process-local guard keeps login fast
+  // and protected during a transient Redis outage without putting MongoDB back
+  // on the password-verification critical path.
+  return localCount;
+}
 async function recordLoginAttempt({ user = null, identity = '', result = 'failure', reason = '', req = null }) {
   const ctx = requestContext(req || {});
   const deviceFingerprint = fingerprint(req || {});
   const timestamp = nowIso();
+  const redisClient = redisRuntime.activeClient();
+  const counterKey = loginFailureKey(identity || user?.email || user?.phone || '');
+  updateLocalFailureCount(counterKey, result);
+  if (redisClient) {
+    try {
+      if (result === 'failure') {
+        const hits = await redisClient.incr(counterKey);
+        if (hits === 1) await redisClient.pExpire(counterKey, 15 * 60 * 1000);
+      } else if (result === 'success') {
+        await redisClient.del(counterKey);
+      }
+    } catch (_) {}
+  }
   let deviceSession = null;
   let deviceWrite = Promise.resolve(null);
 

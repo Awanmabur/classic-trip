@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const platformRepository = require('../../repositories/domain/platformRepository');
 const commerceRepository = require('../../repositories/domain/commerceRepository');
 const notificationService = require('../notification/notificationService');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 
 function auditId() {
   return `audit-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
@@ -29,7 +30,26 @@ async function writeAudit(payload = {}) {
   return { auditId: row.id };
 }
 
+// These domain events are durable integration facts. Classic Trip does not
+// currently have an external subscriber for them, so acknowledge them once
+// instead of retrying each event eight times and loading the MongoDB pool.
+async function acknowledgeDomainFact(payload = {}, event = {}) {
+  return {
+    acknowledged: true,
+    aggregateType: event.aggregateType || '',
+    aggregateId: event.aggregateId || '',
+    payloadRecorded: Boolean(payload && Object.keys(payload).length),
+  };
+}
+
 const handlers = {
+  'notification.secure_requested': async (payload) => {
+    const decrypted = sensitiveFieldService.decrypt(payload.encrypted, 'outbox-notification');
+    if (!decrypted) throw new Error('Secure notification payload could not be decrypted');
+    const request = JSON.parse(decrypted);
+    const rows = await notificationService.queueNotification(request);
+    return { notificationIds: rows.map((row) => row.id) };
+  },
   'notification.requested': async (payload) => {
     const rows = await notificationService.queueNotification(payload);
     return { notificationIds: rows.map((row) => row.id) };
@@ -45,7 +65,25 @@ const handlers = {
     const rows = await notificationService.bookingConfirmed(booking);
     return { notificationIds: rows.map((row) => row.id), bookingRef: booking.bookingRef };
   },
+  ScheduleRuleMaterializationRequested: async (payload = {}, event = {}) => {
+    // Keep the expensive month of departure/inventory creation in the worker.
+    // The partner request only stores the rule and redirects immediately.
+    const materializer = require('../../jobs/materializeSchedules');
+    return materializer.materializeRuleById(
+      payload.companyId || event.companyId,
+      payload.ruleId || event.aggregateId,
+    );
+  },
+  BusListingPublished: acknowledgeDomainFact,
+  BusDeparturePublished: acknowledgeDomainFact,
+  BusBookingCreated: acknowledgeDomainFact,
+  BusBookingCancelled: acknowledgeDomainFact,
+  BusBookingRefunded: acknowledgeDomainFact,
+  BusInventoryHeld: acknowledgeDomainFact,
+  BusInventoryBooked: acknowledgeDomainFact,
+  BusPassengerCheckedIn: acknowledgeDomainFact,
+  BusIncidentReported: acknowledgeDomainFact,
   'audit.write': writeAudit,
 };
 
-module.exports = { handlers, writeAudit };
+module.exports = { handlers, writeAudit, acknowledgeDomainFact };

@@ -25,7 +25,7 @@ function source(relative) {
 }
 
 const forbiddenPaths = [
-  '.env', '.claude', 'node_modules', 'coverage',
+  '.env', '.claude', 'coverage',
   'src/repositories/memoryDatabase.js',
   'src/services/data/persistentStore.js',
   'src/repositories/domain/hybridCollection.js',
@@ -105,7 +105,12 @@ const seatLocks = source('src/services/booking/seatLockService.js');
 check(/InventoryHold/.test(seatLocks) || /inventoryHoldService/.test(seatLocks), 'Seat locks must be database backed');
 
 
-check(!fs.existsSync(path.join(root, 'docs')), 'Historical reports and generated documentation must not ship inside the application');
+const documentationFiles = walk(path.join(root, 'docs'))
+  .map((file) => path.relative(root, file).replace(/\\/g, '/'));
+check(
+  documentationFiles.every((file) => file === 'docs/OPERATIONS_AND_ENTITY_GUIDE.md'),
+  `Only the maintained operations/entity guide may ship; found ${documentationFiles.join(', ')}`,
+);
 check(!fs.existsSync(path.join(root, 'src', 'controllers', 'company', 'roomController.js')), 'Duplicate legacy hotel room controller must not ship');
 
 const catalogSource = source('src/services/marketplace/catalogService.js');

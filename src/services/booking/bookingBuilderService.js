@@ -185,7 +185,7 @@ async function buildBooking(payload = {}, req = null) {
     let busSelections = await selectBusLeg(listing, outbound, payload.selectedSeats || payload.selected || payload.seatNumber, passengerCount, 'outbound', payload.holdId);
     if (payload.returnScheduleId) {
       const returning = await scheduleForListing(listing.id, payload.returnScheduleId);
-      if (!returning || returning.id !== payload.returnScheduleId || new Date(returning.departAt) <= new Date(outbound.departAt)) { const error = new Error('Return trip must depart after the outbound trip'); error.status = 409; throw error; }
+      if (!returning || returning.id !== payload.returnScheduleId) { const error = new Error('The selected return trip is no longer available'); error.status = 409; throw error; }
       busSelections.push(...await selectBusLeg(listing, returning, payload.returnSeats, passengerCount, 'return', payload.returnHoldId || payload.holdId));
       tripType = 'round_trip';
     }

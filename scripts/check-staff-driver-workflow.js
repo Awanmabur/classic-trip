@@ -52,14 +52,14 @@ check(projection.includes('operational warning:'), 'Driver lifecycle rows must e
 check(projection.includes('Assignable · Partner Admin approved · operational') && projection.includes('Assignable · platform verified · operational'), 'Operational driver stages must remain visible while assignment stays separate.');
 check(projection.includes('pendingStaffInvitations:'), 'Pending staff invitations must be exposed to the frontend.');
 check(projection.includes('pendingDriverRequests:'), 'Pending driver requests must be exposed to the frontend.');
-check(projection.includes('const driverSelectorOptions = activeDriverEmployees.map(driverOption)'), 'Active company drivers must populate dependent selectors even while safety verification continues.');
+check(projection.includes('const driverSelectorOptions = assignableDriverEmployees.map(driverOption)'), 'All saved assignable company drivers must populate dependent selectors while lifecycle checks remain visible.');
 check(projection.includes('evaluateDriverAssignment(employee, account)'), 'Driver selectors must use the shared assignment resolver.');
 check(eligibilityService.includes("normalize(employee.safetyStatus) !== 'cleared'"), 'Shared driver eligibility must require safety clearance.');
 check(eligibilityService.includes('REQUIRED_DRIVER_PERMISSIONS.filter'), 'Shared driver eligibility must require operational permissions.');
 check(workspace.includes("required:false, help:driverWorkflowHint"), 'Draft departure form must not require a driver unconditionally.');
 check(workspace.includes("key === 'schedule rule'") && workspace.includes("Active rules generate dated departures automatically. Driver assignment is optional"), 'Recurring schedule rules must activate without making driver assignment mandatory.');
 check(workspace.includes("name:'schedule[driverId]'") && workspace.includes("options:drivers, required:false, help:driverWorkflowHint"), 'Complete bus setup must not require a driver before Draft save.');
-check(busOnboarding.includes('publicationDeferred:'), 'Complete bus setup must report any readiness-based publication deferral without treating driver assignment as mandatory.');
+check(busOnboarding.includes('publicationDeferred') && busOnboarding.includes("created.schedule.status === 'published'"), 'Complete bus setup must report any readiness-based publication deferral without treating driver assignment as mandatory.');
 check(workspace.includes("value:'published', help:'Published makes the departure public. Driver assignment is optional"), 'Departure form must allow Published while driver assignment remains optional.');
 check(workspace.includes('Driver assignment is optional'), 'Smart forms must explain that driver assignment can be completed later.');
 check(workspace.includes('pendingDriverRequests.length'), 'Schedule form must surface pending driver workflow count.');
@@ -143,7 +143,8 @@ try {
   check(pendingDashboard.drivers.some((row) => row[0] === 'Pending Driver'), 'Saved Partner Admin driver record must render in onboarding before account setup.');
   check(pendingDashboard.staffDriverWorkflow.pendingStaff === 1, 'Pending staff workflow count must include saved invitations.');
   check(pendingDashboard.staffDriverWorkflow.pendingDrivers === 1, 'Pending driver workflow count must include Partner Admin invitations.');
-  check(pendingDashboard.options.drivers.length === 0, 'A pending Partner Admin driver record must not enter operational selectors.');
+  check(pendingDashboard.options.drivers.length === 1 && pendingDashboard.options.drivers[0].value === 'driver-employee-pending', 'A saved pending Partner Admin driver must remain available in assignment selectors.');
+  check(pendingDashboard.options.driverEligibility.some((row) => row.value === 'driver-employee-pending' && row.assignable === true && row.operational === false), 'Pending driver diagnostics must separate assignment from operational readiness.');
   check(pendingDashboard.options.pendingDriverRequests.length === 1, 'Pending Partner Admin driver invitation must be exposed to smart forms.');
   check(pendingDashboard.staffDriverWorkflow.canPublishDeparture === true, 'Departure publication must not depend on driver lifecycle state.');
 

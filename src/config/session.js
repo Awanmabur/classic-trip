@@ -1,6 +1,8 @@
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const { RedisStore } = require('connect-redis');
 const { env } = require('./env');
+const redisRuntime = require('./redis');
 
 function sessionDbName() {
   if (env.mongoDbName) return env.mongoDbName;
@@ -24,9 +26,15 @@ module.exports = function sessionConfig() {
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   };
-  // Production sessions are durable and require MongoDB. Development may use
-  // Express' process-local store only for local debugging; it is never used in production.
-  if (env.mongoUri && env.isProduction && env.nodeEnv !== 'test') {
+  const redisClient = redisRuntime.activeClient();
+  if (redisClient && env.nodeEnv !== 'test') {
+    config.store = new RedisStore({
+      client: redisClient,
+      prefix: `${env.redis.prefix}sessions:`,
+      ttl: 7 * 24 * 60 * 60,
+    });
+  } else if (env.mongoUri && env.isProduction && env.nodeEnv !== 'test') {
+    // Durable fallback for deployments that have not enabled Redis yet.
     config.store = MongoStore.create({
       mongoUrl: env.mongoUri,
       collectionName: 'express_sessions',

@@ -1,14 +1,18 @@
 const rateLimit = require('express-rate-limit');
 const { env } = require('../config/env');
 const { MongoRateLimitStore } = require('./mongoRateLimitStore');
+const { RedisRateLimitStore } = require('./redisRateLimitStore');
+const redisRuntime = require('../config/redis');
 
 const isTest = process.env.NODE_ENV === 'test';
 
 function productionStore(scope) {
-  // Development remains easy to run with the library's process-local store. Production
-  // always uses MongoDB so limits are shared by every application instance and fail closed
-  // if the security datastore is unavailable.
-  return env.isProduction && env.mongoUri ? new MongoRateLimitStore(scope) : undefined;
+  // Redis keeps security counters shared without spending a MongoDB pool
+  // connection on every login, form submit, and API read. MongoDB remains the
+  // durable fail-closed fallback during a Redis outage.
+  if (!env.isProduction) return undefined;
+  if (redisRuntime.activeClient()) return new RedisRateLimitStore(scope);
+  return env.mongoUri ? new MongoRateLimitStore(scope) : undefined;
 }
 
 function wantsJson(req) {

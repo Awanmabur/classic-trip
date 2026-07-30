@@ -33,7 +33,7 @@ check(company.includes('evaluateDriverAssignment(employee, user)'), 'Manual driv
 check(verification.includes('Driver and employee approval belongs to the Partner Admin'), 'Super Admin verification endpoints must refuse driver approval.');
 check(setup.includes('Driver assignment is optional') && !setup.includes('await assignableDrivers(companyId)'), 'Listing publication must not require or auto-select a driver.');
 check(!setup.includes('More than one driver is available'), 'Multiple drivers must not block listing publication.');
-check(setup.includes('if (schedule.driverEmployeeId)') && setup.includes('selected driver membership is not active'), 'An explicitly selected driver must belong to an active company membership.');
+check(setup.includes('if (schedule.driverEmployeeId)') && setup.includes("warnings.push(`selected driver membership is"), 'A saved driver must remain assignable while lifecycle and safety issues are reported as non-blocking warnings.');
 check(company.includes('schedule.listingId') && company.includes('schedule.routeId') && company.includes('schedule.vehicleId'), 'Bus departure ownership must resolve canonical listing, route, and vehicle links.');
 check(busRepository.includes('function identityClauses'), 'Bus entities must accept app IDs and MongoDB ObjectIds.');
 check(workspace.includes('Super Admin approves only the partner company'), 'Dashboard must explain final approval ownership.');

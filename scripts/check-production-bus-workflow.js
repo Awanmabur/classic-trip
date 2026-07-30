@@ -21,7 +21,11 @@ check(/Publish at least one dated departure/.test(setup), 'Activation must requi
 check(/validPublishedDepartures/.test(setup), 'Activation must use validated published departures');
 check(/departAt:\s*\{\s*\$gt:\s*nowDate\s*\}/.test(setup), 'Activation must require a future departure');
 check(/companyId,\s*listingId:\s*listingKey/.test(setup), 'Departure discovery must use exact company and listing ownership');
-check(/segmentInventory\.count\(\{[\s\S]*companyId,[\s\S]*listingId:\s*listingKey,[\s\S]*scheduleId:\s*schedule\.id/.test(setup), 'Activation must verify live segment inventory for the exact departure');
+check(
+  /segmentInventory\.count\(\{[\s\S]*companyId,[\s\S]*listingId:\s*listingKey,[\s\S]*scheduleId:\s*schedule\.id/.test(setup)
+    || /segmentInventory\.countGroupedBy\('scheduleId',\s*\{[\s\S]*companyId,[\s\S]*listingId:\s*listingKey,[\s\S]*scheduleId:\s*\{\s*\$in:\s*scheduleIds\s*\}/.test(setup),
+  'Activation must verify live segment inventory for the exact departure',
+);
 check(/driverEmployeeId/.test(setup), 'Activation must require a driver assignment');
 check(/published seat-map version link is missing/.test(setup), 'Activation must diagnose missing seat-map linkage');
 check(/departure status is/.test(setup), 'Activation must report a draft/unpublished departure instead of claiming none exists');

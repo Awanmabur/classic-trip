@@ -43,7 +43,10 @@ expect('login identity and lockout reads run concurrently', /const \[failed, use
 expect('session account checks use short GET cache', accountState.includes('authCheckedAt') && accountState.includes('60_000'));
 expect('dashboard snapshot has ttl cache', snapshot.includes('SNAPSHOT_TTL_MS') && snapshot.includes('snapshotInflight'));
 expect('dashboard snapshot uses stale while revalidate', snapshot.includes('Stale-while-revalidate'));
-expect('startup avoids full admin snapshot pool pressure', mongoDashboard.includes('prewarmForUser') && !server.includes("dashboardSnapshotService.prewarm('admin')") && server.includes('catalogService.prewarmHome()'));
+expect('web startup avoids all read-model pool pressure', mongoDashboard.includes('prewarmForUser')
+  && !server.includes("dashboardSnapshotService.prewarm('admin')")
+  && !server.includes('catalogService.prewarmHome()')
+  && !server.includes('restoreLegacyDemotedBusListings'));
 expect('login audits write in parallel', /await Promise\.all\(\[[\s\S]*securityRepository\.loginAudits\.save/.test(security));
 expect('notification panel follows active theme', notifications.includes('background:var(--panel') && notifications.includes('color:var(--text'));
 expect('successful writes invalidate dashboard snapshots', flashMiddleware.includes("dashboardSnapshotService').invalidate()"));

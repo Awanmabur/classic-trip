@@ -72,5 +72,6 @@ const vehicleSchema = new Schema({
 }, { timestamps: true });
 
 vehicleSchema.index({ companyId: 1, plateOrCode: 1 });
+vehicleSchema.index({ companyId: 1, listingId: 1, status: 1, createdAt: -1 });
 
 module.exports = model('Vehicle', vehicleSchema);

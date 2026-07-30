@@ -141,11 +141,12 @@ npm run start:prod
 ## Performance architecture
 
 - The homepage reads only active, published records and live inventory or capacity for all seven production services.
-- Its read model is prewarmed, deduplicated and cached with stale-while-revalidate behaviour.
+- Its read model is deduplicated and cached with stale-while-revalidate behaviour without competing with login during web startup.
 - Dashboard snapshots and role projections are cached briefly and invalidated automatically after writes.
 - Successful login no longer waits for device/audit persistence after the secure session is saved.
 - Login identity and lockout reads run concurrently and the lockout query has a matching compound index.
 - MongoDB uses an explicit bounded connection pool.
+- Atlas startup uses a 30-second selection window with bounded transient retries, while runtime model loading never builds indexes inside request traffic.
 - HTTP requests have bounded request and connection reuse limits.
 - `X-Request-ID` and `Server-Timing` remain available for debugging without producing terminal noise by default.
 
@@ -300,7 +301,7 @@ Company
       -> Segment fares
   -> Dated departure
       -> Frozen route / seat-map / fare snapshots
-      -> Verified operational driver assignment
+      -> Optional saved-company driver assignment
       -> Seat-segment inventory
   -> Inventory hold
   -> Booking and booking item
@@ -313,7 +314,9 @@ Company
   -> Cancellation / refund / settlement
 ```
 
-A bus departure cannot be published unless linked records belong to the same company and listing and publication readiness passes. Driver assignment requires a real driver account, accepted invitation, active company membership, required verification/safety state and operational permissions. A job title or legacy permission label cannot substitute for a driver identity.
+A bus departure cannot be published unless its required route, vehicle, seat-map and fare records belong to the same company and listing and publication readiness passes. Driver assignment is optional. When a driver is selected, any saved company driver record can be assigned immediately; account, membership, verification, licence, safety and permission checks remain visible as separate operational-readiness warnings and do not make a saved driver disappear.
+
+An active recurring rule maintains a rolling 30-day calendar window. Creating or resuming the rule queues worker-side generation immediately; the daily materializer adds the new far-end day as the oldest day passes. Ready departures publish and become bookable, while incomplete dates remain visible to the partner as Draft with their readiness failures. Legacy rule-generated `active` records are reconciled to Published or Draft so the public marketplace no longer remains on “Coming soon” when usable inventory exists.
 
 Seat availability is authoritative per seat and overlapping route segment. Return travel creates independent outbound and return reservations, inventory claims and tickets inside one customer booking.
 
@@ -606,6 +609,41 @@ The final cleanup preserves the approved reference UI while fixing Super Admin P
 DASHBOARD_SNAPSHOT_TTL_MS=5000
 DASHBOARD_SNAPSHOT_STALE_MS=30000
 ```
+
+## Redis, worker and departure performance architecture
+
+Production now separates latency-sensitive web traffic from background work:
+
+- Redis stores Express sessions, shared rate limits and the short-lived failed-login counter. MongoDB remains the durable fallback when `REDIS_REQUIRED=false`.
+- `npm run worker` runs the outbox, notification delivery and scheduled jobs outside the web process. On Render, `render.yaml` provisions one Key Value service and one worker, and disables jobs in the web service.
+- Email and phone-verification delivery enter the encrypted transactional outbox instead of waiting for SMTP/SMS inside signup.
+- Bus departure batches resolve route, vehicle, seat map, fare and driver context once, create two dates concurrently, and run listing readiness once for the complete batch.
+- Recurring bus rules keep a rolling 30-day departure window; one day is added automatically each day.
+- Worker startup reconciles the rolling window once immediately, so an existing usable departure does not wait for the next 03:00 cron to leave “Coming soon”.
+- Known informational bus events are acknowledged once, outbox batches are deliberately short, and a scheduled job cannot start a second copy while its previous run is active.
+- Seat-segment inventory uses its canonical schedule/seat/segment identity. It no longer performs one MongoDB counter write for every inventory row.
+- Listing readiness uses one grouped inventory count and one driver query for all departures instead of querying once per departure.
+- Web and worker processes have separate connection-pool budgets so maintenance and schedule generation cannot consume all request connections.
+- The web process performs no catalogue prewarm, legacy repair or scheduled work; those tasks cannot compete with login or dashboard requests.
+
+Local development can omit Redis and continue through MongoDB/in-memory fallbacks. For a production process outside the Render Blueprint, configure:
+
+```env
+REDIS_URL=rediss://your-managed-redis-url
+REDIS_REQUIRED=true
+REDIS_PREFIX=classic-trip:
+```
+
+Start the two process types separately:
+
+```bash
+npm start
+npm run worker
+```
+
+## Archive and deletion retention
+
+Dashboard delete/archive actions disappear from active pages immediately. Archive-capable records receive `archivedAt` and `purgeAfter` timestamps and remain recoverable in storage for 30 days. The worker cleanup then permanently removes records that are not referenced by bookings, tickets, payments or other protected history. Referenced records stay hidden under a retention hold so commercial and audit history cannot be corrupted.
 
 ## Partner Network uniform page contract
 

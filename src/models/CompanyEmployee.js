@@ -44,4 +44,7 @@ const companyEmployeeSchema = new Schema({
   rejectedAt: Date,
 }, { timestamps: true });
 
+companyEmployeeSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+companyEmployeeSchema.index({ companyId: 1, userId: 1 });
+
 module.exports = model('CompanyEmployee', companyEmployeeSchema);

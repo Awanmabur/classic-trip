@@ -127,6 +127,8 @@
     .legend{display:flex;gap:8px;flex-wrap:wrap}.leg{font-size:12px;color:var(--muted);font-weight:850;display:flex;gap:5px;align-items:center}.dot{width:12px;height:12px;border-radius:4px;border:1px solid var(--line)}.free{background:#4f8cff}.taken{background:#ef4444}.selected{background:#ffb703}.hold{background:#22c55e}
     .layoutBox{padding:14px;border-radius:26px;background:rgba(0,0,0,.10);border:1px solid var(--line);display:grid;justify-content:center;gap:10px;overflow:auto}
     html[data-theme="light"] .layoutBox{background:rgba(15,23,42,.03)}
+    .listingPreviewPage .busSeatLayoutBox{width:100%;justify-content:center;overflow-x:auto}
+    .listingPreviewPage .busSeatLayoutBox .vehicleFront,.listingPreviewPage .busSeatLayoutBox .seatRows{margin-inline:auto}
     .vehicleFront{height:34px;border-radius:999px;background:linear-gradient(135deg,rgba(79,140,255,.2),rgba(255,183,3,.16));border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:950;color:var(--muted)}
     .seatRows{display:grid;gap:8px}
     .seatRow{display:grid;gap:8px;grid-template-columns:64px 64px 24px 64px 64px;align-items:center;justify-content:center}.aisle{width:24px}
@@ -343,6 +345,13 @@ html[data-theme="light"] .blogIconActions .miniIcon{backdrop-filter:none}
 html[data-theme="light"] body{background:#ffffff}
 html[data-theme="light"] body::before{display:none}
 html[data-theme="light"] .heroCard::after{display:none}
+
+/* The public seat-map frame is retained on desktop and removed only where phone
+   width is scarce. The map itself stays centred at every breakpoint. */
+@media(max-width:680px){
+  .listingPreviewPage .busSeatLayoutBox{padding:0;border:0;border-radius:0;background:transparent}
+  html[data-theme="light"] .listingPreviewPage .busSeatLayoutBox{background:transparent}
+}
 
 /* Seven-service hero switcher: swipe/drag on phones and desktop without crowding the top navigation. */
 #searchTabs.tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:7px;padding:2px 2px 7px;scroll-snap-type:x proximity;scroll-behavior:smooth;overscroll-behavior-inline:contain;scrollbar-width:none;cursor:grab;touch-action:pan-x}

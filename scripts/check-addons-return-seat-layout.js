@@ -31,7 +31,9 @@ expect('Success page shows optional extras', has('src/views/pages/booking-succes
 expect('PDF ticket shows optional extras', has('src/services/pdf/ticketPdfService.js', /Optional extras/));
 expect('Communication add-on controls SMS and WhatsApp', has('src/services/notification/notificationService.js', /hasCommunicationTicketAddon/) && has('src/services/notification/notificationService.js', /channels\.push\('sms', 'whatsapp'\)/));
 expect('Bus confirmation outbox handler exists', has('src/services/shared/outboxHandlers.js', /BusBookingConfirmed:/));
-expect('Return departure validates outbound arrival', has('src/modules/bus/services/busBookingService.js', /outbound journey arrives/));
+expect('Return departure remains independently bookable regardless of outbound chronology',
+  has('src/modules/bus/services/busBookingService.js', /selected return departure is no longer bookable/)
+  && !has('src/modules/bus/services/busBookingService.js', /outbound journey arrives/));
 expect('Return seat selection resets after outbound change', has('src/views/pages/listing-details.ejs', /Reset the return seats whenever outbound seats/));
 expect('Return ticket explanation exists', has('src/views/pages/listing-details.ejs', /separate ticket\/QR for every traveler on each leg/));
 expect('2x3 layout option exists', has('public/js/dashboard-workspace.js', /'2x3'/));
