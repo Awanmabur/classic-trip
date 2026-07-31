@@ -33,7 +33,7 @@ async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
   if (new Date(schedule.departAt).getTime() <= Date.now()) throw conflictError('This departure has already closed', 'departure_closed');
   const [route, listing, stopsRaw, segments, seatMapVersion, fareProduct, fares] = await Promise.all([
     repository.routes.findOne({ id: schedule.routeId, companyId: schedule.companyId, status: 'active' }),
-    repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus' }),
+    repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus', status: 'active', releaseStatus: 'published' }),
     repository.routeStops.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 } }),
     repository.routeSegments.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: 'active' }, { sort: { segmentOrder: 1 } }),
     repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId: schedule.companyId, status: 'published' }),
@@ -196,7 +196,17 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     expiresAt: expiresAt.toISOString(),
     createdBy: actorId(context.createdBy),
     source: cleanText(context.source || 'public_bus_hold', 100),
-    meta: { ip: cleanText(context.ip, 80), userAgent: cleanText(context.userAgent, 300), requestId: cleanText(context.requestId, 180) },
+    meta: {
+      ip: cleanText(context.ip, 80),
+      userAgent: cleanText(context.userAgent, 300),
+      requestId: cleanText(context.requestId, 180),
+      journey: {
+        originBranchId: availability.journey.originBranchId || '',
+        destinationBranchId: availability.journey.destinationBranchId || '',
+        originName: availability.journey.originName || '',
+        destinationName: availability.journey.destinationName || '',
+      },
+    },
     createdAt: timestamp.toISOString(),
     updatedAt: timestamp.toISOString(),
   };

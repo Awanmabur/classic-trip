@@ -11,7 +11,18 @@ const ALLOWED_MIME_EXTENSIONS = {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: env.cloudinary.maxUploadSizeMb * 1024 * 1024 },
+  // Memory storage is intentionally bounded. These limits constrain both file
+  // buffers and multipart metadata so malformed/high-cardinality uploads cannot
+  // consume the process while the file is being validated.
+  limits: {
+    fileSize: env.cloudinary.maxUploadSizeMb * 1024 * 1024,
+    files: 2,
+    fields: 100,
+    parts: 102,
+    fieldNameSize: 100,
+    fieldSize: 256 * 1024,
+    headerPairs: 200,
+  },
   fileFilter(req, file, cb) {
     const extensions = ALLOWED_MIME_EXTENSIONS[file.mimetype];
     const extension = path.extname(file.originalname || '').toLowerCase();

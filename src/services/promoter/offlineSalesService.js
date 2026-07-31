@@ -133,7 +133,12 @@ function listValues(value) {
 async function createOfflineSale(payload = {}, context = {}) {
   const { agent, profile } = await ensureAgent(context.agentId || payload.agentId);
   const listing = await findListing(payload.listingId || payload.slug);
-  if (!listing || listing.status !== 'active' || listing.bookable === false) {
+  const serviceType = normalize(listing?.serviceType);
+  const listingOpen = listing
+    && listing.status === 'active'
+    && String(listing.releaseStatus || '').toLowerCase() === 'published'
+    && (serviceType === 'bus' || listing.bookable !== false);
+  if (!listingOpen) {
     const error = new Error('Listing is not available for offline sale');
     error.status = listing ? 409 : 404;
     throw error;

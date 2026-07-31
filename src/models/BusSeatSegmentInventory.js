@@ -34,4 +34,5 @@ const busSeatSegmentInventorySchema = new Schema({
 busSeatSegmentInventorySchema.index({ scheduleId: 1, seatNumber: 1, segmentId: 1 }, { unique: true });
 busSeatSegmentInventorySchema.index({ scheduleId: 1, segmentOrder: 1, status: 1 });
 busSeatSegmentInventorySchema.index({ holdId: 1, status: 1 });
+busSeatSegmentInventorySchema.index({ companyId: 1, scheduleId: 1, status: 1, segmentOrder: 1 });
 module.exports = model('BusSeatSegmentInventory', busSeatSegmentInventorySchema);

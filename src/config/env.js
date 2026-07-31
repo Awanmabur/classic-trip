@@ -56,7 +56,7 @@ const env = {
     serverSelectionTimeoutMs: Math.max(30000, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 30000)),
     connectTimeoutMs: Math.max(30000, number('MONGO_CONNECT_TIMEOUT_MS', 30000)),
     socketTimeoutMs: Math.max(45000, number('MONGO_SOCKET_TIMEOUT_MS', 90000)),
-    retryAttempts: Math.max(1, Math.min(5, number('MONGO_CONNECT_RETRY_ATTEMPTS', 3))),
+    retryAttempts: Math.max(1, Math.min(8, number('MONGO_CONNECT_RETRY_ATTEMPTS', 5))),
     retryDelayMs: Math.max(250, number('MONGO_CONNECT_RETRY_DELAY_MS', 750)),
     autoIndex: booleanFlag('MONGO_AUTO_INDEX', false),
     ipFamily: [0, 4, 6].includes(number('MONGO_IP_FAMILY', 4)) ? number('MONGO_IP_FAMILY', 4) : 4,
@@ -191,6 +191,10 @@ const env = {
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 300000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 4),
+    // Global admission limit for heavy Mongo reads across *all* concurrent
+    // dashboard/catalog requests. This is intentionally separate from each
+    // snapshot's local worker count so page navigation cannot exhaust the pool.
+    mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 6)),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),

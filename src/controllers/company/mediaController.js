@@ -2,6 +2,7 @@ const companyService = require('../../services/company/companyService');
 const { withUploadedMedia } = require('./mediaHelpers');
 const uploadService = require('../../services/media/uploadService');
 const { resolveCompanyId } = require('../../utils/companyScope');
+const { safeRedirectPath } = require('../../utils/safeRedirect');
 
 function companyId(req) {
   return resolveCompanyId(req);
@@ -38,7 +39,7 @@ async function upload(req, res, next) {
       },
     });
     if (req.flash) req.flash('success', 'Media/document uploaded for review.');
-    res.redirect(req.body.next || '/company/profile');
+    res.redirect(safeRedirectPath(req.body.next, '/company/profile'));
   } catch (error) {
     next(error);
   }
@@ -62,7 +63,7 @@ async function destroy(req, res, next) {
     });
     if (removal.media) await uploadService.deleteMedia(removal.media);
     if (req.flash) req.flash('success', 'Media/document removed.');
-    res.redirect(req.body.next || '/company/profile');
+    res.redirect(safeRedirectPath(req.body.next, '/company/profile'));
   } catch (error) {
     next(error);
   }

@@ -46,4 +46,5 @@ const invitationSchema = new Schema({
 
 invitationSchema.index({ type: 1, status: 1, createdAt: -1 });
 invitationSchema.index({ companyId: 1, status: 1 });
+invitationSchema.index({ companyId: 1, status: 1, createdAt: -1 });
 module.exports = model('Invitation', invitationSchema);

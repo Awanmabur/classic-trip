@@ -55,7 +55,8 @@ check('Public bus seat preview removes its frame on phones only and remains cent
 
 check('Reverse trips accept canonical branch identity with stop-name fallback', returnSearch.includes('function stopMatches')
   && returnSearch.includes('branchMatches || nameMatches')
-  && returnSearch.includes('routeId: { $in: matchedRouteIds }'));
+  && returnSearch.includes('function journeyForSchedule')
+  && returnSearch.includes('routeId: { $in: usableRouteIds }'));
 
 check('Archive writes carry a fixed 30-day retention timestamp', archiveHelpers.includes('const ARCHIVE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000')
   && archiveHelpers.includes('purgeAfter'));

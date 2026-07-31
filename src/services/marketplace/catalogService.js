@@ -7,6 +7,7 @@ const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
+const { runMongoRead } = require('../data/mongoReadGate');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
@@ -35,7 +36,7 @@ async function runCatalogTasks(tasks = []) {
     while (cursor < tasks.length) {
       const index = cursor;
       cursor += 1;
-      values[index] = await tasks[index]();
+      values[index] = await runMongoRead(tasks[index]);
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
@@ -51,7 +52,7 @@ async function loadSnapshotFresh() {
   ]);
   const initialCompanyIds = unique(listingRows.map((row) => row.companyId).map(text));
   const companies = initialCompanyIds.length
-    ? await commerceRepository.companies.list({ id: { $in: initialCompanyIds } }, { sort: { name: 1 }, limit: 5000 })
+    ? await runMongoRead(() => commerceRepository.companies.list({ id: { $in: initialCompanyIds } }, { sort: { name: 1 }, limit: 5000 }))
     : [];
   const productionListings = listingRows.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings: listingRows, companies })));
   const listingIds = unique(productionListings.map(entityId));
@@ -270,7 +271,13 @@ function catalogItem(data, listing) {
   const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
   const inventoryRequired = ['bus', 'hotel', 'flight', 'tour', 'car_rental'].includes(serviceType);
   const hasRequiredDatedInventory = serviceType !== 'bus' || Boolean(nextSchedule);
-  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listing.bookable !== false && active(listing) && hasRequiredDatedInventory && (!inventoryRequired || remainingInventory > 0);
+  // A published bus departure with live inventory is the source of truth for
+  // bus bookability. Older listing rows can retain bookable=false from before
+  // the departure was published, which must not turn a real live service into
+  // a misleading 'Coming soon' state. Other service types keep their explicit
+  // listing-level bookable switch.
+  const listingBookableGate = serviceType === 'bus' ? Boolean(nextSchedule) : listing.bookable !== false;
+  const bookable = PRODUCTION_SERVICE_TYPES.has(serviceType) && listingBookableGate && active(listing) && hasRequiredDatedInventory && (!inventoryRequired || remainingInventory > 0);
   const policy = text(listing.policy || listing.cancellationRules || listing.cancellationPolicy || listing.refundPolicy);
   const nextDepartAt = nextSchedule?.departAt || listing.nextDepartAt || null;
   const nextDepartDate = asDate(nextDepartAt);
@@ -458,6 +465,7 @@ function marketplaceInfo(items) {
 function publicCompany(data, company) {
   const companyId = entityId(company);
   const listings = data.listings.filter((row) => sameId(row.companyId, companyId) && isPublicListing(row, data));
+  const enrichedListings = listings.map((row) => catalogItem(data, row));
   return {
     id: companyId,
     slug: company.slug || companyId,
@@ -477,7 +485,7 @@ function publicCompany(data, company) {
     ratingAverage: number(company.ratingAverage),
     reviewCount: number(company.reviewCount),
     activeListingsCount: listings.length,
-    bookableListingsCount: listings.filter((row) => row.bookable !== false).length,
+    bookableListingsCount: enrichedListings.filter((row) => row.bookable).length,
     sponsoredListingsCount: listings.filter((row) => liveCampaignFor(data, entityId(row))).length,
     campaignCount: listings.filter((row) => liveCampaignFor(data, entityId(row))).length,
   };

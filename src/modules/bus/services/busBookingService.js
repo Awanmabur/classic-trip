@@ -383,11 +383,35 @@ async function buildCanonicalRows(payload = {}, req = null) {
   }
   if (returnHold) {
     if (outboundHold.companyId !== returnHold.companyId) throw validationError('Round-trip legs must belong to the same bus company');
-    if (outboundHold.originStopId !== returnHold.destinationStopId || outboundHold.destinationStopId !== returnHold.originStopId) {
+    const stopIdsReverse = outboundHold.originStopId === returnHold.destinationStopId
+      && outboundHold.destinationStopId === returnHold.originStopId;
+    const outboundJourney = outboundHold.meta?.journey || {};
+    const returnJourney = returnHold.meta?.journey || {};
+    const branchIdsReverse = Boolean(
+      outboundJourney.originBranchId
+      && outboundJourney.destinationBranchId
+      && returnJourney.originBranchId
+      && returnJourney.destinationBranchId
+      && outboundJourney.originBranchId === returnJourney.destinationBranchId
+      && outboundJourney.destinationBranchId === returnJourney.originBranchId
+    );
+    const namesReverse = Boolean(
+      outboundJourney.originName
+      && outboundJourney.destinationName
+      && returnJourney.originName
+      && returnJourney.destinationName
+      && normalize(outboundJourney.originName) === normalize(returnJourney.destinationName)
+      && normalize(outboundJourney.destinationName) === normalize(returnJourney.originName)
+    );
+    if (!stopIdsReverse && !branchIdsReverse && !namesReverse) {
+      // RouteStop ids are route-specific, so a legitimate reverse route normally
+      // has different stop ids. Compare canonical branch/name identity as well.
       throw validationError('Return journey must reverse the outbound origin and destination');
     }
     const returnSchedule = await repository.schedules.findOne({ id: returnHold.scheduleId });
-    if (!returnSchedule || new Date(returnSchedule.departAt).getTime() <= Date.now()) {
+    if (!returnSchedule
+      || !['published', 'boarding', 'delayed'].includes(normalize(returnSchedule.status))
+      || new Date(returnSchedule.departAt).getTime() <= Date.now()) {
       throw validationError('The selected return departure is no longer bookable');
     }
   }

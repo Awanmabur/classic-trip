@@ -100,8 +100,13 @@ function usableSeat(seat, holdId) {
   return seat.status === 'taken' && !seat.bookingRef;
 }
 async function scheduleForListing(listingId, scheduleId) {
-  if (scheduleId) return commerceRepository.schedules.findOne({ id: scheduleId, listingId });
-  return (await commerceRepository.schedules.list({ listingId, status: { $nin: ['cancelled', 'archived'] } }, { sort: { departAt: 1 }, limit: 1 }))[0] || null;
+  const liveFilter = {
+    listingId,
+    status: { $in: ['published', 'boarding', 'delayed'] },
+    departAt: { $gt: new Date() },
+  };
+  if (scheduleId) return commerceRepository.schedules.findOne({ ...liveFilter, id: scheduleId });
+  return (await commerceRepository.schedules.list(liveFilter, { sort: { departAt: 1 }, limit: 1 }))[0] || null;
 }
 async function selectBusLeg(listing, schedule, requestedSeats, passengerCount, legType, holdId) {
   if (!schedule || ['cancelled', 'archived'].includes(schedule.status)) { const error = new Error('Selected schedule is no longer available'); error.status = 409; throw error; }
@@ -146,7 +151,10 @@ async function buildBooking(payload = {}, req = null) {
   const listing = await commerceRepository.listings.findOne({ $or: [{ id: listingKey }, { slug: listingKey }] });
   if (!listing) { const error = new Error('Listing not found'); error.status = 404; throw error; }
   const company = await commerceRepository.companies.findOne({ $or: [{ id: listing.companyId }, { slug: listing.companySlug || listing.companyId }] });
-  if (listing.status !== 'active' || listing.bookable === false) { const error = new Error('This listing is not currently open for booking'); error.status = 409; throw error; }
+  const listingServiceType = normalize(listing.serviceType).replace(/-/g, '_');
+  const listingPublished = listing.status === 'active' && String(listing.releaseStatus || '').toLowerCase() === 'published';
+  const explicitBookableGate = listingServiceType === 'bus' ? true : listing.bookable !== false;
+  if (!listingPublished || !explicitBookableGate) { const error = new Error('This listing is not currently open for booking'); error.status = 409; throw error; }
   if (!ENABLED_BOOKING_TYPES.includes(listing.serviceType)) { const error = new Error('This service is not currently bookable'); error.status = 409; throw error; }
   if (listing.serviceType === 'hotel') {
     const error = new Error('Hotel bookings must use the canonical hotel reservation engine'); error.status = 409; error.code = 'CANONICAL_HOTEL_ENGINE_REQUIRED'; throw error;
@@ -158,7 +166,7 @@ async function buildBooking(payload = {}, req = null) {
   const bookingCurrency = clean(listing.currency || company?.operatingCurrency).toUpperCase();
   if (!/^[A-Z]{3}$/.test(bookingCurrency)) { const error = new Error('The listing has no valid operating currency'); error.status = 422; throw error; }
   const buyer = buyerIdentity(payload, req);
-  const serviceType = normalize(listing.serviceType).replace(/-/g, '_');
+  const serviceType = listingServiceType;
   const passengerInput = passengerInputFromPayload(payload);
   const promoterAttribution = await resolveReferral(payload, req, listing.id);
   let scheduleId = '';

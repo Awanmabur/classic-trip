@@ -8,17 +8,10 @@ const QRCode = require('qrcode');
 const { env } = require('../../config/env');
 const { isDriverAccountOperational } = require('../../services/company/driverEligibilityService');
 const logger = require('../../config/logger');
+const { safeRedirectPath } = require('../../utils/safeRedirect');
 
 function welcomeName(user = {}) {
   return String(user.fullName || user.name || user.email || 'there').trim().split(/\s+/)[0] || 'there';
-}
-
-// Only allow same-origin relative paths; reject absolute or protocol-relative URLs.
-function safeRedirectUrl(url, fallback) {
-  if (!url) return fallback;
-  const str = String(url).trim();
-  if (str.startsWith('/') && !str.startsWith('//')) return str;
-  return fallback;
 }
 
 
@@ -124,7 +117,7 @@ async function login(req, res, next) {
       if (req.flash) req.flash('error', 'The email, phone number, or password is incorrect. Please check your details and try again.');
       return res.redirect('/login?error=invalid');
     }
-    const nextUrl = safeRedirectUrl(req.body.next || req.query.next, authService.redirectAfterAuthentication(user));
+    const nextUrl = safeRedirectPath(req.body.next || req.query.next, authService.redirectAfterAuthentication(user));
     if (env.platformMfaEnabled && mfaService.isPlatformAdmin(user.role) && user.mfaConfigured) {
       await new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
       req.session.mfaChallenge = {
@@ -324,7 +317,7 @@ async function verifyMfaChallenge(req, res, next) {
       return res.redirect('/login?error=locked');
     }
     const user = await mfaService.verifyChallenge(challenge.userId, req.body.code);
-    const destination = safeRedirectUrl(challenge.next, authService.redirectForRole(user.role));
+    const destination = safeRedirectPath(challenge.next, authService.redirectForRole(user.role));
     await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
     req.session.user = user;
     req.session.mfaVerifiedAt = new Date().toISOString();
@@ -398,8 +391,7 @@ async function resendVerification(req, res, next) {
     const userId = req.session?.user?.id;
     if (userId) await authService.resendVerificationEmail(userId);
     if (req.flash) req.flash('success', 'Verification email sent. Check your inbox.');
-    const back = req.get('Referer') || '/account';
-    return res.redirect(back);
+    return res.redirect(safeRedirectPath(req.get('Referer'), '/account'));
   } catch (error) {
     return next(error);
   }

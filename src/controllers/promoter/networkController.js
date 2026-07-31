@@ -1,11 +1,12 @@
 const networkService = require('../../services/promoter/promoterNetworkService');
 const promoterRepository = require('../../repositories/domain/promoterRepository');
 const { resolvePromoterId } = require('../../utils/promoterScope');
+const { safeRedirectPath } = require('../../utils/safeRedirect');
 function promoterId(req) { return resolvePromoterId(req); }
 async function ensureAgentProfile(req, res, next) { try { await networkService.ensureAgentProfile(promoterId(req), req.body, promoterId(req)); return res.redirect('/promoter/profile'); } catch (error) { return next(error); } }
 async function createEnhancedLink(req, res, next) { try { await networkService.createReferralLinkLive({ ...req.body, promoterId: promoterId(req) }, promoterId(req)); return res.redirect('/promoter/links'); } catch (error) { return next(error); } }
 async function qrCard(req, res, next) { try { const card = await networkService.createQrReferralCardLive(promoterId(req), req.params.id); return res.render('pages/promoter-qr-card', { title: 'Promoter QR Referral Card', card, csrfToken: req.csrfToken?.() || '' }); } catch (error) { return next(error); } }
-async function reviewFraudSignal(req, res, next) { try { await networkService.reviewFraudSignalLive(req.params.id, req.body, req.session?.user?.id || 'admin-system'); return res.redirect(req.get('referer') || '/admin/promoters'); } catch (error) { return next(error); } }
+async function reviewFraudSignal(req, res, next) { try { await networkService.reviewFraudSignalLive(req.params.id, req.body, req.session?.user?.id || 'admin-system'); return res.redirect(safeRedirectPath(req.get('referer'), '/admin/promoters')); } catch (error) { return next(error); } }
 async function adminPromoterSummary(req, res, next) {
   try {
     const [agentProfiles, attributionSessions, campaignConversions, fraudSignals] = await Promise.all([

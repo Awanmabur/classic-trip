@@ -44,6 +44,8 @@ services:
         value: "false"
       - key: DASHBOARD_DB_READ_CONCURRENCY
         value: "4"
+      - key: MONGO_READ_CONCURRENCY
+        value: "6"
       - key: REDIS_URL
         fromService:
           type: keyvalue

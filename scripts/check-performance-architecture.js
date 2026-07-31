@@ -26,6 +26,9 @@ const auth = read('src/services/auth/authService.js');
 const phone = read('src/services/auth/phoneVerificationService.js');
 const render = read('render.yaml');
 const flight = read('src/modules/flight/services/flightSetupService.js');
+const dashboardSnapshot = read('src/services/dashboard/dashboardSnapshotService.js');
+const catalog = read('src/services/marketplace/catalogService.js');
+const mongoReadGate = read('src/services/data/mongoReadGate.js');
 
 check('Bus segment inventory does not allocate one counter ID per row', !departure.includes("nextId('bus-seat-segment')"));
 check('Flight seat inventory does not allocate one counter ID per seat', !flight.includes("nextId('flight-seat')"));
@@ -40,6 +43,8 @@ check('Redis connects before app middleware is loaded', server.indexOf('await Pr
 check('Signup email delivery is queued off the request path', auth.includes('enqueueNotification'));
 check('Signup SMS delivery is queued off the request path', phone.includes('enqueueNotification'));
 check('Render provisions separate web, worker and Key Value services', render.includes('type: worker') && render.includes('type: keyvalue') && render.includes('classic-trip-cache'));
+check('Heavy Mongo reads share one process-wide admission gate', dashboardSnapshot.includes('runMongoRead') && catalog.includes('runMongoRead') && mongoReadGate.includes('MAX_ACTIVE_READS'));
+check('Heavy read gate reserves pool capacity for auth, sessions and writes', mongoReadGate.includes('reservedConnections') && mongoReadGate.includes('poolSize - reservedConnections'));
 
 if (failures.length) {
   console.error(`\n${failures.length} performance architecture check(s) failed.`);

@@ -21,13 +21,24 @@ async function restoreLegacyDemotedBusListings() {
     });
     if (!publicationAudit) continue;
     const repairedAt = new Date().toISOString();
+    const liveDeparture = await repository.schedules.findOne({
+      companyId: listing.companyId,
+      listingId: listing.id,
+      status: { $in: ['published', 'boarding', 'delayed'] },
+      departAt: { $gt: new Date() },
+    });
+    const liveInventory = liveDeparture
+      ? await repository.segmentInventory.count({ scheduleId: liveDeparture.id, status: 'available' })
+      : 0;
+    const bookable = Boolean(liveDeparture && liveInventory > 0);
     listing.status = 'active';
     listing.releaseStatus = 'published';
-    listing.bookable = false;
+    listing.bookable = bookable;
     listing.publication = {
       ...(listing.publication || {}),
-      public: false,
+      public: true,
       state: 'published',
+      readiness: bookable ? 'bookable' : (listing.publication?.readiness || 'incomplete'),
       restoredFromLegacyReadinessRollbackAt: repairedAt,
     };
     listing.updatedAt = repairedAt;
@@ -38,7 +49,7 @@ async function restoreLegacyDemotedBusListings() {
       targetType: 'listing',
       targetId: listing.id,
       companyId: listing.companyId,
-      metadata: { bookable: false, reason: 'legacy_readiness_rollback' },
+      metadata: { bookable, liveDepartureId: liveDeparture?.id || '', liveInventory, reason: 'legacy_readiness_rollback' },
     });
     restored += 1;
   }

@@ -333,7 +333,11 @@ async function createManualBooking(companyId, payload = {}, actorId = 'employee-
     listingId = listing?.id || '';
   }
   const listing = await companyListingOrThrow(companyId, listingId);
-  if (!listing.bookable || listing.status !== 'active') throw httpError('Listing is not currently bookable', 409);
+  const listingType = normalize(listing.serviceType);
+  const listingOpen = listing.status === 'active'
+    && String(listing.releaseStatus || '').toLowerCase() === 'published'
+    && (listingType === 'bus' || listing.bookable !== false);
+  if (!listingOpen) throw httpError('Listing is not currently bookable', 409);
   let booking;
   if (normalize(listing.serviceType) === 'hotel') {
     const requestedPaymentStatus = normalize(payload.paymentStatus || (options.canRecordPayment ? 'successful' : 'pending'));

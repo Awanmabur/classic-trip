@@ -27,4 +27,6 @@ const notificationSchema = new Schema({
 }, { timestamps: true });
 
 notificationSchema.index({ audience: 1, status: 1, createdAt: -1 });
+notificationSchema.index({ ownerType: 1, ownerId: 1, status: 1, createdAt: -1 });
+notificationSchema.index({ audience: 1, ownerId: 1, status: 1, createdAt: -1 });
 module.exports = model('Notification', notificationSchema);

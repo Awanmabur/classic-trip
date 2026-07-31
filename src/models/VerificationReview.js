@@ -39,4 +39,7 @@ const verificationReviewSchema = new Schema({
   auditTrail: [Schema.Types.Mixed],
 }, { timestamps: true });
 
+verificationReviewSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+verificationReviewSchema.index({ targetType: 1, targetId: 1, status: 1, createdAt: -1 });
+
 module.exports = model('VerificationReview', verificationReviewSchema);

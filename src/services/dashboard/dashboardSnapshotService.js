@@ -1,6 +1,7 @@
 const repositories = require('../../repositories');
 const { env } = require('../../config/env');
 const redisRuntime = require('../../config/redis');
+const { runMongoRead } = require('../data/mongoReadGate');
 
 const SNAPSHOT_TTL_MS = Math.max(1000, Number(env.performance.dashboardCacheTtlMs || 60000));
 const SNAPSHOT_STALE_MS = Math.max(SNAPSHOT_TTL_MS, Number(env.performance.dashboardCacheStaleMs || 300000));
@@ -323,12 +324,12 @@ function emptySnapshot() {
 
 async function list(entity, filter = {}, limit = 2500) {
   const repository = repositories.readyRepository(entity);
-  return repository.list(filter, { sort: { createdAt: -1 }, limit });
+  return runMongoRead(() => repository.list(filter, { sort: { createdAt: -1 }, limit }));
 }
 
 async function one(entity, filter = {}) {
   const repository = repositories.readyRepository(entity);
-  return repository.findOne(filter);
+  return runMongoRead(() => repository.findOne(filter));
 }
 
 function companyEntityFilter(entity, companyId) {
@@ -503,7 +504,7 @@ async function promoterSnapshot(context = {}) {
   await mapWithConcurrency(tasks, async ([entity, filter, limit]) => { if (repositories[entity]) snapshot[entity] = await list(entity, filter, limit); });
   const listingIds = ids(snapshot.promoterLinks, 'listingId');
   const bookingRefs = ids(snapshot.campaignConversions, 'bookingRef');
-  snapshot.listings = listingIds.length ? await list('listings', { id: { $in: listingIds }, status: 'active', bookable: { $ne: false } }, 3000) : [];
+  snapshot.listings = listingIds.length ? await list('listings', { id: { $in: listingIds }, status: 'active', releaseStatus: 'published', $or: [{ serviceType: 'bus' }, { bookable: { $ne: false } }] }, 3000) : [];
   const activeListingIds = ids(snapshot.listings);
   snapshot.companies = snapshot.listings.length ? await list('companies', { id: { $in: ids(snapshot.listings, 'companyId') } }, 1000) : [];
   snapshot.bookings = bookingRefs.length ? await list('bookings', { bookingRef: { $in: bookingRefs } }, 5000) : await list('bookings', { 'promoterAttribution.promoterId': promoterId }, 5000);

@@ -14,6 +14,41 @@ function requireMongo(entity = 'repository') {
   throw error;
 }
 
+
+function retryableReadError(error) {
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return name.includes('mongowaitqueuetimeout')
+    || name.includes('serverselection')
+    || name.includes('mongonetwork')
+    || message.includes('timed out while checking out a connection')
+    || message.includes('server selection timed out')
+    || message.includes('connection pool')
+    || message.includes('econnreset')
+    || message.includes('connection closed');
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function runRetryableRead(work) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await work();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= 2 || !retryableReadError(error)) throw error;
+      // A short retry is safe for reads and lets the driver's pool/topology
+      // recover from a transient Atlas checkout or election without turning a
+      // normal page request into an immediate 503. Writes are never retried here.
+      await sleep(125);
+    }
+  }
+  throw lastError;
+}
+
 function clean(row) {
   if (!row) return row;
   const plain = typeof row.toObject === 'function' ? row.toObject() : { ...row };
@@ -109,39 +144,47 @@ class MongoRepository {
 
   async list(filter = {}, options = {}) {
     requireMongo(this.entity);
-    let query = this.Model.find(this.normalizeFilter(filter));
-    if (options.session) query = query.session(options.session);
-    if (options.sort) query = query.sort(options.sort);
-    if (options.limit) query = query.limit(options.limit);
-    if (options.skip) query = query.skip(options.skip);
-    return (await query.lean()).map(clean);
+    return runRetryableRead(async () => {
+      let query = this.Model.find(this.normalizeFilter(filter));
+      if (options.session) query = query.session(options.session);
+      if (options.sort) query = query.sort(options.sort);
+      if (options.limit) query = query.limit(options.limit);
+      if (options.skip) query = query.skip(options.skip);
+      return (await query.lean()).map(clean);
+    });
   }
 
   async findOne(filter = {}, options = {}) {
     requireMongo(this.entity);
-    let query = this.Model.findOne(this.normalizeFilter(filter));
-    if (options.session) query = query.session(options.session);
-    return clean(await query.lean());
+    return runRetryableRead(async () => {
+      let query = this.Model.findOne(this.normalizeFilter(filter));
+      if (options.session) query = query.session(options.session);
+      return clean(await query.lean());
+    });
   }
 
   async count(filter = {}, options = {}) {
     requireMongo(this.entity);
-    let query = this.Model.countDocuments(this.normalizeFilter(filter));
-    if (options.session) query = query.session(options.session);
-    return query;
+    return runRetryableRead(async () => {
+      let query = this.Model.countDocuments(this.normalizeFilter(filter));
+      if (options.session) query = query.session(options.session);
+      return query;
+    });
   }
 
   async countGroupedBy(field, filter = {}, options = {}) {
     requireMongo(this.entity);
     const safeField = String(field || '').trim();
     if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(safeField)) throw new Error('countGroupedBy requires a safe field name');
-    let aggregate = this.Model.aggregate([
-      { $match: this.normalizeFilter(filter) },
-      { $group: { _id: `$${safeField}`, count: { $sum: 1 } } },
-    ]);
-    if (options.session) aggregate = aggregate.session(options.session);
-    const rows = await aggregate.exec();
-    return rows.map((row) => ({ key: row._id, count: Number(row.count || 0) }));
+    return runRetryableRead(async () => {
+      let aggregate = this.Model.aggregate([
+        { $match: this.normalizeFilter(filter) },
+        { $group: { _id: `$${safeField}`, count: { $sum: 1 } } },
+      ]);
+      if (options.session) aggregate = aggregate.session(options.session);
+      const rows = await aggregate.exec();
+      return rows.map((row) => ({ key: row._id, count: Number(row.count || 0) }));
+    });
   }
 
   async insert(row, options = {}) {
@@ -200,4 +243,4 @@ class MongoRepository {
   }
 }
 
-module.exports = { MongoRepository, mongoReady, requireMongo, clean };
+module.exports = { MongoRepository, mongoReady, requireMongo, clean, retryableReadError, runRetryableRead };

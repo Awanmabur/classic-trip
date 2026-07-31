@@ -4,74 +4,110 @@ const repository = require('../repositories/busRepository');
 const { cleanText, normalize } = require('../domain/busDomain');
 
 function stopMatches(stop, wantedBranchId, wantedName) {
-  const branchMatches = wantedBranchId
-    && String(stop?.branchId || '') === wantedBranchId;
-  const nameMatches = wantedName
-    && normalize(stop?.name) === normalize(wantedName);
-  // Older routes and manually-created stops may not carry a branchId even when
-  // they refer to the same terminal. Branch identity is preferred, but the
-  // canonical stop name remains a valid fallback for reverse-trip discovery.
+  const wantedBranch = cleanText(wantedBranchId, 180);
+  const candidateBranch = cleanText(stop?.branchId, 180);
+  const branchMatches = wantedBranch && candidateBranch && candidateBranch === wantedBranch;
+  const nameMatches = wantedName && normalize(stop?.name) === normalize(wantedName);
+  // Branch identity is authoritative when available. Name matching keeps older
+  // manually-created routes usable when their stops pre-date branch linkage.
   return Boolean(branchMatches || nameMatches);
+}
+
+function scheduleTravelBounds(schedule = {}, route = {}, stops = []) {
+  if (!stops.length) return { first: 0, last: -1 };
+  const originId = cleanText(schedule.originStopId || route.originStopId, 180);
+  const destinationId = cleanText(schedule.destinationStopId || route.destinationStopId, 180);
+  const originIndex = originId ? stops.findIndex((stop) => String(stop.id || '') === originId) : 0;
+  const destinationIndex = destinationId ? stops.findIndex((stop) => String(stop.id || '') === destinationId) : stops.length - 1;
+  // Legacy schedules may not have endpoint snapshots. In that case use the
+  // complete ordered route rather than hiding an otherwise valid departure.
+  if (originIndex < 0 || destinationIndex <= originIndex) return { first: 0, last: stops.length - 1 };
+  return { first: originIndex, last: destinationIndex };
+}
+
+function journeyForSchedule(schedule = {}, route = {}, stops = [], wanted = {}) {
+  const bounds = scheduleTravelBounds(schedule, route, stops);
+  if (bounds.last < bounds.first) return null;
+  const traversed = stops.slice(bounds.first, bounds.last + 1);
+  const originOffset = traversed.findIndex((stop) => (
+    stop.pickupAllowed !== false
+    && stopMatches(stop, wanted.originBranchId, wanted.originName)
+  ));
+  if (originOffset < 0) return null;
+  const destinationOffset = traversed.findIndex((stop, index) => (
+    index > originOffset
+    && stop.dropoffAllowed !== false
+    && stopMatches(stop, wanted.destinationBranchId, wanted.destinationName)
+  ));
+  if (destinationOffset <= originOffset) return null;
+  return {
+    originStop: traversed[originOffset],
+    destinationStop: traversed[destinationOffset],
+  };
 }
 
 async function findReturnDepartures({ companyId, originName, destinationName, originBranchId = '', destinationBranchId = '' } = {}) {
   const tenantId = cleanText(companyId, 180);
-  const wantedOrigin = normalize(originName);
-  const wantedDestination = normalize(destinationName);
-  const wantedOriginBranch = cleanText(originBranchId, 180);
-  const wantedDestinationBranch = cleanText(destinationBranchId, 180);
-  if (!tenantId || (!wantedOriginBranch && !wantedOrigin) || (!wantedDestinationBranch && !wantedDestination)) return [];
-  const routes = await repository.routes.list({ companyId: tenantId, status: 'active' }, { limit: 200 });
-  if (!routes.length) return [];
-  const routeIds = routes.map((route) => route.id).filter(Boolean);
+  const wanted = {
+    originName: cleanText(originName, 200),
+    destinationName: cleanText(destinationName, 200),
+    originBranchId: cleanText(originBranchId, 180),
+    destinationBranchId: cleanText(destinationBranchId, 180),
+  };
+  if (!tenantId || (!wanted.originBranchId && !wanted.originName) || (!wanted.destinationBranchId && !wanted.destinationName)) return [];
+
+  // Discover from live departures first. A route-only scan can miss a valid
+  // return when a company owns many routes, a legacy route has no explicit
+  // `active` status, or a schedule uses a subset of the route's stops.
+  const departures = await repository.schedules.list({
+    companyId: tenantId,
+    status: { $in: ['published', 'boarding', 'delayed'] },
+    // Return departures are independent services. Never compare their clock
+    // time to the outbound departure/arrival; same-time future services remain
+    // valid options when the operator has published them.
+    departAt: { $gt: new Date() },
+  }, { sort: { departAt: 1 }, limit: 1500 });
+  if (!departures.length) return [];
+
+  const routeIds = [...new Set(departures.map((row) => cleanText(row.routeId, 180)).filter(Boolean))];
+  const routes = await repository.routes.list({
+    companyId: tenantId,
+    id: { $in: routeIds },
+    status: { $ne: 'archived' },
+  }, { limit: Math.max(200, routeIds.length + 20) });
+  const routeById = new Map(routes.map((route) => [String(route.id || ''), route]));
+  const usableRouteIds = [...routeById.keys()];
+  if (!usableRouteIds.length) return [];
+
   const allStops = await repository.routeStops.list({
     companyId: tenantId,
-    routeId: { $in: routeIds },
+    routeId: { $in: usableRouteIds },
     status: { $ne: 'archived' },
-  }, { sort: { routeId: 1, stopOrder: 1 }, limit: 4000 });
+  }, { sort: { routeId: 1, stopOrder: 1 }, limit: 12000 });
   const stopsByRoute = new Map();
   for (const stop of allStops) {
     const key = String(stop.routeId || '');
     if (!stopsByRoute.has(key)) stopsByRoute.set(key, []);
     stopsByRoute.get(key).push(stop);
   }
-  const matches = [];
-  for (const route of routes) {
-    const stops = stopsByRoute.get(String(route.id || '')) || [];
-    const originIndex = stops.findIndex((stop) => stopMatches(stop, wantedOriginBranch, wantedOrigin));
-    const destinationIndex = stops.findIndex((stop, index) => (
-      index > originIndex
-      && stopMatches(stop, wantedDestinationBranch, wantedDestination)
-    ));
-    if (originIndex < 0 || destinationIndex <= originIndex) continue;
-    matches.push({ route, originStop: stops[originIndex], destinationStop: stops[destinationIndex] });
-  }
-  if (!matches.length) return [];
-  const matchedRouteIds = matches.map((match) => match.route.id);
-  const departures = await repository.schedules.list({
-    companyId: tenantId,
-    routeId: { $in: matchedRouteIds },
-    status: { $in: ['published', 'boarding', 'delayed'] },
-    // A reverse option is an independently scheduled journey. Do not compare
-    // its clock time with the selected outbound journey; partners may publish
-    // same-time or otherwise independently timed services.
-    departAt: { $gt: new Date() },
-  }, { sort: { departAt: 1 }, limit: 600 });
-  const matchByRoute = new Map(matches.map((match) => [String(match.route.id || ''), match]));
+
   const results = [];
   for (const schedule of departures) {
-    const match = matchByRoute.get(String(schedule.routeId || ''));
-    if (!match) continue;
+    const route = routeById.get(String(schedule.routeId || ''));
+    if (!route) continue;
+    const stops = stopsByRoute.get(String(route.id || '')) || [];
+    const journey = journeyForSchedule(schedule, route, stops, wanted);
+    if (!journey) continue;
     results.push({
       id: schedule.id,
       listingId: schedule.listingId,
       companyId: schedule.companyId,
       routeId: schedule.routeId,
       vehicleId: schedule.vehicleId,
-      originStopId: match.originStop.id,
-      destinationStopId: match.destinationStop.id,
-      originName: match.originStop.name,
-      destinationName: match.destinationStop.name,
+      originStopId: journey.originStop.id,
+      destinationStopId: journey.destinationStop.id,
+      originName: journey.originStop.name,
+      destinationName: journey.destinationStop.name,
       departAt: schedule.departAt,
       arriveAt: schedule.arriveAt,
       departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
@@ -84,8 +120,10 @@ async function findReturnDepartures({ companyId, originName, destinationName, or
 
 async function findReturnsForDeparture({ scheduleId, originStopId, destinationStopId } = {}) {
   const availability = await require('./busInventoryService').getAvailability({ scheduleId, originStopId, destinationStopId });
+  const sourceSchedule = await repository.schedules.findOne({ id: cleanText(scheduleId, 180) });
+  if (!sourceSchedule) return { outbound: availability.journey, departures: [] };
   const departures = await findReturnDepartures({
-    companyId: (await repository.schedules.findOne({ id: scheduleId }))?.companyId,
+    companyId: sourceSchedule.companyId,
     originName: availability.journey.destinationName,
     destinationName: availability.journey.originName,
     originBranchId: availability.journey.destinationBranchId,
@@ -94,4 +132,10 @@ async function findReturnsForDeparture({ scheduleId, originStopId, destinationSt
   return { outbound: availability.journey, departures };
 }
 
-module.exports = { findReturnDepartures, findReturnsForDeparture, stopMatches };
+module.exports = {
+  findReturnDepartures,
+  findReturnsForDeparture,
+  stopMatches,
+  scheduleTravelBounds,
+  journeyForSchedule,
+};
