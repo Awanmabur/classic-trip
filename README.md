@@ -5,30 +5,23 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.4.3
+## Current release — version 1.4.7
 
-This final maintenance release keeps the approved UI intact while correcting Atlas index upgrades, release verification, dependency hygiene, marketplace clarity, mobile behavior and bus-search responsiveness.
+This focused release changes only the requested top-gap rendering, dark travel/PWA surface opacity, and service-tab stability.
 
-- Atlas index reconciliation safely replaces legacy conflicting indexes and supports a dry run.
-- Release verification allows local `.env` and `node_modules` while proving they are excluded from packaging.
-- Unit tests use Node's built-in runner; obsolete Jest 29 and unused Supertest dependencies were removed.
-- Bus cards use the compact one-line label **Fare by stops**.
-- Marketplace descriptions display a consistent three-line preview.
-- Partners must enter at least **125 characters (about 20 words)** for public listing descriptions; the browser and backend both enforce it.
-- Operating terminal selection reuses the saved city, country and address.
-- Bus schedule, boarding-stop and drop-off changes use parallel backend reads, stale-request cancellation and short-lived browser caches.
-- Mobile Profile drawers show marketplace categories after the main navigation links.
-- Dashboard statistics remain two per row on phones.
-- The installed app uses one native launch path with a transparent logo/name/slogan lockup; no second web splash is rendered.
+- The 12 px navigation gap remains, but it is painted by the same page background instead of exposing a black/empty strip.
+- Flight, Local Taxi and PWA installation containers are opaque in dark mode.
+- Clicking a service tab switches the real service form without automatically scrolling or shifting the hero left/right.
+- Mobile service forms remain two inputs per row without horizontal overflow.
+- No unrelated global background, color, spacing, or page redesign is included.
 
-See `RELEASE_NOTES.md` for the final release changes and `FINAL_RELEASE_CHECKLIST.md` for deployment steps.
-
-Run the focused final gate with:
+Run the focused regression gate with:
 
 ```bash
-npm run check:final-polish
+npm run check:auth-service-ui
 ```
 
+See `RELEASE_NOTES.md` for the exact changes and `FINAL_RELEASE_CHECKLIST.md` for deployment steps.
 
 ## Seven-service marketplace completion
 

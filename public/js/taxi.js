@@ -445,6 +445,13 @@
   const query = bootstrap.query || {};
   if (query.origin) { $('#pickupSearch').value = query.origin; searchPlaces(query.origin, $('#pickupSuggestions'), (place) => setStaticPlace('pickup', place)); }
   if (query.destination) { $('#destinationSearch').value = query.destination; searchPlaces(query.destination, $('#destinationSuggestions'), (place) => setStaticPlace('destination', place)); }
+  if (query.passengers) $('#passengerCount').value = Math.max(1, Math.min(20, Number(query.passengers) || 1));
+  if (query.pickupDate || query.pickupTime) {
+    $('[data-ride-time="scheduled"]')?.click();
+    const pickupDate = String(query.pickupDate || new Date().toISOString().slice(0, 10));
+    const pickupTime = String(query.pickupTime || '09:00').slice(0, 5);
+    $('#scheduledPickupAt').value = `${pickupDate}T${pickupTime}`;
+  }
 
   initMap();
   updatePreview();

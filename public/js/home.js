@@ -329,28 +329,6 @@
     $('#drawer')?.classList.remove('open');
   }
 
-  function runSearch() {
-    const activeTab = $('#searchTabs .tab.active');
-    const serviceType = activeTab?.dataset.type || 'bus';
-    const params = new URLSearchParams({ serviceType });
-    const date = $('#dateInput')?.value;
-    if (date) params.set('date', date);
-    if (serviceType === 'hotel' || serviceType === 'tour') {
-      const city = $('#cityInput')?.value.trim();
-      if (city) params.set('city', city);
-      return window.location.assign(serviceType === 'tour' ? `/tours?${params.toString()}` : `/search?${params.toString()}`);
-    }
-    const origin = $('#fromInput')?.value.trim();
-    const destination = $('#toInput')?.value.trim();
-    if (origin) params.set('origin', origin);
-    if (destination) params.set('destination', destination);
-    if (serviceType === 'flight') return window.location.assign(`/flights?${params.toString()}`);
-    if (serviceType === 'local_transport') return window.location.assign(`/taxi?${params.toString()}`);
-    if (serviceType === 'car_rental') return window.location.assign(`/car-rentals?${params.toString()}`);
-    if (serviceType === 'cargo') return window.location.assign(`/cargo?${params.toString()}`);
-    window.location.assign(`/search?${params.toString()}`);
-  }
-
   function setupDrawerFilters() {
     const holder = $('#drawerFilters');
     if (!holder) return;
@@ -389,31 +367,13 @@
   setupDrawerFilters();
   render();
 
-  const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'light';
+  const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'dark';
   setTheme(savedTheme);
-  const dateInput = $('#dateInput');
-  if (dateInput) dateInput.min = new Date().toISOString().slice(0, 10);
-
   $('#themeBtn')?.addEventListener('click', () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
   $('#menuBtn')?.addEventListener('click', () => $('#drawer')?.classList.add('open'));
   $('#closeDrawer')?.addEventListener('click', () => $('#drawer')?.classList.remove('open'));
   $('#drawer')?.addEventListener('click', (event) => { if (event.target.id === 'drawer') $('#drawer').classList.remove('open'); });
 
-  $('#searchTabs')?.addEventListener('click', (event) => {
-    const tab = event.target.closest('.tab');
-    if (!tab) return;
-    $$('.tab', $('#searchTabs')).forEach((item) => item.classList.toggle('active', item === tab));
-    const type = tab.dataset.type || 'bus';
-    const cityOnly = type === 'hotel' || type === 'tour';
-    $('#cityField')?.classList.toggle('hide', !cityOnly);
-    $('#fromField')?.classList.toggle('hide', cityOnly);
-    $('#toField')?.classList.toggle('hide', cityOnly);
-    const fromInput = $('#fromInput'); const toInput = $('#toInput');
-    if (fromInput) fromInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Pickup address' : type === 'car_rental' ? 'Pickup city or branch' : type === 'cargo' ? 'Pickup location' : 'From city';
-    if (toInput) toInput.placeholder = type === 'flight' ? 'Airport code or city' : type === 'local_transport' ? 'Destination' : type === 'car_rental' ? 'Return city or branch' : type === 'cargo' ? 'Delivery location' : 'To city';
-    const dateLabel = $('#dateLabel'); if (dateLabel) dateLabel.textContent = type === 'hotel' ? 'Check-in' : type === 'local_transport' || type === 'car_rental' || type === 'cargo' ? 'Pickup date' : type === 'tour' ? 'Activity date' : 'Date';
-    const peopleLabel = $('#peopleLabel'); if (peopleLabel) peopleLabel.textContent = type === 'hotel' ? 'Guests / rooms' : type === 'local_transport' ? 'Passengers' : type === 'tour' ? 'Participants' : type === 'car_rental' ? 'Passengers' : type === 'cargo' ? 'Packages' : 'Travelers / seats';
-  });
 
   document.addEventListener('click', (event) => {
     const actionElement = event.target.closest('[data-home-action]');
@@ -422,7 +382,6 @@
       if (action === 'scroll-section') scrollToSection(actionElement.dataset.sectionId);
       else if (action === 'navigate' && actionElement.dataset.url?.startsWith('/')) window.location.assign(actionElement.dataset.url);
       else if (action === 'drawer-toggle') $('#drawer')?.classList.toggle('open');
-      else if (action === 'run-search') runSearch();
       else if (action === 'filter-cards') filterCards(actionElement.dataset.filter || 'all');
       else if (action === 'filter-route') filterRoute(actionElement.dataset.filter || 'all');
       else if (action === 'show-more') showMore(actionElement.dataset.group);
@@ -459,41 +418,13 @@
   });
 })();
 
-// Allow the complete service tab row to swipe with touch, mouse drag, trackpad, or wheel on every screen size.
+// Keep the service tab row natively swipeable without intercepting taps/clicks.
 (() => {
   const tabs = document.getElementById('searchTabs');
-  if (!tabs || tabs.dataset.swipeReady === 'true') return;
-  tabs.dataset.swipeReady = 'true';
-  let dragging = false;
-  let startX = 0;
-  let startScroll = 0;
-  tabs.addEventListener('pointerdown', (event) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    dragging = true;
-    startX = event.clientX;
-    startScroll = tabs.scrollLeft;
-    tabs.classList.add('is-dragging');
-    tabs.setPointerCapture?.(event.pointerId);
-  });
-  tabs.addEventListener('pointermove', (event) => {
-    if (!dragging) return;
-    tabs.scrollLeft = startScroll - (event.clientX - startX);
-  });
-  const stop = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    tabs.classList.remove('is-dragging');
-    try { tabs.releasePointerCapture?.(event.pointerId); } catch (_) { /* already released */ }
-  };
-  tabs.addEventListener('pointerup', stop);
-  tabs.addEventListener('pointercancel', stop);
+  if (!tabs) return;
   tabs.addEventListener('wheel', (event) => {
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || tabs.scrollWidth <= tabs.clientWidth) return;
+    if (tabs.scrollWidth <= tabs.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
     event.preventDefault();
     tabs.scrollLeft += event.deltaY;
   }, { passive: false });
-  tabs.addEventListener('click', (event) => {
-    const tab = event.target.closest('.tab');
-    if (tab) tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  });
 })();

@@ -1,6 +1,6 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.4.3",
+  "version": "1.4.7",
   "private": true,
   "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
@@ -25,7 +25,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "node scripts/run-unit-tests.js",
-    "verify": "npm run check && npm run check:release-cleanup && npm run check:lockfile && npm run check:index-reconciliation && npm run check:final-polish && npm run check:production-finalization && npm run check:stays && npm run check:marketing-mobile && npm run check:final-superadmin-flow && npm run check:single-splash && npm run check:mobile-pwa && npm run check:pwa-install && npm run check:orientation-lock && npm run check:mobile-button-stats && npm run check:reference-ui && npm run check:spacing-flash-final && npm run check:deep-cleanup-final && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:vip-dashboard-crud && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:launch-lifecycle && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboard-workflows && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
+    "verify": "npm run check && npm run check:release-cleanup && npm run check:lockfile && npm run check:dark-mobile-ui && npm run check:auth-service-ui && npm run check:surface-stability && npm run check:index-reconciliation && npm run check:final-polish && npm run check:production-finalization && npm run check:stays && npm run check:marketing-mobile && npm run check:final-superadmin-flow && npm run check:single-splash && npm run check:mobile-pwa && npm run check:pwa-install && npm run check:orientation-lock && npm run check:mobile-button-stats && npm run check:reference-ui && npm run check:spacing-flash-final && npm run check:deep-cleanup-final && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-layout-admin && npm run check:dashboard-service-coverage && npm run check:vip-dashboard-crud && npm run check:flight-taxi && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:launch-lifecycle && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:partner-registration && npm run check:commission-only && npm run check:dashboard-repository && npm run check:dashboard-workflows && npm run check:dashboards && npm run check:addons-return-seats && npm run check:stop-pricing-ui && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -91,7 +91,10 @@
     "release:check": "npm run verify && npm run audit:production",
     "release:launch": "npm run launch:check && npm run doctor",
     "check:index-reconciliation": "node scripts/check-index-reconciliation.js",
-    "check:lockfile": "node scripts/check-lockfile-integrity.js"
+    "check:lockfile": "node scripts/check-lockfile-integrity.js",
+    "check:dark-mobile-ui": "node scripts/check-dark-mobile-ui.js",
+    "check:auth-service-ui": "node scripts/check-auth-service-search-ui.js",
+    "check:surface-stability": "node scripts/check-surface-stability.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

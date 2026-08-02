@@ -389,6 +389,10 @@ function applySearch(items, query = {}) {
   const destination = normalize(query.destination || query.to);
   const partner = normalize(query.partner || query.company);
   const stayType = normalize(query.stayType || query.propertyType || '');
+  const tourCategory = normalize(query.category || query.tourType || '');
+  const vehicleType = normalize(query.vehicleType || query.vehicleCategory || '');
+  const cargoType = normalize(query.cargoType || '');
+  const requestedWeightKg = number(query.weightKg || query.weight);
   const min = number(query.minPrice || query.min);
   const max = number(query.maxPrice || query.max);
   const minRating = number(query.minRating || query.rating);
@@ -407,6 +411,19 @@ function applySearch(items, query = {}) {
       const matchesAirbnb = stayType === 'airbnb' && (airbnbTypes.has(itemStayType) || /airbnb|entire home|private room|shared room|holiday home|vacation home/.test(staySearchText));
       if (!matchesAirbnb && itemStayType !== stayType && !staySearchText.includes(stayType)) return false;
     }
+    if (tourCategory) {
+      const tourText = normalize(`${item.serviceDetails?.category || ''} ${item.serviceDetails?.tourType || ''} ${item.title} ${item.description}`);
+      if (!tourText.includes(tourCategory)) return false;
+    }
+    if (vehicleType) {
+      const vehicleText = normalize(`${item.vehicleCategory || ''} ${item.serviceDetails?.vehicleType || ''} ${item.title} ${item.description}`);
+      if (!vehicleText.includes(vehicleType)) return false;
+    }
+    if (cargoType) {
+      const cargoText = normalize(`${(item.cargoTypes || []).join(' ')} ${item.serviceDetails?.cargoType || ''} ${item.title} ${item.description}`);
+      if (!cargoText.includes(cargoType)) return false;
+    }
+    if (requestedWeightKg && item.weightLimitKg > 0 && requestedWeightKg > item.weightLimitKg) return false;
     if (min && item.priceFrom < min) return false;
     if (max && item.priceFrom > max) return false;
     if (minRating && item.ratingAverage < minRating) return false;

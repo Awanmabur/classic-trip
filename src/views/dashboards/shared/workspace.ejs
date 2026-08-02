@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=20260727-3" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.4.7" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,6 +14,8 @@
   <title><%= seo?.title || (`Classic Trip | ${dashboardShell?.label || 'Dashboard'}`) %></title>
   <meta name="description" content="<%= dashboardShell?.consoleName || dashboardShell?.label || 'Classic Trip dashboard' %> for role-scoped bookings, inventory, operations, finance, support, and reports." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
+  <meta name="theme-color" content="#070a12" />
+  <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -22,9 +24,9 @@
   <script src="/js/notifications.js" defer></script>
 
   
-  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=20260726-reference-ui-1">
+  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.4.5">
   <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-release-3">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.7">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 

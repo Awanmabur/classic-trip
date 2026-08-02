@@ -1077,3 +1077,88 @@ html[data-theme="light"] .authPage .flashMessage.error{color:#b91c1c!important;b
     gap:6px!important;
   }
 }
+
+/* v1.4.7 — retain the top spacing inside the painted page surface, keep service tabs stable, and preserve focused auth/service behavior. */
+:root{--ct-top-gap:calc(12px + env(safe-area-inset-top,0px))}
+body.homePage,
+body.sitePage,
+body.authPage{
+  padding-top:var(--ct-top-gap)!important;
+}
+body.homePage > header.nav,
+body.sitePage > nav.nav{
+  top:var(--ct-top-gap)!important;
+  margin-top:0!important;
+}
+.authPage .navWrap{
+  top:var(--ct-top-gap)!important;
+}
+
+.homePage .heroCard,
+.homePage .heroTop,
+.homePage .heroTop > *,
+.homePage .heroTop .searchBox,
+.homePage .serviceSearchPanels,
+.homePage .serviceSearchPanel,
+.homePage .serviceSearchPanel > .field,
+.homePage .serviceSearchPanel .control,
+.homePage .serviceSearchPanel :is(input,select){
+  min-width:0!important;
+  max-width:100%!important;
+}
+.homePage .heroCard,
+.homePage .heroTop .searchBox,
+.homePage .serviceSearchPanels{
+  overflow:hidden!important;
+}
+#searchTabs.tabs{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-x:contain!important;
+  touch-action:pan-x!important;
+  -webkit-overflow-scrolling:touch;
+  scroll-behavior:auto!important;
+  overflow-anchor:none;
+}
+.homePage .serviceSearchPanel[hidden]{display:none!important}
+.homePage .serviceSearchPanel.active:not([hidden]){display:grid!important}
+
+/* Keep authentication panel switching deterministic without changing its page design. */
+.authPage .panel[hidden]{display:none!important}
+.authPage .panel.active:not([hidden]){display:block!important}
+.authPage :is(.grid,.authShell,.formCard,.panel,.form,.row2,.field,.control,.partnerFormCard,.partnerDynamicSection){
+  min-width:0!important;
+  max-width:100%;
+}
+.authPage .control :is(input,select,textarea){
+  min-width:0!important;
+  color:var(--text)!important;
+}
+.authPage select option{color:var(--text)!important}
+
+/* The install prompt must remain an opaque surface in dark mode. */
+html[data-theme="dark"] .pwaInstallPrompt{
+  background:#0b1020!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+html[data-theme="dark"] .pwaInstallClose,
+html[data-theme="dark"] .pwaInstallInstructions{
+  background:#111827!important;
+}
+
+@media(max-width:680px){
+  .homePage .serviceSearchPanel,
+  .sitePage form.searchBox .formGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  .homePage .serviceSearchPanel .control,
+  .sitePage form.searchBox .control{
+    min-width:0!important;
+    padding-inline:9px!important;
+  }
+}

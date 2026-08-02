@@ -1,6 +1,6 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.4.3.
+Use this checklist for version 1.4.7.
 
 ## 1. Clean installation
 
@@ -71,6 +71,11 @@ Confirm all of the following:
 
 - `/health` returns HTTP 200.
 - `/ready` returns HTTP 200 and `database: "ready"`.
+- Login, signup, partner onboarding, recovery, and support panels work and remain readable in both themes.
+- The home service tabs replace the visible form with the correct bus, stay, flight, taxi, tour, rental, or cargo inputs.
+- The 12 px top navigation spacing remains and is filled by the same page background without a black or empty strip.
+- Flight, Local Taxi and PWA install containers are opaque in dark mode.
+- Clicking service types does not shift the hero left or right.
 - Login, logout, password reset, verification, and role redirects work.
 - A published bus listing with a live departure shows the booking/payment action.
 - A return search shows valid reverse departures regardless of matching clock time.

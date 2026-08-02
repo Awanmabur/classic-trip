@@ -138,3 +138,40 @@
   .travelPage .heroTitle,.travelHero .heroTitle{font-size:24px;line-height:1.12;margin-top:10px}
   .travelPage .heroSub,.travelHero .heroSub{font-size:12px;line-height:1.5;margin-top:8px}
 }
+
+
+/* Opaque dark surfaces for flight and local-mobility workflows. */
+html[data-theme="dark"] .sitePage .travelHero .heroCard,
+html[data-theme="dark"] .sitePage .travelPanel{
+  background:#0b1020;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+html[data-theme="dark"] .sitePage :is(
+  .travelControl,
+  .travelChip,
+  .offerCard,
+  .quoteCard,
+  .travelerCard,
+  .seatMap,
+  .flightSeat,
+  .trackingMetric,
+  .inputIconBtn,
+  .placeSuggestions,
+  .rideDetails,
+  .liveMap,
+  .mapStatus
+){
+  background:#111827;
+}
+html[data-theme="dark"] .sitePage .routePreview{
+  background:
+    radial-gradient(circle at 25% 25%,rgba(79,140,255,.18),transparent 34%),
+    radial-gradient(circle at 75% 72%,rgba(255,183,3,.16),transparent 35%),
+    #111827;
+}
+html[data-theme="dark"] .sitePage .secureNote{background:#0d1b33}
+html[data-theme="dark"] .sitePage .travelMessage.error{background:#2a1118}
+html[data-theme="dark"] .sitePage .travelMessage.success{background:#0d261d}
+html[data-theme="dark"] .sitePage .travelChip.active{background:#2a240d}
+html[data-theme="dark"] .sitePage .mapStatus.liveRoute{background:#0d261d}

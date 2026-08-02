@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,11 +10,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=20260727-3" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.4.7" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
-  <meta name="theme-color" content="#f8fafc" />
+  <meta name="theme-color" content="#070a12" />
+  <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -31,13 +32,13 @@
       --shadow:0 22px 70px rgba(0,0,0,.22);
       --shadow2:0 12px 34px rgba(0,0,0,.16);
     }
-    html[data-theme="light"]{
+    html[data-theme="dark"]{
       --bg0:#070a12; --bg1:#0b1020;
-      --cardA:rgba(255,255,255,.08); --cardB:rgba(255,255,255,.045);
+      --cardA:#111827; --cardB:#0b1220;
       --line:rgba(255,255,255,.12); --line2:rgba(255,255,255,.18);
       --text:#f4f7ff; --muted:rgba(244,247,255,.68);
-      --input:rgba(255,255,255,.045); --inputHover:rgba(255,255,255,.07);
-      --navBg:rgba(7,10,18,.70); --tintBase:rgba(7,10,18,.92);
+      --input:#111827; --inputHover:#172033;
+      --navBg:#0b1220; --tintBase:#070a12;
       color-scheme:dark;
     }
     html[data-theme="light"]{
@@ -63,7 +64,7 @@
     a{color:inherit;text-decoration:none} button,input,select{font:inherit} button{cursor:pointer} img{display:block;max-width:100%}
     :focus,:focus-visible{outline:none!important;box-shadow:none!important}
     .container{width:var(--container);margin:0 auto}
-    .navWrap{position:sticky;top:12px;z-index:50;padding:0 0 10px}
+    .navWrap{position:sticky;top:0;z-index:50;padding:0 0 10px}
     .nav{width:var(--container);margin:0 auto;height:var(--navH);display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:var(--navBg);border-radius:999px;padding:9px 12px;box-shadow:var(--shadow2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
     .brand{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:-.4px;white-space:nowrap}
     .mark{width:42px;height:42px;object-fit:contain;display:block}
@@ -100,7 +101,7 @@
     .partnerPlanGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.partnerPlan{position:relative;display:grid;gap:5px;border:1px solid var(--line);background:var(--input);border-radius:20px;padding:12px;cursor:pointer;min-height:126px}.partnerPlan:hover,.partnerPlan:has(input:checked){border-color:rgba(255,183,3,.58);background:rgba(255,183,3,.09)}.partnerPlan input{position:absolute;top:12px;right:12px;accent-color:var(--accent)}.partnerPlan strong{font-size:14px}.partnerPlan small{color:var(--muted);font-size:11px;font-weight:750;line-height:1.4}.partnerPlan b{font-size:12px;color:var(--accent);margin-top:auto}.partnerPlan .badge{justify-self:start}
     .partnerSectionTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:13px;margin-top:3px}.partnerSectionTitle span{font-weight:950}.partnerSectionTitle small{color:var(--muted);font-weight:750;text-align:right}.partnerTextarea{height:auto;min-height:92px;border-radius:22px;align-items:flex-start;padding:12px 14px}.partnerTextarea i{margin-top:4px}.partnerTextarea textarea{width:100%;min-height:66px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-weight:750}.partnerSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.partnerSteps .stat{min-height:72px}.partnerSteps .stat strong{font-size:18px;color:var(--accent)}
     @media(max-width:980px){.navLinks{display:none}.grid{grid-template-columns:1fr}.leftHero{min-height:auto}.authShell{min-height:auto}.heroText h1{font-size:30px}.roleGrid{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:640px){:root{--container:min(100% - 24px,520px);--navH:58px}.navWrap{top:8px}.nav{padding:8px 10px}.brand span:last-child{display:none}.mark{width:38px;height:38px;border-radius:14px}.navActions .btn{display:none}.main{padding-top:8px}.leftHero{padding:15px;border-radius:22px}.badgeRow{display:none}.heroText h1{font-size:24px;line-height:1.12;letter-spacing:-.6px}.heroText p{font-size:12px}.benefits{display:none}.authShell{padding:12px;border-radius:22px}.authTop h2{font-size:20px}.toggle{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.toggle button{min-width:0;padding:0 8px;font-size:12px}.row2,.socialGrid,.miniDash,.pageGrid,.supportOptions{grid-template-columns:1fr}.roleGrid{grid-template-columns:repeat(2,1fr)}.control{height:44px}.checkLine{display:grid}.drawer{padding-top:78px}}
+    @media(max-width:640px){:root{--container:min(100% - 24px,520px);--navH:58px}.navWrap{top:0}.nav{padding:8px 10px}.brand span:last-child{display:none}.mark{width:38px;height:38px;border-radius:14px}.navActions .btn{display:none}.main{padding-top:8px}.leftHero{padding:15px;border-radius:22px}.badgeRow{display:none}.heroText h1{font-size:24px;line-height:1.12;letter-spacing:-.6px}.heroText p{font-size:12px}.benefits{display:none}.authShell{padding:12px;border-radius:22px}.authTop h2{font-size:20px}.toggle{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.toggle button{min-width:0;padding:0 8px;font-size:12px}.row2,.socialGrid,.miniDash,.pageGrid,.supportOptions{grid-template-columns:1fr}.roleGrid{grid-template-columns:repeat(2,1fr)}.control{height:44px}.checkLine{display:grid}.drawer{padding-top:78px}}
     /* No glassmorphism in light mode - flat white surfaces, no tinted background decoration. */
     html[data-theme="light"] body::before{display:none}
     html[data-theme="light"] .nav,html[data-theme="light"] .card,html[data-theme="light"] .drawerPanel{backdrop-filter:none;-webkit-backdrop-filter:none}
@@ -112,7 +113,7 @@
 
 
 </style>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260726-final-release-3">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.7">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="authPage">
@@ -158,9 +159,9 @@
             <p id="panelSub">Login to manage bookings, saved trips, tickets and payments.</p>
           </div>
           <div class="toggle" aria-label="Account access switch">
-            <button class="active" data-open-panel="login">Login</button>
-            <button data-open-panel="signup">Signup</button>
-            <button data-open-panel="partner">Partner</button>
+            <button type="button" class="active" data-open-panel="login" aria-controls="loginPanel" aria-selected="true">Login</button>
+            <button type="button" data-open-panel="signup" aria-controls="signupPanel" aria-selected="false">Signup</button>
+            <button type="button" data-open-panel="partner" aria-controls="partnerPanel" aria-selected="false">Partner</button>
           </div>
         </div>
 
@@ -176,7 +177,7 @@
         <% } %>
         <div id="successBox" class="successBox"><i class="fa-solid fa-circle-check"></i> Request sent.</div>
 
-        <div class="panel active" id="loginPanel">
+        <div class="panel active" id="loginPanel" aria-hidden="false">
           <div class="formCard">
             <form class="form active" id="loginForm" action="/login" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="field">
@@ -202,7 +203,7 @@
           <div class="notice"><strong>Tip:</strong> after login, customers go to My Bookings, promoters go to commission dashboard, and partners go to their company dashboard.</div>
         </div>
 
-        <div class="panel" id="signupPanel">
+        <div class="panel" id="signupPanel" hidden aria-hidden="true">
           <div class="formCard">
             <div class="roleGrid" aria-label="Account type">
               <button class="role active" type="button" data-role="customer"><i class="fa-regular fa-user"></i>Customer</button>
@@ -236,7 +237,7 @@
           </div>
         </div>
 
-        <div class="panel" id="supportPanel">
+        <div class="panel" id="supportPanel" hidden aria-hidden="true">
           <div class="formCard">
             <div class="authTop" style="margin-bottom:12px">
               <div>
@@ -270,7 +271,7 @@
           </div>
         </div>
 
-        <div class="panel" id="forgotPanel">
+        <div class="panel" id="forgotPanel" hidden aria-hidden="true">
           <div class="formCard">
             <form class="form active" id="forgotForm" action="/forgot-password" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="field"><label>Recover your account</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone number" required></div></div>
@@ -281,7 +282,7 @@
           <div class="notice"><strong>Recovery:</strong> verified reset delivery is handled through the configured email or SMS channel.</div>
         </div>
 
-        <div class="panel" id="partnerPanel">
+        <div class="panel" id="partnerPanel" hidden aria-hidden="true">
           <%- include('./_partner-signup') %>
         </div>
       </section>
@@ -311,92 +312,6 @@
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-3" defer></script>
 
-  <script nonce="<%= cspNonce %>">
-    const html = document.documentElement;
-    const themeBtn = document.getElementById('themeBtn');
-    const themeIcon = document.getElementById('themeIcon');
-    const panels = { login: document.getElementById('loginPanel'), signup: document.getElementById('signupPanel'), partner: document.getElementById('partnerPanel'), support: document.getElementById('supportPanel'), forgot: document.getElementById('forgotPanel') };
-    const panelTitle = document.getElementById('panelTitle');
-    const panelSub = document.getElementById('panelSub');
-    const drawer = document.getElementById('drawer');
-    const successBox = document.getElementById('successBox');
-    const toast = document.getElementById('toast');
-    const roleInput = document.getElementById('roleInput');
-    const googleSignupLink = document.getElementById('googleSignupLink');
-
-    function showToast(message){ toast.textContent = message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 2200); }
-    function setTheme(mode){ html.setAttribute('data-theme', mode); try { localStorage.setItem('classicTripTheme', mode); localStorage.removeItem('ct-theme'); localStorage.removeItem('ct_auth_theme'); } catch (_) {} themeIcon.className = mode === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
-    let savedTheme = 'light'; try { savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'light'; } catch (_) {} setTheme(savedTheme);
-    themeBtn.addEventListener('click', ()=> setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-
-    function openPanel(name){
-      if (!panels[name]) name = 'login';
-      Object.entries(panels).forEach(([key,p]) => { if (p) p.classList.toggle('active', key === name); });
-      document.querySelectorAll('[data-open-panel]').forEach(btn => btn.classList.toggle('active', btn.dataset.openPanel === name));
-      successBox.classList.remove('show');
-      const copy = {
-        login:['Welcome back','Login to manage bookings, saved trips, tickets and payments.'],
-        signup:['Create your account','Choose customer or promoter access. Staff and drivers use secure invitations.'],
-        partner:['Partner onboarding','Apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner.'],
-        support:['Support center','Get help with bookings, payments, refunds, receipts and partner accounts.'],
-        forgot:['Recover account','Get a reset link or OTP for your Classic Trip account.']
-      };
-      if (panelTitle && copy[name]) panelTitle.textContent = copy[name][0];
-      if (panelSub && copy[name]) panelSub.textContent = copy[name][1];
-      history.replaceState(null,'','#' + name);
-      if (drawer) { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
-    }
-    document.querySelectorAll('[data-open-panel]').forEach(btn => btn.addEventListener('click', (e)=>{ e.preventDefault(); openPanel(btn.dataset.openPanel); if(btn.dataset.roleLink) setRole(btn.dataset.roleLink); }));
-
-    function setRole(role){
-      document.querySelectorAll('.role').forEach(btn => btn.classList.toggle('active', btn.dataset.role === role));
-      if (!roleInput) return;
-      roleInput.value = ['customer','promoter'].includes(role) ? role : 'customer';
-      const submitText = {customer:'Create customer account', promoter:'Create promoter account'}[roleInput.value] || 'Create account';
-      const signupSubmit = document.querySelector('#signupForm .submit');
-      if (signupSubmit) signupSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i>' + submitText;
-      updateGoogleSignupLink();
-    }
-    document.querySelectorAll('.role').forEach(btn => btn.addEventListener('click', ()=> setRole(btn.dataset.role)));
-    function updateGoogleSignupLink(){
-      if (!roleInput || !googleSignupLink) return;
-      const params = new URLSearchParams({ role: ['customer','promoter'].includes(roleInput.value) ? roleInput.value : 'customer' });
-      googleSignupLink.href = '/auth/google?' + params.toString();
-    }
-    updateGoogleSignupLink();
-
-    document.querySelectorAll('.passwordToggle').forEach(btn => btn.addEventListener('click', ()=>{
-      const input = btn.parentElement.querySelector('input');
-      input.type = input.type === 'password' ? 'text' : 'password';
-      btn.querySelector('i').className = input.type === 'password' ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
-    }));
-
-    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', ()=>{
-      const submitButton = form.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.setAttribute('aria-disabled', 'true');
-      }
-      const copy = {
-        signupForm: 'Creating your account...',
-        supportForm: 'Sending your support request...',
-        forgotForm: 'Sending your reset link...',
-        partnerOnboardingForm: 'Submitting your partner application...'
-      };
-      if (!copy[form.id]) return;
-      successBox.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + copy[form.id];
-      successBox.classList.add('show');
-      showToast(copy[form.id]);
-    }));
-
-    document.getElementById('menuBtn')?.addEventListener('click', ()=>{ drawer?.classList.add('open'); drawer?.setAttribute('aria-hidden','false'); });
-    document.getElementById('closeDrawer')?.addEventListener('click', ()=>{ drawer?.classList.remove('open'); drawer?.setAttribute('aria-hidden','true'); });
-    drawer?.addEventListener('click', e => { if(e.target === drawer){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }});
-
-    const requestedRole = new URLSearchParams(location.search).get('role');
-    const start = location.hash.replace('#','');
-    if (['partner','company','company_admin'].includes(String(requestedRole || '').toLowerCase())) openPanel('partner');
-    else if (['login','signup','partner','support','forgot'].includes(start)) openPanel(start);
-  </script>
+  <script src="/js/auth-page.js?v=1.4.7" defer></script>
 </body>
 </html>

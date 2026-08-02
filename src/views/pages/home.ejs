@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,11 +25,12 @@
   <title><%= homeTitle %></title>
   <meta name="description" content="<%= homeDescription %>" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
-  <meta name="theme-color" content="#f8fafc" />
+  <meta name="theme-color" content="#070a12" />
+  <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=20260727-final-speed-1" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.4.7" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -44,12 +45,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css?v=20260727-final-speed-1">
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.4.6">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=20260727-final-speed-1">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.7">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
@@ -121,25 +122,78 @@
           </div>
 
           <div class="card searchBox">
-            <div class="tabs" id="searchTabs">
-              <button class="tab active" data-type="bus"><i class="fa-solid fa-bus"></i> Bus</button>
-              <button class="tab" data-type="hotel"><i class="fa-solid fa-house"></i> Stays</button>
-              <button class="tab" data-type="flight"><i class="fa-solid fa-plane"></i> Flight</button>
-              <button class="tab" data-type="local_transport"><i class="fa-solid fa-taxi"></i> Local taxi</button>
-              <button class="tab" data-type="tour"><i class="fa-solid fa-map-location-dot"></i> Tours</button>
-              <button class="tab" data-type="car_rental"><i class="fa-solid fa-car-side"></i> Car rental</button>
-              <button class="tab" data-type="cargo"><i class="fa-solid fa-box"></i> Cargo</button>
+            <div class="tabs" id="searchTabs" role="tablist" aria-label="Choose a service to search">
+              <button type="button" class="tab active" data-type="bus" data-service-tab="bus" role="tab" aria-controls="busSearchPanel" aria-selected="true"><i class="fa-solid fa-bus"></i> Bus</button>
+              <button type="button" class="tab" data-type="hotel" data-service-tab="hotel" role="tab" aria-controls="staySearchPanel" aria-selected="false"><i class="fa-solid fa-house"></i> Stays</button>
+              <button type="button" class="tab" data-type="flight" data-service-tab="flight" role="tab" aria-controls="flightSearchPanel" aria-selected="false"><i class="fa-solid fa-plane"></i> Flight</button>
+              <button type="button" class="tab" data-type="local_transport" data-service-tab="local_transport" role="tab" aria-controls="taxiSearchPanel" aria-selected="false"><i class="fa-solid fa-taxi"></i> Local taxi</button>
+              <button type="button" class="tab" data-type="tour" data-service-tab="tour" role="tab" aria-controls="tourSearchPanel" aria-selected="false"><i class="fa-solid fa-map-location-dot"></i> Tours</button>
+              <button type="button" class="tab" data-type="car_rental" data-service-tab="car_rental" role="tab" aria-controls="rentalSearchPanel" aria-selected="false"><i class="fa-solid fa-car-side"></i> Car rental</button>
+              <button type="button" class="tab" data-type="cargo" data-service-tab="cargo" role="tab" aria-controls="cargoSearchPanel" aria-selected="false"><i class="fa-solid fa-box"></i> Cargo</button>
             </div>
-            <div class="formGrid">
-              <div class="field" id="fromField"><label>From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="fromInput" placeholder="From city"></div></div>
-              <div class="field" id="toField"><label>To</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="toInput" placeholder="To city"></div></div>
-              <div class="field hide" id="cityField"><label>City</label><div class="control"><i class="fa-solid fa-city"></i><input id="cityInput" placeholder="City or area"></div></div>
-              <div class="field"><label id="dateLabel">Date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="dateInput"></div></div>
-              <div class="field"><label id="peopleLabel">Guests / seats</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="peopleInput"><option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>
+            <div class="serviceSearchPanels" id="serviceSearchPanels" aria-live="polite">
+              <div id="busSearchPanel" class="formGrid serviceSearchPanel active" data-search-panel="bus" role="tabpanel" aria-label="Bus search fields">
+                <div class="field"><label for="busFromInput">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="busFromInput" data-search-param="origin" placeholder="Departure city or terminal" autocomplete="off"></div></div>
+                <div class="field"><label for="busToInput">To</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="busToInput" data-search-param="destination" placeholder="Arrival city or terminal" autocomplete="off"></div></div>
+                <div class="field"><label for="busDateInput">Departure date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="busDateInput" data-search-param="date"></div></div>
+                <div class="field"><label for="busPassengersInput">Passengers / seats</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="busPassengersInput" data-search-param="passengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div></div>
+              </div>
+
+              <div id="staySearchPanel" class="formGrid serviceSearchPanel" data-search-panel="hotel" role="tabpanel" aria-label="Stay search fields" hidden>
+                <div class="field"><label for="stayCityInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="stayCityInput" data-search-param="city" placeholder="City, area or property" autocomplete="off"></div></div>
+                <div class="field"><label for="stayTypeInput">Stay type</label><div class="control"><i class="fa-solid fa-house"></i><select id="stayTypeInput" data-search-param="stayType"><option value="">All stays</option><option value="hotel">Hotel</option><option value="apartment">Apartment</option><option value="entire_home">Entire home</option><option value="private_room">Private room</option><option value="villa">Villa</option></select></div></div>
+                <div class="field"><label for="stayCheckInInput">Check-in</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="stayCheckInInput" data-search-param="checkIn"></div></div>
+                <div class="field"><label for="stayCheckOutInput">Check-out</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="stayCheckOutInput" data-search-param="checkOut"></div></div>
+                <div class="field"><label for="stayGuestsInput">Guests</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="stayGuestsInput" data-search-param="guests"><option value="1">1 guest</option><option value="2">2 guests</option><option value="3">3 guests</option><option value="4">4 guests</option><option value="5">5 guests</option><option value="6">6 guests</option></select></div></div>
+                <div class="field"><label for="stayRoomsInput">Rooms</label><div class="control"><i class="fa-solid fa-door-open"></i><select id="stayRoomsInput" data-search-param="rooms"><option value="1">1 room</option><option value="2">2 rooms</option><option value="3">3 rooms</option><option value="4">4 rooms</option></select></div></div>
+              </div>
+
+              <div id="flightSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="flight" role="tabpanel" aria-label="Flight search fields" hidden>
+                <div class="field"><label for="flightFromInput">From airport</label><div class="control"><i class="fa-solid fa-plane-departure"></i><input id="flightFromInput" data-search-param="origin" placeholder="Airport code or city" autocomplete="off"></div></div>
+                <div class="field"><label for="flightToInput">To airport</label><div class="control"><i class="fa-solid fa-plane-arrival"></i><input id="flightToInput" data-search-param="destination" placeholder="Airport code or city" autocomplete="off"></div></div>
+                <div class="field"><label for="flightDepartInput">Departure</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="flightDepartInput" data-search-param="departureDate"></div></div>
+                <div class="field"><label for="flightReturnInput">Return (optional)</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="flightReturnInput" data-search-param="returnDate"></div></div>
+                <div class="field"><label for="flightTravelersInput">Travelers</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="flightTravelersInput" data-search-param="adults"><option value="1">1 traveler</option><option value="2">2 travelers</option><option value="3">3 travelers</option><option value="4">4 travelers</option><option value="5">5 travelers</option><option value="6">6 travelers</option></select></div></div>
+                <div class="field"><label for="flightCabinInput">Cabin</label><div class="control"><i class="fa-solid fa-couch"></i><select id="flightCabinInput" data-search-param="cabinClass"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div></div>
+              </div>
+
+              <div id="taxiSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="local_transport" role="tabpanel" aria-label="Local taxi search fields" hidden>
+                <div class="field"><label for="taxiPickupInput">Pickup</label><div class="control"><i class="fa-solid fa-location-crosshairs"></i><input id="taxiPickupInput" data-search-param="origin" placeholder="Pickup address" autocomplete="street-address"></div></div>
+                <div class="field"><label for="taxiDestinationInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="taxiDestinationInput" data-search-param="destination" placeholder="Destination address" autocomplete="off"></div></div>
+                <div class="field"><label for="taxiDateInput">Pickup date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="taxiDateInput" data-search-param="pickupDate"></div></div>
+                <div class="field"><label for="taxiTimeInput">Pickup time</label><div class="control"><i class="fa-regular fa-clock"></i><input type="time" id="taxiTimeInput" data-search-param="pickupTime"></div></div>
+                <div class="field"><label for="taxiPassengersInput">Passengers</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="taxiPassengersInput" data-search-param="passengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div></div>
+                <div class="field"><label for="taxiRideTypeInput">Ride type</label><div class="control"><i class="fa-solid fa-car-side"></i><select id="taxiRideTypeInput" data-search-param="rideType"><option value="">Any available ride</option><option value="car">Car</option><option value="boda">Boda</option><option value="van">Van</option><option value="airport">Airport transfer</option></select></div></div>
+              </div>
+
+              <div id="tourSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="tour" role="tabpanel" aria-label="Tour search fields" hidden>
+                <div class="field"><label for="tourCityInput">Destination</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input id="tourCityInput" data-search-param="city" placeholder="City, park or attraction" autocomplete="off"></div></div>
+                <div class="field"><label for="tourCategoryInput">Tour type</label><div class="control"><i class="fa-solid fa-compass"></i><select id="tourCategoryInput" data-search-param="category"><option value="">All tours</option><option value="safari">Safari</option><option value="city">City tour</option><option value="culture">Culture</option><option value="adventure">Adventure</option><option value="nature">Nature</option></select></div></div>
+                <div class="field"><label for="tourDateInput">Activity date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="tourDateInput" data-search-param="date"></div></div>
+                <div class="field"><label for="tourParticipantsInput">Participants</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="tourParticipantsInput" data-search-param="participants"><option value="1">1 participant</option><option value="2">2 participants</option><option value="3">3 participants</option><option value="4">4 participants</option><option value="5">5 participants</option><option value="6">6 participants</option></select></div></div>
+              </div>
+
+              <div id="rentalSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="car_rental" role="tabpanel" aria-label="Car rental search fields" hidden>
+                <div class="field"><label for="rentalPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="rentalPickupInput" data-search-param="origin" placeholder="City, airport or branch" autocomplete="off"></div></div>
+                <div class="field"><label for="rentalReturnLocationInput">Return location</label><div class="control"><i class="fa-solid fa-flag-checkered"></i><input id="rentalReturnLocationInput" data-search-param="destination" placeholder="Same or different location" autocomplete="off"></div></div>
+                <div class="field"><label for="rentalPickupDateInput">Pickup date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="rentalPickupDateInput" data-search-param="pickupDate"></div></div>
+                <div class="field"><label for="rentalReturnDateInput">Return date</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="rentalReturnDateInput" data-search-param="returnDate"></div></div>
+                <div class="field"><label for="rentalVehicleInput">Vehicle type</label><div class="control"><i class="fa-solid fa-car-side"></i><select id="rentalVehicleInput" data-search-param="vehicleType"><option value="">Any vehicle</option><option value="economy">Economy</option><option value="suv">SUV</option><option value="van">Van</option><option value="luxury">Luxury</option><option value="pickup">Pickup</option></select></div></div>
+                <div class="field"><label for="rentalDriverInput">Driver</label><div class="control"><i class="fa-solid fa-id-card"></i><select id="rentalDriverInput" data-search-param="driverOption"><option value="self_drive">Self-drive</option><option value="with_driver">With driver</option></select></div></div>
+              </div>
+
+              <div id="cargoSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="cargo" role="tabpanel" aria-label="Cargo search fields" hidden>
+                <div class="field"><label for="cargoPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-box"></i><input id="cargoPickupInput" data-search-param="origin" placeholder="Pickup city or address" autocomplete="off"></div></div>
+                <div class="field"><label for="cargoDeliveryInput">Delivery location</label><div class="control"><i class="fa-solid fa-truck-fast"></i><input id="cargoDeliveryInput" data-search-param="destination" placeholder="Delivery city or address" autocomplete="off"></div></div>
+                <div class="field"><label for="cargoDateInput">Shipping date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="cargoDateInput" data-search-param="date"></div></div>
+                <div class="field"><label for="cargoTypeInput">Cargo type</label><div class="control"><i class="fa-solid fa-boxes-stacked"></i><select id="cargoTypeInput" data-search-param="cargoType"><option value="parcel">Parcel</option><option value="documents">Documents</option><option value="general_goods">General goods</option><option value="fragile">Fragile goods</option><option value="bulk">Bulk cargo</option></select></div></div>
+                <div class="field"><label for="cargoWeightInput">Approx. weight</label><div class="control"><i class="fa-solid fa-weight-hanging"></i><input type="number" id="cargoWeightInput" data-search-param="weightKg" min="0.1" step="0.1" placeholder="Weight in kg"></div></div>
+                <div class="field"><label for="cargoPackagesInput">Packages</label><div class="control"><i class="fa-solid fa-cubes"></i><select id="cargoPackagesInput" data-search-param="packages"><option value="1">1 package</option><option value="2">2 packages</option><option value="3">3 packages</option><option value="4">4 packages</option><option value="5">5+ packages</option></select></div></div>
+              </div>
             </div>
             <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap">
-              <button class="btn btnGhost" data-home-action="run-search"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart search</button>
-              <button class="btn btnBlue" data-home-action="run-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+              <button type="button" class="btn btnGhost" id="smartSearchBtn" data-service-search-submit="smart"><i class="fa-solid fa-wand-magic-sparkles"></i> Smart bus search</button>
+              <button type="button" class="btn btnBlue" id="primarySearchBtn" data-service-search-submit="primary"><i class="fa-solid fa-magnifying-glass"></i> Search buses</button>
             </div>
           </div>
         </div>
@@ -433,7 +487,8 @@
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <script src="/js/home.js?v=20260727-final-speed-1" defer></script>
+  <script src="/js/home-service-search.js?v=1.4.7" defer></script>
+  <script src="/js/home.js?v=1.4.7" defer></script>
 </body>
 </html>
 

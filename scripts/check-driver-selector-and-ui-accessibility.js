@@ -23,6 +23,7 @@ const packageJson = JSON.parse(read('package.json'));
 const siteHeader = read('public/js/site-header.js');
 const homeJs = read('public/js/home.js');
 const loginView = read('src/views/pages/auth/login.ejs');
+const authPageJs = read('public/js/auth-page.js');
 
 check(employeeModel.includes("userId: { type: String, default: '', index: true }"), 'Driver requests must exist before account creation.');
 check(employeeModel.includes('requestTicketId:'), 'Driver records must retain the request relationship.');
@@ -44,7 +45,7 @@ check(!accessibility.includes('min-height:') && !accessibility.includes('border-
 check(!accessibility.includes('html[data-theme="dark"]') && !accessibility.includes('body {'), 'Accessibility CSS must not replace theme or page styling.');
 check(siteHeader.includes("localStorage.getItem('classicTripTheme')"), 'Public pages must use the shared platform theme key.');
 check(homeJs.includes("localStorage.getItem('classicTripTheme')"), 'Homepage must use the shared platform theme key.');
-check(loginView.includes("localStorage.setItem('classicTripTheme'"), 'Authentication pages must use the shared platform theme key.');
+check(loginView.includes('/js/auth-page.js') && authPageJs.includes("localStorage.setItem('classicTripTheme'"), 'Authentication pages must use the shared platform theme key.');
 check(packageJson.scripts['check:driver-ui'], 'The driver/UI regression gate must be registered.');
 
 const viewRoot = path.join(process.cwd(), 'src/views');

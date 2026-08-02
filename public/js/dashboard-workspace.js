@@ -3851,6 +3851,7 @@ window.addEventListener('DOMContentLoaded', function () {
     })();
     if (savedDashboardTheme === 'light' || savedDashboardTheme === 'dark') {
       document.documentElement.dataset.theme = savedDashboardTheme;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', savedDashboardTheme === 'dark' ? '#070a12' : '#f8fafc');
       if (els.themeIcon) els.themeIcon.className = savedDashboardTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
     }
 
@@ -3859,6 +3860,7 @@ window.addEventListener('DOMContentLoaded', function () {
         const root = document.documentElement;
         const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
         root.dataset.theme = next;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#070a12' : '#f8fafc');
         try { localStorage.setItem('classicTripTheme', next); } catch (_) { /* Storage can be unavailable. */ }
         if (els.themeIcon) els.themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
         toast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');

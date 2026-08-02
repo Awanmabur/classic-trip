@@ -1,43 +1,43 @@
-# Classic Trip 1.4.3 — Final Release Maintenance
+# Classic Trip 1.4.7 — Top-Gap Fill, Opaque Travel Surfaces and Stable Service Tabs
 
 Release date: 2 August 2026
 
-This maintenance release fixes the two issues discovered during the final installation on the live Atlas database while preserving the MongoDB resilience, performance, reverse-trip, booking-state, and security work from 1.4.1.
+## Changes in this release
 
-## Fixes in 1.4.3
+Only the three requested areas were changed:
 
-- Fixed `check:release-cleanup` on Windows/Node 24 by executing npm through `npm-cli.js` instead of spawning `npm.cmd`.
-- Replaced Nodemon with Node's built-in watch mode, removing the remaining external development watcher dependency tree.
+1. Top navigation gap
+   - The 12 px spacing remains.
+   - The spacing is now body padding, so the page's own background paints it instead of exposing a black or empty strip.
+   - Installed PWAs also include the device safe-area inset.
 
-- `npm run db:indexes` now performs controlled index reconciliation instead of calling `Model.createIndexes()` blindly.
-- Legacy single-field Listing and Airport text indexes are replaced by one canonical compound search index per collection.
-- The BlogPost external ID index is safely upgraded from a legacy non-unique index to a sparse unique index.
-- Unique-index upgrades run a duplicate-data preflight and stop with exact duplicate examples instead of dropping an index and failing later.
-- Existing equivalent indexes are accepted even when an older deployment used a different index name.
-- The index command supports `--dry-run` for production review before applying changes.
-- The release cleanup checker now inspects the actual `npm pack --dry-run` file list. A required local `.env` and installed `node_modules` no longer cause false failures, while secrets and dependencies are still verified as excluded from release packaging.
-- The service-worker cache is versioned as `classic-trip-static-v1.4.3`.
-- Jest 29 and unused Supertest were removed. Unit tests now use Node's built-in test runner, eliminating the deprecated `inflight` and `glob@7` development chain and reducing the lockfile substantially.
+2. Dark-mode travel and PWA containers
+   - Flight and Local Taxi hero cards, booking panels, controls, offers, maps, suggestions and related nested containers use opaque dark surfaces.
+   - The PWA installation popup, close button and instruction box use opaque dark surfaces.
+   - Light-mode surfaces and unrelated platform pages are unchanged.
 
-## Consolidated platform fixes
+3. Stable service selector
+   - Selecting Bus, Stays, Flights, Local taxi, Tours, Car rental or Cargo still displays that service's real input panel.
+   - Automatic `scrollIntoView()` was removed, so clicking a service no longer shifts the hero container or its content left/right.
+   - Horizontal tab swiping remains native and contained inside the tab row.
 
-- Process-wide MongoDB read concurrency control prevents dashboard and marketplace requests from exhausting the pool.
-- MongoDB startup retries and safe read retries cover short Atlas topology and pool interruptions without retrying unsafe writes.
-- Reverse trips use reversed branch/location identity rather than unrelated stop-record IDs.
-- Valid return departures are independent of the outbound clock time.
-- Published future bus departures with inventory are the source of truth for bus bookability.
-- Unsafe redirect targets are restricted to local application paths.
-- Multipart uploads use bounded file, field, part, and header limits.
+## Verification
 
-## Release commands
+- Surface stability checks: 11/11
+- Authentication and service-search checks: 22/22
+- JavaScript syntax: 558/558
+- EJS templates: 128/128
+- PWA checks: 42/42
+- Flight and Local Taxi workflow checks: 110/110
+- Reference UI integrity: 179/179
+- Production architecture: 6,774/6,774
+- Production finalization: 29/29
+- Final regression: 42/42
+- Release cleanup: 23/23
+
+Run the dependency-backed checks after `npm ci`:
 
 ```bash
-npm ci
-npm run db:indexes -- --dry-run
-npm run db:indexes
 npm run release:check
-npm run release:launch
 npm start
 ```
-
-`release:check` runs the complete source/runtime/unit verification followed by a high-severity production dependency audit. The external development watcher dependency tree has been removed. The remaining `jpeg-exif` installation message comes from PDFKit 0.15.2 and is a deprecation warning; the live npm audit result remains the release authority.

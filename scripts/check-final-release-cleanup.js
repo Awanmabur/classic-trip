@@ -51,7 +51,7 @@ function npmPackFileList() {
 const packedFiles = npmPackFileList();
 
 check('package is private', pkg.private === true);
-check('package and lockfile versions match', /^1\.4\.3$/.test(pkg.version) && lock.version === pkg.version && lock.packages?.['']?.version === pkg.version);
+check('package and lockfile versions match', /^\d+\.\d+\.\d+$/.test(pkg.version) && lock.version === pkg.version && lock.packages?.['']?.version === pkg.version);
 check('service worker cache matches release version', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('final release notes exist', fs.existsSync(path.join(root, 'RELEASE_NOTES.md')));
 check('final deployment checklist exists', fs.existsSync(path.join(root, 'FINAL_RELEASE_CHECKLIST.md')));

@@ -181,5 +181,7 @@
   if (query.destination) $('#flightDestination').value = query.destination;
   if (query.date || query.departureDate) $('#flightDepartureDate').value = query.date || query.departureDate;
   if (query.returnDate) { $('[data-trip-type="round_trip"]').click(); $('#flightReturnDate').value = query.returnDate; }
+  if (['economy', 'premium_economy', 'business', 'first'].includes(String(query.cabinClass || ''))) $('#flightCabin').value = query.cabinClass;
+  if (query.adults) $('#flightAdults').value = Math.max(1, Math.min(9, Number(query.adults) || 1));
   updateTravelers(); loadAirports();
 })();

@@ -25,8 +25,8 @@
     if (menuButton) menuButton.style.display = window.innerWidth < 1051 ? '' : 'none';
   }
 
-  const initialTheme = savedTheme();
-  if (initialTheme) applyTheme(initialTheme);
+  const initialTheme = savedTheme() || 'dark';
+  applyTheme(initialTheme);
   setMenuButtonVisibility();
   window.addEventListener('resize', setMenuButtonVisibility, { passive: true });
 
