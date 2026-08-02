@@ -3,7 +3,11 @@ tests/
 docs/
 coverage/
 .nyc_output/
+logs/
 tmp/
+.cache/
+public/uploads/
 *.zip
 *.log
 .env
+.env.*

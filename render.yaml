@@ -5,10 +5,10 @@ services:
     plan: starter
     region: oregon
     branch: master
-    buildCommand: npm ci && npm run verify
+    buildCommand: npm ci && npm run verify && npm prune --omit=dev
     preDeployCommand: npm run db:indexes
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -28,6 +28,10 @@ services:
         value: "1"
       - key: MONGO_MAX_POOL_SIZE
         value: "24"
+      - key: MONGO_MAX_CONNECTING
+        value: "4"
+      - key: MONGO_MAX_IDLE_TIME_MS
+        value: "60000"
       - key: MONGO_WAIT_QUEUE_TIMEOUT_MS
         value: "30000"
       - key: MONGO_SERVER_SELECTION_TIMEOUT_MS
@@ -37,7 +41,9 @@ services:
       - key: MONGO_SOCKET_TIMEOUT_MS
         value: "90000"
       - key: MONGO_CONNECT_RETRY_ATTEMPTS
-        value: "3"
+        value: "5"
+      - key: MONGO_CONNECT_RETRY_DELAY_MS
+        value: "750"
       - key: MONGO_IP_FAMILY
         value: "4"
       - key: MONGO_AUTO_INDEX
@@ -120,7 +126,7 @@ services:
     plan: starter
     region: oregon
     branch: master
-    buildCommand: npm ci
+    buildCommand: npm ci --omit=dev
     startCommand: npm run worker
     envVars:
       - key: NODE_ENV
@@ -146,6 +152,10 @@ services:
         value: "1"
       - key: MONGO_MAX_POOL_SIZE
         value: "6"
+      - key: MONGO_MAX_CONNECTING
+        value: "2"
+      - key: MONGO_MAX_IDLE_TIME_MS
+        value: "60000"
       - key: MONGO_WAIT_QUEUE_TIMEOUT_MS
         value: "30000"
       - key: MONGO_SERVER_SELECTION_TIMEOUT_MS
@@ -155,7 +165,9 @@ services:
       - key: MONGO_SOCKET_TIMEOUT_MS
         value: "90000"
       - key: MONGO_CONNECT_RETRY_ATTEMPTS
-        value: "3"
+        value: "5"
+      - key: MONGO_CONNECT_RETRY_DELAY_MS
+        value: "750"
       - key: MONGO_IP_FAMILY
         value: "4"
       - key: MONGO_AUTO_INDEX

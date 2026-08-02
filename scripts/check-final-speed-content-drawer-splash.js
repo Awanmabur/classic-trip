@@ -5,6 +5,7 @@ const path = require('path');
 const assert = require('assert');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const pkg = JSON.parse(read('package.json'));
 let passed = 0;
 function check(label, fn) { fn(); passed += 1; console.log(`✓ ${label}`); }
 
@@ -80,6 +81,6 @@ check('native splash lockups include logo name and slogan', () => {
   assert(fs.existsSync(path.join(root, 'public/images/launch-lockup-192.png')));
   assert(fs.existsSync(path.join(root, 'public/images/launch-lockup-512.png')));
 });
-check('service worker deploys the new launch assets and cache version', () => assert(sw.includes('classic-trip-static-v1.4.0') && sw.includes('launch-lockup-192.png') && sw.includes('launch-lockup-512.png')));
+check('service worker deploys the new launch assets and cache version', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`) && sw.includes('launch-lockup-192.png') && sw.includes('launch-lockup-512.png')));
 
 console.log(`Final speed, content, drawer and splash checks passed: ${passed}/20`);

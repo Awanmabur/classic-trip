@@ -3,7 +3,7 @@ const airportSchema = new Schema({
   id: { type: String, required: true, unique: true, index: true },
   iataCode: { type: String, required: true, uppercase: true, trim: true, unique: true, index: true },
   icaoCode: { type: String, uppercase: true, trim: true, sparse: true, unique: true, index: true },
-  name: { type: String, required: true, trim: true, text: true },
+  name: { type: String, required: true, trim: true },
   city: { type: String, required: true, trim: true, index: true },
   country: { type: String, required: true, trim: true, index: true },
   countryCode: { type: String, required: true, uppercase: true, trim: true, index: true },
@@ -13,5 +13,8 @@ const airportSchema = new Schema({
   terminals: [String],
   status: { type: String, enum: ['active', 'inactive'], default: 'active', index: true },
 }, { timestamps: true });
-airportSchema.index({ name: 'text', city: 'text', iataCode: 'text', country: 'text' });
+airportSchema.index(
+  { name: 'text', city: 'text', iataCode: 'text', country: 'text' },
+  { name: 'airport_search_text_v2' },
+);
 module.exports = model('Airport', airportSchema);

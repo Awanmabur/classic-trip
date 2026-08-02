@@ -5,10 +5,13 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.4.0
+## Current release — version 1.4.3
 
-This final polish release keeps the approved UI intact while improving marketplace clarity, partner content quality, mobile dashboard density, installed-app branding and bus-search responsiveness.
+This final maintenance release keeps the approved UI intact while correcting Atlas index upgrades, release verification, dependency hygiene, marketplace clarity, mobile behavior and bus-search responsiveness.
 
+- Atlas index reconciliation safely replaces legacy conflicting indexes and supports a dry run.
+- Release verification allows local `.env` and `node_modules` while proving they are excluded from packaging.
+- Unit tests use Node's built-in runner; obsolete Jest 29 and unused Supertest dependencies were removed.
 - Bus cards use the compact one-line label **Fare by stops**.
 - Marketplace descriptions display a consistent three-line preview.
 - Partners must enter at least **125 characters (about 20 words)** for public listing descriptions; the browser and backend both enforce it.
@@ -18,7 +21,7 @@ This final polish release keeps the approved UI intact while improving marketpla
 - Dashboard statistics remain two per row on phones.
 - The installed app uses one native launch path with a transparent logo/name/slogan lockup; no second web splash is rendered.
 
-See `FINAL_SPEED_CONTENT_SPLASH_RELEASE_2026-07-27.md`.
+See `RELEASE_NOTES.md` for the final release changes and `FINAL_RELEASE_CHECKLIST.md` for deployment steps.
 
 Run the focused final gate with:
 
@@ -98,7 +101,7 @@ Use strong independent secrets for sessions, MFA encryption, payment webhooks an
 
 ## Development, production and terminal output
 
-Local development uses quiet nodemon automatically:
+Local development uses Node's built-in watch mode automatically:
 
 ```bash
 cp .env.example .env
@@ -106,10 +109,9 @@ npm ci
 npm start
 ```
 
-- `npm start` uses nodemon when `NODE_ENV` is not `production`.
-- Changes to JavaScript, EJS, JSON and CSS restart the server automatically.
-- Type `rs` in the terminal to restart manually.
-- Do not install with `--omit=dev` on a development machine because nodemon is a development dependency.
+- `npm start` uses Node's built-in watcher when `NODE_ENV` is not `production`.
+- Imported JavaScript changes restart the server automatically; EJS and CSS changes are served without an application restart.
+- No external development watcher is required.
 
 The normal application output is intentionally limited to the database connection and listening address. Warnings and errors remain visible because they require action. Routine job-registration messages and slow-request warnings are disabled by default.
 
@@ -126,7 +128,7 @@ LOG_SLOW_REQUESTS=true
 SLOW_REQUEST_THRESHOLD_MS=1200
 ```
 
-Production uses plain Node, not nodemon:
+Production uses plain Node without watch mode:
 
 ```bash
 npm ci --omit=dev

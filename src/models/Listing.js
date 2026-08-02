@@ -10,7 +10,7 @@ const listingSchema = new Schema({
   serviceType: { type: String, index: true, enum: ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'] },
   group: String,
   type: String,
-  title: { type: String, required: true, text: true },
+  title: { type: String, required: true },
   slug: { type: String, required: true, index: true },
   sub: String,
   listingKind: { type: String, enum: ['operator_service', 'property', 'supplier_offer', 'transfer_service', 'experience', 'rental_vehicle', 'cargo_service'], index: true },
@@ -69,7 +69,10 @@ const listingSchema = new Schema({
   baggageRules: String,
 }, { timestamps: true });
 
-listingSchema.index({ title: 'text', city: 'text', from: 'text', to: 'text', companyName: 'text' });
+listingSchema.index(
+  { title: 'text', city: 'text', from: 'text', to: 'text', companyName: 'text' },
+  { name: 'listing_search_text_v2' },
+);
 listingSchema.index({ status: 1, releaseStatus: 1, serviceType: 1, isFeatured: -1, createdAt: -1 });
 listingSchema.index({ companyId: 1, status: 1, releaseStatus: 1 });
 module.exports = model('Listing', listingSchema);

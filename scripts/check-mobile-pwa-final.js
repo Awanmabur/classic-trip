@@ -6,6 +6,7 @@ const assert = require('assert');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const pkg = JSON.parse(read('package.json'));
 const checks = [];
 const check = (label, fn) => {
   fn();
@@ -34,7 +35,7 @@ check('phone statistics remain two per row', () => assert(css.includes('.homePag
 check('install prompt carries brand and slogan', () => assert(pwa.includes('Move, stay and fly with confidence.') && pwa.includes('pwaInstallLogo')));
 check('installed launch uses only the native manifest splash', () => assert(!pwa.includes('classicTripLaunchSplash') && !pwa.includes('showStandaloneSplash') && manifest.name === 'Classic Trip' && manifest.description.includes('Move, stay and fly with confidence')));
 check('service worker is registered', () => assert(pwa.includes("register('/sw.js'")));
-check('static service-worker cache is versioned', () => assert(sw.includes("classic-trip-static-v1.4.0") && sw.includes("'/css/")));
+check('static service-worker cache is versioned', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`) && sw.includes("'/css/")));
 check('manifest uses transparent any-purpose icons for the launch surface', () => {
   assert(manifest.icons.some((icon) => icon.purpose === 'any'));
   assert(manifest.icons.every((icon) => icon.purpose !== 'maskable'));

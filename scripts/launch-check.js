@@ -136,7 +136,7 @@ function runDependencyChecks() {
   const packages = lock.packages || {};
 
   if (packages['node_modules/csurf']) addError('csurf is archived and must not be installed');
-  requireVersion(packages, 'multer', '2.0.0');
+  requireVersion(packages, 'multer', '2.2.0');
   requireVersion(packages, 'form-data', '4.0.4');
   requireVersion(packages, 'body-parser', '1.20.3');
   requireVersion(packages, 'cookie', '0.7.0');

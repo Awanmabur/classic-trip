@@ -19,18 +19,12 @@ process.env.NODE_ENV = nodeEnv;
 if (!watch) {
   require('../src/server');
 } else {
-  let nodemonBin;
-  try {
-    nodemonBin = require.resolve('nodemon/bin/nodemon.js');
-  } catch (_) {
-    console.error('✖ Nodemon is not installed. Run "npm install" (without --omit=dev), then run npm start again.');
-    process.exit(1);
-  }
-
+  // Node >=20 provides a supported cross-platform watcher, so development no
+  // longer needs Nodemon or its transitive dependency tree.
   const child = spawn(process.execPath, [
-    nodemonBin,
-    '--config', path.join(process.cwd(), 'nodemon.json'),
-    'src/server.js',
+    '--watch',
+    '--watch-preserve-output',
+    path.join(process.cwd(), 'src', 'server.js'),
   ], {
     cwd: process.cwd(),
     env: process.env,

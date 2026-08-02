@@ -1,15 +1,35 @@
-/node_modules
-npm-debug.log
-.DS_Store
-/*.env
-/public/uploads
+node_modules/
 
-# Runtime and generated artifacts
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime uploads and generated output
+public/uploads/
+logs/
 *.log
-/logs/
-/src.zip
-/word/
-/.tmp-docx/
-/.tmp-blueprint.zip
-/.tmp_*/
-/Classic_Trip_Final_Master_Document.pdf
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+.nyc_output/
+tmp/
+.tmp/
+.cache/
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local archives and generated documents
+*.zip
+src.zip
+word/
+.tmp-docx/
+.tmp-blueprint.zip
+.tmp_*/
+Classic_Trip_Final_Master_Document.pdf

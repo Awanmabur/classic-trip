@@ -9,7 +9,6 @@ function expect(name, condition) { checks.push({ name, ok: Boolean(condition) })
 
 const pkg = JSON.parse(read('package.json'));
 const start = read('scripts/start.js');
-const nodemon = JSON.parse(read('nodemon.json'));
 const logger = read('src/config/logger.js');
 const env = read('src/config/env.js');
 const db = read('src/config/db.js');
@@ -30,9 +29,8 @@ const terms = read('src/views/pages/terms.ejs');
 const bookings = read('src/views/pages/my-bookings.ejs');
 
 expect('npm start uses environment-aware launcher', pkg.scripts.start === 'node scripts/start.js');
-expect('development launcher uses local nodemon', start.includes("require.resolve('nodemon/bin/nodemon.js')"));
-expect('nodemon watches JS, EJS and CSS', nodemon.ext.includes('ejs') && nodemon.ext.includes('css'));
-expect('nodemon is quiet and uses polling fallback', nodemon.quiet === true && nodemon.legacyWatch === true);
+expect('development launcher uses Node built-in watch mode', start.includes("'--watch'") && start.includes("'--watch-preserve-output'"));
+expect('development launcher has no Nodemon dependency', !start.includes('nodemon') && !pkg.devDependencies?.nodemon);
 expect('development logger is concise', logger.includes("process.env.NODE_ENV === 'production' ? 'info' : 'warn'"));
 expect('startup messages remain visible', logger.includes('startup:'));
 expect('NODE_ENV typo is normalised', env.includes("develoment: 'development'"));
@@ -56,7 +54,7 @@ expect('server keeps only meaningful startup messages', server.includes("logger.
 expect('homepage reads only live public catalogue records', catalog.includes("status: 'active', releaseStatus: 'published'") && catalog.includes("status: { $in: ['published', 'boarding', 'delayed'] }"));
 expect('login lockout query has a matching compound index', loginAudit.includes("{ identity: 1, result: 1, createdAt: -1 }"));
 expect('HTTP server has bounded request handling', server.includes('requestTimeout = 45_000') && server.includes('maxRequestsPerSocket'));
-expect('production uses plain Node rather than nodemon', pkg.scripts['start:prod'] === 'node scripts/start-production.js' && start.includes("if (!watch)"));
+expect('production uses plain Node rather than watch mode', pkg.scripts['start:prod'] === 'node scripts/start-production.js' && start.includes("if (!watch)"));
 expect('revenue filters cover every live service', revenue.includes('value="flight"') && revenue.includes('value="local_transport"'));
 expect('public legal wording covers every live service', terms.includes('flight agents') && terms.includes('local-mobility partners'));
 expect('booking history displays service-specific icons', bookings.includes("fa-plane") && bookings.includes("fa-motorcycle"));

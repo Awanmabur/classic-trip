@@ -1,10 +1,14 @@
-# Exclude non-runtime assets if this app is packaged.
+# Exclude non-runtime and private assets if this app is packaged.
 tests/
 docs/
 coverage/
 .nyc_output/
+logs/
 tmp/
+.cache/
+public/uploads/
 *.zip
 *.log
 .env
-
+.env.*
+!.env.example

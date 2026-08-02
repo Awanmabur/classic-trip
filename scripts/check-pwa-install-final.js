@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const pkg = JSON.parse(read('package.json'));
 const exists = (file) => fs.existsSync(path.join(root, file));
 const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
@@ -19,7 +20,7 @@ check('manifest has start URL', typeof manifest.start_url === 'string' && manife
 check('192 icon exists', exists('public/images/logo-symbol-192.png'));
 check('512 icon exists', exists('public/images/logo-symbol-512.png'));
 check('apple touch icon exists', exists('public/images/apple-touch-icon.png'));
-check('service worker cache version bumped', sw.includes('classic-trip-static-v1.4.0'));
+check('service worker cache version bumped', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('PWA CSS is pre-cached', sw.includes("'/css/pwa.css'"));
 check('service worker served no-cache', app.includes("app.get('/sw.js'") && app.includes("Service-Worker-Allowed"));
 check('manifest served with manifest MIME', app.includes("app.get('/site.webmanifest'") && app.includes('application/manifest+json'));
