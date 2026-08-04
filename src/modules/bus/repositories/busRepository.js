@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { MongoCollection } = require('../../../repositories/domain/mongoCollection');
 const { runMongoUnitOfWork } = require('../../../services/shared/mongoUnitOfWork');
-const { nextId } = require('../../../services/data/idService');
+const { nextId, nextIds } = require('../../../services/data/idService');
 const { notFoundError } = require('../domain/busDomain');
 
 const busRepository = {
@@ -137,6 +137,7 @@ async function withTransaction(work) {
 module.exports = {
   ...busRepository,
   nextId,
+  nextIds,
   oneOrThrow,
   companyOrThrow,
   listingOrThrow,

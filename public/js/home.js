@@ -37,8 +37,14 @@
     cargo: 'fa-box',
   };
 
-  const initialLimit = () => (window.matchMedia('(max-width: 680px)').matches ? 3 : 6);
-  const visibleCounts = Object.fromEntries(Object.keys(groupConfig).map((group) => [group, initialLimit()]));
+  const initialLimits = Object.freeze({ bus: 4, hotel: 4, flight: 4, local_transport: 4, tour: 4, car_rental: 4, cargo: 4 });
+  const incrementFor = (group) => initialLimits[group] || 4;
+  const visibleCounts = Object.fromEntries(Object.keys(groupConfig).map((group) => [group, incrementFor(group)]));
+  const sectionViews = Object.fromEntries(Object.keys(groupConfig).map((group) => {
+    let saved = 'cards';
+    try { saved = localStorage.getItem(`classicTripSectionView:${group}`) || 'cards'; } catch (_) {}
+    return [group, saved === 'bars' ? 'bars' : 'cards'];
+  }));
   let activeCorridor = 'all';
 
   function escapeHtml(value) {
@@ -211,14 +217,14 @@
       ? (isBus ? 'Fare by stops' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
-    return `<article class="listing marketplaceListingCard${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
+    return `<article class="listing marketplaceListingCard serviceCard serviceCard--${escapeHtml(type)}${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
       <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
         <div class="thumb">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}" loading="lazy" decoding="async">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
-          <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
           <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Stay' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : isTour ? 'Tour' : isRental ? 'Car rental' : isCargo ? 'Cargo' : 'Service'))}</span></div>
         </div>
       </a>
+      <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
       <div class="listingBody">
         <h3 class="listingTitle"><a href="${escapeHtml(listingUrl(item))}">${escapeHtml(item.title || 'Untitled service')}</a></h3>
         <div class="meta"><span><i class="fa-solid ${(isBus || isFlight) ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
@@ -237,12 +243,20 @@
     container.innerHTML = shown.length
       ? shown.map(cardHtml).join('')
       : `<div class="card marketplaceEmptyCard" data-home-empty="${escapeHtml(group)}"><strong>No published ${escapeHtml(config.label)} yet</strong><p class="muted">Services will appear after their complete records and bookable inventory are published.</p></div>`;
+    container.dataset.view = sectionViews[group] || 'cards';
+    const section = document.querySelector(`[data-marketplace-section="${group}"]`);
+    section?.querySelectorAll('[data-home-action="set-section-view"]').forEach((toggle) => {
+      const active = toggle.dataset.view === container.dataset.view;
+      toggle.classList.toggle('active', active);
+      toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
 
     const button = document.getElementById(`more-${group}`);
     if (button) {
       const remaining = rows.length - shown.length;
       button.classList.toggle('hide', remaining <= 0);
-      button.innerHTML = `<i class="fa-solid fa-plus"></i> More ${Math.min(initialLimit(), Math.max(remaining, 0))}`;
+      button.disabled = remaining <= 0;
+      button.innerHTML = `<i class="fa-solid fa-plus"></i> More ${escapeHtml(config.label)}${remaining > 0 ? ` (${Math.min(incrementFor(group), remaining)})` : ''}`;
     }
   }
 
@@ -268,9 +282,24 @@
   function showMore(group) {
     if (!groupConfig[group]) return;
     const rows = listings.filter((item) => String(item.group || 'more') === group);
-    visibleCounts[group] = Math.min(visibleCounts[group] + initialLimit(), rows.length);
+    visibleCounts[group] = Math.min(visibleCounts[group] + incrementFor(group), rows.length);
     renderGroup(group);
     updateSavedButtons();
+  }
+
+  function setSectionView(group, view) {
+    if (!groupConfig[group]) return;
+    const normalized = view === 'bars' ? 'bars' : 'cards';
+    sectionViews[group] = normalized;
+    try { localStorage.setItem(`classicTripSectionView:${group}`, normalized); } catch (_) {}
+    const container = document.getElementById(groupConfig[group].container);
+    if (container) container.dataset.view = normalized;
+    const section = document.querySelector(`[data-marketplace-section="${group}"]`);
+    section?.querySelectorAll('[data-home-action="set-section-view"]').forEach((button) => {
+      const active = button.dataset.view === normalized;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
   }
 
   function equivalentCorridor(code) {
@@ -385,6 +414,7 @@
       else if (action === 'filter-cards') filterCards(actionElement.dataset.filter || 'all');
       else if (action === 'filter-route') filterRoute(actionElement.dataset.filter || 'all');
       else if (action === 'show-more') showMore(actionElement.dataset.group);
+      else if (action === 'set-section-view') setSectionView(actionElement.dataset.group, actionElement.dataset.view);
       else if (action === 'save-listing') saveListing(actionElement.dataset.id);
       else if (action === 'share-listing') shareListing(actionElement.dataset.id);
       else if (action === 'share-dataset') shareDataset(actionElement);

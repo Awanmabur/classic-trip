@@ -5,20 +5,27 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.4.7
+## Current release — version 1.4.10
 
-This focused release changes only the requested top-gap rendering, dark travel/PWA surface opacity, and service-tab stability.
+- Faster secure checkout preparation with duplicate availability reads removed and bulk hold-item ID allocation.
+- Three fixed desktop card columns without stretching incomplete rows.
+- Wider compact-bar images, top-right availability badges and one-line desktop descriptions.
 
-- The 12 px navigation gap remains, but it is painted by the same page background instead of exposing a black/empty strip.
-- Flight, Local Taxi and PWA installation containers are opaque in dark mode.
-- Clicking a service tab switches the real service form without automatically scrolling or shifting the hero left/right.
-- Mobile service forms remain two inputs per row without horizontal overflow.
-- No unrelated global background, color, spacing, or page redesign is included.
+This release fixes the checkout-draft conflict and introduces responsive, independently designed marketplace sections while preserving the approved platform shell.
+
+- Repeated Proceed to payment requests reuse a matching active secure draft, preventing duplicate seat holds and avoidable 409 responses.
+- Genuine seat conflicts remain protected and refresh the live seat inventory for reselection.
+- Hero statistics are hidden on phones while remaining visible on larger screens.
+- Featured buses use a two-row phone swipe rail with one full column and about one quarter of the next visible; desktop card sections keep three fixed columns.
+- Each marketplace section has a service-appropriate card design plus a compact bar/list view toggle.
+- Compact bars show one per row on phones and two per row on desktop.
+- Four records are shown first; More appears only when additional database records exist.
+- Section view preferences are remembered independently.
 
 Run the focused regression gate with:
 
 ```bash
-npm run check:auth-service-ui
+npm run check:final-home-payment
 ```
 
 See `RELEASE_NOTES.md` for the exact changes and `FINAL_RELEASE_CHECKLIST.md` for deployment steps.

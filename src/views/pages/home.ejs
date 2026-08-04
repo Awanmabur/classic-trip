@@ -30,7 +30,7 @@
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.4.7" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.4.10" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -50,7 +50,7 @@
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.7">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.10">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
@@ -269,82 +269,81 @@
       </aside>
 
       <div>
-        <section class="section" id="bus">
-          <div class="sectionHead"><div><h2>Featured buses</h2><p>Dynamic seat layout: 2+2, 2+1, VIP, sleeper, or custom partner structure.</p></div><span class="badge badgeInfo"><i class="fa-solid fa-chair"></i> Seat selection</span></div>
-          <% var initialBusListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'bus' || item.group === 'bus'); }).slice(0, 6); %>
-          <div class="gridCards" id="cards">
+        <section class="section marketplaceSection marketplaceSection--bus" id="bus" data-marketplace-section="bus">
+          <div class="sectionHead"><div><h2>Featured buses</h2><p>Dynamic seat layout: 2+2, 2+1, VIP, sleeper, or custom partner structure.</p></div><div class="sectionHeadTools"><span class="badge badgeInfo"><i class="fa-solid fa-chair"></i> Seat selection</span><div class="sectionViewToggle" role="group" aria-label="Featured buses view"><button class="active" type="button" data-home-action="set-section-view" data-group="bus" data-view="cards" title="Card view"><i class="fa-solid fa-grip"></i><span>Cards</span></button><button type="button" data-home-action="set-section-view" data-group="bus" data-view="bars" title="Bar view"><i class="fa-solid fa-bars"></i><span>Bars</span></button></div></div></div>
+          <% var busListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'bus' || item.group === 'bus'); }); var initialBusListings = busListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--bus" id="cards" data-section-group="bus" data-view="cards">
             <% if (initialBusListings.length) { initialBusListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
               <div class="card marketplaceEmptyCard" data-home-empty="bus"><strong>No published bus services yet</strong><p class="muted">Published departures will appear here automatically.</p></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-bus" data-home-action="show-more" data-group="bus"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-bus" class="btn btnGhost moreBtn <%= busListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="bus"><i class="fa-solid fa-plus"></i> More buses</button></div>
         </section>
 
-        <section class="section" id="hotel">
-          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, villas, cottages, apartments, homestays, private rooms and shared rooms with dated availability.</p></div><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span></div>
-          <% var initialHotelListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'hotel' || item.group === 'hotel'); }).slice(0, 6); %>
-          <div class="gridCards" id="hotelCards">
+        <section class="section marketplaceSection marketplaceSection--hotel" id="hotel" data-marketplace-section="hotel">
+          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, apartments, villas, private rooms and shared rooms with dated availability.</p></div><div class="sectionHeadTools"><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span><div class="sectionViewToggle" role="group" aria-label="Stays view"><button class="active" type="button" data-home-action="set-section-view" data-group="hotel" data-view="cards"><i class="fa-solid fa-images"></i><span>Gallery</span></button><button type="button" data-home-action="set-section-view" data-group="hotel" data-view="bars"><i class="fa-solid fa-list"></i><span>List</span></button></div></div></div>
+          <% var hotelListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'hotel' || item.group === 'hotel'); }); var initialHotelListings = hotelListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--hotel" id="hotelCards" data-section-group="hotel" data-view="cards">
             <% if (initialHotelListings.length) { initialHotelListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="hotel"><strong>No published stays yet</strong><p class="muted">Verified hotels, apartments, homes and rooms with dated inventory will appear here automatically.</p></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="hotel"><strong>No published stays yet</strong><p class="muted">Verified stays with dated inventory will appear here automatically.</p></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-hotel" data-home-action="show-more" data-group="hotel"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-hotel" class="btn btnGhost moreBtn <%= hotelListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="hotel"><i class="fa-solid fa-plus"></i> More stays</button></div>
         </section>
 
-
-        <section class="section" id="flight">
-          <div class="sectionHead"><div><h2>Flights across East Africa</h2><p>Search dated departures, compare fare families and baggage, choose seats and receive e-tickets.</p></div><a class="btn btnGhost" href="/flights"><i class="fa-solid fa-plane-departure"></i> Search flights</a></div>
-          <% var initialFlightListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'flight' || item.group === 'flight'); }).slice(0, 6); %>
-          <div class="gridCards" id="flightCards">
+        <section class="section marketplaceSection marketplaceSection--flight" id="flight" data-marketplace-section="flight">
+          <div class="sectionHead"><div><h2>Flights across East Africa</h2><p>Compare dated departures, fare families, baggage and live seats.</p></div><div class="sectionHeadTools"><a class="btn btnGhost" href="/flights"><i class="fa-solid fa-plane-departure"></i> Search flights</a><div class="sectionViewToggle" role="group" aria-label="Flights view"><button class="active" type="button" data-home-action="set-section-view" data-group="flight" data-view="cards"><i class="fa-solid fa-ticket"></i><span>Offers</span></button><button type="button" data-home-action="set-section-view" data-group="flight" data-view="bars"><i class="fa-solid fa-bars-staggered"></i><span>Rows</span></button></div></div></div>
+          <% var flightListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'flight' || item.group === 'flight'); }); var initialFlightListings = flightListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--flight" id="flightCards" data-section-group="flight" data-view="cards">
             <% if (initialFlightListings.length) { initialFlightListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="flight"><strong>No published flights yet</strong><p class="muted">Airline departures with live inventory and published fares will appear here automatically.</p><a class="btn btnGhost" href="/flights">Open flight search</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="flight"><strong>No published flights yet</strong><p class="muted">Published departures with live fares will appear here automatically.</p><a class="btn btnGhost" href="/flights">Open flight search</a></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-flight" data-home-action="show-more" data-group="flight"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-flight" class="btn btnGhost moreBtn <%= flightListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="flight"><i class="fa-solid fa-plus"></i> More flights</button></div>
         </section>
 
-        <section class="section" id="local-transport">
-          <div class="sectionHead"><div><h2>Local taxi, airport & intercity rides</h2><p>Ride now or schedule home, work, stay, airport, district, national and corporate trips.</p></div><a class="btn btnGhost" href="/taxi"><i class="fa-solid fa-location-crosshairs"></i> Book a ride</a></div>
-          <% var initialTaxiListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'local_transport' || item.group === 'local_transport'); }).slice(0, 6); %>
-          <div class="gridCards" id="taxiCards">
+        <section class="section marketplaceSection marketplaceSection--taxi" id="local-transport" data-marketplace-section="local_transport">
+          <div class="sectionHead"><div><h2>Local taxi, airport & intercity rides</h2><p>Ride now or schedule verified local and intercity transport.</p></div><div class="sectionHeadTools"><a class="btn btnGhost" href="/taxi"><i class="fa-solid fa-location-crosshairs"></i> Book a ride</a><div class="sectionViewToggle" role="group" aria-label="Local taxi view"><button class="active" type="button" data-home-action="set-section-view" data-group="local_transport" data-view="cards"><i class="fa-solid fa-car"></i><span>Rides</span></button><button type="button" data-home-action="set-section-view" data-group="local_transport" data-view="bars"><i class="fa-solid fa-route"></i><span>Routes</span></button></div></div></div>
+          <% var taxiListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'local_transport' || item.group === 'local_transport'); }); var initialTaxiListings = taxiListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--taxi" id="taxiCards" data-section-group="local_transport" data-view="cards">
             <% if (initialTaxiListings.length) { initialTaxiListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="local_transport"><strong>No published local ride providers yet</strong><p class="muted">Verified mobility partners with approved vehicles and drivers will appear here automatically. Pricing and dispatch remain controlled by the platform.</p><a class="btn btnGhost" href="/taxi">Request a local ride</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="local_transport"><strong>No published local ride providers yet</strong><p class="muted">Verified mobility partners will appear here automatically.</p><a class="btn btnGhost" href="/taxi">Request a local ride</a></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-local-transport" data-home-action="show-more" data-group="local_transport"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-local-transport" class="btn btnGhost moreBtn <%= taxiListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="local_transport"><i class="fa-solid fa-plus"></i> More rides</button></div>
         </section>
 
-        <section class="section" id="tour">
-          <div class="sectionHead"><div><h2>Tours, activities & destination experiences</h2><p>Book verified guides, attractions, excursions and local experiences with published dates and live participant capacity.</p></div><a class="btn btnGhost" href="/tours"><i class="fa-solid fa-map-location-dot"></i> Explore tours</a></div>
-          <% var initialTourListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'tour' || item.group === 'tour'); }).slice(0, 6); %>
-          <div class="gridCards" id="tourCards">
+        <section class="section marketplaceSection marketplaceSection--tour" id="tour" data-marketplace-section="tour">
+          <div class="sectionHead"><div><h2>Tours, activities & destination experiences</h2><p>Discover verified guides, attractions, excursions and local experiences.</p></div><div class="sectionHeadTools"><a class="btn btnGhost" href="/tours"><i class="fa-solid fa-map-location-dot"></i> Explore tours</a><div class="sectionViewToggle" role="group" aria-label="Tours view"><button class="active" type="button" data-home-action="set-section-view" data-group="tour" data-view="cards"><i class="fa-solid fa-compass"></i><span>Explore</span></button><button type="button" data-home-action="set-section-view" data-group="tour" data-view="bars"><i class="fa-solid fa-calendar-day"></i><span>Schedule</span></button></div></div></div>
+          <% var tourListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'tour' || item.group === 'tour'); }); var initialTourListings = tourListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--tour" id="tourCards" data-section-group="tour" data-view="cards">
             <% if (initialTourListings.length) { initialTourListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="tour"><strong>No published tours yet</strong><p class="muted">Verified tour operators can publish activities, dates, prices and participant capacity from their partner dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a tour partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="tour"><strong>No published tours yet</strong><p class="muted">Verified activities with published capacity will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a tour partner</a></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-tour" data-home-action="show-more" data-group="tour"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-tour" class="btn btnGhost moreBtn <%= tourListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="tour"><i class="fa-solid fa-plus"></i> More experiences</button></div>
         </section>
 
-        <section class="section" id="car-rental">
-          <div class="sectionHead"><div><h2>Car rentals for every journey</h2><p>Reserve verified self-drive or chauffeured vehicles with clear per-day pricing, pickup and return details, and live fleet availability.</p></div><a class="btn btnGhost" href="/car-rentals"><i class="fa-solid fa-car-side"></i> Find a rental</a></div>
-          <% var initialRentalListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'car_rental' || item.group === 'car_rental'); }).slice(0, 6); %>
-          <div class="gridCards" id="rentalCards">
+        <section class="section marketplaceSection marketplaceSection--rental" id="car-rental" data-marketplace-section="car_rental">
+          <div class="sectionHead"><div><h2>Car rentals for every journey</h2><p>Reserve verified self-drive or chauffeured vehicles with live availability.</p></div><div class="sectionHeadTools"><a class="btn btnGhost" href="/car-rentals"><i class="fa-solid fa-car-side"></i> Find a rental</a><div class="sectionViewToggle" role="group" aria-label="Car rentals view"><button class="active" type="button" data-home-action="set-section-view" data-group="car_rental" data-view="cards"><i class="fa-solid fa-warehouse"></i><span>Fleet</span></button><button type="button" data-home-action="set-section-view" data-group="car_rental" data-view="bars"><i class="fa-solid fa-list-check"></i><span>Compare</span></button></div></div></div>
+          <% var rentalListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'car_rental' || item.group === 'car_rental'); }); var initialRentalListings = rentalListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--rental" id="rentalCards" data-section-group="car_rental" data-view="cards">
             <% if (initialRentalListings.length) { initialRentalListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="car_rental"><strong>No published rental vehicles yet</strong><p class="muted">Verified rental partners can publish vehicles, daily prices, pickup locations and availability from their dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a rental partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="car_rental"><strong>No published rental vehicles yet</strong><p class="muted">Verified vehicles with daily prices will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a rental partner</a></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-car-rental" data-home-action="show-more" data-group="car_rental"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-car-rental" class="btn btnGhost moreBtn <%= rentalListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="car_rental"><i class="fa-solid fa-plus"></i> More vehicles</button></div>
         </section>
 
-        <section class="section" id="cargo">
-          <div class="sectionHead"><div><h2>Cargo, parcels & freight</h2><p>Book verified pickup and delivery services for documents, parcels and freight with shipment weight, package, recipient and handling details.</p></div><a class="btn btnGhost" href="/cargo"><i class="fa-solid fa-box"></i> Send cargo</a></div>
-          <% var initialCargoListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'cargo' || item.group === 'cargo'); }).slice(0, 6); %>
-          <div class="gridCards" id="cargoCards">
+        <section class="section marketplaceSection marketplaceSection--cargo" id="cargo" data-marketplace-section="cargo">
+          <div class="sectionHead"><div><h2>Cargo, parcels & freight</h2><p>Compare verified pickup and delivery services for parcels and freight.</p></div><div class="sectionHeadTools"><a class="btn btnGhost" href="/cargo"><i class="fa-solid fa-box"></i> Send cargo</a><div class="sectionViewToggle" role="group" aria-label="Cargo view"><button class="active" type="button" data-home-action="set-section-view" data-group="cargo" data-view="cards"><i class="fa-solid fa-boxes-stacked"></i><span>Services</span></button><button type="button" data-home-action="set-section-view" data-group="cargo" data-view="bars"><i class="fa-solid fa-truck-fast"></i><span>Lanes</span></button></div></div></div>
+          <% var cargoListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'cargo' || item.group === 'cargo'); }); var initialCargoListings = cargoListings.slice(0, 4); %>
+          <div class="gridCards sectionListingCollection sectionListingCollection--cargo" id="cargoCards" data-section-group="cargo" data-view="cards">
             <% if (initialCargoListings.length) { initialCargoListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="cargo"><strong>No published cargo services yet</strong><p class="muted">Verified logistics partners can publish service areas, weight limits, pricing and pickup instructions from their dashboard.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a cargo partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="cargo"><strong>No published cargo services yet</strong><p class="muted">Verified service lanes and shipment pricing will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a cargo partner</a></div>
             <% } %>
           </div>
-          <div class="moreRow"><button class="btn btnGhost moreBtn" id="more-cargo" data-home-action="show-more" data-group="cargo"><i class="fa-solid fa-plus"></i> More</button></div>
+          <div class="moreRow"><button id="more-cargo" class="btn btnGhost moreBtn <%= cargoListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="cargo"><i class="fa-solid fa-plus"></i> More cargo services</button></div>
         </section>
 
       <% if (comingSoonServiceTypes && comingSoonServiceTypes.length) { %>
@@ -487,8 +486,8 @@
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <script src="/js/home-service-search.js?v=1.4.7" defer></script>
-  <script src="/js/home.js?v=1.4.7" defer></script>
+  <script src="/js/home-service-search.js?v=1.4.10" defer></script>
+  <script src="/js/home.js?v=1.4.10" defer></script>
 </body>
 </html>
 

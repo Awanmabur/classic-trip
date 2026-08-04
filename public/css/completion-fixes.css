@@ -1162,3 +1162,108 @@ html[data-theme="dark"] .pwaInstallInstructions{
     padding-inline:9px!important;
   }
 }
+
+/* v1.4.10 — focused marketplace layout and checkout performance corrections. */
+.marketplaceListingCard{position:relative}
+.marketplaceListingCard>.cornerBadge{pointer-events:none}
+.homePage .sectionHeadTools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.homePage .sectionViewToggle{display:inline-flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px;background:var(--field)}
+.homePage .sectionViewToggle button{height:32px;min-width:32px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.homePage .sectionViewToggle button.active{background:var(--cardA);color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.homePage .sectionListingCollection{min-width:0}
+.homePage .sectionListingCollection[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;align-items:start}
+.homePage .sectionListingCollection .marketplaceListingCard{min-width:0;scroll-snap-align:start;position:relative}
+.homePage .marketplaceSection .moreRow{margin-top:12px;display:flex;justify-content:center}
+.homePage .marketplaceSection .moreBtn.hide{display:none!important}
+
+/* Reusable bar view: one row per item on phones, two rows side-by-side on larger screens. */
+.homePage .sectionListingCollection[data-view="bars"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;overflow:visible!important}
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{display:grid!important;grid-template-columns:148px minmax(0,1fr);align-items:stretch;align-self:start;min-height:0;height:auto;overflow:hidden}
+.homePage .sectionListingCollection[data-view="bars"] .listingThumbLink{height:auto;min-height:0;align-self:stretch}
+.homePage .sectionListingCollection[data-view="bars"] .thumb{height:100%;min-height:0;border-radius:0}
+.homePage .sectionListingCollection[data-view="bars"] .listingBody{padding:42px 12px 12px;align-content:center;min-width:0}
+.homePage .sectionListingCollection[data-view="bars"] .listingTitle{font-size:14px}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{position:absolute;top:10px;right:10px;left:auto;z-index:4;max-width:calc(100% - 168px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .desc{display:block;min-height:0;max-height:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset}
+.homePage .sectionListingCollection[data-view="bars"] .priceRow{align-items:flex-end}
+.homePage .sectionListingCollection[data-view="bars"] .actions .btn{height:32px;padding:0 9px;font-size:10px}
+
+/* Featured buses: three fixed desktop columns; phone rail keeps two rows and previews one quarter of the next column. */
+.homePage .sectionListingCollection--bus[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--bus .serviceCard--bus .priceRow{border-top:1px dashed var(--line);padding-top:10px}
+
+/* Stays use a visual gallery treatment. */
+.homePage .sectionListingCollection--hotel[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--hotel .serviceCard--hotel .thumb{aspect-ratio:16/10}
+.homePage .marketplaceSection--hotel .serviceCard--hotel:nth-child(1) .thumb{aspect-ratio:16/8.5}
+
+/* Flights look like compact offer tickets. */
+.homePage .sectionListingCollection--flight[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--flight .serviceCard--flight{border-style:dashed}
+.homePage .marketplaceSection--flight .serviceCard--flight .thumb{aspect-ratio:16/7}
+.homePage .marketplaceSection--flight .serviceCard--flight .listingBody{position:relative}
+.homePage .marketplaceSection--flight .serviceCard--flight .listingBody::before,.homePage .marketplaceSection--flight .serviceCard--flight .listingBody::after{content:"";position:absolute;top:-9px;width:18px;height:18px;border-radius:50%;background:var(--bg0);border:1px solid var(--line)}
+.homePage .marketplaceSection--flight .serviceCard--flight .listingBody::before{left:-9px}.homePage .marketplaceSection--flight .serviceCard--flight .listingBody::after{right:-9px}
+
+/* Taxi cards emphasize fast actions and service zones. */
+.homePage .sectionListingCollection--taxi[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--taxi .serviceCard--local_transport .thumb{aspect-ratio:16/8}
+.homePage .marketplaceSection--taxi .serviceCard--local_transport .priceRow{background:var(--field);border-radius:16px;padding:9px}
+
+/* Tours use an editorial card wall. */
+.homePage .sectionListingCollection--tour[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--tour .serviceCard--tour .thumb{aspect-ratio:4/3}
+
+/* Rentals keep a clean fleet-comparison grid. */
+.homePage .sectionListingCollection--rental[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--rental .serviceCard--car_rental .thumb{aspect-ratio:16/9}
+.homePage .marketplaceSection--rental .serviceCard--car_rental .meta{display:grid;grid-template-columns:1fr 1fr}
+
+/* Cargo is intentionally denser, like logistics lanes. */
+.homePage .sectionListingCollection--cargo[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.homePage .marketplaceSection--cargo .serviceCard--cargo{display:grid;grid-template-columns:132px minmax(0,1fr);min-height:170px}
+.homePage .marketplaceSection--cargo .serviceCard--cargo .listingThumbLink,.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{height:100%;min-height:170px}
+.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{border-radius:0}
+
+@media(max-width:680px){
+  /* Hero statistics must not consume phone space below search. */
+  .homePage .heroCard>.stats,.homePage .hero .stats{display:none!important}
+  .homePage .sectionHead{align-items:flex-start}
+  .homePage .sectionHeadTools{width:100%;justify-content:space-between;flex-wrap:nowrap}
+  .homePage .sectionHeadTools>.btn,.homePage .sectionHeadTools>.badge{max-width:58%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .homePage .sectionViewToggle{margin-left:auto;flex:0 0 auto}
+  .homePage .sectionViewToggle button{padding:0 9px}
+  .homePage .sectionViewToggle button span{display:none}
+
+  .homePage .sectionListingCollection[data-view="bars"]{grid-template-columns:1fr!important;overflow:visible!important}
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{grid-template-columns:116px minmax(0,1fr);min-height:138px}
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,.homePage .sectionListingCollection[data-view="bars"] .thumb{min-height:138px}
+  .homePage .sectionListingCollection[data-view="bars"] .desc{display:none}
+  .homePage .sectionListingCollection[data-view="bars"] .priceRow{gap:6px}
+  .homePage .sectionListingCollection[data-view="bars"] .actions{gap:5px}
+
+  .homePage .sectionListingCollection--bus[data-view="cards"]{grid-template-columns:none!important;grid-template-rows:repeat(2,minmax(0,auto))!important;grid-auto-flow:column!important;grid-auto-columns:75vw!important;overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;padding:2px 18vw 8px 0;scrollbar-width:none}
+  .homePage .sectionListingCollection--bus[data-view="cards"]::-webkit-scrollbar{display:none}
+  .homePage .sectionListingCollection--bus[data-view="cards"] .marketplaceListingCard{width:75vw;max-width:75vw}
+
+  .homePage .sectionListingCollection--hotel[data-view="cards"]{display:flex!important;gap:10px!important;overflow-x:auto!important;scroll-snap-type:x proximity;padding:2px 18vw 8px 0;scrollbar-width:none}
+  .homePage .sectionListingCollection--hotel[data-view="cards"]::-webkit-scrollbar{display:none}
+  .homePage .sectionListingCollection--hotel[data-view="cards"] .marketplaceListingCard{flex:0 0 78vw;max-width:78vw}
+
+  .homePage .sectionListingCollection--flight[data-view="cards"],.homePage .sectionListingCollection--taxi[data-view="cards"],.homePage .sectionListingCollection--rental[data-view="cards"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .marketplaceListingCard,.homePage .sectionListingCollection--taxi[data-view="cards"] .marketplaceListingCard,.homePage .sectionListingCollection--rental[data-view="cards"] .marketplaceListingCard{min-width:0}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .listingBody,.homePage .sectionListingCollection--taxi[data-view="cards"] .listingBody,.homePage .sectionListingCollection--rental[data-view="cards"] .listingBody{padding:9px}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .desc,.homePage .sectionListingCollection--taxi[data-view="cards"] .desc,.homePage .sectionListingCollection--rental[data-view="cards"] .desc{display:none}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .priceRow,.homePage .sectionListingCollection--taxi[data-view="cards"] .priceRow,.homePage .sectionListingCollection--rental[data-view="cards"] .priceRow{display:grid;gap:7px}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .actions,.homePage .sectionListingCollection--taxi[data-view="cards"] .actions,.homePage .sectionListingCollection--rental[data-view="cards"] .actions{justify-content:stretch}
+  .homePage .sectionListingCollection--flight[data-view="cards"] .actions .btn,.homePage .sectionListingCollection--taxi[data-view="cards"] .actions .btn,.homePage .sectionListingCollection--rental[data-view="cards"] .actions .btn{flex:1;padding:0 6px;font-size:10px}
+
+  .homePage .sectionListingCollection--tour[data-view="cards"]{grid-template-columns:1.25fr .75fr!important;gap:9px!important}
+  .homePage .marketplaceSection--tour .serviceCard--tour:first-child{grid-column:1/-1}
+  .homePage .marketplaceSection--tour .serviceCard--tour:not(:first-child) .desc{display:none}
+
+  .homePage .sectionListingCollection--cargo[data-view="cards"]{grid-template-columns:1fr!important}
+  .homePage .marketplaceSection--cargo .serviceCard--cargo{grid-template-columns:104px minmax(0,1fr);min-height:142px}
+  .homePage .marketplaceSection--cargo .serviceCard--cargo .listingThumbLink,.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{min-height:142px}
+  .homePage .marketplaceSection--cargo .serviceCard--cargo .desc{display:none}
+}

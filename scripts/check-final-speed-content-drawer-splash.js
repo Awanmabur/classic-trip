@@ -56,9 +56,12 @@ check('read-only availability no longer expires all holds synchronously', () => 
   const body = busInventory.slice(busInventory.indexOf('async function getAvailability'), busInventory.indexOf('async function recalculateCompatibilitySeat'));
   assert(!body.includes('await expireStaleHolds'));
 });
-check('expired display holds are treated as available without weakening checkout locking', () => {
+check('expired display holds are treated as available while checkout expires only selected stale holds', () => {
   assert(busInventory.includes("row.status === 'held' && new Date(row.lockedUntil).getTime() <= Date.now() ? 'available'"));
-  assert(busInventory.includes('async function holdSeats') && busInventory.includes('await expireStaleHolds();'));
+  const holdBody = busInventory.slice(busInventory.indexOf('async function holdSeats'), busInventory.indexOf('async function assertActiveHold'));
+  assert(!holdBody.includes('await expireStaleHolds();'));
+  assert(holdBody.includes('staleSelectedHoldIds'));
+  assert(holdBody.includes("await releaseHold(staleHoldId, 'expired', 'checkout-targeted-expiry')"));
 });
 check('journey requests cancel stale responses and use short-lived caches', () => {
   assert(details.includes('new AbortController()'));

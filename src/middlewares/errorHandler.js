@@ -91,7 +91,7 @@ function errorHandler(error, req, res, next) {
 
   const message = publicMessage(status, error.message || 'Something went wrong.', error.publicMessage);
 
-  if (wantsJson(req)) return res.status(status).json({ error: message });
+  if (wantsJson(req)) return res.status(status).json({ error: message, code: error.code || 'request_failed' });
 
   if (req.method !== 'GET' && status === 415) {
     return res.status(status).send(message);

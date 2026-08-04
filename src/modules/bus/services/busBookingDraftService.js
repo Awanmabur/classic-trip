@@ -59,6 +59,50 @@ function sameValues(left = [], right = []) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function draftMatchesInput(draft, listing, outboundInput, returnInput) {
+  if (!draft || !listing) return false;
+  if (String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug)) return false;
+  const outbound = draft.outbound || {};
+  if (String(outbound.scheduleId || '') !== String(outboundInput.scheduleId || '')) return false;
+  if (String(outbound.originStopId || '') !== String(outboundInput.originStopId || '')) return false;
+  if (String(outbound.destinationStopId || '') !== String(outboundInput.destinationStopId || '')) return false;
+  if (!sameValues(outbound.selectedSeats || [], outboundInput.selectedSeats || [])) return false;
+  const wantsReturn = Boolean(returnInput.holdId || returnInput.holdToken || returnInput.scheduleId || returnInput.selectedSeats.length);
+  if (Boolean(draft.return) !== wantsReturn) return false;
+  if (!wantsReturn) return true;
+  const returning = draft.return || {};
+  return String(returning.scheduleId || '') === String(returnInput.scheduleId || '')
+    && String(returning.originStopId || '') === String(returnInput.originStopId || '')
+    && String(returning.destinationStopId || '') === String(returnInput.destinationStopId || '')
+    && sameValues(returning.selectedSeats || [], returnInput.selectedSeats || []);
+}
+
+async function reusableDraft(req, { listing, payload, outboundInput, returnInput } = {}) {
+  const drafts = purgeExpired(req);
+  const candidates = Object.values(drafts)
+    .filter((draft) => draftMatchesInput(draft, listing, outboundInput, returnInput))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  for (const draft of candidates) {
+    try {
+      const resolved = await resolveDraft(req, { draftId: draft.id, listing });
+      resolved.referralCode = cleanText(payload.ref || resolved.referralCode, 180);
+      resolved.addonIds = listValues(payload.addons);
+      await saveSession(req);
+      return {
+        id: resolved.id,
+        expiresAt: resolved.expiresAt,
+        inventoryExpiresAt: resolved.inventoryExpiresAt,
+        redirectUrl: `/book/bus/${encodeURIComponent(listing.slug)}?draft=${encodeURIComponent(resolved.id)}`,
+        reused: true,
+      };
+    } catch (error) {
+      delete drafts[draft.id];
+      if (![403, 404, 409].includes(Number(error?.status))) throw error;
+    }
+  }
+  return null;
+}
+
 function requireSession(req) {
   if (!req?.session) throw validationError('A secure browser session is required to continue booking', 403);
   return req.session;
@@ -232,9 +276,11 @@ async function resolveOrReacquireLeg(req, draft, key, listing, outboundHold = nu
 async function createDraft(req, { listing, payload = {} } = {}) {
   if (!listing || String(listing.serviceType || '').toLowerCase() !== 'bus') throw validationError('Secure bus booking draft requires a bus listing');
   const outboundInput = legInput(payload, false);
+  const returnInput = legInput(payload, true);
+  const existingDraft = await reusableDraft(req, { listing, payload, outboundInput, returnInput });
+  if (existingDraft) return existingDraft;
   const outboundResult = await validateLeg(outboundInput, { listing, req });
   const outboundHold = outboundResult.hold;
-  const returnInput = legInput(payload, true);
   const wantsReturn = Boolean(returnInput.holdId || returnInput.holdToken || returnInput.scheduleId || returnInput.selectedSeats.length);
   let returnResult = null;
   let returnHold = null;

@@ -33,10 +33,10 @@
   <a class="listingThumbLink" href="<%= listingHref %>" aria-label="View <%= listing.title || 'service' %>">
     <div class="thumb">
       <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.title || 'Service image' %>" loading="lazy" decoding="async"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
-      <div class="cornerBadge <%= availabilityClass %>"><i class="fa-solid <%= availabilityIcon %>"></i> <%= availabilityText %></div>
       <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= listingRatingLabel %></span><span class="badge badgeInfo"><i class="fa-solid <%= listingIcon %>"></i> <%= listingTypeLabel %></span></div>
     </div>
   </a>
+  <div class="cornerBadge <%= availabilityClass %>"><i class="fa-solid <%= availabilityIcon %>"></i> <%= availabilityText %></div>
   <div class="listingBody">
     <h3 class="listingTitle"><a href="<%= listingHref %>"><%= listing.title || 'Untitled service' %></a></h3>
     <div class="meta">

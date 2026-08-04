@@ -11,9 +11,16 @@ const { SERVICE_REGISTRY, COMING_SOON_SERVICE_TYPES } = require('../../config/se
 
 function normalize(value) { return String(value || '').toLowerCase().trim(); }
 
-async function catalogContext(identifier, serviceType = '', selection = {}) {
+async function publicListingContext(identifier, serviceType = '') {
   const data = await catalogService.snapshot();
   const raw = catalogService.listingFor(data, identifier, serviceType);
+  if (!raw || !catalogService.isPublicListing(raw, data)) return { data, raw: null, listing: null };
+  return { data, raw, listing: catalogService.catalogItem(data, raw) };
+}
+
+async function catalogContext(identifier, serviceType = '', selection = {}, prefetched = {}) {
+  const data = prefetched.data || await catalogService.snapshot();
+  const raw = prefetched.raw || catalogService.listingFor(data, identifier, serviceType);
   if (!raw || !catalogService.isPublicListing(raw, data)) return { data, raw: null };
   const listing = catalogService.catalogItem(data, raw);
   const company = catalogService.companyFor(data, raw.companyId || raw.companySlug);
@@ -49,7 +56,7 @@ async function catalogContext(identifier, serviceType = '', selection = {}) {
         currency: schedule.currency,
         status: schedule.status,
       }));
-      const returnSchedules = await busSearchService.findReturnDepartures({
+      const returnSchedules = selection.includeReturnSchedules === false ? [] : await busSearchService.findReturnDepartures({
         companyId: raw.companyId,
         originName: canonical.journey.destinationName,
         destinationName: canonical.journey.originName,
@@ -164,17 +171,16 @@ async function listingDetails(req, res, next) {
 
 async function prepareBookingForm(req, res, next) {
   try {
-    const context = await catalogContext(req.params.slug, req.params.serviceType, {
-      scheduleId: req.body?.scheduleId,
-      originStopId: req.body?.originStopId,
-      destinationStopId: req.body?.destinationStopId,
-    });
+    // Checkout preparation needs only the published listing identity. Avoid loading
+    // full seat availability and return-search data here because holdSeats performs
+    // the authoritative inventory read inside the secure hold flow.
+    const context = await publicListingContext(req.params.slug, req.params.serviceType);
     if (!context.listing) return next();
     if (normalize(context.listing.serviceType) !== 'bus') {
       return res.status(400).json({ error: 'Secure checkout preparation is currently required only for bus bookings.' });
     }
     const draft = await busBookingDraftService.createDraft(req, { listing: context.listing, payload: req.body || {} });
-    return res.status(201).json(draft);
+    return res.status(draft.reused ? 200 : 201).json(draft);
   } catch (error) { return next(error); }
 }
 
@@ -182,17 +188,19 @@ async function bookingForm(req, res, next) {
   try {
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
-    let context = await catalogContext(req.params.slug, req.params.serviceType, {}); if (!context.listing) return next();
-    const normalizedServiceType = normalize(context.listing.serviceType);
-    if (normalizedServiceType === 'flight') return res.redirect(303, `/flights?listingId=${encodeURIComponent(context.listing.id)}`);
-    if (normalizedServiceType === 'local_transport') return res.redirect(303, `/taxi?listingId=${encodeURIComponent(context.listing.id)}`);
+    const publicContext = await publicListingContext(req.params.slug, req.params.serviceType);
+    if (!publicContext.listing) return next();
+    const normalizedServiceType = normalize(publicContext.listing.serviceType);
+    if (normalizedServiceType === 'flight') return res.redirect(303, `/flights?listingId=${encodeURIComponent(publicContext.listing.id)}`);
+    if (normalizedServiceType === 'local_transport') return res.redirect(303, `/taxi?listingId=${encodeURIComponent(publicContext.listing.id)}`);
 
     let source = req.query || {};
     let bookingDraftId = '';
-    if (normalize(context.listing.serviceType) === 'bus') {
+    let context;
+    if (normalizedServiceType === 'bus') {
       bookingDraftId = String(req.query.draft || '').trim();
-      if (!bookingDraftId) return res.redirect(303, `/listings/bus/${encodeURIComponent(context.listing.slug)}`);
-      const draft = await busBookingDraftService.resolveDraft(req, { draftId: bookingDraftId, listing: context.listing });
+      if (!bookingDraftId) return res.redirect(303, `/listings/bus/${encodeURIComponent(publicContext.listing.slug)}`);
+      const draft = await busBookingDraftService.resolveDraft(req, { draftId: bookingDraftId, listing: publicContext.listing });
       source = {
         ref: draft.referralCode,
         addons: draft.addonIds,
@@ -209,7 +217,10 @@ async function bookingForm(req, res, next) {
         returnOriginStopId: draft.return?.originStopId || '',
         returnDestinationStopId: draft.return?.destinationStopId || '',
       };
-      context = await catalogContext(req.params.slug, req.params.serviceType, source);
+      context = await catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false }, publicContext);
+      if (!context.listing) return next();
+    } else {
+      context = await catalogContext(req.params.slug, req.params.serviceType, source, publicContext);
       if (!context.listing) return next();
     }
 

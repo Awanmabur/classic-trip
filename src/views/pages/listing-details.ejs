@@ -240,6 +240,7 @@
   let activeSelectionLabels = activeSelectionLabel ? [activeSelectionLabel] : [];
   let activeReturnSelections = [];
   let activeRoomTypeId = <%- toScriptJson(firstRoom || '') %>;
+  let checkoutPreparePending = false;
   let returnSchedulesData = <%- toScriptJson(returnSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, originStopId: schedule.originStopId, destinationStopId: schedule.destinationStopId, label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
   const previewAddonOptions = <%- toScriptJson(addons) %>;
   const initialPreviewSeats = <%- toScriptJson(previewSeats) %>;
@@ -819,7 +820,31 @@
     activeReturnSelections = Array.from(document.querySelectorAll('[data-return-seat].selected')).map((item) => item.dataset.returnSeat).filter(Boolean);
     refreshPreviewTotals();
   }
+  function setPaymentButtonBusy(busy) {
+    const button = document.querySelector('[data-listing-action="payment"]');
+    if (!button) return;
+    if (!button.dataset.defaultHtml) button.dataset.defaultHtml = button.innerHTML;
+    button.disabled = Boolean(busy);
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    button.innerHTML = busy
+      ? '<i class="fa-solid fa-spinner fa-spin"></i> Opening secure checkout…'
+      : button.dataset.defaultHtml;
+  }
+
+  async function refreshAfterCheckoutConflict(code) {
+    if (previewPricing.serviceType !== 'bus' || !previewPricing.scheduleId) return;
+    if (!['seat_unavailable', 'inventory_incomplete', 'hold_expired', 'booking_draft_expired'].includes(String(code || ''))) return;
+    try {
+      const data = await fetchScheduleAvailability(previewPricing.scheduleId, previewPricing.originStopId, previewPricing.destinationStopId);
+      applyOutboundAvailability(data, { refreshJourneyOptions: false });
+      activeReturnSelections = [];
+      renderReturnSeats([]);
+      refreshPreviewTotals();
+    } catch (_) {}
+  }
+
   async function goPaymentPage() {
+    if (checkoutPreparePending) return;
     const ref = <%- toScriptJson(referralCode || '') %>;
     if (previewPricing.serviceType === 'bus') syncActiveSelectionFromButtons();
     const selected = previewPricing.serviceType === 'hotel' ? '' : activeSelection;
@@ -872,17 +897,29 @@
           returnDestinationStopId: returnPricing.destinationStopId,
         });
       }
+      checkoutPreparePending = true;
+      setPaymentButtonBusy(true);
       try {
         const response = await fetch('/book/bus/<%= listing.slug %>/prepare', {
           method: 'POST',
           headers: jsonHeaders(),
           body: JSON.stringify(payload),
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Unable to open secure checkout.');
-        window.location.href = result.redirectUrl;
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const error = new Error(result.error || 'Unable to open secure checkout.');
+          error.code = result.code || '';
+          error.status = response.status;
+          throw error;
+        }
+        if (!result.redirectUrl) throw new Error('Secure checkout could not be opened. Please try again.');
+        window.location.assign(result.redirectUrl);
       } catch (error) {
+        await refreshAfterCheckoutConflict(error.code);
         notify(error.message || 'Unable to open secure checkout.');
+      } finally {
+        checkoutPreparePending = false;
+        setPaymentButtonBusy(false);
       }
       return;
     }

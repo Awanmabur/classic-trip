@@ -1,6 +1,6 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.4.7.
+Use this checklist for version 1.4.10.
 
 ## 1. Clean installation
 
@@ -76,8 +76,13 @@ Confirm all of the following:
 - The 12 px top navigation spacing remains and is filled by the same page background without a black or empty strip.
 - Flight, Local Taxi and PWA install containers are opaque in dark mode.
 - Clicking service types does not shift the hero left or right.
+- Phone hero statistics are hidden while desktop statistics remain visible.
+- Featured buses show two phone rows with one full card column and about one quarter of the next column visible.
+- Every marketplace section can toggle between its unique card layout and compact bars; bars use one column on phones and two on desktop.
+- More controls appear only when additional database listings are available and load real records.
 - Login, logout, password reset, verification, and role redirects work.
 - A published bus listing with a live departure shows the booking/payment action.
+- Repeated Proceed to payment requests reuse the same active matching draft; genuine seat conflicts refresh availability instead of silently bypassing inventory protection.
 - A return search shows valid reverse departures regardless of matching clock time.
 - Seat holds, payment callback/IPN, ticket generation, and booking history work.
 - Company schedules, live seat maps, manifests, archives, stays, flights, taxi, tours, car rentals, cargo, promotions, and blog administration open without 404/500/503 responses.
@@ -87,3 +92,13 @@ Confirm all of the following:
 ## 8. Rollback readiness
 
 Before launch, record the previous deployed commit/archive, preserve a verified database backup, and confirm that application rollback does not require reversing destructive migrations. The release migrations in this project provide dry-run commands; execute dry-run first whenever historical data must be normalized.
+
+## v1.4.10 focused checks
+
+- [ ] Proceed to payment uses the lightweight listing context and does not load full availability twice.
+- [ ] Hold-item IDs are allocated in one database counter call.
+- [ ] Three fixed card columns remain on desktop.
+- [ ] Incomplete desktop rows do not stretch.
+- [ ] Featured Buses reveals about one quarter of the next column on phones.
+- [ ] Bar images are wider, descriptions truncate to one line on desktop, and the availability badge sits at the bar's top-right without covering text.
+- [ ] No extra section color overrides are present.

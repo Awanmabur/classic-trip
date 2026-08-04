@@ -97,6 +97,7 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
   return {
     schedule: {
       id: context.schedule.id,
+      companyId: context.schedule.companyId,
       listingId: context.schedule.listingId,
       routeId: context.schedule.routeId,
       vehicleId: context.schedule.vehicleId,
@@ -122,23 +123,51 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
   };
 }
 
+async function recalculateCompatibilitySeats(scheduleId, seatNumbers, session = null) {
+  const numbers = unique((Array.isArray(seatNumbers) ? seatNumbers : [seatNumbers])
+    .map((value) => cleanText(value, 20).toUpperCase())
+    .filter(Boolean));
+  if (!numbers.length) return [];
+  const options = session ? { session } : {};
+  let rows;
+  let seats;
+  if (session) {
+    rows = await repository.segmentInventory.list({ scheduleId, seatNumber: { $in: numbers } }, options);
+    seats = await repository.seats.list({ scheduleId, seatNumber: { $in: numbers } }, options);
+  } else {
+    [rows, seats] = await Promise.all([
+      repository.segmentInventory.list({ scheduleId, seatNumber: { $in: numbers } }, options),
+      repository.seats.list({ scheduleId, seatNumber: { $in: numbers } }, options),
+    ]);
+  }
+  const rowsBySeat = new Map(numbers.map((number) => [number, []]));
+  for (const row of rows) {
+    const key = String(row.seatNumber || '').toUpperCase();
+    if (rowsBySeat.has(key)) rowsBySeat.get(key).push(row);
+  }
+  const timestamp = nowIso();
+  for (const seat of seats) {
+    const seatRows = rowsBySeat.get(String(seat.seatNumber || '').toUpperCase()) || [];
+    const statuses = new Set(seatRows.map((row) => row.status));
+    if (statuses.has('checked_in')) seat.status = 'checked_in';
+    else if (statuses.has('no_show')) seat.status = 'no_show';
+    else if (statuses.has('booked')) seat.status = 'taken';
+    else if (statuses.has('held')) seat.status = 'locked';
+    else if (statuses.has('blocked')) seat.status = 'blocked';
+    else if (statuses.has('disabled')) seat.status = 'disabled';
+    else seat.status = 'available';
+    const activeHold = seatRows.find((row) => row.status === 'held') || null;
+    seat.lockId = activeHold?.holdId || null;
+    seat.lockedUntil = activeHold?.lockedUntil || null;
+    seat.updatedAt = timestamp;
+  }
+  if (seats.length) await repository.seats.saveMany(seats, null, options);
+  return seats;
+}
+
 async function recalculateCompatibilitySeat(scheduleId, seatNumber, session = null) {
-  const rows = await repository.segmentInventory.list({ scheduleId, seatNumber }, session ? { session } : {});
-  const seat = await repository.seats.findOne({ scheduleId, seatNumber }, session ? { session } : {});
-  if (!seat) return null;
-  const statuses = new Set(rows.map((row) => row.status));
-  if (statuses.has('checked_in')) seat.status = 'checked_in';
-  else if (statuses.has('no_show')) seat.status = 'no_show';
-  else if (statuses.has('booked')) seat.status = 'taken';
-  else if (statuses.has('held')) seat.status = 'locked';
-  else if (statuses.has('blocked')) seat.status = 'blocked';
-  else if (statuses.has('disabled')) seat.status = 'disabled';
-  else seat.status = 'available';
-  seat.lockId = statuses.has('held') ? rows.find((row) => row.status === 'held')?.holdId || null : null;
-  seat.lockedUntil = statuses.has('held') ? rows.find((row) => row.status === 'held')?.lockedUntil || null : null;
-  seat.updatedAt = nowIso();
-  await repository.seats.save(seat, { scheduleId, seatNumber }, session ? { session } : {});
-  return seat;
+  const seats = await recalculateCompatibilitySeats(scheduleId, [seatNumber], session);
+  return seats[0] || null;
 }
 
 async function recalculateScheduleAvailableSeats(scheduleId, session = null) {
@@ -157,7 +186,6 @@ async function recalculateScheduleAvailableSeats(scheduleId, session = null) {
 }
 
 async function holdSeats({ scheduleId, originStopId, destinationStopId, selectedSeats, context = {} } = {}) {
-  await expireStaleHolds();
   const seats = seatList(selectedSeats);
   if (!seats.length) throw validationError('Select at least one seat');
   if (seats.length > MAX_SEATS_PER_HOLD) throw validationError(`A maximum of ${MAX_SEATS_PER_HOLD} seats can be held at once`);
@@ -175,7 +203,7 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     holdType: 'bus_segment_seat',
     serviceType: 'bus',
     listingId: availability.schedule.listingId,
-    companyId: (await repository.schedules.findOne({ id: availability.schedule.id })).companyId,
+    companyId: availability.schedule.companyId,
     scheduleId: availability.schedule.id,
     routeId: availability.schedule.routeId,
     originStopId: availability.journey.originStopId,
@@ -210,13 +238,21 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     createdAt: timestamp.toISOString(),
     updatedAt: timestamp.toISOString(),
   };
-  const inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } });
+  let inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } });
+  const staleSelectedHoldIds = unique(inventoryRows
+    .filter((row) => row.status === 'held' && row.holdId && new Date(row.lockedUntil).getTime() <= timestamp.getTime())
+    .map((row) => row.holdId));
+  for (const staleHoldId of staleSelectedHoldIds) await releaseHold(staleHoldId, 'expired', 'checkout-targeted-expiry');
+  if (staleSelectedHoldIds.length) {
+    inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } });
+  }
   const expected = seats.length * hold.segmentIds.length;
   if (inventoryRows.length !== expected) throw conflictError('Seat inventory is incomplete; refresh the departure before booking', 'inventory_incomplete');
+  const holdItemIds = await repository.nextIds('hold-item', inventoryRows.length);
   const holdItems = [];
-  for (const row of inventoryRows) {
+  for (const [index, row] of inventoryRows.entries()) {
     holdItems.push({
-      id: await repository.nextId('hold-item'),
+      id: holdItemIds[index],
       holdId,
       resourceType: 'bus_seat_segment',
       resourceKey: `bus:${hold.scheduleId}:${row.seatNumber}:${row.segmentId}`,
@@ -253,7 +289,7 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
         row.updatedAt = timestamp.toISOString();
       }
       await repository.segmentInventory.saveMany(fresh, null, { session });
-      for (const seatNumber of seats) await recalculateCompatibilitySeat(hold.scheduleId, seatNumber, session);
+      await recalculateCompatibilitySeats(hold.scheduleId, seats, session);
       await recalculateScheduleAvailableSeats(hold.scheduleId, session);
       await repository.outbox({ eventType: 'BusInventoryHeld', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { scheduleId: hold.scheduleId, seatNumbers: seats, segmentIds: hold.segmentIds, expiresAt: hold.expiresAt }, dedupeKey: `BusInventoryHeld:${hold.id}`, session });
       await repository.audit({ actorId: actorId(context.createdBy), action: 'bus.inventory.held', targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { scheduleId: hold.scheduleId, seats, segmentIds: hold.segmentIds }, session });
@@ -266,7 +302,6 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
 }
 
 async function assertActiveHold(holdId, token = '', session = null) {
-  if (!session) await expireStaleHolds();
   const options = session ? { session } : {};
   const hold = await repository.holds.findOne({ id: cleanText(holdId, 180), holdType: 'bus_segment_seat' }, options);
   if (!hold) throw validationError('Bus seat hold not found', 404);
@@ -334,7 +369,7 @@ async function consumeHold(holdId, { bookingId, bookingRef, bookingItemId, reser
   await repository.segmentInventory.saveMany(rows, null, session ? { session } : {});
   await repository.holds.save(hold, { id: hold.id }, session ? { session } : {});
   if (items.length) await repository.holdItems.saveMany(items, null, session ? { session } : {});
-  for (const seatNumber of hold.seatNumbers || [hold.seatNumber]) await recalculateCompatibilitySeat(hold.scheduleId, seatNumber, session);
+  await recalculateCompatibilitySeats(hold.scheduleId, hold.seatNumbers || [hold.seatNumber], session);
   await recalculateScheduleAvailableSeats(hold.scheduleId, session);
   await repository.outbox({ eventType: 'BusInventoryBooked', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { bookingId, bookingRef, reservationId, scheduleId: hold.scheduleId, seatNumbers: hold.seatNumbers }, dedupeKey: `BusInventoryBooked:${hold.id}:${bookingId}`, session });
   return hold;
@@ -366,7 +401,7 @@ async function releaseHold(holdId, reason = 'released', actor = 'system', sessio
     if (rows.length) await repository.segmentInventory.saveMany(rows, null, activeSession ? { session: activeSession } : {});
     await repository.holds.save(hold, { id: hold.id }, activeSession ? { session: activeSession } : {});
     if (items.length) await repository.holdItems.saveMany(items, null, activeSession ? { session: activeSession } : {});
-    for (const seatNumber of hold.seatNumbers || [hold.seatNumber]) await recalculateCompatibilitySeat(hold.scheduleId, seatNumber, activeSession);
+    await recalculateCompatibilitySeats(hold.scheduleId, hold.seatNumbers || [hold.seatNumber], activeSession);
     await recalculateScheduleAvailableSeats(hold.scheduleId, activeSession);
     await repository.outbox({ eventType: reason === 'expired' ? 'BusInventoryHoldExpired' : 'BusInventoryReleased', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { scheduleId: hold.scheduleId, reason }, dedupeKey: `BusInventoryReleased:${hold.id}:${nextStatus}`, session: activeSession });
     await repository.audit({ actorId: actorId(actor), action: `bus.inventory.${nextStatus}`, targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { reason }, session: activeSession });
@@ -387,5 +422,6 @@ module.exports = {
   consumeHold,
   releaseHold,
   recalculateCompatibilitySeat,
+  recalculateCompatibilitySeats,
   recalculateScheduleAvailableSeats,
 };

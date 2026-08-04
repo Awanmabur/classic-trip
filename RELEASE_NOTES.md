@@ -1,43 +1,52 @@
-# Classic Trip 1.4.7 — Top-Gap Fill, Opaque Travel Surfaces and Stable Service Tabs
+# Classic Trip 1.4.10 — Release Check and Compact Bar Correction
 
-Release date: 2 August 2026
+## v1.4.10 corrections
+
+- Corrected the stale final-polish assertion so it verifies targeted selected-seat hold expiry instead of requiring the removed global checkout sweep.
+- Desktop bar view no longer inherits a fixed card-like minimum height. Its row height now follows its actual title, metadata, description, price, and actions.
+- Mobile bar sizing remains unchanged.
+
+
+Release date: 4 August 2026
 
 ## Changes in this release
 
-Only the three requested areas were changed:
+### Faster Proceed to payment
 
-1. Top navigation gap
-   - The 12 px spacing remains.
-   - The spacing is now body padding, so the page's own background paints it instead of exposing a black or empty strip.
-   - Installed PWAs also include the device safe-area inset.
+- Checkout preparation no longer loads full bus availability twice before creating the secure seat hold.
+- The payment page reuses the marketplace snapshot already loaded for the request.
+- Return-departure discovery is skipped on the payment page because the selected return journey is already stored in the secure draft.
+- Hold-item identifiers are allocated in one MongoDB counter operation instead of one operation per seat segment.
+- Compatibility seat records are recalculated in a single batched read/write path instead of repeated per-seat queries.
+- Checkout no longer runs a global stale-hold sweep. Expired holds affecting the selected seats are released immediately, while the normal expiry job handles general cleanup.
+- Existing draft reuse, double-click protection, inventory conflict checks and double-booking prevention remain active.
 
-2. Dark-mode travel and PWA containers
-   - Flight and Local Taxi hero cards, booking panels, controls, offers, maps, suggestions and related nested containers use opaque dark surfaces.
-   - The PWA installation popup, close button and instruction box use opaque dark surfaces.
-   - Light-mode surfaces and unrelated platform pages are unchanged.
+### Homepage cards
 
-3. Stable service selector
-   - Selecting Bus, Stays, Flights, Local taxi, Tours, Car rental or Cargo still displays that service's real input panel.
-   - Automatic `scrollIntoView()` was removed, so clicking a service no longer shifts the hero container or its content left/right.
-   - Horizontal tab swiping remains native and contained inside the tab row.
+- Desktop card mode keeps exactly three fixed columns in every marketplace section.
+- One or two listings remain in their normal column widths and do not stretch to fill the row.
+- The phone Featured Buses rail still uses two rows, but now reveals about one quarter of the next card column instead of half a card.
+- Decorative section color overrides added in the previous release were removed. The existing platform palette is used unchanged.
+
+### Compact bar mode
+
+- Bar images are wider on desktop and phones.
+- Availability badges are placed in the top-right corner of the full bar.
+- Bar content reserves space for the badge so it does not cover the title or description.
+- Desktop descriptions use one line with ellipsis truncation.
+- Bars remain one per row on phones and two per row on desktop.
+
+### PWA caching
+
+- The service-worker cache is `classic-trip-static-v1.4.10`.
 
 ## Verification
 
-- Surface stability checks: 11/11
-- Authentication and service-search checks: 22/22
-- JavaScript syntax: 558/558
-- EJS templates: 128/128
-- PWA checks: 42/42
-- Flight and Local Taxi workflow checks: 110/110
-- Reference UI integrity: 179/179
-- Production architecture: 6,774/6,774
-- Production finalization: 29/29
-- Final regression: 42/42
-- Release cleanup: 23/23
-
-Run the dependency-backed checks after `npm ci`:
+Run:
 
 ```bash
+npm ci
+npm run check:final-home-payment
 npm run release:check
 npm start
 ```
