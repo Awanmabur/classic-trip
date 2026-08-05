@@ -35,9 +35,14 @@
                 <p>Choose one route or schedule, review the real visual seat map, then use the scoped table and actions below. This page only manages bus seat templates, schedule snapshots, blocked seats, booked seats, holds, and ticket access.</p>
               </div>
               <div class="financeActions">
+                <% if(isCompanyDashboard){ %>
                 <button class="btn btnBlue" data-modal="edit" data-type="vehicle seat template"><i class="fa-solid fa-wand-magic-sparkles"></i> Template builder</button>
                 <% if(allSeatMaps.length){ %><button class="btn" data-modal="edit" data-type="seat status"><i class="fa-solid fa-chair"></i> Update seat status</button><% } else { %><a class="btn" href="/company/schedules"><i class="fa-regular fa-calendar-plus"></i> Create departure</a><% } %>
                 <a class="btn" href="/company/manifests"><i class="fa-solid fa-file-lines"></i> Open manifest</a>
+                <% } else if(isEmployeeDashboard){ %>
+                <% if(allSeatMaps.length){ %><button class="btn btnBlue" data-modal="edit" data-type="seat status"><i class="fa-solid fa-chair"></i> Update seat status</button><% } %>
+                <a class="btn" href="/employee/manifests"><i class="fa-solid fa-file-lines"></i> Open manifest</a>
+                <% } else { %><span class="badge info">Read-only seat state</span><% } %>
               </div>
             </div>
             <div class="financeKpis">

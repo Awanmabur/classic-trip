@@ -3,6 +3,12 @@
 const repository = require('../repositories/busRepository');
 const { cleanText, normalize } = require('../domain/busDomain');
 
+function scheduleVehicleClass(schedule = {}) {
+  if (normalize(schedule.vehicleClass) === 'vip') return 'vip';
+  if (normalize(schedule.seatMapSnapshot?.vehicleClass) === 'vip') return 'vip';
+  return (schedule.seatMapSnapshot?.seats || []).some((seat) => normalize(seat.seatClass) === 'vip') ? 'vip' : 'standard';
+}
+
 function stopMatches(stop, wantedBranchId, wantedName) {
   const wantedBranch = cleanText(wantedBranchId, 180);
   const candidateBranch = cleanText(stop?.branchId, 180);
@@ -104,6 +110,7 @@ async function findReturnDepartures({ companyId, originName, destinationName, or
       companyId: schedule.companyId,
       routeId: schedule.routeId,
       vehicleId: schedule.vehicleId,
+      vehicleClass: scheduleVehicleClass(schedule),
       originStopId: journey.originStop.id,
       destinationStopId: journey.destinationStop.id,
       originName: journey.originStop.name,
@@ -138,4 +145,5 @@ module.exports = {
   stopMatches,
   scheduleTravelBounds,
   journeyForSchedule,
+  scheduleVehicleClass,
 };

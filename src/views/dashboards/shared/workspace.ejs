@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.4.10" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -26,7 +26,7 @@
   
   <link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.4.5">
   <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.10">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.0">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 
@@ -43,6 +43,7 @@
     const isFinanceDashboard = dashboardRoleKey === 'finance';
     const isOperationsDashboard = dashboardRoleKey === 'operations';
     const shellMenuPages = new Set((dashboardShell?.groups || []).flatMap(function(group){ return (group.items || []).map(function(item){ return item.page; }); }));
+    const shellCanShow = function(page, aliases){ return dashboardRoleKey === 'admin' || shellMenuPages.has(page) || (aliases || []).some(function(alias){ return shellMenuPages.has(alias); }); };
     const hasHandoverDashboardPage = shellMenuPages.has('handover');
     const hasGenericProfileDashboardPage = shellMenuPages.has('profile') && (isEmployeeDashboard || isDriverDashboard);
     const hasDriverOpsDashboardPage = shellMenuPages.has('driver-ops') || shellMenuPages.has('driver-manifest') || shellMenuPages.has('driver-incidents');
@@ -72,9 +73,83 @@
     const employeeProfileRoleTitle = employeeProfileData.roleTitle || (dashboardRoleKey === 'driver' ? 'Driver' : 'Ticket Checker');
     const employeeProfileBranch = employeeProfileData.branch || employeeCompanyName;
     const employeeProfileShift = employeeProfileData.shift || 'Current shift';
-    const defaultCreateType = isCompanyDashboard
-      ? (companySupportsHotel ? 'room night inventory' : companySupportsBus ? 'schedule' : companySupportsFlight ? 'customer flight quote' : companySupportsTaxi ? 'vehicle' : 'listing')
-      : (isEmployeeDashboard ? 'booking' : 'partner');
+    const createOptions = dashboardData?.options || {};
+    const optionCount = function(key, fallbackKey){
+      const rows = createOptions[key] || (fallbackKey ? dashboardData?.[fallbackKey] : null) || [];
+      return Array.isArray(rows) ? rows.length : 0;
+    };
+    let defaultCreateType = 'partner';
+    let defaultCreateHref = '';
+    let defaultCreateLabel = dashboardShell?.createLabel || 'Create';
+    if (isCompanyDashboard && companySupportsBus) {
+      if (optionCount('branches', 'branches') < 2) {
+        defaultCreateType = 'branch';
+        defaultCreateLabel = 'Add Terminal';
+      } else if (!optionCount('busListings', 'listings')) {
+        defaultCreateType = 'bus service';
+        defaultCreateLabel = 'Set Up Bus Service';
+      } else if (!optionCount('routes', 'routes')) {
+        defaultCreateType = 'route';
+        defaultCreateLabel = 'Create Route';
+      } else if (!optionCount('vehicles', 'vehicles')) {
+        defaultCreateType = 'vehicle';
+        defaultCreateLabel = 'Add Bus';
+      } else if (!optionCount('fareProducts', 'fareProducts')) {
+        defaultCreateType = 'fare product';
+        defaultCreateLabel = 'Add Fare Plan';
+      } else {
+        defaultCreateType = 'schedule';
+        defaultCreateLabel = 'Create 30-Day Departures';
+      }
+    } else if (isCompanyDashboard && companySupportsHotel) {
+      if (!optionCount('hotelListings', 'listings')) {
+        defaultCreateType = 'listing';
+        defaultCreateLabel = 'Create Stay Listing';
+      } else if (!optionCount('hotelProperties', 'hotelProperties')) {
+        defaultCreateType = 'hotel property';
+        defaultCreateLabel = 'Add Property';
+      } else if (!optionCount('roomTypes', 'roomTypes')) {
+        defaultCreateType = 'room type';
+        defaultCreateLabel = 'Add Room Type';
+      } else if (!optionCount('roomUnits', 'roomUnits')) {
+        defaultCreateType = 'room units';
+        defaultCreateLabel = 'Add Rooms';
+      } else {
+        defaultCreateType = 'room night inventory';
+        defaultCreateLabel = 'Open Room Inventory';
+      }
+    } else if (isCompanyDashboard && companySupportsFlight) {
+      defaultCreateHref = '/company/dashboard/flight-search';
+    } else if (isCompanyDashboard && companySupportsTaxi) {
+      defaultCreateHref = '/company/dashboard/taxi-fleet';
+    } else if (isCompanyDashboard) {
+      defaultCreateType = 'listing';
+    } else if (isEmployeeDashboard) {
+      defaultCreateType = 'booking';
+    } else if (isDriverDashboard) {
+      defaultCreateType = 'driver trip update';
+    } else if (isPromoterDashboard) {
+      defaultCreateType = 'promoter link';
+    } else if (isCustomerDashboard) {
+      defaultCreateHref = '/search';
+    } else if (isSupportDashboard) {
+      defaultCreateHref = '/support/dashboard/support';
+    } else if (isFinanceDashboard) {
+      defaultCreateHref = '/finance/dashboard/payments';
+    } else if (isOperationsDashboard) {
+      defaultCreateType = 'booking';
+    } else if (dashboardRoleKey === 'content') {
+      defaultCreateHref = '/content/dashboard/blogs';
+    }
+    const scopedDashboardCopy = {
+      driver: { title:'Your assigned trips are ready.', body:'Review routes and manifests, then log trip updates.', primaryPage:'driver-ops', primaryIcon:'fa-route', primaryLabel:'Assigned trips', secondaryPage:'driver-manifest', secondaryLabel:'Open manifest', tertiaryPage:'driver-incidents', tertiaryLabel:'Report incident', bookingLabel:'Assigned trips', supportLabel:'Passengers checked in', reportsLabel:'Open incidents', quickSub:'Actions are limited to assigned trips.' },
+      customer: { title:'Manage every trip in one place.', body:'Open tickets, bookings, receipts and support.', primaryPage:'bookings', primaryIcon:'fa-ticket', primaryLabel:'My bookings', secondaryPage:'ticket', secondaryLabel:'Current ticket', tertiaryPage:'support', tertiaryLabel:'Get support', bookingLabel:'My bookings', supportLabel:'Open support cases', reportsLabel:'Available receipts', quickSub:'Your travel and account shortcuts.' },
+      promoter: { title:'Share travel and track referrals.', body:'Create links and monitor conversions, commissions and withdrawals.', primaryPage:'links', primaryIcon:'fa-link', primaryLabel:'Referral links', secondaryPage:'share', secondaryLabel:'Share listings', tertiaryPage:'commissions', tertiaryLabel:'Commissions', bookingLabel:'Referral bookings', supportLabel:'Active links', reportsLabel:'Pending withdrawals', quickSub:'Actions are scoped to your account.' },
+      support: { title:'Resolve customer issues.', body:'Review cases, correspondence, refunds and reschedules.', primaryPage:'support', primaryIcon:'fa-headset', primaryLabel:'Support queue', secondaryPage:'refunds', secondaryLabel:'Refund requests', tertiaryPage:'reports', tertiaryLabel:'Support reports', bookingLabel:'Cases assigned', supportLabel:'Urgent cases', reportsLabel:'Reschedule records', quickSub:'Actions stay on the case timeline.' },
+      finance: { title:'Protect payments and payouts.', body:'Reconcile transactions, review risk and audit decisions.', primaryPage:'payments', primaryIcon:'fa-money-bill-transfer', primaryLabel:'Payments', secondaryPage:'settlements', secondaryLabel:'Settlements', tertiaryPage:'reports', tertiaryLabel:'Finance reports', bookingLabel:'Transactions', supportLabel:'Items in review', reportsLabel:'Reports ready', quickSub:'Finance actions are role-scoped.' },
+      operations: { title:'Keep operations moving.', body:'Coordinate bookings, schedules, inventory and escalations.', primaryPage:'bookings', primaryIcon:'fa-ticket', primaryLabel:'Bookings', secondaryPage:'schedules', secondaryLabel:'Schedules', tertiaryPage:'support', tertiaryLabel:'Escalations', bookingLabel:'Active bookings', supportLabel:'Open escalations', reportsLabel:'Operational reports', quickSub:'Actions use the selected record.' },
+      content: { title:'Keep content accurate.', body:'Manage listings, blogs, notifications and reviews.', primaryPage:'blogs', primaryIcon:'fa-newspaper', primaryLabel:'Blog content', secondaryPage:'listings', secondaryLabel:'Listing review', tertiaryPage:'notifications', tertiaryLabel:'Notifications', bookingLabel:'Content items', supportLabel:'Items awaiting review', reportsLabel:'Published updates', quickSub:'Editorial actions stay role-scoped.' }
+    };
     const dashboardCopy = isCompanyDashboard ? {
       title: companyServiceProfile.dashboardLabel || 'Company Dashboard',
       body: 'Manage ' + ((companyServiceProfile.primaryLabel || 'service').toLowerCase()) + ' bookings, inventory, staff, support, revenue, settlement, and reports from the same admin dashboard shell.',
@@ -103,7 +178,7 @@
       supportLabel: 'Support tasks',
       reportsLabel: 'Reports ready',
       quickSub: 'Fast staff actions scoped to assigned company data.'
-    } : {
+    } : (scopedDashboardCopy[dashboardRoleKey] || {
       title: 'Lead every service from one trusted command centre.',
       body: 'See marketplace performance clearly, approve trustworthy partners, protect every payment and coordinate bus, hotel, flight-agent and local-mobility operations from one accountable workspace.',
       primaryPage: 'payments',
@@ -117,7 +192,7 @@
       supportLabel: 'Pending partner approvals',
       reportsLabel: 'Open disputes',
       quickSub: 'High-priority controls for safe growth, reliable operations and faster customer resolution.'
-    };
+    });
     const sectionLocals = {
       dashboardRoleKey,
       companyServiceProfile,
@@ -130,6 +205,7 @@
       isFinanceDashboard,
       isOperationsDashboard,
       shellMenuPages,
+      shellCanShow,
       hasHandoverDashboardPage,
       hasGenericProfileDashboardPage,
       hasDriverOpsDashboardPage,
@@ -153,6 +229,8 @@
       employeeProfileBranch,
       employeeProfileShift,
       defaultCreateType,
+      defaultCreateHref,
+      defaultCreateLabel,
       dashboardCopy,
     };
   %>
@@ -248,7 +326,11 @@
           <button class="iconBtn" id="btnTheme" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
           <a class="iconBtn" href="#notifications" title="Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i><% if ((dashboardShell?.notificationCount || 0) > 0) { %><span class="topNotifBadge"><%= dashboardShell.notificationCount %></span><% } %></a>
           <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
-          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= dashboardShell?.createLabel || 'Create' %></span></button>
+          <% if (defaultCreateHref) { %>
+          <a class="btn btnBlue" id="btnNew" href="<%= defaultCreateHref %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></a>
+          <% } else { %>
+          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></button>
+          <% } %>
           <span class="btn btnPrimary hideMobile dashboardRoleBadge" role="status"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></span>
           <form class="logoutForm topLogout" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn hideMobile navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
         </div>
@@ -384,14 +466,15 @@
             <div class="cardPad">
               <div class="quickGrid">
                 <% if(isCompanyDashboard && companySupportsBus){ %>
+                <button class="quickCard" data-modal="create" data-type="branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add terminal first</strong><span>Create the operating terminal required by the guided bus-service setup.</span></button>
                 <button class="quickCard" data-modal="create" data-type="bus service"><div class="quickIcon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><strong>Create bus service</strong><span>One screen: listing, vehicle, route, and first departure together. Recommended for new services.</span></button>
                 <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Add bus service profile before routes, vehicles, and schedules.</span></button>
                 <button class="quickCard" data-modal="create" data-type="route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Add route, stops, and operating details.</span></button>
                 <button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
-                <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create departure</strong><span>Publish departure, fare, vehicle, and seat inventory.</span></button>
-                <button class="quickCard" data-modal="create" data-type="schedule rule"><div class="quickIcon"><i class="fa-solid fa-repeat"></i></div><strong>Create recurring departure</strong><span>Set a standing schedule; it keeps generating new departures automatically.</span></button>
+                <button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create rolling departures</strong><span>Create once for the next 30 days; the window automatically adds one new day every day.</span></button>
                 <a class="quickCard" href="/company/manifests"><div class="quickIcon"><i class="fa-solid fa-file-lines"></i></div><strong>Open manifest</strong><span>Review, print, and export passengers and boarding check-ins.</span></a>
                 <% } else if(isCompanyDashboard && companySupportsHotel){ %>
+                <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create stay listing first</strong><span>Create the public stay listing that each hotel property must connect to.</span></button>
                 <button class="quickCard" data-modal="create" data-type="hotel property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Add a hotel, home, apartment or room profile with location, amenities and policies.</span></button>
                 <button class="quickCard" data-modal="create" data-type="room type"><div class="quickIcon"><i class="fa-solid fa-bed"></i></div><strong>Add room type</strong><span>Create a room type, then add room units and dated night inventory.</span></button>
                 <button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Hotel bookings</strong><span>Review stays, holds, guests, and payment status.</span></button>
@@ -408,11 +491,18 @@
                 <a class="quickCard" href="/company/dashboard/taxi-availability"><div class="quickIcon"><i class="fa-solid fa-toggle-on"></i></div><strong>Go online</strong><span>Share availability only after driver and vehicle approval.</span></a>
                 <a class="quickCard" href="/company/dashboard/taxi-operations"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Assigned rides</strong><span>View platform-dispatched trips assigned to your verified team.</span></a>
                 <a class="quickCard" href="/company/dashboard/taxi-incidents"><div class="quickIcon"><i class="fa-solid fa-shield-halved"></i></div><strong>Safety</strong><span>Report an incident without exposing restricted safety records.</span></a>
+                <% } else if(isCompanyDashboard){ %>
+                <button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create service listing</strong><span>Add the public service, pricing, capacity, location, policies and media in one guided form.</span></button>
+                <button class="quickCard" data-modal="create" data-type="add-on"><div class="quickIcon"><i class="fa-solid fa-puzzle-piece"></i></div><strong>Add optional extra</strong><span>Attach a clearly priced extra to this service type.</span></button>
+                <button class="quickCard" data-modal="create" data-type="branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add operating location</strong><span>Create a branch, desk, pickup point or service location.</span></button>
+                <button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Open bookings</strong><span>Review customer orders, status and payment progress for this service.</span></button>
                 <% } else if(isEmployeeDashboard){ %>
                 <button class="quickCard" data-jump="checkin"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Check in ticket</strong><span>Open the shared check-in workspace for manual or QR validation.</span></button>
                 <button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Record a desk booking for the assigned company.</span></button>
                 <button class="quickCard" data-modal="create" data-type="support notice"><div class="quickIcon"><i class="fa-solid fa-headset"></i></div><strong>Support notice</strong><span>Create a customer-visible note or operational support task.</span></button>
                 <button class="quickCard" data-modal="create" data-type="handover"><div class="quickIcon"><i class="fa-solid fa-clipboard-list"></i></div><strong>Shift handover</strong><span>Leave clear notes for the next staff member.</span></button>
+                <% } else if(isDriverDashboard || isCustomerDashboard || isPromoterDashboard || isSupportDashboard || isFinanceDashboard || isOperationsDashboard || dashboardRoleKey === 'content'){ %>
+                <%- include('sections/role-quick-actions', sectionLocals) %>
                 <% } else { %>
                 <button class="quickCard" data-modal="create" data-type="partner"><div class="quickIcon"><i class="fa-solid fa-check"></i></div><strong>Approve partner</strong><span>Review documents and activate their dashboard.</span></button>
                 <button class="quickCard" data-modal="edit" data-type="payment"><div class="quickIcon"><i class="fa-solid fa-ban"></i></div><strong>Freeze payout</strong><span>Hold suspicious payouts while finance reviews.</span></button>
@@ -425,7 +515,7 @@
         </div>
       </section>
 
-      <%- include('sections/analytics', sectionLocals) %>
+      <% if(shellCanShow('analytics')){ %><%- include('sections/analytics', sectionLocals) %><% } %>
 
       <% if (isCompanyDashboard && companyCanShow('setup-guide')) { %>
         <%- include('sections/setup-guide', sectionLocals) %>
@@ -435,76 +525,76 @@
         <%- include('sections/workflow-guide', sectionLocals) %>
       <% } %>
 
-      <%- include('sections/bookings', sectionLocals) %>
+      <% if(shellCanShow('bookings')){ %><%- include('sections/bookings', sectionLocals) %><% } %>
 
-      <%- include('sections/partners', sectionLocals) %>
+      <% if(shellCanShow('partners')){ %><%- include('sections/partners', sectionLocals) %><% } %>
       <% if(dashboardRoleKey === 'admin'){ %>
       <%- include('sections/admin-partner-network', sectionLocals) %>
       <% } %>
 
-      <%- include('sections/listings', sectionLocals) %>
+      <% if(shellCanShow('listings')){ %><%- include('sections/listings', sectionLocals) %><% } %>
 
 
 
-      <% if(companyCanShow('routes')){ %><%- include('sections/routes', sectionLocals) %><% } %>
+      <% if(shellCanShow('routes') && companyCanShow('routes')){ %><%- include('sections/routes', sectionLocals) %><% } %>
 
-      <% if(companyCanShow('vehicles')){ %><%- include('sections/vehicles', sectionLocals) %><% } %>
+      <% if(shellCanShow('vehicles') && companyCanShow('vehicles')){ %><%- include('sections/vehicles', sectionLocals) %><% } %>
 
-      <% if(companyCanShow('schedules')){ %><%- include('sections/schedules', sectionLocals) %><% } %>
+      <% if(shellCanShow('schedules', ['schedule']) && companyCanShow('schedules')){ %><%- include('sections/schedules', sectionLocals) %><% } %>
 
       <% const featureServices = Array.isArray(dashboardData?.dashboardFeatures?.services) ? dashboardData.dashboardFeatures.services : []; %>
       <% featureServices.forEach(function(service){ %>
       <%- include('sections/dynamic-service', Object.assign({}, sectionLocals, { service })) %>
       <% }) %>
 
-      <%- include('sections/company-profile', sectionLocals) %>
-      <%- include('sections/staff', sectionLocals) %>
-      <% if(companyCanShow('seat-maps')){ %>
+      <% if(shellCanShow('company-profile')){ %><%- include('sections/company-profile', sectionLocals) %><% } %>
+      <% if(shellCanShow('staff')){ %><%- include('sections/staff', sectionLocals) %><% } %>
+      <% if(shellCanShow('seat-maps', ['inventory']) && companyCanShow('seat-maps')){ %>
       <%- include('sections/seat-maps', sectionLocals) %>
       <% } %>
-      <% if(companyCanShow('hotel-rooms')){ %>
+      <% if(shellCanShow('hotel-rooms') && companyCanShow('hotel-rooms')){ %>
       <%- include('sections/hotel-rooms', sectionLocals) %>
       <% } %>
       <% if(isCompanyDashboard && (companySupportsFlight || companySupportsTaxi)){ %>
       <%- include('sections/flight-taxi', sectionLocals) %>
       <% } %>
-      <%- include('sections/manifests', sectionLocals) %>
-      <%- include('sections/checkins', sectionLocals) %>
-      <%- include('sections/reviews', sectionLocals) %>
-      <%- include('sections/revenue', sectionLocals) %>
-      <%- include('sections/settlement', sectionLocals) %>
+      <% if(shellCanShow('manifests', ['manifest'])){ %><%- include('sections/manifests', sectionLocals) %><% } %>
+      <% if(shellCanShow('checkins', ['checkin'])){ %><%- include('sections/checkins', sectionLocals) %><% } %>
+      <% if(shellCanShow('reviews') && !isCustomerDashboard){ %><%- include('sections/reviews', sectionLocals) %><% } %>
+      <% if(shellCanShow('revenue')){ %><%- include('sections/revenue', sectionLocals) %><% } %>
+      <% if(shellCanShow('settlement', ['settlements'])){ %><%- include('sections/settlement', sectionLocals) %><% } %>
 
 
-      <%- include('sections/payments', sectionLocals) %>
+      <% if(shellCanShow('payments')){ %><%- include('sections/payments', sectionLocals) %><% } %>
 
-      <%- include('sections/promoters', sectionLocals) %>
+      <% if(shellCanShow('promoters')){ %><%- include('sections/promoters', sectionLocals) %><% } %>
 
-      <%- include('sections/customers', sectionLocals) %>
+      <% if(shellCanShow('customers')){ %><%- include('sections/customers', sectionLocals) %><% } %>
 
-      <%- include('sections/support', sectionLocals) %>
+      <% if(shellCanShow('support') && !isCustomerDashboard && !isPromoterDashboard){ %><%- include('sections/support', sectionLocals) %><% } %>
 
-      <% if(companyCanShow('ads')){ %><%- include('sections/ads', sectionLocals) %><% } %>
+      <% if(shellCanShow('ads') && companyCanShow('ads')){ %><%- include('sections/ads', sectionLocals) %><% } %>
 
       <% if(!isCompanyDashboard && shellMenuPages.has('blogs')){ %><%- include('sections/blogs', sectionLocals) %><% } %>
 
-      <%- include('sections/reports', sectionLocals) %>
+      <% if(shellCanShow('reports')){ %><%- include('sections/reports', sectionLocals) %><% } %>
 
 
-      <%- include('sections/audit', sectionLocals) %>
+      <% if(shellCanShow('audit')){ %><%- include('sections/audit', sectionLocals) %><% } %>
 
-      <%- include('sections/admins', sectionLocals) %>
+      <% if(shellCanShow('admins')){ %><%- include('sections/admins', sectionLocals) %><% } %>
 
-      <%- include('sections/kyc', sectionLocals) %>
+      <% if(shellCanShow('kyc')){ %><%- include('sections/kyc', sectionLocals) %><% } %>
 
-      <%- include('sections/refunds', sectionLocals) %>
+      <% if(shellCanShow('refunds') && !isCustomerDashboard){ %><%- include('sections/refunds', sectionLocals) %><% } %>
 
-      <%- include('sections/notifications', sectionLocals) %>
+      <% if(shellCanShow('notifications') && !isCustomerDashboard){ %><%- include('sections/notifications', sectionLocals) %><% } %>
 
-      <%- include('sections/archive', sectionLocals) %>
+      <% if(shellCanShow('archive')){ %><%- include('sections/archive', sectionLocals) %><% } %>
 
-      <%- include('sections/system', sectionLocals) %>
+      <% if(shellCanShow('system')){ %><%- include('sections/system', sectionLocals) %><% } %>
 
-      <%- include('sections/settings', sectionLocals) %>
+      <% if(shellCanShow('settings')){ %><%- include('sections/settings', sectionLocals) %><% } %>
 
       <% if(isCustomerDashboard){ %>
       <%- include('sections/ticket', sectionLocals) %>
@@ -560,30 +650,30 @@
     </main>
   </div>
 
-  <div class="modal" id="crudModal">
-    <div class="modalCard">
+  <div class="modal" id="crudModal" role="dialog" aria-modal="true" aria-labelledby="crudTitle" aria-describedby="crudSub" aria-hidden="true">
+    <div class="modalCard" tabindex="-1">
       <div class="modalHead">
         <div><h3 id="crudTitle">Create item</h3><p id="crudSub">Manage platform data cleanly.</p></div>
-        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+        <button class="iconBtn" type="button" data-close-modal aria-label="Close dialog"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modalBody" id="crudBody"></div>
     </div>
   </div>
 
-  <div class="modal" id="deleteModal">
-    <div class="modalCard">
+  <div class="modal" id="deleteModal" role="alertdialog" aria-modal="true" aria-labelledby="deleteModalTitle" aria-describedby="deleteModalDescription" aria-hidden="true">
+    <div class="modalCard" tabindex="-1">
       <div class="modalHead">
-        <div><h3>Delete record</h3><p>This confirms the delete workflow before any record is changed.</p></div>
-        <button class="iconBtn" data-close-modal><i class="fa-solid fa-xmark"></i></button>
+        <div><h3 id="deleteModalTitle">Archive record</h3><p id="deleteModalDescription">This confirms the archive workflow before any record is changed.</p></div>
+        <button class="iconBtn" type="button" data-close-modal aria-label="Close archive confirmation"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modalBody">
         <div class="deleteBox">
-          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Delete action</span>
-          <strong id="deleteText">Are you sure you want to delete this record?</strong>
+          <span class="badge bad"><i class="fa-solid fa-triangle-exclamation"></i> Archive action</span>
+          <strong id="deleteText">Are you sure you want to archive this record?</strong>
           <p style="margin:0;color:var(--muted);font-size:12px;font-weight:800;line-height:1.55">Soft delete keeps the record recoverable and writes the action to audit logs.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" data-close-modal>Cancel</button>
-            <form id="deleteForm" method="POST" action="" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnDanger" id="confirmDelete" type="submit"><i class="fa-solid fa-trash"></i> Delete</button></form>
+            <form id="deleteForm" method="POST" action="" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnDanger" id="confirmDelete" type="submit"><i class="fa-solid fa-box-archive"></i> Archive</button></form>
           </div>
         </div>
       </div>

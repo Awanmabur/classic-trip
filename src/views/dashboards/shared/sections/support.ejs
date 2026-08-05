@@ -6,5 +6,64 @@
   const deliveryCount = Array.isArray(dashboardData?.deliveryAttempts) ? dashboardData.deliveryAttempts.length : 0;
   const timelineCount = Array.isArray(dashboardData?.timeline) ? dashboardData.timeline.length : 0;
   const rescheduleCount = Array.isArray(dashboardData?.reschedules) ? dashboardData.reschedules.length : 0;
+  const driverScheduleOptions = Array.isArray(dashboardData?.options?.schedules) ? dashboardData.options.schedules : [];
 %>
-<section class="section" id="support"><div class="grid2"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div><span class="badge <%= urgentSupportCount ? 'bad' : 'ok' %>"><i class="fa-solid fa-triangle-exclamation"></i> <%= urgentSupportCount %> urgent</span></div><div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div><form class="formPanel" id="noticeForm" method="POST" action="<%= isEmployeeDashboard ? '/employee/support/notice' : (isCompanyDashboard ? '/company/support/notices' : (isSupportDashboard ? '/support/notices' : '/admin/notices')) %>"><div class="formGrid"><div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div><div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div><div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div></div><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button></form></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Correspondence records</h3><p>Stored customer messages, delivery attempts, booking timeline entries, and reschedule requests.</p></div></div><div class="splitGrid"><div class="splitItem"><div class="splitTop"><span>Messages</span><strong><%= correspondenceCount.toLocaleString() %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><strong><%= deliveryCount.toLocaleString() %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Timeline events</span><strong><%= timelineCount.toLocaleString() %></strong></div></div><div class="splitItem"><div class="splitTop"><span>Reschedule requests</span><strong><%= rescheduleCount.toLocaleString() %></strong></div></div></div></div><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review stored customer schedule-change requests and export the current queue.</p></div><span class="badge <%= rescheduleCount ? 'warn' : 'ok' %>"><%= rescheduleCount.toLocaleString() %> open records</span></div><a class="btn btnBlue" href="<%= isEmployeeDashboard ? '/employee/reports/reschedules.csv' : (isCompanyDashboard ? '/company/reports/reschedules.csv' : (isSupportDashboard ? '/support/reports/reschedules.csv' : '/admin/reports/reschedules.csv')) %>"><i class="fa-solid fa-download"></i> Download queue</a></div></div></section>
+<section class="section" id="support">
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead">
+        <div class="cardTitle"><h3>Support & disputes</h3><p>Refunds, failed payments, missing tickets, partner complaints, and customer support.</p></div>
+        <span class="badge <%= urgentSupportCount ? 'bad' : 'ok' %>"><i class="fa-solid fa-triangle-exclamation"></i> <%= urgentSupportCount %> urgent</span>
+      </div>
+      <div class="tableWrap"><table><thead><tr><th>Ticket</th><th>Customer</th><th>Issue</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead><tbody id="supportTable"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <% if (isDriverDashboard) { %>
+      <div class="cardHead"><div class="cardTitle"><h3>Ask operations for help</h3><p>Create a protected operational report instead of broadcasting a customer notice.</p></div></div>
+      <form class="formPanel" method="POST" action="/driver/incidents">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <input type="hidden" name="category" value="operations">
+        <input type="hidden" name="severity" value="normal">
+        <div class="formGrid">
+          <div class="field"><label>Assigned trip</label><div class="control"><i class="fa-solid fa-route"></i><select name="scheduleId"><option value="">General driver support</option><% driverScheduleOptions.forEach(function(row){ %><option value="<%= row.value || row.id %>"><%= row.label || row.id %></option><% }) %></select></div></div>
+          <div class="field"><label>Subject</label><div class="control"><i class="fa-solid fa-heading"></i><input name="title" required placeholder="What help is needed?"></div></div>
+          <div class="field full"><label>Details</label><div class="control"><textarea name="description" required placeholder="Describe the trip, passenger, vehicle or route issue."></textarea></div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send to operations</button>
+      </form>
+      <% } else if (isEmployeeDashboard || isCompanyDashboard || isSupportDashboard || dashboardRoleKey === 'admin') { %>
+      <div class="cardHead"><div class="cardTitle"><h3>Create support notice</h3><p>Send a message to affected customers or partners.</p></div></div>
+      <form class="formPanel" id="noticeForm" method="POST" action="<%= isEmployeeDashboard ? '/employee/support/notice' : (isCompanyDashboard ? '/company/support/notices' : (isSupportDashboard ? '/support/notices' : '/admin/notices')) %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+        <div class="formGrid">
+          <div class="field"><label>Audience</label><div class="control"><i class="fa-solid fa-users"></i><select name="audience"><option value="customers">Customers</option><option value="partners">Partners</option><option value="promoters">Promoters</option><option value="employees">Employees</option></select></div></div>
+          <div class="field"><label>Priority</label><div class="control"><i class="fa-solid fa-flag"></i><select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div>
+          <div class="field full"><label>Message</label><div class="control"><textarea name="message" placeholder="Write notice message..." required></textarea></div></div>
+        </div>
+        <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send notice</button>
+      </form>
+      <% } else { %>
+      <div class="cardHead"><div class="cardTitle"><h3>Finance support review</h3><p>Cases on this page are read-only in the finance role. Reply and broadcast controls remain with Support.</p></div></div>
+      <div class="notice"><i class="fa-solid fa-lock"></i> Use the case row and finance audit trail for review. No customer notice can be sent from this role.</div>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Correspondence records</h3><p>Stored customer messages, delivery attempts, booking timeline entries, and reschedule requests.</p></div></div>
+      <div class="splitGrid">
+        <div class="splitItem"><div class="splitTop"><span>Messages</span><strong><%= correspondenceCount.toLocaleString() %></strong></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Delivery attempts</span><strong><%= deliveryCount.toLocaleString() %></strong></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Timeline events</span><strong><%= timelineCount.toLocaleString() %></strong></div></div>
+        <div class="splitItem"><div class="splitTop"><span>Reschedule requests</span><strong><%= rescheduleCount.toLocaleString() %></strong></div></div>
+      </div>
+    </div>
+
+    <% if (!isDriverDashboard) { %>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Reschedule queue</h3><p>Review stored customer schedule-change requests and export the current queue.</p></div><span class="badge <%= rescheduleCount ? 'warn' : 'ok' %>"><%= rescheduleCount.toLocaleString() %> open records</span></div>
+      <a class="btn btnBlue" href="<%= isEmployeeDashboard ? '/employee/reports/reschedules.csv' : (isCompanyDashboard ? '/company/reports/reschedules.csv' : (isSupportDashboard ? '/support/reports/reschedules.csv' : '/admin/reports/reschedules.csv')) %>"><i class="fa-solid fa-download"></i> Download queue</a>
+    </div>
+    <% } %>
+  </div>
+</section>

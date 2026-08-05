@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
@@ -39,10 +40,17 @@ function npmPackFileList() {
   // Invoke npm's JavaScript CLI through the current Node executable. Calling
   // npm.cmd directly with spawnSync/execFileSync fails with EINVAL on some
   // Windows + Node 24 installations.
+  const npmCache = path.join(os.tmpdir(), 'classic-trip-release-check-npm-cache');
+  fs.mkdirSync(npmCache, { recursive: true });
   const output = execFileSync(
     process.execPath,
     [npmCliPath(), 'pack', '--dry-run', '--json', '--ignore-scripts'],
-    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, npm_config_cache: npmCache },
+    },
   );
   const parsed = JSON.parse(output);
   return new Set((parsed[0]?.files || []).map((item) => item.path.replace(/\\/g, '/')));

@@ -177,6 +177,31 @@ window.addEventListener('DOMContentLoaded', function () {
     deleteForm: $('#deleteForm')
   };
 
+  let modalReturnFocus = null;
+  function modalFocusable(modal) {
+    return $$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])', modal)
+      .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+  }
+  function openModal(modal) {
+    if (!modal) return;
+    modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    window.requestAnimationFrame(() => {
+      const preferred = modal.querySelector('[autofocus]') || modalFocusable(modal)[0];
+      preferred?.focus({ preventScroll:true });
+    });
+  }
+  function closeModal(modal, restoreFocus = true) {
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    if (restoreFocus && modalReturnFocus?.isConnected) modalReturnFocus.focus({ preventScroll:true });
+  }
+  function closeAllModals() {
+    $$('.modal.is-open').forEach((modal, index) => closeModal(modal, index === 0));
+  }
+
   const data = {};
   function mergeDashboardData(target, source) {
     if (!source || typeof source !== 'object') return target;
@@ -1010,7 +1035,7 @@ window.addEventListener('DOMContentLoaded', function () {
     els.crudTitle.textContent = `View ${cleanDetailLabel(entity || type || 'record')}`;
     if (els.crudSub) els.crudSub.textContent = label ? `Selected: ${label}` : 'Important record details';
     els.crudBody.innerHTML = detailMarkup(detail || {}, entity) + detailActionBar(entity, label, detail || {});
-    els.crudModal.classList.add('is-open');
+    openModal(els.crudModal);
   }
 
   function downloadText(filename, text, mime = 'text/plain') {
@@ -1943,17 +1968,11 @@ window.addEventListener('DOMContentLoaded', function () {
     const vehicle = selectedMeta(vehicleSelect);
     const fare = selectedMeta(fareSelect);
     const driver = selectedMeta(driverSelect);
-    let status = fieldControl(form, 'status')?.value || fieldControl(form, 'schedule[status]')?.value || 'published';
+    const status = fieldControl(form, 'status')?.value || fieldControl(form, 'schedule[status]')?.value || 'published';
     const departAt = fieldControl(form, 'departAt')?.value || fieldControl(form, 'schedule[departAt]')?.value || '';
-    const hasSelectableDriver = visibleSelectOptions(driverSelect).some((option) => option.value);
-    if (!hasSelectableDriver && !driver.value) {
-      if (fieldControl(form, 'schedule[status]')) autoSetField(form, 'schedule[status]', 'draft', { force:true });
-      else if (fieldControl(form, 'status')) autoSetField(form, 'status', 'draft', { force:true });
-      status = 'draft';
-    }
     bindDependentFields(form);
     if (route.value && vehicle.value && fare.value && status === 'published' && !driver.value) {
-      setSmartSummary(form, 'Published departures require an assigned driver selection. Any saved request, invitation, or driver record is accepted; verification and account status remain visible as warnings.', 'warning');
+      setSmartSummary(form, 'This departure can be published now. Driver assignment is optional and can be completed later from the assigned-driver workflow.', 'ready');
     } else if (route.value && vehicle.value && fare.value && status !== 'published' && !driver.value) {
       setSmartSummary(form, 'Draft departure ready: route, vehicle, fare, seat map and inventory can be saved now. Select any saved driver request, invitation, or record when you are ready to publish.', 'ready');
     } else if (route.value && vehicle.value && fare.value && status !== 'published') {
@@ -1962,7 +1981,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const price = fare.amount !== '' && fare.amount != null ? `${fare.currency || route.currency || ''} ${fare.amount}`.trim() : `${fare.currency || route.currency || ''} fare`.trim();
       setSmartSummary(form, `${route.routeName || route.label} · ${vehicle.label} · ${vehicle.totalSeats || 0} seats · ${price} · ${driver.label}. Publishing will create the exact seat inventory and make this departure eligible for bus activation.`, 'ready');
     } else if (route.value) {
-      setSmartSummary(form, 'This route needs an active vehicle with a published seat map, an active fare plan, an assigned saved driver request/invitation/record, and a future departure time.', 'warning');
+      setSmartSummary(form, 'This route needs an active vehicle with a published seat map, an active fare plan, and a future departure time. Driver assignment remains optional.', 'warning');
     }
   }
 
@@ -2087,6 +2106,8 @@ window.addEventListener('DOMContentLoaded', function () {
     const currentRole = shell.currentRole || 'admin';
     const isCompanyRole = currentRole === 'company';
     const isEmployeeRole = currentRole === 'employee';
+    const isDriverRole = currentRole === 'driver';
+    const isPromoterRole = currentRole === 'promoter';
     const serviceListingTypes = ['bus','hotel','tour','car_rental','cargo'];
     const requestedServiceListing = serviceListingTypes.find(serviceType => key === `${serviceType} listing` || key === `${serviceType.replace('_', '-')} listing`);
     const requestedServiceLabel = requestedServiceListing ? requestedServiceListing.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
@@ -2207,6 +2228,63 @@ window.addEventListener('DOMContentLoaded', function () {
       if (entityKey === 'room_unit') return `/company/hotels/room-units/${safeId}`;
       if (entityKey === 'room_night') return `/company/hotels/inventory/${safeId}/status`;
       return '';
+    };
+
+    if (isPromoterRole && (key === 'promoter link' || key === 'referral link')) return {
+      action: '/promoter/links', submit: 'Create referral link',
+      fields: [
+        { type:'smart-summary', label:'Trackable referral link', help:'Choose a published listing. Classic Trip generates the secure referral URL, QR card and conversion attribution.' },
+        { name:'listingId', label:'Published listing', type:'select', icon:'fa-layer-group', options:listings, required:true },
+        { name:'code', label:'Custom code (optional)', icon:'fa-hashtag', placeholder:'MY-TRAVEL-LINK', help:'Leave empty for a secure generated code.' },
+        { name:'sourceChannel', label:'Sharing channel', type:'select', icon:'fa-share-nodes', options:['direct','whatsapp','facebook','instagram','tiktok','email','print','office'], value:'direct' },
+        { name:'audience', label:'Audience', icon:'fa-users', placeholder:'Families, students, business travelers…' },
+        { name:'expiresAt', label:'Expiry (optional)', type:'date', icon:'fa-calendar-xmark' },
+        { name:'shareTitle', label:'Share title', icon:'fa-heading', value:'Book on Classic Trip' },
+        { name:'shareText', label:'Share message', type:'textarea', full:true, value:'Use my Classic Trip link to book securely.' }
+      ]
+    };
+    if (isDriverRole && (key === 'driver trip update' || key === 'delay notice' || key === 'trip update')) return {
+      action: '/driver/trips/status', submit: 'Save trip update',
+      fields: [
+        { type:'smart-summary', label:'Assigned-trip update', help:'Only a trip assigned to this driver or assigned vehicle can be updated. Every update is written to the audit trail.' },
+        { name:'scheduleId', label:'Assigned trip', type:'select', icon:'fa-route', options:schedules, required:true },
+        { name:'status', label:'Trip status', type:'select', icon:'fa-circle-check', options:[{value:'boarding',label:'Boarding'},{value:'departed',label:'Departed'},{value:'delayed',label:'Delayed'},{value:'arrived',label:'Arrived'},{value:'completed',label:'Completed'}], required:true, value:'boarding' },
+        { name:'location', label:'Current location', icon:'fa-location-dot', placeholder:'Terminal, town or landmark' },
+        { name:'passengerCount', label:'Passengers onboard', type:'number', icon:'fa-users', value:'0' },
+        { name:'checkedInCount', label:'Checked in', type:'number', icon:'fa-user-check', value:'0' },
+        { name:'noShowCount', label:'No-shows', type:'number', icon:'fa-user-xmark', value:'0' },
+        { name:'note', label:'Operational note', type:'textarea', full:true, placeholder:'Delay reason, boarding note, road condition or arrival update' }
+      ]
+    };
+    if (isDriverRole && (key === 'driver incident' || key === 'incident')) return {
+      action: '/driver/incidents', submit: 'Report incident',
+      fields: [
+        { type:'smart-summary', label:'Protected incident report', help:'Reports stay in the driver’s company scope and are recorded for operations follow-up.' },
+        { name:'scheduleId', label:'Assigned trip (optional)', type:'select', icon:'fa-route', options:schedules },
+        { name:'category', label:'Category', type:'select', icon:'fa-list', options:['general','vehicle','safety','passenger','route','security','operations'], value:'general' },
+        { name:'severity', label:'Severity', type:'select', icon:'fa-triangle-exclamation', options:['low','medium','normal','high','critical'], value:'normal' },
+        { name:'title', label:'Incident title', icon:'fa-heading', required:true, placeholder:'Short incident summary' },
+        { name:'location', label:'Location', icon:'fa-location-dot' },
+        { name:'description', label:'What happened', type:'textarea', full:true, required:true, placeholder:'Describe what happened, who was affected and any immediate action taken.' }
+      ]
+    };
+    if (isDriverRole && key === 'handover') return {
+      action: '/driver/handovers', submit: 'Create handover',
+      fields: [
+        { name:'shift', label:'Shift', icon:'fa-clock', value: fieldValue('handover.shift','shift') || employeeProfile.shift || 'Current shift' },
+        { name:'nextStaff', label:'Next driver or staff member', icon:'fa-user-group' },
+        { name:'note', label:'Handover note', type:'textarea', full:true, required:true, placeholder:'Vehicle condition, trip status, cash, passengers, incidents and follow-ups' }
+      ]
+    };
+    if (isDriverRole && key === 'profile') return {
+      action: '/driver/profile', submit: 'Save profile',
+      fields: [
+        { name:'fullName', label:'Full name', icon:'fa-user', required:true, value: employeeProfile.fullName || shell.profileName || '' },
+        { name:'email', label:'Email', type:'email', icon:'fa-envelope', value: employeeProfile.email || '' },
+        { name:'phone', label:'Phone', icon:'fa-phone', value: employeeProfile.phone || '' },
+        { name:'shift', label:'Shift', icon:'fa-clock', value: employeeProfile.shift || '' },
+        { name:'notes', label:'Notes', type:'textarea', full:true, value: employeeProfile.notes || '' }
+      ]
     };
 
     if (isEmployeeRole && key === 'booking') {
@@ -2817,9 +2895,10 @@ window.addEventListener('DOMContentLoaded', function () {
       ]
     };
     if (isCompanyRole && key === 'schedule') return {
-      action: '/company/schedules', submit: 'Create departure(s)',
+      action: '/company/schedules', submit: 'Create rolling departures',
       fields: [
-        { type:'smart-summary', label:'Smart departure setup', help: hasActiveDriver ? 'Select a route. The matching bus, published seat map, active fare, currency, arrival, boarding time and saved driver are selected or calculated automatically where unambiguous.' : driverWorkflowHint },
+        { type:'smart-summary', label:'Automatic 30-day departure window', help: hasActiveDriver ? 'Create this once. The next 30 days are prepared automatically, then one new far-end day is added every day. Route, bus, seat map, fare and driver are reused safely.' : `${driverWorkflowHint} You can still create the rolling schedule now and assign a driver later.` },
+        { name:'departureMode', label:'Departure coverage', type:'select', icon:'fa-repeat', options:[{value:'rolling_30_days',label:'Rolling 30 days — automatically extend every day'},{value:'one_off',label:'One departure only'}], value:'rolling_30_days', required:true, help:'The rolling option has no end date. Pause or cancel it later from recurring departures.' },
         { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true },
         { name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true, dependsOn:'routeId', filterKey:'listingId', parentMetaKey:'listingId', help:'Automatically selected when only one eligible bus exists.' },
         { name:'departAt', label:'First departure time', type:'datetime-local', icon:'fa-calendar-days', required:true },
@@ -2827,10 +2906,9 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, dependsOn:'routeId', filterKey:'routeId', help:'Price, currency and policies are inherited from the selected route fare plan; they are never retyped into a departure.' },
         { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, required:false, help:driverWorkflowHint },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock' },
-        { name:'status', label:'Initial status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:'published', help:'Published makes the departure public. Driver assignment is optional and can be completed later.' },
+        { name:'status', label:'Initial status', type:'select', icon:'fa-circle-check', options:['published','draft'], value:'published', help:'Published makes the departure public. Driver assignment is optional and can be completed later. Draft keeps the rolling rule paused until setup is complete.' },
         { name:'blockedSeats', label:'Blocked seats for this departure', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Loads the actual published seat labels of the selected bus.' },
-        { name:'repeatUntil', label:'Repeat daily until', type:'date', icon:'fa-repeat', help:'Optional. Create the same departure every day (at the time above) from the first departure through this date - set a month or more ahead to create a full month of trips in one click.' },
-        { name:'repeatDays', label:'Only repeat on these days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Optional. Leave empty to repeat every day in the range above.' },
+        { name:'repeatDays', label:'Operating days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, help:'Leave empty to depart every day. Otherwise, only matching days are created inside the rolling 30-day window.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, placeholder:'Boarding instructions and internal notes' }
       ]
     };
@@ -3594,7 +3672,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (els.deleteText) els.deleteText.textContent = `Are you sure you want to archive ${label || 'this ' + type}?`;
       if (els.deleteForm) els.deleteForm.setAttribute('action', action || '');
       if (els.confirmDelete) els.confirmDelete.disabled = !action;
-      if (els.deleteModal) els.deleteModal.classList.add('is-open');
+      openModal(els.deleteModal);
       return;
     }
 
@@ -3632,7 +3710,7 @@ window.addEventListener('DOMContentLoaded', function () {
             <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Create partner</button>
           </div>
         </form>`;
-      els.crudModal.classList.add('is-open');
+      openModal(els.crudModal);
       initFoldSelects(els.crudModal);
       applyShowForFields(els.crudModal);
       bindDependentFields(els.crudModal);
@@ -3646,7 +3724,7 @@ window.addEventListener('DOMContentLoaded', function () {
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btn btnBlue" type="button" data-close-modal>Done</button>
         </div>`;
-      els.crudModal.classList.add('is-open');
+      openModal(els.crudModal);
       initFoldSelects(els.crudModal);
       applyShowForFields(els.crudModal);
       bindDependentFields(els.crudModal);
@@ -3664,7 +3742,7 @@ window.addEventListener('DOMContentLoaded', function () {
           ${mode === 'view' ? `<button class="btn btnBlue" type="button" data-close-modal>Done</button>` : `<button class="btn btnPrimary" type="submit"><i class="fa-solid fa-floppy-disk"></i> ${escapeHtml(config.submit || 'Save')}</button>`}
         </div>
       </form>`;
-    els.crudModal.classList.add('is-open');
+    openModal(els.crudModal);
     initFoldSelects(els.crudModal);
     applyShowForFields(els.crudModal);
     bindDependentFields(els.crudModal);
@@ -3817,7 +3895,13 @@ window.addEventListener('DOMContentLoaded', function () {
       }
 
       if (e.target.closest('[data-close-modal]')) {
-        $$('.modal').forEach(m => m.classList.remove('is-open'));
+        closeAllModals();
+        return;
+      }
+
+      const modalBackdrop = e.target.closest('.modal');
+      if (modalBackdrop && e.target === modalBackdrop) {
+        closeModal(modalBackdrop);
         return;
       }
 
@@ -3832,7 +3916,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (e.target.matches('#crudForm,#noticeForm,#settingsForm')) {
         if (e.target.hasAttribute('action')) return;
         e.preventDefault();
-        $$('.modal').forEach(m => m.classList.remove('is-open'));
+        closeAllModals();
         toast('Action saved');
       }
     });
@@ -3867,14 +3951,6 @@ window.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    const btnNew = $('#btnNew');
-    function defaultCreateModalType() {
-      if (shell.currentRole === 'company') return runtimeCompanyServiceType === 'hotel' ? 'room night inventory' : runtimeCompanyServiceType === 'bus' ? 'schedule' : 'listing';
-      if (shell.currentRole === 'employee') return 'booking';
-      return 'partner';
-    }
-    if (btnNew) btnNew.addEventListener('click', () => openCrud('create', defaultCreateModalType()));
-
     if (els.sideSearch) {
       els.sideSearch.addEventListener('input', function (e) {
         const q = e.target.value.toLowerCase().trim();
@@ -3885,9 +3961,31 @@ window.addEventListener('DOMContentLoaded', function () {
     }
 
     document.addEventListener('keydown', function (e) {
+      const openDialog = document.querySelector('.modal.is-open');
+      if (e.key === 'Escape' && openDialog) {
+        e.preventDefault();
+        closeModal(openDialog);
+        return;
+      }
+      if (e.key === 'Tab' && openDialog) {
+        const focusable = modalFocusable(openDialog);
+        if (!focusable.length) {
+          e.preventDefault();
+          openDialog.querySelector('.modalCard')?.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
       if (e.key === 'Escape') {
         closeMenu();
-        $$('.modal').forEach(m => m.classList.remove('is-open'));
       }
     });
   }

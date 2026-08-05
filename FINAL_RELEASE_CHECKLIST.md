@@ -1,6 +1,6 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.4.10.
+Use this checklist for version 1.6.0.
 
 ## 1. Clean installation
 
@@ -93,12 +93,16 @@ Confirm all of the following:
 
 Before launch, record the previous deployed commit/archive, preserve a verified database backup, and confirm that application rollback does not require reversing destructive migrations. The release migrations in this project provide dry-run commands; execute dry-run first whenever historical data must be normalized.
 
-## v1.4.10 focused checks
+## v1.6.0 focused checks
 
-- [ ] Proceed to payment uses the lightweight listing context and does not load full availability twice.
-- [ ] Hold-item IDs are allocated in one database counter call.
-- [ ] Three fixed card columns remain on desktop.
-- [ ] Incomplete desktop rows do not stretch.
-- [ ] Featured Buses reveals about one quarter of the next column on phones.
-- [ ] Bar images are wider, descriptions truncate to one line on desktop, and the availability badge sits at the bar's top-right without covering text.
-- [ ] No extra section color overrides are present.
+- [ ] Standard Ticket and VIP Ticket appear side by side and filter to matching departure classes.
+- [ ] Return Ticket remains selected and visible when a route has no matching reverse departure.
+- [ ] The normal partner departure form defaults to a rolling 30-day window.
+- [ ] A new far-end date is materialized on the next daily worker run.
+- [ ] Bus setup starts with terminal creation and hotel setup starts with stay-listing creation.
+- [ ] Tour, car-rental and cargo partners see only company-scoped quick actions.
+- [ ] Public stay choices use room cards and partner room operations use the room-unit grid on desktop, tablet and phone widths.
+- [ ] Customer, promoter, support, finance, operations, content, employee and driver dashboards expose only role-owned sections and actions.
+- [ ] Promoter referral-link creation and driver trip-update, incident, handover and profile actions persist successfully.
+- [ ] Keyboard focus is visible and dashboard dialogs trap focus, close with Escape and restore focus.
+- [ ] `npm run check:platform-experience`, `npm run check:ticket-rolling-setup` and the complete `npm run release:check` pass.

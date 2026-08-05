@@ -353,6 +353,7 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
     companyId,
     vehicleId: vehicle.id,
     vehicleName: vehicle.name,
+    vehicleClass: normalize(vehicle.vehicleClass || seatMapVersion.vehicleClass) === 'vip' ? 'vip' : 'standard',
     routeVersion: Number(route.version || 1),
     originStopId: range.origin.id,
     destinationStopId: range.destination.id,
@@ -365,6 +366,7 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
       templateId: seatMapVersion.templateId,
       version: seatMapVersion.version,
       checksum: seatMapVersion.checksum,
+      vehicleClass: normalize(vehicle.vehicleClass || seatMapVersion.vehicleClass) === 'vip' ? 'vip' : 'standard',
       layoutName: seatMapVersion.layoutName,
       rows: seatMapVersion.rows,
       columns: seatMapVersion.columns,
@@ -705,6 +707,16 @@ async function updateScheduleRule(companyId, ruleId, payload = {}, actor = 'comp
   rule.updatedAt = nowIso();
   await repository.scheduleRules.save(rule, { id: rule.id });
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id, status: requestedStatus } });
+  if (requestedStatus === 'active') {
+    await repository.outbox({
+      eventType: 'ScheduleRuleMaterializationRequested',
+      aggregateType: 'schedule_rule',
+      aggregateId: rule.id,
+      companyId,
+      payload: { companyId, ruleId: rule.id },
+      dedupeKey: `ScheduleRuleMaterializationRequested:${rule.id}:${rule.updatedAt}`,
+    });
+  }
   return rule;
 }
 
@@ -739,12 +751,13 @@ function resumeScheduleRule(companyId, ruleId, actor) { return setScheduleRuleSt
 function cancelScheduleRule(companyId, ruleId, actor) { return setScheduleRuleStatus(companyId, ruleId, 'cancelled', actor); }
 
 async function recordScheduleRuleMaterialization(companyId, ruleId, throughDate, actor = 'system') {
-  const rule = await repository.oneOrThrow(repository.scheduleRules, { id: ruleId, companyId }, 'Recurring schedule rule not found');
-  rule.materializedThrough = parseDate(throughDate, 'Materialization date').toISOString();
-  rule.updatedBy = actorId(actor);
-  rule.updatedAt = nowIso();
-  await repository.scheduleRules.save(rule, { id: rule.id });
-  return rule;
+  await repository.oneOrThrow(repository.scheduleRules, { id: ruleId, companyId }, 'Recurring schedule rule not found');
+  const materializedThrough = parseDate(throughDate, 'Materialization date').toISOString();
+  await repository.scheduleRules.updateOne({ id: ruleId, companyId }, {
+    $max: { materializedThrough },
+    $set: { updatedBy: actorId(actor), updatedAt: nowIso() },
+  });
+  return repository.oneOrThrow(repository.scheduleRules, { id: ruleId, companyId }, 'Recurring schedule rule not found');
 }
 
 async function updateSchedule(companyId, scheduleId, payload = {}, actor = 'company-admin') {

@@ -7,6 +7,7 @@ const mongoDashboardService = require('../../services/dashboard/mongoDashboardSe
 const { SERVICE_DASHBOARDS, ROLE_DASHBOARD_FEATURES } = require('../../config/dashboardFeatures');
 const { resolveCompanyId } = require('../../utils/companyScope');
 const archiveService = require('../../services/archive/archiveService');
+const actionService = require('../../services/dashboard/actionService');
 
 function scopedServices(serviceProfile = {}) {
   const type = serviceProfile.primaryServiceType || 'bus';
@@ -64,6 +65,17 @@ async function updateTripStatus(req, res, next) {
   }
 }
 
+async function updateTripStatusFromBody(req, res, next) {
+  try {
+    const scheduleId = String(req.body?.scheduleId || '').trim();
+    if (!scheduleId) throw Object.assign(new Error('Assigned trip is required'), { status: 400 });
+    await companyService.updateTripStatus(companyId(req), scheduleId, req.body, actorId(req), req.session?.user?.role);
+    res.redirect('/driver/dashboard/driver-ops');
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function createIncident(req, res, next) {
   try {
     await companyService.createDriverIncident(companyId(req), req.body, actorId(req), req.session?.user?.role);
@@ -107,9 +119,33 @@ async function bookingAssist(req, res, next) {
   }
 }
 
+async function createHandover(req, res, next) {
+  try {
+    await actionService.createHandover(companyId(req), req.body, actorId(req));
+    res.redirect('/driver/dashboard/handover');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateProfile(req, res, next) {
+  try {
+    const result = await actionService.updateEmployeeProfile(companyId(req), req.body, actorId(req), {
+      canManageProfileAssignments: false,
+    });
+    if (req.session?.user && result?.user) Object.assign(req.session.user, result.user);
+    res.redirect('/driver/dashboard/profile');
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   driverDashboard,
   updateTripStatus,
+  updateTripStatusFromBody,
   createIncident,
   bookingAssist,
+  createHandover,
+  updateProfile,
 };

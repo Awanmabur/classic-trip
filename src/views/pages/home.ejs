@@ -30,7 +30,7 @@
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.4.10" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.0" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -50,7 +50,7 @@
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.4.10">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.0">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
@@ -486,8 +486,7 @@
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <script src="/js/home-service-search.js?v=1.4.10" defer></script>
-  <script src="/js/home.js?v=1.4.10" defer></script>
+  <script src="/js/home-service-search.js?v=1.6.0" defer></script>
+  <script src="/js/home.js?v=1.6.0" defer></script>
 </body>
 </html>
-

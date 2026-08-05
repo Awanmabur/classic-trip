@@ -140,8 +140,8 @@ async function materializeRule(rule, horizonEnd, now) {
         repeatDays: Array.isArray(rule.daysOfWeek) ? rule.daysOfWeek.map(String) : [],
       });
       created = Number(result.count || 0);
-      published = Number(result.publishedCount || 0);
-      draft = Number(result.draftCount || 0);
+      published += Number(result.publishedCount || 0);
+      draft += Number(result.draftCount || 0);
     } catch (batchError) {
       if (isTransientFailure(batchError)) throw batchError;
       // A conflict on one calendar date must not block every other day in the

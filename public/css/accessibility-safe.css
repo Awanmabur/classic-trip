@@ -15,8 +15,8 @@
 
 :is(input, select, textarea):focus,
 :is(input, select, textarea):focus-visible {
-  outline: none !important;
-  outline-offset: 0 !important;
+  outline: 2px solid var(--ct-focus-outline) !important;
+  outline-offset: 2px !important;
   box-shadow: none !important;
 }
 

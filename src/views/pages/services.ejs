@@ -4,7 +4,7 @@
   <section class="card heroCard">
     <span class="badge badgeInfo"><i class="fa-solid fa-layer-group"></i> Service catalog</span>
     <h1 class="heroTitle">All Classic Trip services in one marketplace.</h1>
-    <p class="heroSub">Book buses, stays, flights and verified local rides today. Carefully reviewed tours, vehicle rentals and cargo services remain on the future roadmap.</p>
+    <p class="heroSub">Book buses, stays, flights, verified local rides, tours, vehicle rentals and cargo services from one protected marketplace.</p>
     <div class="metricRow" style="margin-top:14px">
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.listingsCount, 0) %></b><span>Total services</span></div>
       <div class="stat"><b><%= stats.reduce((total, item) => total + item.bookableListingsCount, 0) %></b><span>Bookable now</span></div>
@@ -18,7 +18,7 @@
       <div class="sectionHead">
         <div>
           <h2><i class="fa-solid <%= group.icon %>"></i> <%= group.label %></h2>
-          <p><%= group.bookable ? 'Live search, protected inventory, checkout, payment, travel documents and provider operations.' : 'Provider-ready teaser with partner profiles, campaigns, and expansion data.' %></p>
+          <p><%= group.bookable ? 'Live search, protected inventory, checkout, payment, travel documents and provider operations.' : 'Partner onboarding is open while this category completes marketplace review.' %></p>
         </div>
         <div class="actions">
           <span class="badge badgeInfo"><%= group.stats?.activeListingsCount || 0 %> active</span>

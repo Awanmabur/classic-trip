@@ -176,9 +176,14 @@
       <% const roomMaps = (dashboardData?.roomVisualMaps || []).slice(0,8); %>
       <% if(roomMaps.length){ roomMaps.forEach(function(map){ %>
         <div class="splitTop hotelRoomMapTitle"><div><strong><%= map.propertyName || map.roomTypeName || 'Room type' %></strong><span><%= map.roomTypeName || map.listingTitle || 'Stay rooms' %> · <%= map.status || 'active' %></span></div><span class="badge info"><%= (map.rooms || []).length %> units</span></div>
-        <div class="seatGrid roomGrid"><% (map.rooms || []).slice(0,160).forEach(function(room){ %>
+        <div class="roomUnitGrid"><% (map.rooms || []).slice(0,160).forEach(function(room){ %>
           <% const roomDetail = { entity:'room_unit', id: room.roomUnitId, roomUnit: room, roomType: { id: map.roomTypeId, name: map.roomTypeName }, property: { propertyName: map.propertyName }, listing: { id: map.listingId, title: map.listingTitle } }; %>
-          <button class="seat roomTile <%= String(room.status || '').toLowerCase() %> <%= room.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="room unit" data-label="<%= room.unitNumber || room.roomUnitId %>" data-row-id="<%= room.roomUnitId %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(roomDetail)) %>"><%= room.unitNumber || room.roomUnitId %></button>
+          <% const roomStatus = String(room.status || 'available').toLowerCase().replace(/_/g, '-'); const roomStatusLabel = roomStatus.replace(/-/g, ' '); %>
+          <button class="roomUnitCard <%= roomStatus %> <%= room.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="room unit" data-label="<%= room.unitNumber || room.roomUnitId %>" data-row-id="<%= room.roomUnitId %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(roomDetail)) %>">
+            <span class="roomUnitCardTop"><strong>Room <%= room.unitNumber || room.roomUnitId %></strong><b><%= roomStatusLabel %></b></span>
+            <span class="roomUnitLocation"><i class="fa-solid fa-building"></i> <%= [room.floor ? `Floor ${room.floor}` : '', room.wing].filter(Boolean).join(' · ') || map.roomTypeName || 'Room unit' %></span>
+            <span class="roomUnitHousekeeping"><i class="fa-solid fa-broom"></i> <%= String(room.housekeepingStatus || 'clean').replace(/_/g, ' ') %><% if (room.guestName) { %> · <%= room.guestName %><% } %></span>
+          </button>
         <% }) %></div>
       <% }) } else { %><div class="notice hotelEmptyNotice"><strong>No stay map yet.</strong> Complete the setup journey above: public listing, property, room type, rate plan, physical rooms and dated inventory.</div><% } %>
     </div>

@@ -63,7 +63,10 @@ router.get('/driver/schedules/:scheduleId/manifest.pdf', requireVerifiedCompany,
 router.get('/driver/tickets/:bookingRef', requireVerifiedCompany, ticketLimiter, manifestController.ticketDetail);
 router.get('/driver/seats/:scheduleId/:seatNumber/ticket', requireVerifiedCompany, ticketLimiter, manifestController.seatTicketDetail);
 router.post('/driver/trips/:scheduleId/status', requireVerifiedCompany, driverController.updateTripStatus);
+router.post('/driver/trips/status', requireVerifiedCompany, driverController.updateTripStatusFromBody);
 router.post('/driver/incidents', requireVerifiedCompany, driverController.createIncident);
 router.post('/driver/bookings/:bookingRef/check-in-assist', requireVerifiedCompany, driverController.bookingAssist);
+router.post('/driver/handovers', requireVerifiedCompany, driverController.createHandover);
+router.post('/driver/profile', driverController.updateProfile);
 
 module.exports = router;

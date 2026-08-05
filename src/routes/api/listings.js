@@ -63,7 +63,7 @@ router.get('/:listingId/availability', publicReadLimiter, async (req, res, next)
         return res.json({ listingId: raw.id, checkIn: availability.checkIn, checkOut: availability.checkOut, nights: availability.nights.length, rooms: availability.rooms });
       }
       const rooms = await hotelInventoryService.inventorySummary(raw.id);
-      return res.json({ listingId: raw.id, rooms: rooms.map((room) => ({ id: room.id, roomTypeId: room.id, roomType: room.name || room.roomType, nightlyPrice: Number(room.basePrice || room.nightlyPrice || 0), inventory: Number(room.availableUnits || room.inventory || 0), capacity: Number(room.capacity || 1), bedType: room.bedType || '' })) });
+      return res.json({ listingId: raw.id, rooms: rooms.map((room) => ({ id: room.id, roomTypeId: room.id, roomType: room.name || room.roomType, nightlyPrice: Number(room.basePrice || room.nightlyPrice || 0), inventory: Number(room.availableUnits ?? room.inventory ?? 0), availableUnits: Number(room.availableUnits ?? room.inventory ?? 0), capacity: Number(room.capacity || 1), bedType: room.bedType || '' })) });
     }
     return res.json({ listingId: raw.id, availability: catalogService.availability(data, listing) });
   } catch (error) { next(error); }

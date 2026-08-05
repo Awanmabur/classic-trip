@@ -8,8 +8,14 @@ const busInventoryService = require('../../modules/bus/services/busInventoryServ
 const busSearchService = require('../../modules/bus/services/busSearchService');
 const busBookingDraftService = require('../../modules/bus/services/busBookingDraftService');
 const { SERVICE_REGISTRY, COMING_SOON_SERVICE_TYPES } = require('../../config/serviceRegistry');
+const hotelInventoryService = require('../../services/hotel/hotelInventoryService');
 
 function normalize(value) { return String(value || '').toLowerCase().trim(); }
+function scheduleVehicleClass(schedule = {}) {
+  if (normalize(schedule.vehicleClass) === 'vip') return 'vip';
+  if (normalize(schedule.seatMapSnapshot?.vehicleClass) === 'vip') return 'vip';
+  return (schedule.seatMapSnapshot?.seats || []).some((seat) => normalize(seat.seatClass) === 'vip') ? 'vip' : 'standard';
+}
 
 async function publicListingContext(identifier, serviceType = '') {
   const data = await catalogService.snapshot();
@@ -49,6 +55,7 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
         listingId: schedule.listingId,
         routeId: schedule.routeId,
         vehicleId: schedule.vehicleId,
+        vehicleClass: scheduleVehicleClass(schedule),
         departAt: schedule.departAt,
         arriveAt: schedule.arriveAt,
         departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
@@ -74,6 +81,7 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
         listingId: schedule.listingId,
         routeId: schedule.routeId,
         vehicleId: schedule.vehicleId,
+        vehicleClass: scheduleVehicleClass(schedule),
         departAt: schedule.departAt,
         arriveAt: schedule.arriveAt,
         departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
@@ -82,6 +90,13 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
         status: schedule.status,
       }));
       availability = { ...availability, scheduleId: '', schedule: null, schedules, returnSchedules: [], seats: [], stops: [], journey: {}, fare: null };
+    }
+  } else if (normalize(listing.serviceType) === 'hotel') {
+    const checkIn = selection.checkIn || selection.checkInDate;
+    const checkOut = selection.checkOut || selection.checkOutDate;
+    if (checkIn && checkOut) {
+      const datedAvailability = await hotelInventoryService.availabilityForRange(listing.id, checkIn, checkOut);
+      availability = { ...availability, ...datedAvailability, listing };
     }
   }
   const preview = catalogService.listingPreview(data, listing, availability, company);

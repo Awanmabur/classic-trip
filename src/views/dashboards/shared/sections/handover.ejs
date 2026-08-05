@@ -29,7 +29,7 @@
               <div class="splitItem"><div class="splitTop"><span>Shift ends</span><span class="badge warn"><%= employeeStatsData.shiftEnds || 'Not set' %></span></div></div>
             </div>
             <% if(canSubmitEmployeeWorkflow){ %>
-            <form class="formPanel" method="POST" action="/employee/handovers">
+            <form class="formPanel" method="POST" action="<%= isDriverDashboard ? '/driver/handovers' : '/employee/handovers' %>">
               <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="formGrid">
                 <div class="field"><label>Shift</label><div class="control"><i class="fa-solid fa-clock"></i><input name="shift" value="<%= employeeProfileShift %>" required></div></div>

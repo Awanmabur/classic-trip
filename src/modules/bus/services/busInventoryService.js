@@ -102,6 +102,7 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
       routeId: context.schedule.routeId,
       vehicleId: context.schedule.vehicleId,
       vehicleName: context.schedule.vehicleName,
+      vehicleClass: normalize(context.schedule.vehicleClass || context.seatMapVersion.vehicleClass) === 'vip' ? 'vip' : 'standard',
       departAt: context.schedule.departAt,
       arriveAt: context.schedule.arriveAt,
       status: context.schedule.status,

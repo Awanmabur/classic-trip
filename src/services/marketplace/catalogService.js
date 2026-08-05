@@ -225,12 +225,13 @@ function listingRooms(data, listingId) {
     const unitIds = new Set(units.map((unit) => entityId(unit)));
     const nights = data.roomNights.filter((night) => unitIds.has(String(night.roomUnitId || '')));
     const availableNights = nights.filter((night) => ['available', 'open'].includes(normalize(night.status)) && !night.bookingRef && number(night.availableInventory ?? 1) > 0).length;
+    const availableUnits = units.filter((unit) => normalize(unit.status) === 'available' && ['clean', 'inspected', 'ready'].includes(normalize(unit.housekeepingStatus || 'clean'))).length;
     return {
       ...roomType,
       roomTypeId,
       roomType: roomType.name || roomType.title,
       inventory: units.length,
-      availableUnits: units.length,
+      availableUnits,
       availableNights,
       nightlyPrice: number(roomType.basePrice),
       price: number(roomType.basePrice),
@@ -257,7 +258,7 @@ function catalogItem(data, listing) {
   const seats = nextSchedule ? scheduleSeats(data, entityId(nextSchedule)) : [];
   const rooms = listingRooms(data, stableId);
   const availableSeats = seats.filter((row) => normalize(row.status) === 'available').length;
-  const roomInventory = rooms.reduce((sum, row) => sum + Math.max(0, number(row.inventory || row.availableUnits || row.available)), 0);
+  const roomInventory = rooms.reduce((sum, row) => sum + Math.max(0, number(row.availableUnits ?? row.inventory ?? row.available)), 0);
   const serviceType = canonicalServiceType(listing, data);
   const remainingInventory = serviceType === 'bus'
     ? (seats.length ? availableSeats : number(nextSchedule?.availableSeats || listing.availableSeats || listing.inventory))
@@ -555,7 +556,7 @@ function listingPreview(data, listing, currentAvailability, company) {
     serviceIcon: ({ hotel: 'fa-hotel', bus: 'fa-bus', tour: 'fa-map-location-dot', car_rental: 'fa-car-side', cargo: 'fa-box' })[listing.serviceType] || 'fa-ticket',
     previewSeats: seats, previewRooms: rooms.slice(0, 12),
     firstSeat: seats.find((row) => normalize(row.status) === 'available')?.seatNumber || seats[0]?.seatNumber || '',
-    firstRoom: entityId(rooms.find((row) => number(row.inventory) > 0) || rooms[0] || {}),
+    firstRoom: entityId(rooms.find((row) => number(row.availableUnits ?? row.inventory) > 0) || rooms[0] || {}),
     selectedPreview: listing.serviceType === 'hotel' ? (rooms[0]?.roomType || rooms[0]?.name || '') : listing.serviceType === 'bus' ? (seats[0]?.seatNumber || '') : listing.serviceType === 'tour' ? 'Tour date and participants' : listing.serviceType === 'car_rental' ? 'Pickup and return dates' : listing.serviceType === 'cargo' ? 'Pickup and delivery details' : '',
     addons: (data.serviceAddons || [])
       .filter((row) => sameId(row.listingId, listing) && normalize(row.serviceType || listing.serviceType) === normalize(listing.serviceType) && normalize(row.status) === 'active' && number(row.price) >= 0)

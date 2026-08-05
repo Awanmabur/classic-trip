@@ -8,7 +8,7 @@
               </div>
               <span class="badge ok"><%= employeeProfileData.status || 'active' %></span>
             </div>
-            <form class="formPanel" method="POST" action="/employee/profile">
+            <form class="formPanel" method="POST" action="<%= isDriverDashboard ? '/driver/profile' : '/employee/profile' %>">
               <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="formGrid">
                 <div class="field"><label>Full name</label><div class="control"><i class="fa-solid fa-user"></i><input name="fullName" value="<%= employeeProfileName %>" required></div></div>

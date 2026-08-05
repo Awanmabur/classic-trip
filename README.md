@@ -5,13 +5,18 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.4.10
+## Current release — version 1.6.0
 
-- Faster secure checkout preparation with duplicate availability reads removed and bulk hold-item ID allocation.
-- Three fixed desktop card columns without stretching incomplete rows.
-- Wider compact-bar images, top-right availability badges and one-line desktop descriptions.
+- Standard Ticket and VIP Ticket are explicit side-by-side choices backed by the dated departure's whole-vehicle class.
+- One-way Ticket and Return Ticket are explicit journey choices; the return panel remains visible and explains when no matching reverse departure is available.
+- Partner departure creation defaults to an indefinite rolling 30-day rule. The worker prepares the initial month and adds one new far-end day every day.
+- Bus setup starts with the required terminal, stay setup starts with the required listing, and tour, rental and cargo dashboards now receive their correct company quick actions.
+- Public and partner stay room layouts use responsive room cards instead of bus-seat styling.
+- Every role dashboard now renders only menu-authorised sections and uses role-owned actions for customer, promoter, support, finance, operations, content, employee and driver workflows.
+- Promoter links and driver trip updates, incidents, handovers and profile changes have complete protected endpoints.
+- The full release gate includes dedicated platform-experience, ticket, rolling-departure and dashboard-setup contracts plus 69 unit tests.
 
-This release fixes the checkout-draft conflict and introduces responsive, independently designed marketplace sections while preserving the approved platform shell.
+This release completes the ticket-choice, recurring-departure, partner-setup, stay-layout and dashboard-role hardening while preserving the approved platform shell.
 
 - Repeated Proceed to payment requests reuse a matching active secure draft, preventing duplicate seat holds and avoidable 409 responses.
 - Genuine seat conflicts remain protected and refresh the live seat inventory for reselection.

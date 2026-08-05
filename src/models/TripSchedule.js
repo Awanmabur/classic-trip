@@ -7,6 +7,7 @@ const tripScheduleSchema = new Schema({
   companyId: { type: String, index: true },
   vehicleId: { type: String, index: true },
   vehicleName: String,
+  vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard', index: true },
   routeVersion: { type: Number, default: 1 },
   originStopId: { type: String, index: true },
   destinationStopId: { type: String, index: true },
@@ -49,5 +50,9 @@ const tripScheduleSchema = new Schema({
 tripScheduleSchema.index({ status: 1, departAt: 1 });
 tripScheduleSchema.index({ companyId: 1, listingId: 1, status: 1, departAt: 1 });
 tripScheduleSchema.index({ companyId: 1, vehicleId: 1, status: 1, departAt: 1, arriveAt: 1 });
+tripScheduleSchema.index(
+  { scheduleRuleId: 1, departAt: 1 },
+  { unique: true, partialFilterExpression: { scheduleRuleId: { $gt: '' } } },
+);
 tripScheduleSchema.index({ companyId: 1, createdAt: -1 });
 module.exports = model('TripSchedule', tripScheduleSchema);

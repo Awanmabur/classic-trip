@@ -1225,6 +1225,43 @@ html[data-theme="dark"] .pwaInstallInstructions{
 .homePage .marketplaceSection--cargo .serviceCard--cargo .listingThumbLink,.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{height:100%;min-height:170px}
 .homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{border-radius:0}
 
+/* v1.6.0 — make Standard, VIP, one-way and return choices explicit. */
+.listingPreviewPage .busTicketChooser{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.listingPreviewPage .busTicketChoiceGroup{min-width:0;padding:10px;border:1px solid var(--line);border-radius:20px;background:var(--field)}
+.listingPreviewPage .busTicketChoiceGroup>strong{display:block;margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.listingPreviewPage .ticketChoiceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.listingPreviewPage .ticketChoice{min-width:0;min-height:74px;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--cardA);color:var(--text);font:inherit;text-align:left;display:flex;align-items:center;gap:9px;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.listingPreviewPage .ticketChoice:hover:not(:disabled){transform:translateY(-1px);border-color:var(--accent)}
+.listingPreviewPage .ticketChoice:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 34%,transparent);outline-offset:2px}
+.listingPreviewPage .ticketChoice.is-active{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+.listingPreviewPage .ticketChoice:disabled{cursor:not-allowed;opacity:.5}
+.listingPreviewPage .ticketChoice>i{width:22px;text-align:center;color:var(--accent)}
+.listingPreviewPage .ticketChoice>span{min-width:0;display:grid;gap:3px}
+.listingPreviewPage .ticketChoice b{font-size:12px;line-height:1.2}
+.listingPreviewPage .ticketChoice small{font-size:10px;line-height:1.25;color:var(--muted)}
+
+/* v1.6.0 — stays use readable option cards, never bus-seat tiles. */
+.listingPreviewPage .stayOptionLayoutBox{display:block;justify-content:stretch;padding:12px;background:var(--field);overflow:visible}
+.listingPreviewPage .stayOptionGrid{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.listingPreviewPage .stayOptionCard{position:relative;width:100%;min-width:0;min-height:108px;padding:13px 14px;border:1px solid var(--line);border-radius:20px;background:var(--cardA);color:var(--text);font:inherit;text-align:left;display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:11px;align-items:center;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.listingPreviewPage .stayOptionCard:hover:not(:disabled){transform:translateY(-1px);border-color:var(--accent)}
+.listingPreviewPage .stayOptionCard:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 34%,transparent);outline-offset:2px}
+.listingPreviewPage .stayOptionCard.selected{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
+.listingPreviewPage .stayOptionCard.is-unavailable{opacity:.56;cursor:not-allowed}
+.listingPreviewPage .stayOptionIcon{width:42px;height:42px;border:1px solid var(--line);border-radius:14px;background:var(--field);display:grid;place-items:center;color:var(--accent);font-size:16px}
+.listingPreviewPage .stayOptionCopy{min-width:0;display:grid;gap:5px}
+.listingPreviewPage .stayOptionCopy strong{font-size:13px;line-height:1.25;overflow-wrap:anywhere}
+.listingPreviewPage .stayOptionCopy small{display:flex;align-items:flex-start;gap:6px;color:var(--muted);font-size:10.5px;font-weight:800;line-height:1.35}
+.listingPreviewPage .stayOptionCopy small i{width:12px;margin-top:1px;color:var(--muted)}
+.listingPreviewPage .stayOptionMeta{min-width:92px;display:grid;justify-items:end;gap:2px;text-align:right}
+.listingPreviewPage .stayOptionMeta strong{font-size:12px;color:var(--text)}
+.listingPreviewPage .stayOptionMeta small{font-size:9.5px;color:var(--muted);font-weight:800}
+.listingPreviewPage .stayOptionMeta b{margin-top:5px;padding:5px 7px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:9.5px;color:var(--muted);white-space:nowrap}
+.listingPreviewPage .stayOptionCard.selected .stayOptionMeta b{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));color:var(--accent)}
+.listingPreviewPage .stayOptionCheck{position:absolute;right:9px;top:9px;width:19px;height:19px;border-radius:999px;background:var(--accent);color:#2b1d00;display:grid;place-items:center;font-size:9px;opacity:0;transform:scale(.8);transition:.16s ease}
+.listingPreviewPage .stayOptionCard.selected .stayOptionCheck{opacity:1;transform:scale(1)}
+.listingPreviewPage .stayOptionEmpty{margin:0}
+
 @media(max-width:680px){
   /* Hero statistics must not consume phone space below search. */
   .homePage .heroCard>.stats,.homePage .hero .stats{display:none!important}
@@ -1266,4 +1303,12 @@ html[data-theme="dark"] .pwaInstallInstructions{
   .homePage .marketplaceSection--cargo .serviceCard--cargo{grid-template-columns:104px minmax(0,1fr);min-height:142px}
   .homePage .marketplaceSection--cargo .serviceCard--cargo .listingThumbLink,.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{min-height:142px}
   .homePage .marketplaceSection--cargo .serviceCard--cargo .desc{display:none}
+
+  .listingPreviewPage .busTicketChooser{grid-template-columns:1fr}
+  .listingPreviewPage .ticketChoice{min-height:70px;padding:9px 7px;gap:6px}
+  .listingPreviewPage .ticketChoice>i{width:18px}
+  .listingPreviewPage .stayOptionGrid{grid-template-columns:1fr}
+  .listingPreviewPage .stayOptionCard{min-height:102px;padding:11px;grid-template-columns:38px minmax(0,1fr) auto;gap:9px}
+  .listingPreviewPage .stayOptionIcon{width:38px;height:38px;border-radius:13px}
+  .listingPreviewPage .stayOptionMeta{min-width:82px}
 }

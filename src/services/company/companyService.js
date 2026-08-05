@@ -809,13 +809,18 @@ async function assertDriverAssignedToSchedule(companyId, schedule, driverUserId,
 async function updateTripStatus(companyId, scheduleId, payload = {}, actorId = 'driver', actorRole = '') {
   const schedule = await scheduleOrThrow(companyId, scheduleId);
   await assertDriverAssignedToSchedule(companyId, schedule, actorId, actorRole);
-  const status = cleanText(payload.status || 'updated', 80);
-  if (!status) throw validation('Trip status is required');
+  const status = normalize(payload.status);
+  const permittedDriverStatuses = ['boarding', 'departed', 'delayed', 'arrived', 'completed'];
+  if (!permittedDriverStatuses.includes(status)) throw validation('Select a permitted trip status');
+  const safeCount = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+  };
   const now = new Date().toISOString();
   const update = {
     id: await nextId('trip-status'), companyId, scheduleId: schedule.id, vehicleId: schedule.vehicleId || '', driverUserId: actorId,
     status, location: cleanText(payload.location || '', 300), note: cleanText(payload.note || '', 1000),
-    passengerCount: Math.max(0, Number(payload.passengerCount || 0)), checkedInCount: Math.max(0, Number(payload.checkedInCount || 0)), noShowCount: Math.max(0, Number(payload.noShowCount || 0)),
+    passengerCount: safeCount(payload.passengerCount), checkedInCount: safeCount(payload.checkedInCount), noShowCount: safeCount(payload.noShowCount),
     createdBy: actorId, createdAt: now,
   };
   Object.assign(schedule, { tripStatus: status, tripStatusLocation: update.location, tripStatusNote: update.note, tripStatusUpdatedAt: now, updatedAt: now });

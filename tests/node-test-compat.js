@@ -112,9 +112,35 @@ function expect(received) {
 }
 expect.arrayContaining = (sample) => ({ [ARRAY_CONTAINING]: true, sample });
 
-global.test = nodeTest.test;
-global.it = nodeTest.it;
-global.describe = nodeTest.describe;
+function eachTitle(template, values, index) {
+  let cursor = 0;
+  return String(template)
+    .replace(/%#/g, String(index))
+    .replace(/%[sdifjo]/g, (token) => {
+      const value = values[cursor];
+      cursor += 1;
+      if (token === '%j' || token === '%o') {
+        try { return JSON.stringify(value); } catch { return String(value); }
+      }
+      if (token === '%d' || token === '%i' || token === '%f') return String(Number(value));
+      return String(value);
+    });
+}
+
+function addEach(runner) {
+  runner.each = (rows) => (template, implementation) => {
+    if (!Array.isArray(rows)) throw new TypeError('test.each expects an array of cases');
+    rows.forEach((row, index) => {
+      const values = Array.isArray(row) ? row : [row];
+      runner(eachTitle(template, values, index), () => implementation(...values));
+    });
+  };
+  return runner;
+}
+
+global.test = addEach(nodeTest.test);
+global.it = addEach(nodeTest.it);
+global.describe = addEach(nodeTest.describe);
 global.beforeAll = nodeTest.before;
 global.afterAll = nodeTest.after;
 global.beforeEach = nodeTest.beforeEach;
