@@ -38,6 +38,22 @@ function normalizeAmount(amount) {
 async function applyMovement({ ownerType, ownerId, currency, amount, availableDelta = 0, pendingDelta = 0, requireAvailable = 0, transaction, session = null }) {
   requireCurrency(currency);
   const value = normalizeAmount(amount);
+  if (transaction.referenceType && transaction.referenceId && transaction.transactionType) {
+    const existingEntry = await financeRepository.transactions.findOne({
+      ownerType,
+      ownerId,
+      transactionType: transaction.transactionType,
+      referenceType: transaction.referenceType,
+      referenceId: transaction.referenceId,
+    }, { session: session || undefined });
+    if (existingEntry) {
+      return {
+        wallet: await getWalletLive(ownerType, ownerId, currency, { session }),
+        transaction: existingEntry,
+        replayed: true,
+      };
+    }
+  }
   const existingWallet = await getWalletLive(ownerType, ownerId, currency, { session });
   const walletId = existingWallet?.id || await nextId('wallet');
   const wallet = await financeRepository.atomicWalletDelta({

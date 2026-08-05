@@ -1265,8 +1265,9 @@ html[data-theme="dark"] .pwaInstallInstructions{
 @media(max-width:680px){
   /* Hero statistics must not consume phone space below search. */
   .homePage .heroCard>.stats,.homePage .hero .stats{display:none!important}
-  .homePage .sectionHead{align-items:flex-start}
-  .homePage .sectionHeadTools{width:100%;justify-content:space-between;flex-wrap:nowrap}
+  .homePage .sectionHead{align-items:flex-start;flex-wrap:wrap;min-width:0;max-width:100%}
+  .homePage .sectionHead>div:first-child{min-width:0;max-width:100%}
+  .homePage .sectionHeadTools{width:100%;min-width:0;justify-content:space-between;flex-wrap:nowrap}
   .homePage .sectionHeadTools>.btn,.homePage .sectionHeadTools>.badge{max-width:58%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .homePage .sectionViewToggle{margin-left:auto;flex:0 0 auto}
   .homePage .sectionViewToggle button{padding:0 9px}
@@ -1311,4 +1312,77 @@ html[data-theme="dark"] .pwaInstallInstructions{
   .listingPreviewPage .stayOptionCard{min-height:102px;padding:11px;grid-template-columns:38px minmax(0,1fr) auto;gap:9px}
   .listingPreviewPage .stayOptionIcon{width:38px;height:38px;border-radius:13px}
   .listingPreviewPage .stayOptionMeta{min-width:82px}
+}
+
+/* v1.6.1 — light-theme contrast must remain WCAG AA across every public flow. */
+html[data-theme="light"] .badgeInfo{
+  color:#1e40af!important;
+  background:#eff6ff!important;
+  border-color:#93c5fd!important;
+}
+html[data-theme="light"] .badgeOk{
+  color:#166534!important;
+  background:#f0fdf4!important;
+  border-color:#86efac!important;
+}
+html[data-theme="light"] .badgeWarn{
+  color:#854d0e!important;
+  background:#fffbeb!important;
+  border-color:#fcd34d!important;
+}
+html[data-theme="light"] .badgeHot{
+  color:#9a3412!important;
+  background:#fff7ed!important;
+  border-color:#fdba74!important;
+}
+html[data-theme="light"] .navLinks a:hover,
+html[data-theme="light"] .navLinks a.active,
+html[data-theme="light"] .travelChip.active,
+html[data-theme="light"] .tab.active,
+html[data-theme="light"] .chip.active,
+html[data-theme="light"] .bottomNav button.active,
+html[data-theme="light"] body:has(.drawer.open) .bottomNav button[title="Menu"]{
+  color:#854d0e!important;
+}
+html[data-theme="light"] .bottomNav button{
+  color:#475569!important;
+}
+html[data-theme="light"] .bottomNav button.active,
+html[data-theme="light"] body:has(.drawer.open) .bottomNav button[title="Menu"]{
+  color:#854d0e!important;
+}
+html[data-theme="light"] .navLinks a:hover,
+html[data-theme="light"] .navLinks a.active,
+html[data-theme="light"] .travelChip.active,
+html[data-theme="light"] .tab.active,
+html[data-theme="light"] .chip.active{
+  background:#fffbeb!important;
+  border-color:#f59e0b!important;
+}
+html[data-theme="light"] .topTicketAction[style]{
+  color:#854d0e!important;
+  background:#fffbeb!important;
+  border-color:#f59e0b!important;
+}
+html[data-theme="light"] .cornerBadge.promo{
+  color:#78350f!important;
+  background:#fef3c7!important;
+  border-color:#f59e0b!important;
+}
+html[data-theme="light"] .notice{
+  color:#78350f!important;
+  background:#fffbeb!important;
+  border-color:#f59e0b!important;
+}
+html[data-theme="light"] .listingPreviewPage .stayOptionCard.selected .stayOptionMeta b{
+  color:#854d0e!important;
+  border-color:#d97706!important;
+  background:#fffbeb!important;
+}
+html[data-theme="light"] .btnBlue{
+  background:linear-gradient(135deg,#2563eb,#1d4ed8)!important;
+  color:#ffffff!important;
+}
+html[data-theme="light"] .pwaInstallCopy b{
+  color:#854d0e!important;
 }

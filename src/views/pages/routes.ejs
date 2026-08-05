@@ -7,10 +7,10 @@
     <p class="heroSub">Customers can browse routes, compare partners, open the listing, select a seat, pay through the configured payment provider, and receive a QR ticket.</p>
     <form class="card searchBox" action="/routes" method="get" style="margin-top:14px">
       <div class="formGrid">
-        <div class="field"><label>Search</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="<%= query.q || '' %>" placeholder="Kampala, Nairobi, partner"></div></div>
-        <div class="field"><label>From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="origin" value="<%= query.origin || '' %>" placeholder="Origin"></div></div>
-        <div class="field"><label>To</label><div class="control"><i class="fa-solid fa-route"></i><input name="destination" value="<%= query.destination || '' %>" placeholder="Destination"></div></div>
-        <div class="field"><label>Corridor</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="corridor" class="selectLike"><option value="">All</option><% corridorStats.forEach(stat => { %><option value="<%= stat.corridor %>" <%= query.corridor === stat.corridor ? 'selected' : '' %>><%= stat.corridor %></option><% }) %></select></div></div>
+        <div class="field"><label for="routeSearchQuery">Search</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input id="routeSearchQuery" name="q" value="<%= query.q || '' %>" placeholder="Kampala, Nairobi, partner"></div></div>
+        <div class="field"><label for="routeSearchOrigin">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="routeSearchOrigin" name="origin" value="<%= query.origin || '' %>" placeholder="Origin"></div></div>
+        <div class="field"><label for="routeSearchDestination">To</label><div class="control"><i class="fa-solid fa-route"></i><input id="routeSearchDestination" name="destination" value="<%= query.destination || '' %>" placeholder="Destination"></div></div>
+        <div class="field"><label for="routeSearchCorridor">Corridor</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select id="routeSearchCorridor" name="corridor" class="selectLike"><option value="">All</option><% corridorStats.forEach(stat => { %><option value="<%= stat.corridor %>" <%= query.corridor === stat.corridor ? 'selected' : '' %>><%= stat.corridor %></option><% }) %></select></div></div>
       </div>
       <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Find routes</button>
     </form>

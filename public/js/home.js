@@ -46,6 +46,7 @@
     return [group, saved === 'bars' ? 'bars' : 'cards'];
   }));
   let activeCorridor = 'all';
+  let drawerReturnFocus = null;
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -87,6 +88,23 @@
     element.classList.add('show');
     clearTimeout(window.__classicTripToast);
     window.__classicTripToast = setTimeout(() => element.classList.remove('show'), 2400);
+  }
+
+  function drawerFocusable() {
+    return Array.from($('#drawer')?.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])
+      .filter((node) => !node.hidden && node.getAttribute('aria-hidden') !== 'true');
+  }
+
+  function setDrawer(open, restoreFocus = true) {
+    const drawer = $('#drawer');
+    if (!drawer) return;
+    if (open) drawerReturnFocus = document.activeElement;
+    drawer.classList.toggle('open', open);
+    drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+    document.body.classList.toggle('site-drawer-open', open);
+    $$('[aria-controls="drawer"]').forEach((button) => button.setAttribute('aria-expanded', open ? 'true' : 'false'));
+    if (open) window.setTimeout(() => drawerFocusable()[0]?.focus(), 0);
+    else if (restoreFocus && drawerReturnFocus instanceof HTMLElement) drawerReturnFocus.focus();
   }
 
   function csrfToken() {
@@ -249,6 +267,7 @@
       const active = toggle.dataset.view === container.dataset.view;
       toggle.classList.toggle('active', active);
       toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+      toggle.setAttribute('aria-label', `${config.label} ${toggle.dataset.view === 'bars' ? 'list' : 'card'} view`);
     });
 
     const button = document.getElementById(`more-${group}`);
@@ -336,7 +355,7 @@
   function filterCards(group) {
     activateButtonSet('#categoryFilters button, #drawerCategoryFilters button', group);
     scrollToSection(group === 'all' ? 'bus' : (groupConfig[group]?.section || 'bus'));
-    $('#drawer')?.classList.remove('open');
+    setDrawer(false);
   }
 
   function filterRoute(corridor) {
@@ -355,7 +374,7 @@
       scrollToSection('bus');
       if (activeCorridor !== 'all') toast('No published service currently matches this corridor.');
     }
-    $('#drawer')?.classList.remove('open');
+    setDrawer(false);
   }
 
   function setupDrawerFilters() {
@@ -399,9 +418,9 @@
   const savedTheme = localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme') || 'dark';
   setTheme(savedTheme);
   $('#themeBtn')?.addEventListener('click', () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-  $('#menuBtn')?.addEventListener('click', () => $('#drawer')?.classList.add('open'));
-  $('#closeDrawer')?.addEventListener('click', () => $('#drawer')?.classList.remove('open'));
-  $('#drawer')?.addEventListener('click', (event) => { if (event.target.id === 'drawer') $('#drawer').classList.remove('open'); });
+  $('#menuBtn')?.addEventListener('click', () => setDrawer(true));
+  $('#closeDrawer')?.addEventListener('click', () => setDrawer(false));
+  $('#drawer')?.addEventListener('click', (event) => { if (event.target.id === 'drawer') setDrawer(false); });
 
 
   document.addEventListener('click', (event) => {
@@ -410,7 +429,7 @@
       const action = actionElement.dataset.homeAction;
       if (action === 'scroll-section') scrollToSection(actionElement.dataset.sectionId);
       else if (action === 'navigate' && actionElement.dataset.url?.startsWith('/')) window.location.assign(actionElement.dataset.url);
-      else if (action === 'drawer-toggle') $('#drawer')?.classList.toggle('open');
+      else if (action === 'drawer-toggle') setDrawer(!$('#drawer')?.classList.contains('open'));
       else if (action === 'filter-cards') filterCards(actionElement.dataset.filter || 'all');
       else if (action === 'filter-route') filterRoute(actionElement.dataset.filter || 'all');
       else if (action === 'show-more') showMore(actionElement.dataset.group);
@@ -431,6 +450,28 @@
   });
 
   document.addEventListener('keydown', (event) => {
+    if ($('#drawer')?.classList.contains('open')) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setDrawer(false);
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusable = drawerFocusable();
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (first && event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+          return;
+        }
+        if (last && !event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+          return;
+        }
+      }
+    }
     if (!['Enter', ' '].includes(event.key) || !event.target.classList?.contains('listing')) return;
     event.preventDefault();
     const item = listings.find((row) => listingId(row) === String(event.target.dataset.id || ''));
@@ -443,7 +484,7 @@
       if (!href.startsWith('#')) return;
       event.preventDefault();
       scrollToSection(href.slice(1));
-      $('#drawer')?.classList.remove('open');
+      setDrawer(false);
     });
   });
 })();

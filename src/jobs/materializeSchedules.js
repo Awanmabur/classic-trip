@@ -107,9 +107,11 @@ async function reconcileLegacyActiveSchedules(rule, windowEnd, now) {
 async function materializeRule(rule, horizonEnd, now) {
   const ruleStart = startOfDay(rule.startDate);
   const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
-  const watermark = rule.materializedThrough ? startOfDay(rule.materializedThrough) : null;
-  const cursorStart = watermark ? new Date(watermark.getTime() + DAY_MS) : ruleStart;
-  const cursor = cursorStart < ruleStart ? new Date(ruleStart) : cursorStart;
+  const today = startOfDay(now);
+  // Re-evaluate the complete live window on every run. A watermark-only cursor
+  // cannot repair a date that was deleted, cancelled, or skipped after a
+  // transient setup conflict.
+  const cursor = ruleStart > today ? new Date(ruleStart) : today;
   const windowEnd = ruleEnd && ruleEnd < horizonEnd ? ruleEnd : horizonEnd;
   const reconciled = await reconcileLegacyActiveSchedules(rule, windowEnd, now);
 
@@ -123,13 +125,23 @@ async function materializeRule(rule, horizonEnd, now) {
     };
   }
 
-  const dates = matchingFutureDates(rule, cursor, windowEnd, now);
+  const expectedDates = matchingFutureDates(rule, cursor, windowEnd, now);
+  const existingSchedules = await busOperationsRepository.schedules.list({
+    companyId: rule.companyId,
+    scheduleRuleId: rule.id,
+    status: { $nin: ['archived', 'cancelled'] },
+    departAt: { $gt: now, $lte: new Date(windowEnd.getTime() + DAY_MS - 1) },
+  }, { sort: { departAt: 1 }, limit: ROLLING_WINDOW_DAYS * 2 });
+  const existingTimes = new Set(existingSchedules
+    .map((schedule) => new Date(schedule.departAt).getTime())
+    .filter(Number.isFinite));
+  const dates = expectedDates.filter((date) => !existingTimes.has(date.getTime()));
   let created = 0;
   let published = reconciled.published;
   let draft = reconciled.draft;
   let skipped = 0;
 
-  if (dates.length) {
+  if (dates.length && existingSchedules.length === 0) {
     try {
       // One batch resolves the company, route, vehicle, seat map and fare once,
       // then writes at most two departures concurrently. This avoids a burst of
@@ -145,8 +157,7 @@ async function materializeRule(rule, horizonEnd, now) {
     } catch (batchError) {
       if (isTransientFailure(batchError)) throw batchError;
       // A conflict on one calendar date must not block every other day in the
-      // month. Fall back to isolated creation and keep transient DB failures
-      // retryable by leaving the watermark untouched.
+      // month. Fall back to isolated creation; the next run rechecks any gap.
       for (const departAt of dates) {
         try {
           // eslint-disable-next-line no-await-in-loop
@@ -158,6 +169,22 @@ async function materializeRule(rule, horizonEnd, now) {
           if (isTransientFailure(error)) throw error;
           skipped += 1;
         }
+      }
+    }
+  } else if (dates.length) {
+    // Once a rule has materialized, the normal daily case is one new far-end
+    // date. Isolated creation also lets this pass repair a missing middle date
+    // without colliding with healthy dates already in the window.
+    for (const departAt of dates) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await companyService.createSchedule(rule.companyId, schedulePayload(rule, departAt));
+        created += 1;
+        if (result.schedule?.status === 'published') published += 1;
+        else draft += 1;
+      } catch (error) {
+        if (isTransientFailure(error)) throw error;
+        skipped += 1;
       }
     }
   }
@@ -226,4 +253,6 @@ module.exports = {
   materializeRuleById,
   ROLLING_WINDOW_DAYS,
   HORIZON_DAYS,
+  startOfDay,
+  matchingFutureDates,
 };

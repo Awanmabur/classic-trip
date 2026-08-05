@@ -143,6 +143,7 @@ app.use('/', require('./routes/web/admin'));
 
 app.use('/api/search', require('./routes/api/search'));
 app.use('/api/listings', require('./routes/api/listings'));
+app.use('/api/v1/listings', require('./routes/api/listings'));
 app.use('/api/v1/places', require('./routes/api/places'));
 app.use('/api/v1/bus', require('./modules/bus/routes/publicBusRoutes'));
 app.use('/api/v1/flights', require('./modules/flight/routes/publicFlightRoutes'));
@@ -160,4 +161,3 @@ app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;
-

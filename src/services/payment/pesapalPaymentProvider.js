@@ -194,4 +194,67 @@ async function verifyWebhook(payload = {}, config = {}) {
   };
 }
 
-module.exports = { configured, initiatePayment, verifyWebhook, normalizeStatus, pesapalFields };
+async function initiateRefund(refund = {}, config = {}) {
+  if (!refund.providerReference || !(Number(refund.amount) > 0)) {
+    const error = new Error('Pesapal refund requires the original tracking reference and positive amount');
+    error.status = 422;
+    throw error;
+  }
+  const token = await tokenFor(config);
+  let confirmationCode = String(refund.confirmationCode || '').trim();
+  if (!confirmationCode) {
+    const statusPayload = await requestJson(config, '/Transactions/GetTransactionStatus', {
+      method: 'GET',
+      token,
+      query: { orderTrackingId: refund.providerReference },
+    });
+    confirmationCode = String(statusPayload.confirmation_code || statusPayload.confirmationCode || statusPayload.data?.confirmation_code || '').trim();
+    if (normalizeStatus(statusPayload.payment_status_description || statusPayload.status) !== 'successful') {
+      const error = new Error('Pesapal can refund only a completed payment');
+      error.status = 409;
+      throw error;
+    }
+    const originalAmount = Number(statusPayload.amount || statusPayload.payment_amount || statusPayload.data?.amount || 0);
+    if (originalAmount > 0 && Number(refund.amount) > originalAmount + 0.01) {
+      const error = new Error('Pesapal refund amount exceeds the completed payment');
+      error.status = 409;
+      throw error;
+    }
+    const paymentMethod = String(statusPayload.payment_method || statusPayload.payment_method_type || statusPayload.data?.payment_method || '').toLowerCase();
+    if (/(mobile|momo|airtel|m-pesa|mpesa)/.test(paymentMethod) && originalAmount > 0 && Math.abs(Number(refund.amount) - originalAmount) > 0.01) {
+      const error = new Error('Pesapal mobile-money payments can only be refunded in full');
+      error.status = 409;
+      throw error;
+    }
+  }
+  if (!confirmationCode) {
+    const error = new Error('Pesapal transaction status did not include the required confirmation code');
+    error.status = 409;
+    throw error;
+  }
+  const result = await requestJson(config, '/Transactions/RefundRequest', {
+    token,
+    body: {
+      confirmation_code: confirmationCode,
+      amount: Number(refund.amount).toFixed(2),
+      username: String(refund.approvedBy || 'Classic Trip Finance').slice(0, 120),
+      remarks: String(refund.reason || 'Classic Trip approved refund').slice(0, 500),
+    },
+  });
+  if (String(result.error ?? result.status ?? '').trim() === '500') {
+    const error = new Error(result.message || 'Pesapal rejected the refund request');
+    error.status = 409;
+    error.providerResponse = result;
+    throw error;
+  }
+  return {
+    accepted: true,
+    provider: 'pesapal',
+    status: normalizeStatus(result.status || result.message || 'pending'),
+    providerRefundReference: result.refund_reference || result.reference || result.id || '',
+    confirmationCode,
+    rawPayload: result,
+  };
+}
+
+module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, normalizeStatus, pesapalFields };

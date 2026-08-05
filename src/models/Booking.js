@@ -86,6 +86,8 @@ const bookingSchema = new Schema({
   paymentProvider: { type: String, enum: ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo', 'cash', 'bank_transfer', 'card', 'mobile_money'] },
   paymentRef: { type: String, index: true },
   paymentMethodNote: String,
+  paymentInitiationStatus: { type: String, enum: ['not_started', 'pending', 'ready', 'retry_required', 'failed'] },
+  paymentFailureReason: String,
   bookingChannel: { type: String, index: true, enum: ['web', 'mobile', 'agent_offline', 'admin_manual', 'company_manual'] },
   createdByAgentId: { type: String, index: true },
   agentSale: Schema.Types.Mixed,

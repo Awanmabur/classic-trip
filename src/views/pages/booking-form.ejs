@@ -204,7 +204,7 @@
                     <input name="<%= index === 0 ? 'fullName' : 'passengerNames' %>" placeholder="Passenger full name" required>
                     <input name="<%= index === 0 ? 'phone' : 'passengerPhones' %>" placeholder="Passenger phone" <%= index === 0 ? 'required' : '' %>>
                     <input class="full" name="<%= index === 0 ? 'email' : 'passengerEmails' %>" type="email" placeholder="Passenger email" <%= index === 0 ? 'required' : '' %>>
-                    <select name="identityTypes">
+                    <select name="identityTypes" aria-label="Passenger <%= index + 1 %> identity type">
                       <option value="">ID type</option>
                       <option value="national_id">National ID</option>
                       <option value="passport">Passport</option>
@@ -212,7 +212,7 @@
                       <option value="birth_certificate">Birth certificate</option>
                     </select>
                     <input name="identityNumbers" placeholder="ID / passport number">
-                    <select name="sexes">
+                    <select name="sexes" aria-label="Passenger <%= index + 1 %> sex">
                       <option value="">Sex</option>
                       <option value="female">Female</option>
                       <option value="male">Male</option>
@@ -237,7 +237,7 @@
                 <input name="fullName" placeholder="Full name" required>
                 <input name="phone" placeholder="Phone number" required>
                 <input class="full" name="email" type="email" placeholder="Email address" required>
-                <select name="idType">
+                <select name="idType" aria-label="Identity type">
                   <option value="">ID type</option>
                   <option>National ID</option>
                   <option>Passport</option>
@@ -268,11 +268,11 @@
                   <label>Return time<input name="returnTime" type="time"></label>
                   <input class="full" name="pickupLocation" value="<%= listing.from || listing.address || '' %>" placeholder="Pickup location" required>
                   <input class="full" name="returnLocation" value="<%= listing.to || listing.address || '' %>" placeholder="Return location" required>
-                  <select name="driverOption"><option value="self_drive">Self-drive</option><option value="with_driver">With verified driver</option></select>
+                  <select name="driverOption" aria-label="Driver option"><option value="self_drive">Self-drive</option><option value="with_driver">With verified driver</option></select>
                   <textarea class="full" name="specialRequests" maxlength="1200" placeholder="Child seat, airport pickup, accessibility, or other rental request..."></textarea>
                 <% } else if (listing.serviceType === 'cargo') { %>
                   <label>Pickup date<input name="pickupDate" type="date" min="<%= new Date().toISOString().slice(0, 10) %>" value="<%= requestedPickupDate %>" required></label>
-                  <select name="cargoType" required>
+                  <select name="cargoType" aria-label="Cargo type" required>
                     <% const cargoOptions = (listing.cargoTypes && listing.cargoTypes.length ? listing.cargoTypes : ['parcel','documents','fragile','freight']); cargoOptions.forEach(type => { %><option value="<%= type %>"><%= type %></option><% }) %>
                   </select>
                   <input class="full" name="pickupLocation" value="<%= listing.from || '' %>" placeholder="Pickup address" required>

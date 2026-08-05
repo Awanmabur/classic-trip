@@ -207,8 +207,10 @@ async function expireActiveHolds(now = new Date()) {
   const nowDate = now instanceof Date ? now : new Date(now);
   const nowIso = nowDate.toISOString();
   const [holds, items] = await Promise.all([
-    commerceRepository.holds.list({ status: 'active', expiresAt: { $lte: nowDate } }),
-    commerceRepository.holdItems.list({ status: 'active', expiresAt: { $lte: nowDate } }),
+    // Canonical bus segment holds must be released through busInventoryService
+    // so every segment row and compatibility seat counter is restored.
+    commerceRepository.holds.list({ status: 'active', holdType: { $ne: 'bus_segment_seat' }, expiresAt: { $lte: nowDate } }),
+    commerceRepository.holdItems.list({ status: 'active', resourceType: { $ne: 'bus_seat_segment' }, expiresAt: { $lte: nowDate } }),
   ]);
   const update = { status: 'expired', releasedAt: nowIso, releaseReason: 'expired' };
   holds.forEach((hold) => Object.assign(hold, update));

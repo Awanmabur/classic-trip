@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="/images/favicon-48.png" />
   <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.0" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.1" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -24,9 +24,9 @@
   <script src="/js/notifications.js" defer></script>
 
   
-  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.4.5">
+  <link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.1">
   <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.0">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.1">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 
@@ -327,9 +327,9 @@
           <a class="iconBtn" href="#notifications" title="Notifications" aria-label="Notifications"><i class="fa-solid fa-bell"></i><% if ((dashboardShell?.notificationCount || 0) > 0) { %><span class="topNotifBadge"><%= dashboardShell.notificationCount %></span><% } %></a>
           <button class="btn hideMobile" id="btnExport"><i class="fa-solid fa-download"></i><span>Export</span></button>
           <% if (defaultCreateHref) { %>
-          <a class="btn btnBlue" id="btnNew" href="<%= defaultCreateHref %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></a>
+          <a class="btn btnBlue" id="btnNew" href="<%= defaultCreateHref %>" aria-label="<%= defaultCreateLabel %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></a>
           <% } else { %>
-          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></button>
+          <button class="btn btnBlue" id="btnNew" data-modal="create" data-type="<%= defaultCreateType %>" aria-label="<%= defaultCreateLabel %>"><i class="fa-solid fa-plus"></i><span><%= defaultCreateLabel %></span></button>
           <% } %>
           <span class="btn btnPrimary hideMobile dashboardRoleBadge" role="status"><i class="fa-solid <%= dashboardShell?.statusIcon || 'fa-user-shield' %>"></i> <%= dashboardShell?.statusLabel || 'Admin' %></span>
           <form class="logoutForm topLogout" method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn hideMobile navLogout" type="submit"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button></form>
@@ -694,7 +694,15 @@
           'driver-ops','driver-manifest','driver-incidents',
           'bus-dashboard','hotel-dashboard','flight-dashboard','taxi-dashboard',
           'flight-setup','flight-routes','flight-seat-maps','flight-fares','flight-departures','flight-manifests','flight-operations',
-          'taxi-fleet','taxi-drivers','taxi-zones','taxi-fares','taxi-dispatch','taxi-operations','taxi-incidents'
+          'taxi-fleet','taxi-drivers','taxi-zones','taxi-fares','taxi-dispatch','taxi-operations','taxi-incidents',
+          'setup-guide','workflow-guide','blogs','verification',
+          'flight-agents','boda-riders','car-drivers','fleet-owners','mobility-companies',
+          'mobility-drivers','mobility-vehicles','mobility-dispatch','mobility-safety',
+          'flight-search','flight-quotes','flight-travelers','flight-tickets','flight-changes','flight-refunds',
+          'taxi-availability',
+          'customer-refunds','customer-support','customer-reviews','customer-notifications','customer-profile',
+          'promoter-support','promoter-profile',
+          'schedule','inventory','checkin','manifest','shift','shift-handover','my-profile','settlements'
         ]);
         const seenDynamicDashboardPages = new Set();
         const dynamicDashboardItems = [];
@@ -742,6 +750,6 @@
 
   <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: viewDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
 <script src="/js/pwa.js?v=20260727-3" defer></script>
-<script src="/js/dashboard-workspace.js?v=20260727-1" defer></script>
+<script src="/js/dashboard-workspace.js?v=1.6.1" defer></script>
 </body>
 </html>

@@ -12,6 +12,14 @@ const refundRequestSchema = new Schema({
   currency: { type: String, required: true, uppercase: true, trim: true },
   reason: String,
   status: { type: String, default: 'pending', index: true, enum: ['pending', 'reviewing', 'approved', 'rejected'] },
+  provider: String,
+  providerPaymentReference: String,
+  providerRefundStatus: { type: String, enum: ['not_started', 'in_progress', 'accepted', 'completed', 'failed', 'reconciliation_required'], default: 'not_started', index: true },
+  providerRefundReference: { type: String, index: true },
+  providerRefundError: String,
+  providerRefundInitiatedAt: Date,
+  providerRefundCompletedAt: Date,
+  providerRefundPayload: Schema.Types.Mixed,
   requestedAt: Date,
   reviewedBy: String,
   reviewedAt: Date,
@@ -26,4 +34,8 @@ const refundRequestSchema = new Schema({
 
 refundRequestSchema.index({ companyId: 1, status: 1, createdAt: -1 });
 refundRequestSchema.index({ requesterId: 1, status: 1 });
+refundRequestSchema.index(
+  { provider: 1, providerRefundReference: 1 },
+  { unique: true, partialFilterExpression: { providerRefundReference: { $gt: '' } } }
+);
 module.exports = model('RefundRequest', refundRequestSchema);

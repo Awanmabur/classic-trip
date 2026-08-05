@@ -1,9 +1,12 @@
-const paymentService = require("../../services/payment/paymentService");
+const bookingPaymentService = require('../../services/payment/bookingPaymentService');
 const webhookService = require('../../services/payment/webhookService');
 async function initiate(req, res, next) {
   try {
-    const payment = await paymentService.initiatePayment(req.body);
-    res.json({ payment });
+    const result = await bookingPaymentService.initiate(req.body.bookingRef, req.body, {
+      ...(req.session?.user || {}),
+      idempotencyKey: req.headers['idempotency-key'] || req.body.idempotencyKey,
+    });
+    res.json(result);
   } catch (error) {
     next(error);
   }

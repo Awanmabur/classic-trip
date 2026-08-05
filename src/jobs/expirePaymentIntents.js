@@ -1,9 +1,11 @@
 const commerceRepository = require('../repositories/domain/commerceRepository');
 const hotelRepository = require('../repositories/domain/hotelRepository');
 const inventoryHoldService = require('../services/booking/inventoryHoldService');
+const outboxService = require('../services/shared/outboxService');
 
 const EXPIRABLE_INTENT_STATUSES = ['created', 'pending', 'processing'];
-const NON_CANCELLABLE_BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'refunded'];
+const NON_CANCELLABLE_BOOKING_STATUSES = ['confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'failed', 'expired', 'refunded'];
+const DOMAIN_MANAGED_SERVICES = new Set(['bus', 'flight', 'local_transport']);
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -120,7 +122,7 @@ async function releaseBookingInventory(booking = {}, reason = 'payment_intent_ex
 }
 
 async function expireIntent(intent, now = new Date()) {
-  let outcome = { expired: false, cancelled: false, seats: 0, roomNights: 0, rooms: 0 };
+  let outcome = { expired: false, cancelled: false, cleanupQueued: false, seats: 0, roomNights: 0, rooms: 0 };
   let expiredIntent = null;
   let cancelledBooking = null;
 
@@ -150,7 +152,26 @@ async function expireIntent(intent, now = new Date()) {
     const booking = current.bookingRef
       ? await commerceRepository.bookings.findOne({ bookingRef: current.bookingRef }, { session: session || undefined })
       : null;
-    if (!booking || NON_CANCELLABLE_BOOKING_STATUSES.includes(normalize(booking.bookingStatus))) return;
+    if (!booking || normalize(booking.paymentStatus) === 'successful' || NON_CANCELLABLE_BOOKING_STATUSES.includes(normalize(booking.bookingStatus))) return;
+    const serviceType = normalize(booking.serviceType);
+    if (DOMAIN_MANAGED_SERVICES.has(serviceType)) {
+      const event = outboxService.createEvent({
+        topic: 'PaymentIntentExpired',
+        aggregateType: 'booking',
+        aggregateId: booking.id,
+        companyId: booking.companyId || '',
+        dedupeKey: `PaymentIntentExpired:${current.id || current.idempotencyKey}`,
+        payload: {
+          bookingRef: booking.bookingRef,
+          serviceType,
+          paymentIntentId: current.id || '',
+          reason: 'Payment intent expired before confirmation',
+        },
+      });
+      await outboxService.persistInSession(event, session);
+      outcome.cleanupQueued = true;
+      return;
+    }
     const released = await releaseBookingInventoryInSession(booking, 'payment_intent_expired', session);
     cancelledBooking = released.booking;
     outcome = {
@@ -169,6 +190,7 @@ async function run() {
   const result = {
     expiredIntents: 0,
     cancelledBookings: 0,
+    domainCleanupsQueued: 0,
     seatsReleased: 0,
     roomNightsReleased: 0,
     roomsReleased: 0,
@@ -184,6 +206,7 @@ async function run() {
     if (!expired.expired) continue;
     result.expiredIntents += 1;
     if (expired.cancelled) result.cancelledBookings += 1;
+    if (expired.cleanupQueued) result.domainCleanupsQueued += 1;
     result.seatsReleased += expired.seats;
     result.roomNightsReleased += expired.roomNights;
     result.roomsReleased += expired.rooms;

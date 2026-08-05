@@ -88,7 +88,7 @@
 
   function ensureMap() {
     const mapNode = $('#taxiLiveTrackingMap');
-    if (!mapNode || typeof window.L === 'undefined') return null;
+    if (!mapNode || !window.L || typeof window.L.map !== 'function') return null;
     if (map) {
       window.setTimeout(() => map.invalidateSize(), 30);
       return map;

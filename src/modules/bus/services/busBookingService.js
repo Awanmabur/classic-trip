@@ -662,8 +662,9 @@ async function createGuestBooking(payload = {}, req = null) {
     createdAt: nowIso(),
   };
   await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
+  let providerResult = null;
   try {
-    const result = await paymentService.initiatePayment({
+    providerResult = await paymentService.initiatePayment({
       provider,
       bookingRef: rows.booking.bookingRef,
       reference: rows.booking.bookingRef,
@@ -680,6 +681,7 @@ async function createGuestBooking(payload = {}, req = null) {
         holdIds: rows.holds.map((hold) => hold.id),
       },
     });
+    const result = providerResult;
     Object.assign(intent, {
       providerReference: result.providerReference || '',
       checkoutUrl: result.checkoutUrl || '',
@@ -738,6 +740,54 @@ async function createGuestBooking(payload = {}, req = null) {
     await completeIdempotency(claim.record, booking);
     return booking;
   } catch (error) {
+    if (!providerResult) {
+      // A network/configuration error is not a decline. Preserve the canonical
+      // reservations and retry with the same provider idempotency key.
+      intent.status = 'pending';
+      intent.failedAt = null;
+      intent.failureReason = cleanText(error.message, 500);
+      intent.attempts = [...(intent.attempts || []), { at: nowIso(), provider, status: 'initiation_error', reason: intent.failureReason }];
+      await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
+      Object.assign(rows.booking, {
+        paymentProvider: provider,
+        paymentStatus: 'pending',
+        bookingStatus: 'pending_payment',
+        paymentInitiationStatus: 'retry_required',
+        paymentFailureReason: intent.failureReason,
+        updatedAt: nowIso(),
+      });
+      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
+      await completeIdempotency(claim.record, rows.booking);
+      return rows.booking;
+    }
+    if (normalize(providerResult.status) !== 'failed') {
+      // The provider accepted the request but a local post-initiation step failed.
+      // Never release inventory for a potentially payable transaction.
+      const providerSucceeded = normalize(providerResult.status) === 'successful';
+      Object.assign(intent, {
+        providerReference: providerResult.providerReference || intent.providerReference || '',
+        checkoutUrl: providerResult.checkoutUrl || intent.checkoutUrl || '',
+        status: providerSucceeded ? 'successful' : 'pending',
+        paidAt: providerSucceeded ? (providerResult.paidAt || nowIso()) : null,
+        failureReason: cleanText(error.message, 500),
+        updatedAt: nowIso(),
+      });
+      await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
+      Object.assign(rows.booking, {
+        paymentProvider: providerResult.provider || provider,
+        paymentRef: providerResult.providerReference || '',
+        checkoutUrl: providerResult.checkoutUrl || '',
+        paymentStatus: providerSucceeded ? 'successful' : 'pending',
+        bookingStatus: providerSucceeded ? 'payment_processing' : 'pending_payment',
+        settlementStatus: providerSucceeded ? 'reconciliation_required' : 'pending',
+        settlementError: cleanText(error.message, 500),
+        paymentInitiationStatus: 'ready',
+        updatedAt: nowIso(),
+      });
+      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
+      await completeIdempotency(claim.record, rows.booking);
+      return rows.booking;
+    }
     intent.status = 'failed';
     intent.failedAt = nowIso();
     intent.failureReason = cleanText(error.message, 500);

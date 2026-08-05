@@ -50,10 +50,11 @@ function dashboardData(profile = {}) {
   });
 }
 
-async function renderRole(role, { serviceType = '', options = null } = {}) {
+async function renderRole(role, { serviceType = '', options = null, activePage = '', dataOverrides = null } = {}) {
   const profile = serviceType ? serviceProfile(serviceType) : {};
   const data = dashboardData(profile);
   if (options) Object.assign(data.options, options);
+  if (dataOverrides) Object.assign(data, dataOverrides);
   const roleName = {
     admin:'super_admin', company:'company_admin', employee:'company_employee', driver:'driver', customer:'customer', promoter:'promoter',
     support:'support_admin', finance:'finance_admin', operations:'operations_admin', content:'content_admin',
@@ -67,6 +68,7 @@ async function renderRole(role, { serviceType = '', options = null } = {}) {
     serviceProfile:profile,
     permissions:['booking.view','booking.create_manual','checkin.manage','inventory.update','support.manage','handover.create','reports.view','profile.update'],
   });
+  if (activePage) shell.activePage = activePage;
   return ejs.renderFile(workspaceView, {
     seo:{ title:`${role} dashboard test` },
     dashboardData:data,
@@ -85,7 +87,7 @@ async function renderRole(role, { serviceType = '', options = null } = {}) {
 
 function count(source, token) { return source.split(token).length - 1; }
 
-(async () => {
+async function runPlatformExperienceChecks() {
   const roleExpectations = {
     admin:'data-type="partner"',
     customer:'href="/search"',
@@ -162,7 +164,13 @@ function count(source, token) { return source.split(token).length - 1; }
   assert(listingApi.includes('availableUnits: Number(room.availableUnits ?? room.inventory ?? 0)'), 'Stay availability API does not preserve an explicit zero inventory value');
 
   console.log('Platform experience final checks passed (roles, services, setup stages, mutations, accessibility and stay layouts).');
-})().catch((error) => {
-  console.error(error.stack || error);
-  process.exitCode = 1;
-});
+}
+
+module.exports = { dashboardData, renderRole, runPlatformExperienceChecks, serviceProfile };
+
+if (require.main === module) {
+  runPlatformExperienceChecks().catch((error) => {
+    console.error(error.stack || error);
+    process.exitCode = 1;
+  });
+}

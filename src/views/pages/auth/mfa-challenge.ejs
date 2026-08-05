@@ -6,7 +6,7 @@
     <div class="sheetSub">Password verification succeeded for <%= identity || 'this administrator account' %>. Enter a current authenticator code or one unused recovery code.</div>
     <form method="post" action="/auth/mfa/challenge" style="display:grid;gap:12px;margin-top:18px">
       <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
-      <input name="code" autocomplete="one-time-code" inputmode="text" placeholder="Six-digit code or recovery code" required autofocus>
+      <input name="code" aria-label="Authenticator or recovery code" autocomplete="one-time-code" inputmode="text" placeholder="Six-digit code or recovery code" required autofocus>
       <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-right-to-bracket"></i> Verify and continue</button>
       <a class="btn btnGhost" href="/login">Cancel and sign in again</a>
     </form>

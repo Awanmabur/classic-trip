@@ -24,6 +24,7 @@
   const isRentalTicket = serviceType === 'car_rental';
   const isCargoTicket = serviceType === 'cargo';
   const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful';
+  const retryablePayment = !ready && booking.paymentStatus === 'pending' && ['pending', 'pending_payment', 'awaiting_payment', 'payment_processing'].includes(String(booking.bookingStatus || '').toLowerCase());
   const documentLabels = { bus:'bus ticket', hotel:'stay voucher', flight:'flight e-ticket', local_transport:'ride receipt', tour:'tour voucher', car_rental:'rental voucher', cargo:'cargo receipt' };
   const documentLabel = documentLabels[serviceType] || 'booking document';
   const hotelStay = booking.hotelStay || {};
@@ -77,6 +78,7 @@
       <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnPrimary" href="<%= booking.publicTicketPdfUrl %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><% } %>
       <a class="btn btnGhost" href="/tickets"><i class="fa-solid fa-magnifying-glass"></i> Find another ticket</a>
       <% if (currentUser) { %><a class="btn btnGhost" href="/booking"><i class="fa-solid fa-list"></i> My bookings</a><% } %>
+      <% if (retryablePayment) { %><form method="post" action="/bookings/<%= encodeURIComponent(booking.bookingRef) %>/payment/retry" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-credit-card"></i> Continue payment</button></form><% } %>
     </div>
   </section>
 

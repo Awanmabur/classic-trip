@@ -658,23 +658,26 @@ async function priceHotelAddons({ listing, selectedIds, roomCount, guestCount, n
 }
 
 function applyHotelBookingLifecycle(booking, status) {
-  const successful = status === 'successful';
+  const normalized = clean(status || 'pending').toLowerCase();
+  const successful = normalized === 'successful';
+  const terminalFailure = ['failed', 'expired', 'cancelled'].includes(normalized);
   const now = new Date().toISOString();
   booking.bookingItems = (booking.bookingItems || []).map((item) => ({
     ...item,
-    status: successful ? 'confirmed' : 'awaiting_payment',
+    status: successful ? 'confirmed' : terminalFailure ? (normalized === 'expired' ? 'expired' : 'failed') : 'awaiting_payment',
   }));
   booking.ticketLegs = (booking.ticketLegs || []).map((leg) => ({
     ...leg,
-    status: successful ? 'valid' : 'pending_payment',
+    status: successful ? 'valid' : terminalFailure ? 'cancelled' : 'pending_payment',
     issuedAt: successful ? (leg.issuedAt || now) : null,
+    ...(terminalFailure ? { cancelledAt: leg.cancelledAt || now } : {}),
   }));
   booking.hotelStay = {
     ...(booking.hotelStay || {}),
-    status: successful ? 'booked' : 'pending_payment',
+    status: successful ? 'booked' : terminalFailure ? (normalized === 'expired' ? 'expired' : 'failed') : 'pending_payment',
   };
-  booking.bookingStatus = successful ? 'confirmed' : 'pending_payment';
-  if (successful) booking.lockedUntil = null;
+  booking.bookingStatus = successful ? 'confirmed' : terminalFailure ? (normalized === 'expired' ? 'expired' : 'failed') : 'pending_payment';
+  if (successful || terminalFailure) booking.lockedUntil = null;
   return booking;
 }
 
@@ -1128,7 +1131,8 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
   }
   let provider;
   let payment;
-  if ((trustedCompanyManual && requestedManual) || (trustedAgentOffline && requestedOffline)) {
+  const onlinePayment = !((trustedCompanyManual && requestedManual) || (trustedAgentOffline && requestedOffline));
+  if (!onlinePayment) {
     const requested = clean(payload.paymentProvider || payload.provider || 'cash').toLowerCase().replace(/-/g, '_');
     provider = ['cash', 'bank_transfer', 'card', 'mobile_money'].includes(requested) ? requested : 'cash';
     const requestedStatus = clean(payload.paymentStatus || (requestedOffline ? 'successful' : 'pending')).toLowerCase();
@@ -1146,15 +1150,10 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
     };
   } else {
     provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider);
-    payment = await paymentService.initiatePayment({
-      provider,
-      bookingRef,
-      amount: total,
-      currency,
-      customer: booking.guestSnapshot,
-      callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(bookingRef)}`,
-      description: `Classic Trip hotel booking ${bookingRef}`,
-    });
+    // Reserve the selected room nights before contacting the external payment
+    // provider. This prevents creating a payable provider order for inventory
+    // that another checkout claimed during the network request.
+    payment = { provider, providerReference: '', status: 'pending', checkoutUrl: '' };
   }
 
   const providerStatus = clean(payment.status || 'pending').toLowerCase();
@@ -1168,6 +1167,7 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
   booking.paymentProvider = payment.provider || provider;
   booking.paymentRef = payment.providerReference || '';
   booking.checkoutUrl = payment.checkoutUrl || '';
+  booking.paymentInitiationStatus = onlinePayment ? 'not_started' : (booking.paymentStatus === 'successful' ? 'ready' : 'pending');
   applyHotelBookingLifecycle(booking, booking.paymentStatus);
   booking.settlementStatus = booking.paymentStatus === 'successful' ? 'pending_fulfillment' : 'pending_payment';
 
@@ -1214,6 +1214,76 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
 
   const canonical = await buildCanonicalHotelRecords({ booking, listing, property, roomTypes, roomUnits, groups, guests, ratePlan, payload });
   await hotelRepository.commitHotelBooking({ selectedRows, booking, paymentRow, paymentIntentRow, canonical });
+  if (onlinePayment) {
+    let initiationError = null;
+    try {
+      payment = await paymentService.initiatePayment({
+        provider,
+        bookingRef,
+        amount: total,
+        currency,
+        customer: booking.guestSnapshot,
+        idempotencyKey: paymentIntentRow.idempotencyKey,
+        callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(bookingRef)}`,
+        description: `Classic Trip hotel booking ${bookingRef}`,
+        meta: { bookingId: booking.id, bookingRef, serviceType: 'hotel' },
+      });
+    } catch (error) {
+      initiationError = error;
+      payment = { provider, providerReference: '', status: 'pending', checkoutUrl: '' };
+    }
+
+    const resolvedStatus = initiationError
+      ? 'pending'
+      : clean(payment.status || 'pending').toLowerCase() === 'successful'
+        ? 'successful'
+        : clean(payment.status || '').toLowerCase() === 'failed'
+          ? 'failed'
+          : 'pending';
+    booking.paymentStatus = resolvedStatus;
+    booking.paymentProvider = payment.provider || provider;
+    booking.paymentRef = payment.providerReference || '';
+    booking.checkoutUrl = payment.checkoutUrl || '';
+    booking.paymentInitiationStatus = initiationError ? 'retry_required' : resolvedStatus === 'failed' ? 'failed' : 'ready';
+    booking.paymentFailureReason = clean(initiationError?.message || payment.failureReason || payment.message || '');
+    applyHotelBookingLifecycle(booking, resolvedStatus);
+    booking.settlementStatus = resolvedStatus === 'successful' ? 'pending_fulfillment' : 'pending_payment';
+    booking.lockedUntil = resolvedStatus === 'successful' || resolvedStatus === 'failed' ? null : expiresAt?.toISOString() || booking.lockedUntil;
+
+    Object.assign(paymentRow, {
+      provider: booking.paymentProvider,
+      providerReference: booking.paymentRef,
+      paymentRef: booking.paymentRef,
+      checkoutUrl: booking.checkoutUrl,
+      status: resolvedStatus,
+      paidAt: resolvedStatus === 'successful' ? (payment.paidAt || new Date().toISOString()) : null,
+      failureReason: resolvedStatus === 'failed' ? booking.paymentFailureReason : '',
+      rawPayload: payment.rawPayload || payment,
+      updatedAt: new Date().toISOString(),
+    });
+    Object.assign(paymentIntentRow, {
+      ...(booking.paymentRef ? { providerReference: booking.paymentRef } : {}),
+      checkoutUrl: booking.checkoutUrl,
+      status: resolvedStatus === 'successful' ? 'successful' : resolvedStatus === 'failed' ? 'failed' : 'pending',
+      paidAt: resolvedStatus === 'successful' ? (payment.paidAt || new Date().toISOString()) : null,
+      failedAt: resolvedStatus === 'failed' ? new Date().toISOString() : null,
+      failureReason: booking.paymentFailureReason,
+      attempts: [{ at: new Date().toISOString(), provider, status: initiationError ? 'initiation_error' : resolvedStatus, providerReference: booking.paymentRef }],
+      updatedAt: new Date().toISOString(),
+    });
+    await hotelRepository.transaction(async (session) => {
+      await hotelRepository.bookings.save(booking, { bookingRef }, { session });
+      await hotelRepository.payments.save(paymentRow, { idempotencyKey: paymentRow.idempotencyKey }, { session });
+      await hotelRepository.paymentIntents.save(paymentIntentRow, { idempotencyKey: paymentIntentRow.idempotencyKey }, { session });
+      await hotelRepository.applyPaymentLifecycle({
+        bookingRef,
+        companyId: booking.companyId,
+        paymentStatus: resolvedStatus,
+        reason: booking.paymentFailureReason || `Payment changed to ${resolvedStatus}`,
+        session,
+      });
+    });
+  }
   if (booking.paymentStatus === 'successful') {
     try {
       await hotelRepository.settleSuccessfulBooking({ booking, split });
@@ -1223,7 +1293,7 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       await hotelRepository.bookings.save(booking);
     }
     await notificationService.bookingConfirmed(booking);
-  } else {
+  } else if (booking.paymentStatus === 'pending') {
     await notificationService.queueNotification({
       userId: booking.customerUserId || null,
       channels: ['email', 'sms'],
@@ -1234,6 +1304,8 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       referenceId: booking.id,
       meta: { bookingRef, checkoutUrl: booking.checkoutUrl, expiresAt: booking.lockedUntil },
     });
+  } else {
+    await notificationService.paymentUpdated(booking, paymentRow);
   }
 
   const actorId = req?.session?.user?.id || payload.createdByEmployeeId || payload.actorId || 'guest';
@@ -1939,7 +2011,11 @@ async function reconcileHotelListingPublication(companyId, listingId, actorId = 
 }
 
 function toCsv(headers, rows) {
-  const esc = (value) => { const text = String(value ?? ''); return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; };
+  const esc = (value) => {
+    const raw = String(value ?? '');
+    const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
   const values = rows.map((row) => Array.isArray(row) ? row.filter((cell) => typeof cell !== 'object') : headers.map((header) => row[header.key]));
   const labels = headers.map((header) => typeof header === 'string' ? header : header.label);
   return [labels, ...values].map((row) => row.map(esc).join(',')).join('\n');

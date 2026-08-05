@@ -22,6 +22,38 @@ function nextNotificationId() {
   return `notification-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
 }
 
+function notificationIdForDedupe(dedupeKey) {
+  return `notification-${crypto.createHash('sha256').update(dedupeKey).digest('hex').slice(0, 24)}`;
+}
+
+async function claimNotificationDelivery(row, owner) {
+  if (!row.dedupeKey) return row;
+  await notificationRepository.notifications.updateOne(
+    { dedupeKey: row.dedupeKey },
+    { $setOnInsert: row },
+    { upsert: true },
+  );
+  const timestamp = new Date();
+  const claimed = await notificationRepository.notifications.repository.findOneAndUpdate({
+    dedupeKey: row.dedupeKey,
+    deliveryStatus: { $nin: ['sent', 'delivered'] },
+    $or: [
+      { dispatchLeaseUntil: { $exists: false } },
+      { dispatchLeaseUntil: null },
+      { dispatchLeaseUntil: { $lte: timestamp } },
+      { dispatchOwner: owner },
+    ],
+  }, {
+    $set: {
+      dispatchOwner: owner,
+      dispatchLeaseUntil: new Date(timestamp.getTime() + 5 * 60 * 1000),
+    },
+    $inc: { dispatchAttempts: 1 },
+  }, { new: true });
+  if (claimed) return claimed;
+  return notificationRepository.notifications.findOne({ dedupeKey: row.dedupeKey });
+}
+
 async function enqueueNotification(payload = {}, options = {}) {
   const aggregateId = String(options.aggregateId || payload.referenceId || payload.userId || nextNotificationId());
   const event = outboxService.createEvent({
@@ -52,6 +84,7 @@ async function queueNotification({
   ownerType = meta.ownerType || '',
   ownerId = meta.ownerId || userId || '',
   audience = meta.audience || '',
+  dedupeKey = '',
 } = {}) {
   const cleanTitle = cleanText(title || 'Classic Trip update');
   const deliveryMessage = cleanText(message || '');
@@ -61,10 +94,13 @@ async function queueNotification({
   const deliveryTasks = [];
   const attempts = [];
   const uniqueChannels = Array.from(new Set(Array.isArray(channels) ? channels : [channels])).filter(Boolean);
+  const deliveryOwner = `notification-worker-${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
+  const dedupeBase = String(dedupeKey || '').trim().slice(0, 420);
 
   for (const channel of uniqueChannels) {
+    const channelDedupeKey = dedupeBase ? `${dedupeBase}:${channel}`.slice(0, 500) : '';
     const row = {
-      id: nextNotificationId(),
+      id: channelDedupeKey ? notificationIdForDedupe(channelDedupeKey) : nextNotificationId(),
       userId,
       channel,
       title: cleanTitle,
@@ -75,6 +111,7 @@ async function queueNotification({
       audience,
       referenceType,
       referenceId,
+      ...(channelDedupeKey ? { dedupeKey: channelDedupeKey } : {}),
       meta: storedMeta,
       status: 'queued',
       deliveryStatus: 'queued',
@@ -83,11 +120,20 @@ async function queueNotification({
       failedCount: 0,
       createdAt: new Date().toISOString(),
     };
-    rows.push(row);
+    // A durable per-channel claim makes outbox retries safe. An expired lease
+    // can be reclaimed after a worker crash, while sent deliveries are returned
+    // without contacting the provider again.
+    // eslint-disable-next-line no-await-in-loop
+    const claimed = await claimNotificationDelivery(row, deliveryOwner);
+    if (!claimed || (channelDedupeKey && claimed.dispatchOwner !== deliveryOwner)) {
+      if (claimed) rows.push(claimed);
+      continue;
+    }
+    rows.push(claimed);
 
     const attempt = {
-      id: `notification-attempt-${row.id}`,
-      notificationId: row.id,
+      id: `notification-attempt-${claimed.id}-${claimed.dispatchAttempts || 1}`,
+      notificationId: claimed.id,
       referenceType,
       referenceId,
       bookingRef: meta.bookingRef || '',
@@ -100,11 +146,11 @@ async function queueNotification({
       metadata: storedMeta,
     };
     attempts.push(attempt);
-    if (channel === 'in_app') deliveryTasks.push({ row, attempt, promise: Promise.resolve({ status: 'sent', channel: 'in_app', provider: 'notification-center', response: 'Stored in notification center' }) });
-    if (channel === 'push') deliveryTasks.push({ row, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: deliveryMessage, recipient, referenceType, referenceId, meta }) });
-    if (channel === 'email') deliveryTasks.push({ row, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: deliveryMessage, meta }) });
-    if (channel === 'sms') deliveryTasks.push({ row, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
-    if (channel === 'whatsapp') deliveryTasks.push({ row, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'in_app') deliveryTasks.push({ row: claimed, attempt, promise: Promise.resolve({ status: 'sent', channel: 'in_app', provider: 'notification-center', response: 'Stored in notification center' }) });
+    if (channel === 'push') deliveryTasks.push({ row: claimed, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: deliveryMessage, recipient, referenceType, referenceId, meta }) });
+    if (channel === 'email') deliveryTasks.push({ row: claimed, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'sms') deliveryTasks.push({ row: claimed, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'whatsapp') deliveryTasks.push({ row: claimed, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
   }
 
   const deliveries = await Promise.allSettled(deliveryTasks.map((item) => item.promise));
@@ -121,6 +167,8 @@ async function queueNotification({
     row.deliveredCount = Number(result.deliveredCount ?? result.sentCount ?? (row.status === 'sent' ? 1 : 0));
     row.failedCount = Number(result.failedCount ?? (row.status === 'failed' ? 1 : 0));
     if (row.status === 'sent') row.sentAt = new Date().toISOString();
+    row.dispatchOwner = '';
+    row.dispatchLeaseUntil = null;
     const attempt = deliveryTasks[index].attempt;
     attempt.status = row.deliveryStatus;
     attempt.provider = row.deliveryProvider;
@@ -176,6 +224,7 @@ async function bookingConfirmed(booking) {
     audience: 'customers',
     referenceType: 'booking',
     referenceId: booking.id,
+    dedupeKey: `booking-confirmed:${booking.id}`,
     meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, ticketUrl: ticketPath, url: ticketPath },
   });
 }
@@ -189,6 +238,7 @@ async function paymentUpdated(booking, payment) {
     recipient: bookingRecipient(booking),
     referenceType: 'payment',
     referenceId: payment.id,
+    dedupeKey: `payment-updated:${payment.id}:${payment.status}`,
     meta: { bookingRef: booking.bookingRef, providerReference: payment.providerReference },
   });
 }
@@ -202,6 +252,7 @@ async function refundApproved(booking, refund) {
     recipient: bookingRecipient(booking),
     referenceType: 'refund',
     referenceId: refund.id,
+    dedupeKey: `refund-approved:${refund.id}`,
     meta: { bookingRef: booking.bookingRef, amount: refund.amount },
   });
 }
@@ -215,6 +266,7 @@ async function employeeInvited(user, employee) {
     recipient: { email: user.email, phone: user.phone, name: user.fullName },
     referenceType: 'company_employee',
     referenceId: employee.id,
+    dedupeKey: `employee-invited:${employee.id}`,
     meta: { companyId: employee.companyId, permissions: employee.permissions },
   });
 }

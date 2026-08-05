@@ -138,6 +138,7 @@ const entityModelMap = {
   counters: 'Counter',
   scheduleRules: 'ScheduleRule',
   rateLimitCounters: 'RateLimitCounter',
+  scheduledJobLeases: 'ScheduledJobLease',
 };
 
 const filterOverrides = {
@@ -259,6 +260,7 @@ const filterOverrides = {
   counters: (row) => ({ _id: row._id }),
   scheduleRules: (row) => ({ id: row.id }),
   rateLimitCounters: (row) => ({ key: row.key }),
+  scheduledJobLeases: (row) => ({ name: row.name }),
 };
 
 const repositories = Object.fromEntries(Object.entries(entityModelMap).map(([entity, modelName]) => [

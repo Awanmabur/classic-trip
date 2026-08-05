@@ -3,6 +3,7 @@ const homeController = require('../../controllers/public/homeController');
 const searchController = require('../../controllers/public/searchController');
 const listingController = require('../../controllers/public/listingController');
 const hotelBookingController = require('../../controllers/public/hotelBookingController');
+const bookingPaymentController = require('../../controllers/public/bookingPaymentController');
 const blogController = require('../../controllers/public/blogController');
 const supportController = require('../../controllers/public/supportController');
 const invitationController = require('../../controllers/public/invitationController');
@@ -24,6 +25,7 @@ const { validateRequest } = require('../../middlewares/validate');
 const { invitationPasswordRules } = require('../../validators/authValidator');
 const { paymentLimiter, ticketLimiter, authLimiter, publicWriteLimiter } = require('../../middlewares/rateLimit');
 const { mongoose } = require('../../config/db');
+const { safePaymentRedirect } = require('../../utils/paymentRedirect');
 
 const router = express.Router();
 
@@ -82,13 +84,14 @@ router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, as
       try { await busBookingDraftService.discardDraft(req, payload.bookingDraftId); } catch (_) { /* Booking is already durable; stale draft cleanup is best effort. */ }
     }
     ticketAccessService.grantSessionAccess(req, booking.bookingRef);
-    if (booking.checkoutUrl && booking.paymentStatus !== 'successful') return res.redirect(booking.checkoutUrl);
+    if (booking.checkoutUrl && booking.paymentStatus !== 'successful') return res.redirect(safePaymentRedirect(booking.checkoutUrl, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}`));
     return res.redirect(`/booking/success/${booking.bookingRef}`);
   } catch (error) {
     return next(error);
   }
 });
 router.post('/bookings/hotel', paymentLimiter, hotelBookingRules, validateRequest, hotelBookingController.create);
+router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, bookingPaymentController.retry);
 router.get('/booking/payment/callback', listingController.paymentCallback);
 router.get('/booking/success/:bookingRef', listingController.bookingSuccess);
 router.get('/tickets', ticketLimiter, listingController.ticketLookupPage);
@@ -128,4 +131,3 @@ router.get('/ready', (req, res) => {
 });
 
 module.exports = router;
-

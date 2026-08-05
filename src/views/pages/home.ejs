@@ -30,7 +30,7 @@
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.0" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.1" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -45,12 +45,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.4.6">
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.1">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.0">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.1">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
@@ -61,8 +61,8 @@
         <a href="/" class="active">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/booking">My bookings</a>
       </nav>
       <div class="navActions">
-        <button class="iconbtn" id="themeBtn" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
-        <button class="iconbtn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
+        <button class="iconbtn" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+        <button class="iconbtn" id="menuBtn" type="button" aria-label="Open menu" aria-controls="drawer" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
         <% if (currentUser) { %><a class="btn btnGhost" href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> <%= (currentUser.fullName || currentUser.name || 'Account').split(' ')[0] %></a><% } else { %><a class="btn btnGhost login" href="/login"><i class="fa-regular fa-user"></i> Login</a><% } %>
         <% if (currentUser) { %><form method="POST" action="/logout" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button></form><% } else { %><a class="btn btnPrimary" href="/login"><i class="fa-solid fa-right-to-bracket"></i> Start</a><% } %>
       </div>
@@ -71,11 +71,11 @@
 
   <%- include('../partials/site-flash') %>
 
-  <div class="drawer" id="drawer">
-    <div class="drawerPanel">
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="homeDrawerTitle" aria-hidden="true">
+    <div class="drawerPanel" tabindex="-1">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-        <button class="iconbtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button>
+        <div class="brand" id="homeDrawerTitle"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
+        <button class="iconbtn" id="closeDrawer" type="button" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <% if (currentUser) { %>
         <a class="drawerProfile" href="<%= dashboardUrl %>">
@@ -103,7 +103,7 @@
     <button type="button" data-home-action="navigate" data-url="/search" title="Search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
     <button type="button" data-home-action="navigate" data-url="/tickets" title="Tickets"><i class="fa-solid fa-ticket"></i><span>Tickets</span></button>
     <button type="button" data-home-action="navigate" data-url="/saved" title="Saved"><i class="fa-regular fa-heart"></i><span>Saved</span></button>
-    <button type="button" data-home-action="drawer-toggle" title="Menu"><i class="fa-regular fa-user"></i><span>Profile</span></button>
+    <button type="button" data-home-action="drawer-toggle" title="Menu" aria-label="Open profile menu" aria-controls="drawer" aria-expanded="false"><i class="fa-regular fa-user"></i><span>Profile</span></button>
   </nav>
 
   <main>
@@ -486,7 +486,7 @@
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <script src="/js/home-service-search.js?v=1.6.0" defer></script>
-  <script src="/js/home.js?v=1.6.0" defer></script>
+  <script src="/js/home-service-search.js?v=1.6.1" defer></script>
+  <script src="/js/home.js?v=1.6.1" defer></script>
 </body>
 </html>

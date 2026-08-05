@@ -1,6 +1,7 @@
 const { createProvider } = require('./httpPaymentProvider');
 const pesapalProvider = require('./pesapalPaymentProvider');
 const { env } = require('../../config/env');
+const { safePaymentRedirect } = require('../../utils/paymentRedirect');
 
 const supportedProviders = ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'];
 
@@ -41,6 +42,7 @@ function providerFor(name = env.paymentProvider, options = {}) {
       provider,
       configured: pesapalProvider.configured(config),
       initiatePayment: (payment) => pesapalProvider.initiatePayment(payment, config),
+      initiateRefund: (refund) => pesapalProvider.initiateRefund(refund, config),
       verifyWebhook: (payload) => pesapalProvider.verifyWebhook(payload, config),
     };
   }
@@ -53,7 +55,11 @@ function resolveProviderName(name = env.paymentProvider) {
 
 async function initiatePayment(payment = {}) {
   const provider = providerFor(payment.provider || env.paymentProvider);
-  return provider.initiatePayment({ ...payment, provider: provider.provider || payment.provider || env.paymentProvider });
+  const result = await provider.initiatePayment({ ...payment, provider: provider.provider || payment.provider || env.paymentProvider });
+  return {
+    ...result,
+    checkoutUrl: safePaymentRedirect(result?.checkoutUrl, ''),
+  };
 }
 
 async function handleWebhook(payload = {}) {

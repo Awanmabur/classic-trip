@@ -7,6 +7,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const fixtureRoot = path.join(root, '.visual-audit');
+const frontendFixtureRoot = path.join(root, '.frontend-audit');
 const publicRoot = path.join(root, 'public');
 const port = Number(process.env.VISUAL_AUDIT_PORT || 4173);
 
@@ -32,12 +33,17 @@ http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (url.pathname === '/visual/stay') return sendFile(res, path.join(fixtureRoot, 'stay.html'));
   if (url.pathname === '/visual/hotel-dashboard') return sendFile(res, path.join(fixtureRoot, 'hotel-dashboard.html'));
+  if (url.pathname.startsWith('/frontend/')) {
+    const fixtureName = path.basename(url.pathname.slice('/frontend/'.length));
+    if (!/^[a-z0-9_-]+\.html$/i.test(fixtureName)) return res.writeHead(404).end('Not found');
+    return sendFile(res, path.join(frontendFixtureRoot, fixtureName));
+  }
   if (url.pathname === '/api/v1/listings/stay-1/availability') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify({ checkIn: url.searchParams.get('checkIn'), checkOut: url.searchParams.get('checkOut'), nights: 2, rooms }));
     return;
   }
-  if (url.pathname.startsWith('/css/') || url.pathname.startsWith('/js/') || url.pathname.startsWith('/images/') || url.pathname === '/site.webmanifest') {
+  if (url.pathname.startsWith('/css/') || url.pathname.startsWith('/js/') || url.pathname.startsWith('/images/') || url.pathname === '/site.webmanifest' || url.pathname === '/sw.js') {
     return sendFile(res, path.join(publicRoot, url.pathname));
   }
   res.writeHead(302, { location: '/visual/stay' }).end();

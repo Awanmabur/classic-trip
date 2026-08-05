@@ -47,11 +47,18 @@ router.get('/:listingId/availability', publicReadLimiter, async (req, res, next)
     if (listing.serviceType === 'bus') {
       const scheduleId = clean(req.query.scheduleId || listing.scheduleId);
       if (!scheduleId) return res.status(422).json({ error: 'Schedule is required' });
+      const holdId = clean(req.query.holdId);
+      if (holdId) {
+        const holdToken = clean(req.headers['x-hold-token']);
+        if (!holdToken) throw Object.assign(new Error('Seat-hold access token is required'), { status: 403 });
+        const hold = await busInventoryService.assertActiveHold(holdId, holdToken);
+        if (String(hold.scheduleId) !== String(scheduleId)) throw Object.assign(new Error('Seat hold belongs to another departure'), { status: 403 });
+      }
       const availability = await busInventoryService.getAvailability({
         scheduleId,
         originStopId: clean(req.query.originStopId),
         destinationStopId: clean(req.query.destinationStopId),
-        holdId: clean(req.query.holdId),
+        holdId,
       });
       if (String(availability.schedule.listingId) !== String(raw.id)) return res.status(404).json({ error: 'Schedule not found for this listing' });
       return res.json({ listingId: raw.id, scheduleId, ...availability });

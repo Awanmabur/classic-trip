@@ -5,6 +5,7 @@ const ledgerService = require('../wallet/ledgerService');
 const timelineService = require('./timelineService');
 const { nextId } = require('../data/idService');
 const hotelRepository = require('../../repositories/domain/hotelRepository');
+const paymentService = require('../payment/paymentService');
 
 function cleanText(value) {
   return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -21,9 +22,20 @@ async function requestRefundLive({ bookingRef, requesterId = 'guest', amount, re
   const existing = await supportRepository.refunds.findOne({ bookingRef: booking.bookingRef, status: { $in: ['pending', 'reviewing'] } }, readOptions);
   if (existing) return existing;
   const cleanReason = cleanText(reason) || 'Customer requested refund';
-  const bookingTotal = Number(booking.pricing?.total || 0);
+  const bookingTotal = Number(booking.pricing?.total || booking.grossAmount || 0);
+  const approvedRefunds = await supportRepository.refunds.list({ bookingRef: booking.bookingRef, status: 'approved' }, readOptions);
+  const alreadyRefunded = approvedRefunds.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const remainingRefundable = Math.max(0, roundMoney(bookingTotal - alreadyRefunded));
+  if (!(remainingRefundable > 0)) {
+    const error = new Error('This booking has already been fully refunded');
+    error.status = 409;
+    error.code = 'booking_already_refunded';
+    throw error;
+  }
   const parsedAmount = Number(Array.isArray(amount) ? NaN : amount);
-  const safeAmount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? Math.min(parsedAmount, bookingTotal || parsedAmount) : bookingTotal;
+  const safeAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
+    ? Math.min(parsedAmount, remainingRefundable)
+    : remainingRefundable;
   if (!(safeAmount > 0)) {
     const error = new Error('Refund amount must be greater than zero');
     error.status = 422;
@@ -105,7 +117,11 @@ function refundRatio(booking, refund) {
 
 async function applyRefundReversals(booking, refund, adminId) {
   const ratio = refundRatio(booking, refund);
-  const fullRefund = ratio >= 0.999;
+  const priorApproved = await supportRepository.refunds.list({ bookingRef: booking.bookingRef, id: { $ne: refund.id }, status: 'approved' });
+  const cumulativeRefunded = priorApproved.reduce((sum, row) => sum + Number(row.amount || 0), 0) + Number(refund.amount || 0);
+  const total = Number(booking.pricing?.total || booking.grossAmount || 0);
+  const cumulativeRatio = total > 0 ? Math.max(0, Math.min(1, cumulativeRefunded / total)) : 1;
+  const fullRefund = cumulativeRatio >= 0.999;
   const split = booking.pricing?.split || {};
   const currency = refund.currency || booking.pricing?.currency || platformCurrency();
   const reversals = [];
@@ -125,7 +141,7 @@ async function applyRefundReversals(booking, refund, adminId) {
   const commissions = await supportRepository.commissions.list({ bookingId: booking.id });
   for (const commission of commissions) {
     Object.assign(commission, {
-      refundedAmount: roundMoney(Number(commission.refundedAmount || 0) + (Number(commission.promoterAmount || 0) * ratio)),
+      refundedAmount: roundMoney(Number(commission.promoterAmount || 0) * cumulativeRatio),
       refundId: refund.id, refundedAt: new Date().toISOString(), status: fullRefund ? 'cancelled' : 'partially_refunded',
     });
     await supportRepository.commissions.save(commission, { id: commission.id });
@@ -135,15 +151,149 @@ async function applyRefundReversals(booking, refund, adminId) {
   return reversals;
 }
 
-async function approveRefund(refundId, adminId = 'admin-system') {
-  const refund = await supportRepository.refunds.findOne({ $or: [{ id: refundId }, { bookingRef: refundId }] });
-  if (!refund) { const error = new Error('Refund request not found'); error.status = 404; throw error; }
-  const booking = await supportRepository.bookings.findOne({ bookingRef: refund.bookingRef });
+const ONLINE_REFUND_PROVIDERS = new Set(['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo']);
+const MANUAL_REFUND_PROVIDERS = new Set(['cash', 'manual', 'offline', 'bank_transfer', 'wallet']);
+
+function assertOperationalCancellation(booking, isFullRefund) {
+  const serviceType = String(booking?.serviceType || '').toLowerCase();
+  if (isFullRefund && ['flight', 'local_transport'].includes(serviceType) && !['cancelled', 'refunded'].includes(String(booking.bookingStatus || '').toLowerCase())) {
+    const error = new Error(serviceType === 'flight'
+      ? 'Cancel the flight and confirm the supplier cancellation before approving its full refund'
+      : 'Cancel the local ride before approving its full refund');
+    error.status = 409;
+    error.code = 'operational_cancellation_required';
+    throw error;
+  }
+}
+
+async function initiateProviderRefund(refund, booking, adminId) {
+  const previouslyApproved = await supportRepository.refunds.list({ bookingRef: booking.bookingRef, id: { $ne: refund.id }, status: 'approved' });
+  const approvedAmount = previouslyApproved.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const bookingTotal = Number(booking.pricing?.total || booking.grossAmount || 0);
+  if (!(bookingTotal > 0) || approvedAmount + Number(refund.amount || 0) > bookingTotal + 0.01) {
+    throw Object.assign(new Error('The requested refund exceeds the booking payment balance'), { status: 409, code: 'refund_amount_exceeds_payment' });
+  }
+  assertOperationalCancellation(booking, approvedAmount + Number(refund.amount || 0) >= bookingTotal - 0.01);
+  const payments = await supportRepository.payments.list({ bookingRef: booking.bookingRef, status: { $in: ['successful', 'refunded'] } }, { sort: { paidAt: -1, createdAt: -1 }, limit: 5 });
+  const payment = payments[0];
+  if (!payment) throw Object.assign(new Error('A successful payment record is required before approving a refund'), { status: 409, code: 'refund_payment_missing' });
+  const provider = String(payment.provider || booking.paymentProvider || '').toLowerCase();
+  const paymentCurrency = String(payment.currency || booking.pricing?.currency || '').toUpperCase();
+  if (paymentCurrency && String(refund.currency || '').toUpperCase() !== paymentCurrency) {
+    throw Object.assign(new Error('Refund currency does not match the original payment'), { status: 409, code: 'refund_currency_mismatch' });
+  }
+  if (!ONLINE_REFUND_PROVIDERS.has(provider) && !MANUAL_REFUND_PROVIDERS.has(provider)) {
+    throw Object.assign(new Error(`Refunds are not configured for payment provider '${provider || 'unknown'}'`), { status: 503, code: 'refund_provider_not_configured' });
+  }
+  if (MANUAL_REFUND_PROVIDERS.has(provider)) {
+    Object.assign(refund, {
+      provider,
+      providerPaymentReference: payment.providerReference || payment.paymentRef || '',
+      providerRefundStatus: 'completed',
+      providerRefundReference: `MANUAL-${refund.id}`,
+      providerRefundInitiatedAt: refund.providerRefundInitiatedAt || new Date().toISOString(),
+      providerRefundCompletedAt: new Date().toISOString(),
+      providerRefundError: '',
+    });
+    await supportRepository.refunds.save(refund, { id: refund.id });
+    return { completed: true, payment, result: { accepted: true, status: 'successful', providerRefundReference: refund.providerRefundReference } };
+  }
+  if (!payment.providerReference) throw Object.assign(new Error('The original provider transaction reference is missing'), { status: 409, code: 'refund_provider_reference_missing' });
+  if (refund.providerRefundStatus === 'completed') return { completed: true, payment, result: null };
+  if (refund.providerRefundStatus === 'accepted') return { completed: false, payment, result: null };
+  if (['in_progress', 'reconciliation_required'].includes(refund.providerRefundStatus)) {
+    throw Object.assign(new Error('This provider refund is already processing or requires reconciliation'), { status: 409, code: 'refund_reconciliation_required' });
+  }
+  if (provider === 'pesapal') {
+    const earlier = await supportRepository.refunds.findOne({ bookingRef: booking.bookingRef, id: { $ne: refund.id }, provider: 'pesapal', providerRefundStatus: { $in: ['accepted', 'completed'] } });
+    if (earlier) throw Object.assign(new Error('Pesapal permits only one refund request per payment; reconcile the existing refund first'), { status: 409, code: 'pesapal_single_refund_limit' });
+  }
+  const claim = await supportRepository.refunds.updateOne({
+    id: refund.id,
+    status: { $in: ['pending', 'reviewing'] },
+    $or: [{ providerRefundStatus: 'not_started' }, { providerRefundStatus: { $exists: false } }, { providerRefundStatus: null }, { providerRefundStatus: 'failed' }],
+  }, { $set: {
+    status: 'reviewing',
+    reviewedBy: adminId,
+    reviewedAt: new Date().toISOString(),
+    provider,
+    providerPaymentReference: payment.providerReference,
+    providerRefundStatus: 'in_progress',
+    providerRefundInitiatedAt: new Date().toISOString(),
+    providerRefundError: '',
+  } });
+  if (Number(claim?.modifiedCount ?? claim?.nModified ?? 0) !== 1) {
+    throw Object.assign(new Error('This refund was already claimed for provider processing'), { status: 409, code: 'refund_already_processing' });
+  }
+  try {
+    const result = await paymentService.initiateRefund({
+      provider,
+      providerReference: payment.providerReference,
+      amount: Number(refund.amount),
+      currency: refund.currency,
+      reason: refund.reason,
+      refundId: refund.id,
+      bookingRef: booking.bookingRef,
+      approvedBy: adminId,
+      idempotencyKey: `classic-trip-refund:${refund.id}`,
+    });
+    if (!result?.accepted) throw Object.assign(new Error('The payment provider did not accept the refund'), { status: 409 });
+    const completed = ['successful', 'succeeded', 'refunded', 'processed'].includes(String(result.status || '').toLowerCase());
+    Object.assign(refund, {
+      status: completed ? refund.status : 'reviewing',
+      reviewedBy: adminId,
+      reviewedAt: refund.reviewedAt || new Date().toISOString(),
+      provider,
+      providerPaymentReference: payment.providerReference,
+      providerRefundStatus: completed ? 'completed' : 'accepted',
+      providerRefundReference: result.providerRefundReference || '',
+      providerRefundCompletedAt: completed ? new Date().toISOString() : null,
+      providerRefundError: '',
+      providerRefundPayload: result.rawPayload || {},
+    });
+    await supportRepository.refunds.save(refund, { id: refund.id });
+    return { completed, payment, result };
+  } catch (error) {
+    const safelyRetryable = ['provider_refund_not_configured', 'paystack_currency_not_supported'].includes(error.code)
+      || [422, 503].includes(Number(error.status));
+    Object.assign(refund, {
+      status: 'reviewing',
+      provider,
+      providerPaymentReference: payment.providerReference,
+      providerRefundStatus: safelyRetryable ? 'failed' : 'reconciliation_required',
+      providerRefundError: cleanText(error.message).slice(0, 500),
+    });
+    await supportRepository.refunds.save(refund, { id: refund.id });
+    throw error;
+  }
+}
+
+async function finalizeApprovedRefund(refund, booking, adminId = 'admin-system', payment = null) {
   if (refund.status === 'approved') return refund;
   Object.assign(refund, { status: 'approved', approvedBy: adminId, approvedAt: new Date().toISOString() });
   if (booking) {
     await applyRefundReversals(booking, refund, adminId);
     const fullRefund = refund.fullRefund !== false;
+    if (fullRefund && booking.serviceType === 'bus') {
+      const canonicalBooking = await require('../../modules/bus/services/busBookingService').refundBooking(
+        booking.bookingRef,
+        `Refund ${refund.id} approved`,
+        { provider: refund.provider, providerReference: refund.providerPaymentReference, source: 'refund_workflow' }
+      );
+      if (canonicalBooking) Object.assign(booking, canonicalBooking);
+    } else if (fullRefund && booking.serviceType === 'flight') {
+      const canonicalBooking = await require('../../modules/flight/services/flightBookingService').confirmRefund(
+        booking.bookingRef,
+        { provider: refund.provider, providerReference: refund.providerPaymentReference, refundId: refund.id, source: 'refund_workflow' }
+      );
+      if (canonicalBooking) Object.assign(booking, canonicalBooking);
+    } else if (fullRefund && booking.serviceType === 'local_transport') {
+      const canonicalBooking = await require('../../modules/taxi/services/taxiRideService').confirmRefund(
+        booking.bookingRef,
+        { provider: refund.provider, providerReference: refund.providerPaymentReference, refundId: refund.id, source: 'refund_workflow' }
+      );
+      if (canonicalBooking) Object.assign(booking, canonicalBooking);
+    }
     markRefundedBookingArtifacts(booking, refund);
     const refundedAmount = roundMoney(Number(booking.refundedAmount || 0) + Number(refund.amount || 0));
     const refundIds = [...new Set([...(booking.refundIds || []), refund.id])];
@@ -178,7 +328,6 @@ async function approveRefund(refundId, adminId = 'admin-system') {
         }
       }
     }
-    await walletService.creditAvailable('customer', booking.customerUserId || refund.requesterId || booking.guestSnapshot?.email || 'guest', refund.currency || booking.pricing?.currency || platformCurrency(), refund.amount, { transactionType: 'refund_credit', referenceType: 'refund', referenceId: refund.id });
     const ticket = await supportRepository.tickets.findOne({ subject: `Refund request ${booking.bookingRef}` });
     if (ticket) {
       Object.assign(ticket, { status: 'closed', resolutionNotes: 'Refund approved', resolvedBy: adminId, resolvedAt: new Date().toISOString() });
@@ -188,6 +337,56 @@ async function approveRefund(refundId, adminId = 'admin-system') {
     await notificationService.refundApproved(booking, refund).catch(() => {});
   }
   await persistRefundWorkflow(booking, refund);
+  if (payment && refund.fullRefund) {
+    payment.status = 'refunded';
+    payment.updatedAt = new Date().toISOString();
+    await supportRepository.payments.save(payment, { id: payment.id });
+  }
+  return refund;
+}
+
+async function approveRefund(refundId, adminId = 'admin-system') {
+  const refund = await supportRepository.refunds.findOne({ $or: [{ id: refundId }, { bookingRef: refundId }] });
+  if (!refund) { const error = new Error('Refund request not found'); error.status = 404; throw error; }
+  const booking = await supportRepository.bookings.findOne({ bookingRef: refund.bookingRef });
+  if (!booking) { const error = new Error('Booking not found'); error.status = 404; throw error; }
+  if (refund.status === 'approved') return refund;
+  const provider = await initiateProviderRefund(refund, booking, adminId);
+  if (!provider.completed) return supportRepository.refunds.findOne({ id: refund.id });
+  return finalizeApprovedRefund(refund, booking, adminId, provider.payment);
+}
+
+async function completeProviderRefund(bookingRef, provider = '', providerRefundReference = '') {
+  const refund = await supportRepository.refunds.findOne({
+    bookingRef,
+    status: { $in: ['pending', 'reviewing'] },
+    provider: provider || { $nin: ['', null] },
+    providerRefundStatus: { $in: ['accepted', 'in_progress', 'reconciliation_required', 'failed', 'completed'] },
+    ...(providerRefundReference ? { $or: [{ providerRefundReference }, { providerRefundReference: { $in: ['', null] } }] } : {}),
+  });
+  if (!refund) return null;
+  const booking = await supportRepository.bookings.findOne({ bookingRef });
+  const payment = await supportRepository.payments.findOne({ bookingRef, provider: refund.provider, status: { $in: ['successful', 'refunded'] } });
+  Object.assign(refund, {
+    providerRefundStatus: 'completed',
+    providerRefundReference: providerRefundReference || refund.providerRefundReference || '',
+    providerRefundCompletedAt: new Date().toISOString(),
+    providerRefundError: '',
+  });
+  await supportRepository.refunds.save(refund, { id: refund.id });
+  return finalizeApprovedRefund(refund, booking, 'provider-webhook', payment);
+}
+
+async function failProviderRefund(bookingRef, provider = '', providerRefundReference = '', reason = 'Provider refund failed') {
+  const refund = await supportRepository.refunds.findOne({ bookingRef, status: { $in: ['pending', 'reviewing'] }, ...(provider ? { provider } : {}), providerRefundStatus: { $in: ['accepted', 'in_progress', 'reconciliation_required'] } });
+  if (!refund) return null;
+  Object.assign(refund, {
+    status: 'reviewing',
+    providerRefundStatus: 'failed',
+    providerRefundReference: providerRefundReference || refund.providerRefundReference || '',
+    providerRefundError: cleanText(reason).slice(0, 500),
+  });
+  await supportRepository.refunds.save(refund, { id: refund.id });
   return refund;
 }
 
@@ -260,4 +459,13 @@ async function moderateReview(reviewId, status = 'hidden') {
   return review;
 }
 
-module.exports = { requestRefund: requestRefundLive, requestRefundLive, approveRefund, rejectRefund, createReview, moderateReview };
+module.exports = {
+  requestRefund: requestRefundLive,
+  requestRefundLive,
+  approveRefund,
+  completeProviderRefund,
+  failProviderRefund,
+  rejectRefund,
+  createReview,
+  moderateReview,
+};

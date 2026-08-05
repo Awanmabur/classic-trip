@@ -1,51 +1,63 @@
 const cron = require('node-cron');
 const { env } = require('../config/env');
 const logger = require('../config/logger');
+const jobLeaseService = require('../services/shared/jobLeaseService');
 
 const jobs = {
   processOutbox: {
     schedule: () => env.jobs.processOutbox,
     module: () => require('./processOutbox'),
+    leaseTtlMs: 2 * 60 * 1000,
   },
   cleanupExpiredLocks: {
     schedule: () => env.jobs.cleanupExpiredLocks,
     module: () => require('./cleanupExpiredLocks'),
+    leaseTtlMs: 15 * 60 * 1000,
   },
   releaseCommission: {
     schedule: () => env.jobs.releaseCommission,
     module: () => require('./releaseCommission'),
+    leaseTtlMs: 30 * 60 * 1000,
   },
   expirePaymentIntents: {
     schedule: () => env.jobs.expirePaymentIntents,
     module: () => require('./expirePaymentIntents'),
+    leaseTtlMs: 15 * 60 * 1000,
   },
   bookingReminders: {
     schedule: () => env.jobs.bookingReminders,
     module: () => require('./bookingReminders'),
+    leaseTtlMs: 15 * 60 * 1000,
   },
   expirePromotions: {
     schedule: () => env.jobs.expirePromotions,
     module: () => require('./expirePromotions'),
+    leaseTtlMs: 15 * 60 * 1000,
   },
   payoutReports: {
     schedule: () => env.jobs.payoutReports,
     module: () => require('./payoutReports'),
+    leaseTtlMs: 60 * 60 * 1000,
   },
   materializeSchedules: {
     schedule: () => env.jobs.materializeSchedules,
     module: () => require('./materializeSchedules'),
+    leaseTtlMs: 2 * 60 * 60 * 1000,
   },
   dispatchTaxiRides: {
     schedule: () => env.jobs.dispatchTaxiRides,
     module: () => require('./dispatchTaxiRides'),
+    leaseTtlMs: 3 * 60 * 1000,
   },
   expireFlightHolds: {
     schedule: () => env.jobs.expireFlightHolds,
     module: () => require('./expireFlightHolds'),
+    leaseTtlMs: 10 * 60 * 1000,
   },
   purgeArchivedRecords: {
     schedule: () => env.jobs.purgeArchivedRecords,
     module: () => require('./purgeArchivedRecords'),
+    leaseTtlMs: 2 * 60 * 60 * 1000,
   },
 };
 
@@ -72,7 +84,20 @@ async function runJob(name) {
 
   const startedAt = new Date();
   runningJobs.set(name, startedAt);
+  let lease = null;
+  let stopLeaseHeartbeat = () => {};
   try {
+    lease = await jobLeaseService.acquire(name, definition.leaseTtlMs);
+    if (!lease.acquired) {
+      return {
+        name,
+        ok: true,
+        skipped: true,
+        reason: 'distributed_lease_held',
+        leaseBackend: lease.backend,
+      };
+    }
+    stopLeaseHeartbeat = jobLeaseService.keepAlive(lease, definition.leaseTtlMs);
     const result = await definition.module().run();
     const finishedAt = new Date();
     const status = {
@@ -82,6 +107,7 @@ async function runJob(name) {
       finishedAt: finishedAt.toISOString(),
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       result,
+      leaseBackend: lease.backend,
     };
     lastRuns.set(name, status);
     logger.debug('Scheduled job completed', status);
@@ -100,6 +126,8 @@ async function runJob(name) {
     logger.error('Scheduled job failed', status);
     return status;
   } finally {
+    stopLeaseHeartbeat();
+    if (lease?.acquired) await lease.release().catch(() => {});
     runningJobs.delete(name);
   }
 }

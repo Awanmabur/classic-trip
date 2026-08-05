@@ -23,6 +23,9 @@ const paymentIntentSchema = new Schema({
   metadata: Schema.Types.Mixed,
 }, { timestamps: true });
 
-paymentIntentSchema.index({ provider: 1, providerReference: 1 }, { unique: true, sparse: true });
+paymentIntentSchema.index(
+  { provider: 1, providerReference: 1 },
+  { unique: true, partialFilterExpression: { providerReference: { $gt: '' } } },
+);
 paymentIntentSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
 module.exports = model('PaymentIntent', paymentIntentSchema);

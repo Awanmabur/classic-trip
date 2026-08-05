@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.0" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.1" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -113,7 +113,7 @@
 
 
 </style>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.0">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.1">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="authPage">
@@ -125,7 +125,7 @@
         <a class="btn" href="/search"><i class="fa-solid fa-magnifying-glass"></i><span style="font-size:13px">Search</span></a>
         <a class="btn topTicketAction" href="/tickets"><i class="fa-solid fa-ticket"></i><span style="font-size:13px">Tickets</span></a>
         <button class="iconBtn" id="themeBtn" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
-        <button class="iconBtn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+        <button class="iconBtn" id="menuBtn" aria-label="Open menu" aria-controls="drawer" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
       </div>
     </header>
   </div>
@@ -158,10 +158,10 @@
             <h2 id="panelTitle">Welcome back</h2>
             <p id="panelSub">Login to manage bookings, saved trips, tickets and payments.</p>
           </div>
-          <div class="toggle" aria-label="Account access switch">
-            <button type="button" class="active" data-open-panel="login" aria-controls="loginPanel" aria-selected="true">Login</button>
-            <button type="button" data-open-panel="signup" aria-controls="signupPanel" aria-selected="false">Signup</button>
-            <button type="button" data-open-panel="partner" aria-controls="partnerPanel" aria-selected="false">Partner</button>
+          <div class="toggle" role="tablist" aria-label="Account access switch">
+            <button type="button" id="loginTab" class="active" data-open-panel="login" role="tab" aria-controls="loginPanel" aria-selected="true">Login</button>
+            <button type="button" id="signupTab" data-open-panel="signup" role="tab" aria-controls="signupPanel" aria-selected="false">Signup</button>
+            <button type="button" id="partnerTab" data-open-panel="partner" role="tab" aria-controls="partnerPanel" aria-selected="false">Partner</button>
           </div>
         </div>
 
@@ -177,7 +177,7 @@
         <% } %>
         <div id="successBox" class="successBox"><i class="fa-solid fa-circle-check"></i> Request sent.</div>
 
-        <div class="panel active" id="loginPanel" aria-hidden="false">
+        <div class="panel active" id="loginPanel" role="tabpanel" aria-labelledby="loginTab" aria-hidden="false">
           <div class="formCard">
             <form class="form active" id="loginForm" action="/login" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
               <div class="field">
@@ -203,7 +203,7 @@
           <div class="notice"><strong>Tip:</strong> after login, customers go to My Bookings, promoters go to commission dashboard, and partners go to their company dashboard.</div>
         </div>
 
-        <div class="panel" id="signupPanel" hidden aria-hidden="true">
+        <div class="panel" id="signupPanel" role="tabpanel" aria-labelledby="signupTab" hidden aria-hidden="true">
           <div class="formCard">
             <div class="roleGrid" aria-label="Account type">
               <button class="role active" type="button" data-role="customer"><i class="fa-regular fa-user"></i>Customer</button>
@@ -282,7 +282,7 @@
           <div class="notice"><strong>Recovery:</strong> verified reset delivery is handled through the configured email or SMS channel.</div>
         </div>
 
-        <div class="panel" id="partnerPanel" hidden aria-hidden="true">
+        <div class="panel" id="partnerPanel" role="tabpanel" aria-labelledby="partnerTab" hidden aria-hidden="true">
           <%- include('./_partner-signup') %>
         </div>
       </section>
@@ -292,7 +292,7 @@
 
   <div class="drawer" id="drawer" aria-hidden="true">
     <div class="drawerPanel" role="dialog" aria-modal="true" aria-label="Menu">
-      <div class="drawerTop"><div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div><button class="iconBtn" id="closeDrawer"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="drawerTop"><div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div><button class="iconBtn" id="closeDrawer" type="button" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="drawerLinks">
         <a href="#login" data-open-panel="login"><i class="fa-solid fa-right-to-bracket"></i>Login</a>
         <a href="#signup" data-open-panel="signup"><i class="fa-solid fa-user-plus"></i>Customer / promoter signup</a>
@@ -312,6 +312,6 @@
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-3" defer></script>
 
-  <script src="/js/auth-page.js?v=1.6.0" defer></script>
+  <script src="/js/auth-page.js?v=1.6.1" defer></script>
 </body>
 </html>

@@ -137,30 +137,170 @@ async function supplierForOrder(order, session) {
   if (!order.supplierId) return {id:'',mode:'native_inventory',status:'active',capabilities:['order','ticket','refund']};
   return repo.oneOrThrow(repo.suppliers,{id:order.supplierId,companyId:order.companyId},'Flight supplier was not found',opts(session));
 }
+async function markFlightFulfillmentReconciliation(order, booking, payment, error) {
+  const reason = cleanText(error?.message || error || 'Flight supplier fulfillment requires reconciliation', 500);
+  await repo.withTransaction(async (session) => {
+    Object.assign(order, {
+      paymentStatus: 'successful',
+      status: 'reconciliation_required',
+      ticketingStatus: 'failed',
+      settlementStatus: 'reconciliation_required',
+      supplierFulfillmentStatus: 'reconciliation_required',
+      supplierFulfillmentError: reason,
+      updatedAt: now(),
+    });
+    Object.assign(booking, {
+      paymentStatus: 'successful',
+      paymentProvider: payment.provider || booking.paymentProvider || '',
+      paymentRef: payment.providerReference || booking.paymentRef || '',
+      bookingStatus: 'payment_processing',
+      settlementStatus: 'reconciliation_required',
+      settlementError: reason,
+      updatedAt: now(),
+    });
+    await repo.orders.save(order, { id: order.id }, opts(session));
+    await repo.bookings.save(booking, { id: booking.id }, opts(session));
+    await repo.bookingItems.updateMany({ bookingId: booking.id, serviceType: 'flight' }, { $set: { status: 'payment_processing', updatedAt: now() } }, opts(session));
+    await repo.audit({ actorId: 'flight-fulfillment', action: 'flight.fulfillment.reconciliation_required', targetType: 'flight_order', targetId: order.id, companyId: order.companyId, metadata: { bookingRef: booking.bookingRef, reason }, session });
+  });
+  return repo.bookings.findOne({ id: booking.id });
+}
 async function confirmPayment(bookingRef, payment = {}) {
-  return repo.withTransaction(async(session)=>{
-    const booking=await repo.oneOrThrow(repo.bookings,{bookingRef,serviceType:'flight'},'Flight booking was not found',opts(session));
-    const order=await repo.oneOrThrow(repo.orders,{bookingId:booking.id,companyId:booking.companyId},'Flight order was not found',opts(session));
-    if (order.paymentStatus==='successful' && ['confirmed','ticketed','checked_in','boarded','completed'].includes(order.status)) return booking;
-    const supplier=await supplierForOrder(order,session);
-    let supplierResult={supplierOrderRef:'',supplierBookingReference:code('PNR',3)};
-    if(supplier.mode!=='native_inventory'){const adapter=adapterFor(supplier,'order');supplierResult=await adapter.order({order,booking});if(!supplierResult?.confirmed)throw conflictError('Flight supplier did not confirm the order','supplier_order_unconfirmed');}
-    order.paymentStatus='successful';order.status='confirmed';order.supplierOrderRef=supplierResult.supplierOrderRef||order.supplierOrderRef||'';order.supplierBookingReference=supplierResult.supplierBookingReference||order.supplierBookingReference||code('PNR',3);order.confirmedAt=now();order.ticketingStatus='pending';order.settlementStatus='pending_fulfillment';order.updatedAt=now();
-    const travelers=await repo.travelers.list({orderId:order.id},opts(session));const assignments=await repo.seatAssignments.list({orderId:order.id},opts(session));const tickets=[];const ticketLegs=[];
-    for(const traveler of travelers){let supplierTicket='';if(supplier.mode!=='native_inventory'){const adapter=adapterFor(supplier,'ticket');const issued=await adapter.ticket({order,booking,traveler,assignments:assignments.filter(a=>a.travelerId===traveler.id)});if(!issued?.ticketNumber)throw conflictError('Flight supplier did not issue a ticket','supplier_ticket_failed');supplierTicket=issued.ticketNumber;}
-      const rawQr=randomToken(32);const ticket={id:await repo.nextId('flight-ticket'),ticketNumber:supplierTicket||String(Date.now()).slice(-9)+String(Math.floor(Math.random()*1000)).padStart(3,'0'),orderId:order.id,bookingId:booking.id,bookingRef:booking.bookingRef,companyId:order.companyId,agentCompanyId:order.agentCompanyId||'',supplierId:order.supplierId||'',travelerId:traveler.id,passengerName:`${traveler.firstName} ${traveler.lastName}`,supplierTicketNumber:supplierTicket,coupons:(order.segmentSnapshot||[]).map(seg=>({departureId:seg.departureId,flightNumber:seg.flightNumber,originAirportId:seg.originAirportId,destinationAirportId:seg.destinationAirportId,seatNumber:assignments.find(a=>a.travelerId===traveler.id&&a.departureId===seg.departureId)?.seatNumber||'',status:'open'})),qrTokenHash:hashToken(rawQr),status:'issued',issuedAt:now(),createdAt:now(),updatedAt:now()};await repo.tickets.save(ticket,{id:ticket.id},opts(session));tickets.push(ticket);ticketLegs.push(...ticket.coupons.map(c=>({...c,ticketId:ticket.id,ticketNumber:ticket.ticketNumber,passengerName:ticket.passengerName,qrToken:rawQr,qrTokenHash:ticket.qrTokenHash,type:'flight'})));}
-    await repo.seatAssignments.updateMany({orderId:order.id,status:'held'},{$set:{status:'confirmed',updatedAt:now()}},opts(session));await repo.seatInventory.updateMany({orderId:order.id,status:'held'},{$set:{status:'booked',heldUntil:null,updatedAt:now()}},opts(session));await repo.travelers.updateMany({orderId:order.id,status:'pending'},{$set:{status:'confirmed',updatedAt:now()}},opts(session));
-    order.status='ticketed';order.ticketingStatus='issued';order.ticketedAt=now();await repo.orders.save(order,{id:order.id},opts(session));
-    booking.paymentStatus='successful';booking.paymentProvider=payment.provider||booking.paymentProvider||'';booking.paymentRef=payment.providerReference||booking.paymentRef||'';booking.bookingStatus='confirmed';booking.settlementStatus='pending_fulfillment';booking.ticketLegs=ticketLegs;booking.qrCodeValue=ticketLegs[0]?.qrToken||'';booking.updatedAt=now();booking.auditTrail=[...(booking.auditTrail||[]),{at:now(),action:'flight_payment_confirmed_and_tickets_issued',source:payment.source||'payment'}];await repo.bookings.save(booking,{id:booking.id},opts(session));await repo.bookingItems.updateMany({bookingId:booking.id,serviceType:'flight'},{$set:{status:'confirmed',updatedAt:now()}},opts(session));
-    await repo.outbox({eventType:'FlightTicketIssued',aggregateType:'flight_order',aggregateId:order.id,companyId:order.companyId,payload:{bookingRef:booking.bookingRef,ticketNumbers:tickets.map(t=>t.ticketNumber)},session});return booking;
-  }).then(async booking=>paymentSettlementService.settleBookingPayment(booking,{source:payment.source||'flight_payment'}));
+  let booking = await repo.oneOrThrow(repo.bookings, { bookingRef, serviceType: 'flight' }, 'Flight booking was not found');
+  let order = await repo.oneOrThrow(repo.orders, { bookingId: booking.id, companyId: booking.companyId }, 'Flight order was not found');
+  if (order.paymentStatus === 'successful' && ['ticketed', 'checked_in', 'boarded', 'completed'].includes(order.status)) return booking;
+  if (order.supplierFulfillmentStatus === 'reconciliation_required') return booking;
+
+  const supplier = await supplierForOrder(order);
+  if (supplier.mode !== 'native_inventory' && order.supplierFulfillmentStatus !== 'fulfilled') {
+    const fulfillmentKey = order.supplierFulfillmentKey || `flight-fulfillment:${order.id}`;
+    const claimed = await repo.withTransaction(async (session) => {
+      const claim = await repo.orders.updateOne({
+        id: order.id,
+        $or: [
+          { supplierFulfillmentStatus: 'not_started' },
+          { supplierFulfillmentStatus: { $exists: false } },
+          { supplierFulfillmentStatus: null },
+        ],
+      }, { $set: {
+        supplierFulfillmentStatus: 'in_progress',
+        supplierFulfillmentKey: fulfillmentKey,
+        supplierFulfillmentStartedAt: now(),
+        paymentStatus: 'successful',
+        status: 'supplier_pending',
+        ticketingStatus: 'pending',
+        updatedAt: now(),
+      } }, opts(session));
+      if (Number(claim?.modifiedCount ?? claim?.nModified ?? 0) !== 1) return false;
+      await repo.bookings.updateOne({ id: booking.id }, { $set: {
+        paymentStatus: 'successful',
+        paymentProvider: payment.provider || booking.paymentProvider || '',
+        paymentRef: payment.providerReference || booking.paymentRef || '',
+        bookingStatus: 'payment_processing',
+        updatedAt: now(),
+      } }, opts(session));
+      return true;
+    });
+    if (!claimed) {
+      order = await repo.orders.findOne({ id: order.id });
+      booking = await repo.bookings.findOne({ id: booking.id });
+      if (order?.supplierFulfillmentStatus === 'in_progress') return booking;
+      if (order?.supplierFulfillmentStatus !== 'fulfilled') return booking;
+    } else {
+      try {
+        const travelers = await repo.travelers.list({ orderId: order.id });
+        const assignments = await repo.seatAssignments.list({ orderId: order.id });
+        const orderAdapter = adapterFor(supplier, 'order');
+        const supplierResult = await orderAdapter.order({ order, booking, idempotencyKey: `${fulfillmentKey}:order` });
+        if (!supplierResult?.confirmed) throw conflictError('Flight supplier did not confirm the order', 'supplier_order_unconfirmed');
+        const ticketAdapter = adapterFor(supplier, 'ticket');
+        const supplierTicketSnapshot = [];
+        for (const traveler of travelers) {
+          const issued = await ticketAdapter.ticket({
+            order: { ...order, ...supplierResult },
+            booking,
+            traveler,
+            assignments: assignments.filter((assignment) => assignment.travelerId === traveler.id),
+            idempotencyKey: `${fulfillmentKey}:ticket:${traveler.id}`,
+          });
+          if (!issued?.ticketNumber) throw conflictError('Flight supplier did not issue a ticket', 'supplier_ticket_failed');
+          supplierTicketSnapshot.push({ travelerId: traveler.id, ticketNumber: issued.ticketNumber });
+        }
+        await repo.orders.updateOne({ id: order.id, supplierFulfillmentStatus: 'in_progress', supplierFulfillmentKey: fulfillmentKey }, { $set: {
+          supplierFulfillmentStatus: 'fulfilled',
+          supplierOrderRef: supplierResult.supplierOrderRef || '',
+          supplierBookingReference: supplierResult.supplierBookingReference || '',
+          supplierTicketSnapshot,
+          supplierFulfillmentCompletedAt: now(),
+          supplierFulfillmentError: '',
+          updatedAt: now(),
+        } });
+        order = await repo.orders.findOne({ id: order.id });
+        if (order?.supplierFulfillmentStatus !== 'fulfilled') {
+          booking = await repo.bookings.findOne({ id: booking.id }) || booking;
+          return markFlightFulfillmentReconciliation(order, booking, payment, 'Supplier results could not be persisted safely');
+        }
+      } catch (error) {
+        order = await repo.orders.findOne({ id: order.id }) || order;
+        booking = await repo.bookings.findOne({ id: booking.id }) || booking;
+        return markFlightFulfillmentReconciliation(order, booking, payment, error);
+      }
+    }
+  }
+
+  const confirmed = await repo.withTransaction(async (session) => {
+    booking = await repo.oneOrThrow(repo.bookings, { bookingRef, serviceType: 'flight' }, 'Flight booking was not found', opts(session));
+    order = await repo.oneOrThrow(repo.orders, { bookingId: booking.id, companyId: booking.companyId }, 'Flight order was not found', opts(session));
+    if (order.paymentStatus === 'successful' && ['ticketed', 'checked_in', 'boarded', 'completed'].includes(order.status)) return booking;
+    if (supplier.mode !== 'native_inventory' && order.supplierFulfillmentStatus !== 'fulfilled') {
+      throw conflictError('Flight supplier fulfillment is not complete', 'supplier_fulfillment_incomplete');
+    }
+    const supplierTickets = new Map((order.supplierTicketSnapshot || []).map((row) => [String(row.travelerId), row.ticketNumber]));
+    order.paymentStatus = 'successful'; order.status = 'confirmed'; order.supplierBookingReference = order.supplierBookingReference || code('PNR', 3); order.confirmedAt = now(); order.ticketingStatus = 'pending'; order.settlementStatus = 'pending_fulfillment'; order.updatedAt = now();
+    const travelers = await repo.travelers.list({ orderId: order.id }, opts(session));
+    const assignments = await repo.seatAssignments.list({ orderId: order.id }, opts(session));
+    const tickets = []; const ticketLegs = [];
+    for (const traveler of travelers) {
+      const supplierTicket = supplier.mode === 'native_inventory' ? '' : supplierTickets.get(String(traveler.id));
+      if (supplier.mode !== 'native_inventory' && !supplierTicket) throw conflictError('A supplier ticket result is missing', 'supplier_ticket_snapshot_missing');
+      const rawQr = randomToken(32);
+      const ticket = { id: await repo.nextId('flight-ticket'), ticketNumber: supplierTicket || code('ETKT', 8), orderId: order.id, bookingId: booking.id, bookingRef: booking.bookingRef, companyId: order.companyId, agentCompanyId: order.agentCompanyId || '', supplierId: order.supplierId || '', travelerId: traveler.id, passengerName: `${traveler.firstName} ${traveler.lastName}`, supplierTicketNumber: supplierTicket || '', coupons: (order.segmentSnapshot || []).map((segment) => ({ departureId: segment.departureId, flightNumber: segment.flightNumber, originAirportId: segment.originAirportId, destinationAirportId: segment.destinationAirportId, seatNumber: assignments.find((assignment) => assignment.travelerId === traveler.id && assignment.departureId === segment.departureId)?.seatNumber || '', status: 'open' })), qrTokenHash: hashToken(rawQr), status: 'issued', issuedAt: now(), createdAt: now(), updatedAt: now() };
+      await repo.tickets.save(ticket, { id: ticket.id }, opts(session));
+      tickets.push(ticket);
+      ticketLegs.push(...ticket.coupons.map((coupon) => ({ ...coupon, ticketId: ticket.id, ticketNumber: ticket.ticketNumber, passengerName: ticket.passengerName, qrToken: rawQr, qrTokenHash: ticket.qrTokenHash, type: 'flight' })));
+    }
+    await repo.seatAssignments.updateMany({ orderId: order.id, status: 'held' }, { $set: { status: 'confirmed', updatedAt: now() } }, opts(session));
+    await repo.seatInventory.updateMany({ orderId: order.id, status: 'held' }, { $set: { status: 'booked', heldUntil: null, updatedAt: now() } }, opts(session));
+    await repo.travelers.updateMany({ orderId: order.id, status: 'pending' }, { $set: { status: 'confirmed', updatedAt: now() } }, opts(session));
+    order.status = 'ticketed'; order.ticketingStatus = 'issued'; order.ticketedAt = now(); await repo.orders.save(order, { id: order.id }, opts(session));
+    booking.paymentStatus = 'successful'; booking.paymentProvider = payment.provider || booking.paymentProvider || ''; booking.paymentRef = payment.providerReference || booking.paymentRef || ''; booking.bookingStatus = 'confirmed'; booking.settlementStatus = 'pending_fulfillment'; booking.ticketLegs = ticketLegs; booking.qrCodeValue = ticketLegs[0]?.qrToken || ''; booking.updatedAt = now(); booking.auditTrail = [...(booking.auditTrail || []), { at: now(), action: 'flight_payment_confirmed_and_tickets_issued', source: payment.source || 'payment' }];
+    await repo.bookings.save(booking, { id: booking.id }, opts(session));
+    await repo.bookingItems.updateMany({ bookingId: booking.id, serviceType: 'flight' }, { $set: { status: 'confirmed', updatedAt: now() } }, opts(session));
+    await repo.outbox({ eventType: 'FlightTicketIssued', aggregateType: 'flight_order', aggregateId: order.id, companyId: order.companyId, payload: { bookingRef: booking.bookingRef, ticketNumbers: tickets.map((ticket) => ticket.ticketNumber) }, session });
+    return booking;
+  });
+  try {
+    return await paymentSettlementService.settleBookingPayment(confirmed,{source:payment.source||'flight_payment'});
+  } catch (error) {
+    // Ticket issuance is already committed and must never be reversed because a
+    // downstream wallet/commission write needs reconciliation.
+    confirmed.settlementStatus='reconciliation_required';
+    confirmed.settlementError=cleanText(error.message,500);
+    await repo.bookings.save(confirmed,{id:confirmed.id});
+    return confirmed;
+  }
 }
 async function failPayment(bookingRef, reason='Flight payment failed', payment={}) {
   return repo.withTransaction(async(session)=>{const booking=await repo.bookings.findOne({bookingRef,serviceType:'flight'},opts(session));if(!booking)return null;const order=await repo.orders.findOne({bookingId:booking.id},opts(session));if(order){await repo.seatAssignments.updateMany({orderId:order.id,status:'held'},{$set:{status:'cancelled',updatedAt:now()}},opts(session));await repo.seatInventory.updateMany({orderId:order.id,status:'held'},{$set:{status:'available',orderId:'',travelerId:'',heldUntil:null,updatedAt:now()},$inc:{version:1}},opts(session));order.status='failed';order.paymentStatus='failed';order.ticketingStatus='failed';order.updatedAt=now();await repo.orders.save(order,{id:order.id},opts(session));}
     booking.paymentStatus='failed';booking.bookingStatus='failed';booking.settlementStatus='pending_payment';booking.paymentProvider=payment.provider||booking.paymentProvider||'';booking.paymentRef=payment.providerReference||booking.paymentRef||'';booking.notes=reason;booking.updatedAt=now();await repo.bookings.save(booking,{id:booking.id},opts(session));await repo.bookingItems.updateMany({bookingId:booking.id,serviceType:'flight'},{$set:{status:'failed',updatedAt:now()}},opts(session));return booking;});
 }
 function assertCustomerAccess(booking, lookupCode = '', actor = {}) {
-  if (actor.actorType === 'system' || actor.companyId) return;
+  if (actor.actorType === 'system' || actor.role === 'super_admin') return;
+  if (actor.companyId) {
+    const allowedCompanies = [booking.companyId, booking.agentCompanyId].filter(Boolean).map(String);
+    if (allowedCompanies.includes(String(actor.companyId))) return;
+    throw validationError('Flight booking was not found', 404);
+  }
   const authenticatedUserId = cleanText(actor.userId, 180);
   if (authenticatedUserId && String(booking.customerUserId || '') === authenticatedUserId) return;
   if (!lookupCode || !safeEqual(lookupCode, booking.guestLookupCode || '')) {
@@ -168,21 +308,39 @@ function assertCustomerAccess(booking, lookupCode = '', actor = {}) {
   }
 }
 async function cancelOrder(reference, reason, actor={}) {
-  return repo.withTransaction(async(session)=>{
-    const ref=cleanText(reference,180);
-    const cancellationReason=cleanText(reason,1000);if(cancellationReason.length<5)throw validationError('Provide a clear cancellation reason');
-    const booking=await repo.oneOrThrow(repo.bookings,{serviceType:'flight',$or:[{bookingRef:ref},{id:ref}]},'Flight booking was not found',opts(session));
-    assertCustomerAccess(booking, actor.lookupCode, actor);
-    const order=await repo.oneOrThrow(repo.orders,{bookingId:booking.id,companyId:booking.companyId},'Flight order was not found',opts(session));
-    if(['completed','cancelled','refunded'].includes(order.status))throw conflictError('This flight order cannot be cancelled in its current state','flight_cancellation_not_allowed');
-    const firstDeparture=order.segmentSnapshot?.[0]?.departAt?new Date(order.segmentSnapshot[0].departAt):null;
-    if(firstDeparture&&firstDeparture.getTime()-Date.now()<2*60*60*1000)throw conflictError('Online cancellation closes two hours before departure. Contact support.','flight_cancellation_window_closed');
-    const supplier=await supplierForOrder(order,session);
-    if(supplier.mode!=='native_inventory'){
+  const ref=cleanText(reference,180);
+  const cancellationReason=cleanText(reason,1000);if(cancellationReason.length<5)throw validationError('Provide a clear cancellation reason');
+  let booking=await repo.oneOrThrow(repo.bookings,{serviceType:'flight',$or:[{bookingRef:ref},{id:ref}]},'Flight booking was not found');
+  assertCustomerAccess(booking, actor.lookupCode, actor);
+  let order=await repo.oneOrThrow(repo.orders,{bookingId:booking.id,companyId:booking.companyId},'Flight order was not found');
+  if(['completed','cancelled','refunded'].includes(order.status))throw conflictError('This flight order cannot be cancelled in its current state','flight_cancellation_not_allowed');
+  const firstDeparture=order.segmentSnapshot?.[0]?.departAt?new Date(order.segmentSnapshot[0].departAt):null;
+  if(firstDeparture&&firstDeparture.getTime()-Date.now()<2*60*60*1000)throw conflictError('Online cancellation closes two hours before departure. Contact support.','flight_cancellation_window_closed');
+  const supplier=await supplierForOrder(order);
+  const requiresSupplierCancellation=booking.paymentStatus==='successful'&&supplier.mode!=='native_inventory';
+  if(requiresSupplierCancellation&&order.supplierCancellationStatus!=='accepted'){
+    if(['in_progress','reconciliation_required'].includes(order.supplierCancellationStatus))throw conflictError('Flight supplier cancellation is already processing or requires support reconciliation','supplier_refund_reconciliation_required');
+    const cancellationKey=order.supplierCancellationKey||`flight-cancellation:${order.id}`;
+    const claimed=await repo.orders.updateOne({id:order.id,$or:[{supplierCancellationStatus:'not_started'},{supplierCancellationStatus:{$exists:false}},{supplierCancellationStatus:null}]},{$set:{supplierCancellationStatus:'in_progress',supplierCancellationKey:cancellationKey,supplierCancellationStartedAt:now(),status:'cancellation_pending',cancellationReason,updatedAt:now()}});
+    if(Number(claimed?.modifiedCount??claimed?.nModified??0)!==1)throw conflictError('Flight supplier cancellation is already being processed','supplier_refund_in_progress');
+    let supplierResult;
+    try {
       const adapter=adapterFor(supplier,'refund');
-      const result=await adapter.refund({order,booking,reason});
-      if(!result?.accepted)throw conflictError('Flight supplier did not accept the cancellation','supplier_refund_unconfirmed');
+      supplierResult=await adapter.refund({order,booking,reason:cancellationReason,idempotencyKey:`${cancellationKey}:refund`});
+      if(!supplierResult?.accepted)throw conflictError('Flight supplier did not accept the cancellation','supplier_refund_unconfirmed');
+      const saved=await repo.orders.updateOne({id:order.id,supplierCancellationStatus:'in_progress',supplierCancellationKey:cancellationKey},{$set:{supplierCancellationStatus:'accepted',supplierCancellationCompletedAt:now(),supplierCancellationError:'',updatedAt:now()}});
+      if(Number(saved?.modifiedCount??saved?.nModified??0)!==1)throw conflictError('Supplier cancellation result could not be persisted','supplier_refund_persist_failed');
+    } catch(error) {
+      await repo.orders.updateOne({id:order.id},{$set:{status:'reconciliation_required',settlementStatus:'reconciliation_required',supplierCancellationStatus:'reconciliation_required',supplierCancellationError:cleanText(error.message,500),updatedAt:now()}});
+      await repo.bookings.updateOne({id:booking.id},{$set:{settlementStatus:'reconciliation_required',settlementError:cleanText(error.message,500),updatedAt:now()}});
+      throw error;
     }
+  }
+  return repo.withTransaction(async(session)=>{
+    booking=await repo.oneOrThrow(repo.bookings,{id:booking.id,serviceType:'flight'},'Flight booking was not found',opts(session));
+    order=await repo.oneOrThrow(repo.orders,{id:order.id,bookingId:booking.id,companyId:booking.companyId},'Flight order was not found',opts(session));
+    if(['cancelled','refunded'].includes(order.status))return booking;
+    if(requiresSupplierCancellation&&order.supplierCancellationStatus!=='accepted')throw conflictError('Flight supplier cancellation is not confirmed','supplier_refund_unconfirmed');
     await repo.seatAssignments.updateMany({orderId:order.id,status:{$in:['held','confirmed']}},{$set:{status:'cancelled',updatedAt:now()}},opts(session));
     await repo.seatInventory.updateMany({orderId:order.id,status:{$in:['held','booked']}},{$set:{status:'available',orderId:'',travelerId:'',ticketId:'',heldUntil:null,updatedAt:now()},$inc:{version:1}},opts(session));
     await repo.tickets.updateMany({orderId:order.id,status:{$in:['pending','issued']}},{$set:{status:'voided',voidedAt:now(),updatedAt:now()}},opts(session));
@@ -200,18 +358,39 @@ async function cancelOrder(reference, reason, actor={}) {
     return {...booking,refundRequest:refund?{id:refund.id,status:refund.status,amount:refund.amount,currency:refund.currency}:null};
   });
 }
+async function confirmRefund(reference, payment={}) {
+  const ref=cleanText(reference,180);
+  return repo.withTransaction(async(session)=>{
+    const booking=await repo.oneOrThrow(repo.bookings,{serviceType:'flight',$or:[{bookingRef:ref},{id:ref}]},'Flight booking was not found',opts(session));
+    const order=await repo.oneOrThrow(repo.orders,{bookingId:booking.id,companyId:booking.companyId},'Flight order was not found',opts(session));
+    if(order.status==='refunded'&&booking.paymentStatus==='refunded')return booking;
+    if(order.status!=='cancelled')throw conflictError('The supplier-backed flight must be cancelled before its payment refund is finalized','flight_refund_requires_cancellation');
+    await repo.seatAssignments.updateMany({orderId:order.id,status:{$in:['held','confirmed']}},{$set:{status:'cancelled',updatedAt:now()}},opts(session));
+    await repo.seatInventory.updateMany({orderId:order.id,status:{$in:['held','booked']}},{$set:{status:'available',orderId:'',travelerId:'',ticketId:'',heldUntil:null,updatedAt:now()},$inc:{version:1}},opts(session));
+    await repo.tickets.updateMany({orderId:order.id,status:{$in:['pending','issued']}},{$set:{status:'voided',voidedAt:now(),updatedAt:now()}},opts(session));
+    order.status='refunded';order.paymentStatus='refunded';order.settlementStatus='refunded';order.updatedAt=now();
+    await repo.orders.save(order,{id:order.id},opts(session));
+    booking.bookingStatus='refunded';booking.paymentStatus='refunded';booking.refundStatus='refunded';booking.refundedAt=now();booking.refundId=payment.refundId||booking.refundId||'';booking.paymentProvider=payment.provider||booking.paymentProvider||'';booking.paymentRef=payment.providerReference||booking.paymentRef||'';booking.settlementStatus='refunded';booking.updatedAt=now();
+    await repo.bookings.save(booking,{id:booking.id},opts(session));
+    await repo.bookingItems.updateMany({bookingId:booking.id,serviceType:'flight'},{$set:{status:'refunded',updatedAt:now()}},opts(session));
+    await repo.outbox({eventType:'FlightOrderRefunded',aggregateType:'flight_order',aggregateId:order.id,companyId:order.companyId,payload:{bookingRef:booking.bookingRef,refundId:payment.refundId||''},dedupeKey:`FlightOrderRefunded:${order.id}`,session});
+    await repo.audit({actorId:payment.source||'refund-workflow',action:'flight.order.refunded',targetType:'flight_order',targetId:order.id,companyId:order.companyId,metadata:{bookingRef:booking.bookingRef,refundId:payment.refundId||'',providerReference:payment.providerReference||''},session});
+    return booking;
+  });
+}
 async function getPublicOrder(reference, lookupCode='', actor={}) {
   const ref=cleanText(reference,180);
   const booking=await repo.bookings.findOne({serviceType:'flight',$or:[{bookingRef:ref},{id:ref}]});
   if(!booking)throw validationError('Flight booking was not found',404);
   assertCustomerAccess(booking,lookupCode,actor);
-  const [order,travelers,tickets,assignments]=await Promise.all([
-    repo.orders.findOne({bookingId:booking.id,companyId:booking.companyId}),
+  const order=await repo.orders.findOne({bookingId:booking.id,companyId:booking.companyId});
+  if(!order)throw validationError('Flight order was not found',404);
+  const [travelers,tickets,assignments]=await Promise.all([
     repo.travelers.list({bookingId:booking.id,companyId:booking.companyId}),
     repo.tickets.list({bookingId:booking.id,companyId:booking.companyId}),
-    repo.seatAssignments.list({orderId:order?.id||'',companyId:booking.companyId}),
+    repo.seatAssignments.list({orderId:order.id,companyId:booking.companyId}),
   ]);
   const publicBooking={...booking,guestLookupCode:undefined};
   return{booking:publicBooking,order,travelers:travelers.map(t=>({...t,documentNumberEncrypted:undefined})),tickets:tickets.map(t=>({...t,qrTokenHash:undefined})),assignments};
 }
-module.exports={createOrder,confirmPayment,failPayment,cancelOrder,getPublicOrder};
+module.exports={createOrder,confirmPayment,failPayment,cancelOrder,confirmRefund,getPublicOrder};

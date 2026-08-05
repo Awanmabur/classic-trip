@@ -58,11 +58,11 @@
           <div id="flightTravelers" class="travelStack"></div>
           <div class="travelPanelHead" style="margin:4px 0 0"><div><h3>Booking contact</h3><p class="muted">Ticket and schedule updates are sent here.</p></div></div>
           <div class="travelFormGrid">
-            <div class="travelField"><label>Contact name</label><div class="travelControl"><i class="fa-regular fa-user"></i><input name="contactName" required></div></div>
-            <div class="travelField"><label>Email</label><div class="travelControl"><i class="fa-regular fa-envelope"></i><input type="email" name="email" required></div></div>
-            <div class="travelField"><label>Phone</label><div class="travelControl"><i class="fa-solid fa-phone"></i><input name="phone" required></div></div>
-            <div class="travelField"><label>Emergency phone</label><div class="travelControl"><i class="fa-solid fa-kit-medical"></i><input name="emergencyPhone"></div></div>
-            <div class="travelField"><label>Payment</label><div class="travelControl"><i class="fa-solid fa-wallet"></i><select name="paymentProvider"><option value="pesapal">Pesapal</option><option value="mtn_momo">MTN Mobile Money</option><option value="airtel_money">Airtel Money</option><option value="flutterwave">Flutterwave</option><option value="paystack">Paystack</option><option value="dpo">DPO</option></select></div></div>
+            <div class="travelField"><label>Contact name</label><div class="travelControl"><i class="fa-regular fa-user"></i><input name="contactName" aria-label="Booking contact name" required></div></div>
+            <div class="travelField"><label>Email</label><div class="travelControl"><i class="fa-regular fa-envelope"></i><input type="email" name="email" aria-label="Booking contact email" required></div></div>
+            <div class="travelField"><label>Phone</label><div class="travelControl"><i class="fa-solid fa-phone"></i><input name="phone" aria-label="Booking contact phone" required></div></div>
+            <div class="travelField"><label>Emergency phone</label><div class="travelControl"><i class="fa-solid fa-kit-medical"></i><input name="emergencyPhone" aria-label="Emergency phone"></div></div>
+            <div class="travelField"><label>Payment</label><div class="travelControl"><i class="fa-solid fa-wallet"></i><select name="paymentProvider" aria-label="Flight payment provider"><option value="pesapal">Pesapal</option><option value="mtn_momo">MTN Mobile Money</option><option value="airtel_money">Airtel Money</option><option value="flutterwave">Flutterwave</option><option value="paystack">Paystack</option><option value="dpo">DPO</option></select></div></div>
           </div>
           <div class="travelActions"><button class="btn btnPrimary" type="submit"><i class="fa-solid fa-lock"></i> Continue securely</button><button class="btn btnGhost" type="button" id="backToFlightResults"><i class="fa-solid fa-arrow-left"></i> Back</button></div>
           <div class="travelMessage" id="flightOrderMessage" role="status"></div>
@@ -85,5 +85,5 @@
   </div>
 </main>
 <script nonce="<%= cspNonce %>" id="flightPageBootstrap" type="application/json"><%- toScriptJson({ query: initialQuery }) %></script>
-<script src="/js/flights.js?v=20260725-final-polish-1" defer></script>
+<script src="/js/flights.js?v=1.6.1" defer></script>
 <%- include('../partials/site-footer') %>

@@ -207,7 +207,17 @@ function normalizeRows(rows) {
 
 async function generateCsvReport(scope, type, context = {}) {
   const requested = String(type || 'bookings').replace(/\.csv$/i, '');
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(requested)) {
+    const error = new Error('Invalid report type');
+    error.status = 422;
+    throw error;
+  }
   const key = TYPE_ALIASES[requested] || requested;
+  if (!HEADERS[key]) {
+    const error = new Error(`Report type "${requested}" is not available`);
+    error.status = 404;
+    throw error;
+  }
   const rows = normalizeRows(await dashboardRows(scope, key, context));
   const headers = HEADERS[key] || rows[0]?.map((_, index) => `Column ${index + 1}`) || ['Value'];
   return {

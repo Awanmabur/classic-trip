@@ -241,6 +241,31 @@ async function cancelRide(reference, reason, actor = {}) {
   });
 }
 
+async function confirmRefund(reference, payment = {}) {
+  return repo.withTransaction(async (session) => {
+    const ref = cleanText(reference, 180);
+    const ride = await repo.oneOrThrow(repo.rides, { $or: [{ id: ref }, { rideRef: ref }, { bookingRef: ref }] }, 'Local ride was not found', opts(session));
+    const booking = await repo.oneOrThrow(repo.bookings, { id: ride.bookingId, companyId: PLATFORM_MOBILITY_OWNER }, 'Local ride booking was not found', opts(session));
+    if (ride.status === 'refunded' && booking.paymentStatus === 'refunded') return booking;
+    if (ride.status !== 'cancelled') throw conflictError('The local ride must be cancelled before its payment refund is finalized', 'ride_refund_requires_cancellation');
+    ride.status = 'refunded'; ride.paymentStatus = 'refunded'; ride.settlementStatus = 'refunded'; ride.updatedAt = now();
+    await repo.rides.save(ride, { id: ride.id }, opts(session));
+    Object.assign(booking, {
+      bookingStatus: 'refunded', paymentStatus: 'refunded', refundStatus: 'refunded',
+      refundedAt: now(), refundId: payment.refundId || booking.refundId || '',
+      paymentProvider: payment.provider || booking.paymentProvider || '',
+      paymentRef: payment.providerReference || booking.paymentRef || '',
+      settlementStatus: 'refunded', updatedAt: now(),
+    });
+    await repo.bookings.save(booking, { id: booking.id }, opts(session));
+    await repo.bookingItems.updateMany({ bookingId: booking.id }, { $set: { status: 'refunded', updatedAt: now() } }, opts(session));
+    await event({ ride, from: 'cancelled', to: 'refunded', eventType: 'ride_refunded', actorType: 'system', actorIdValue: payment.source || 'refund-workflow', metadata: { refundId: payment.refundId || '', providerReference: payment.providerReference || '' }, session });
+    await repo.outbox({ eventType: 'TaxiRideRefunded', aggregateType: 'taxi_ride', aggregateId: ride.id, companyId: ride.companyId, payload: { bookingRef: booking.bookingRef, refundId: payment.refundId || '' }, dedupeKey: `TaxiRideRefunded:${ride.id}`, session });
+    await repo.audit({ actorId: payment.source || 'refund-workflow', action: 'taxi.ride.refunded', targetType: 'taxi_ride', targetId: ride.id, companyId: ride.companyId, metadata: { bookingRef: booking.bookingRef, refundId: payment.refundId || '', providerReference: payment.providerReference || '' }, session });
+    return booking;
+  });
+}
+
 async function reportCustomerIncident(reference, payload = {}, actor = {}) {
   return repo.withTransaction(async (session) => {
     const ref = cleanText(reference, 180);
@@ -319,4 +344,4 @@ async function getPublicRide(reference, lookupCode = '', actor = {}) {
   };
 }
 
-module.exports = { createRide, confirmPayment, failPayment, transitionRide, verifyPickupPin, cancelRide, reportCustomerIncident, getPublicRide, event, assertPartnerAccess };
+module.exports = { createRide, confirmPayment, failPayment, transitionRide, verifyPickupPin, cancelRide, confirmRefund, reportCustomerIncident, getPublicRide, event, assertPartnerAccess };

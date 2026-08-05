@@ -78,7 +78,7 @@
     <aside class="travelStack">
       <div class="travelPanel sticky safeRideSummary">
         <div class="liveMapFrame">
-          <div id="taxiMap" class="liveMap" aria-label="Pickup and destination map"></div>
+          <div id="taxiMap" class="liveMap" role="region" aria-label="Pickup and destination map"></div>
           <div class="mapStatus" id="taxiMapStatus"><i class="fa-solid fa-map-location-dot"></i><span>Choose pickup and destination to preview your route.</span></div>
         </div>
         <div class="routeSummaryList">
@@ -93,5 +93,5 @@
 </main>
 <script nonce="<%= cspNonce %>" id="taxiPageBootstrap" type="application/json"><%- toScriptJson({ query: initialQuery, map: mapConfig }) %></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="/js/taxi.js?v=20260726-mobility-final-1" defer></script>
+<script src="/js/taxi.js?v=1.6.1" defer></script>
 <%- include('../partials/site-footer') %>

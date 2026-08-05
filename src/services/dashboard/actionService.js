@@ -9,6 +9,8 @@ const workflowService = require('../support/workflowService');
 const settlementService = require('../finance/settlementService');
 const hotelService = require('../hotel/hotelService');
 const busBookingService = require('../../modules/bus/services/busBookingService');
+const flightBookingService = require('../../modules/flight/services/flightBookingService');
+const taxiRideService = require('../../modules/taxi/services/taxiRideService');
 const repository = require('../../repositories/domain/dashboardActionRepository');
 const hotelRepository = require('../../repositories/domain/hotelRepository');
 const { nextId } = require('../data/idService');
@@ -437,11 +439,11 @@ async function updateEmployeeInventory(companyId, payload = {}, actorId = 'emplo
 
 async function sendDelayNotice(companyId, payload = {}, actorId = 'employee-system') {
   if (!payload.scheduleId) throw httpError('Schedule is required', 422);
-  const schedule = await companyService.updateSchedule(companyId, payload.scheduleId, {
+  const schedule = await companyService.transitionSchedule(companyId, payload.scheduleId, {
     status: 'delayed',
-    departAt: payload.departAt,
-    driverName: payload.driverName,
-  });
+    reason: payload.message || payload.reason || 'Departure delayed by operations',
+    location: payload.location,
+  }, actorId);
   const message = cleanText(payload.message || `Schedule ${schedule.id} has been delayed. Please check your ticket for updates.`, 3000);
   const ticket = await createCompanyNotice(companyId, {
     subject: `Delay notice ${schedule.id}`,
@@ -501,11 +503,13 @@ async function recordEmployeePayment(companyId, payload = {}, actorId = 'employe
     idempotencyKey, rawPayload: { source: options.source || 'employee_dashboard', actorId, actorRole: options.actorRole || 'company_employee' }, metadata: { source: options.source || 'employee_dashboard', actorId, actorRole: options.actorRole || 'company_employee' },
     createdAt: now,
   };
-  booking.paymentStatus = status;
+  const serviceType = normalize(booking.serviceType);
+  const domainManagedConfirmation = status === 'successful' && ['bus', 'flight', 'local_transport'].includes(serviceType);
+  if (!domainManagedConfirmation) booking.paymentStatus = status;
   booking.paymentProvider = provider;
   booking.paymentRef = providerReference;
-  if (status === 'successful' && ['draft', 'pending', 'pending_payment'].includes(normalize(booking.bookingStatus))) booking.bookingStatus = 'confirmed';
-  if (normalize(booking.serviceType) === 'hotel') {
+  if (!domainManagedConfirmation && status === 'successful' && ['draft', 'pending', 'pending_payment'].includes(normalize(booking.bookingStatus))) booking.bookingStatus = 'confirmed';
+  if (serviceType === 'hotel') {
     const successful = status === 'successful';
     booking.bookingStatus = successful ? 'confirmed' : 'pending_payment';
     booking.hotelStay = { ...(booking.hotelStay || {}), status: successful ? 'booked' : 'pending_payment' };
@@ -522,7 +526,7 @@ async function recordEmployeePayment(companyId, payload = {}, actorId = 'employe
     if (duplicate && !(status === 'successful' && ['pending', 'created', 'processing'].includes(normalize(duplicate.status)))) return;
     await repository.payments.save(payment, { idempotencyKey }, { session });
     await repository.bookings.save(booking, { bookingRef: booking.bookingRef }, { session });
-    if (normalize(booking.serviceType) === 'hotel') {
+    if (serviceType === 'hotel') {
       const lifecycle = await hotelRepository.applyPaymentLifecycle({
         bookingRef: booking.bookingRef,
         companyId,
@@ -534,19 +538,41 @@ async function recordEmployeePayment(companyId, payload = {}, actorId = 'employe
     }
     await audit(actorId, options.auditAction || 'employee.payment.recorded', payment.id, { entityType: 'payment', bookingRef: booking.bookingRef, amount, currency, actorRole: options.actorRole || 'company_employee' }, { session, entityType: 'payment' });
   });
-  if (status === 'successful') {
+  let processedBooking = booking;
+  if (status === 'successful' && serviceType === 'bus') {
+    processedBooking = await busBookingService.confirmPayment(booking.bookingRef, {
+      provider,
+      providerReference,
+      paymentId: payment.id,
+      source: options.source || 'employee_dashboard',
+    });
+  } else if (status === 'successful' && serviceType === 'flight') {
+    processedBooking = await flightBookingService.confirmPayment(booking.bookingRef, {
+      provider,
+      providerReference,
+      paymentId: payment.id,
+      source: options.source || 'employee_dashboard',
+    });
+  } else if (status === 'successful' && serviceType === 'local_transport') {
+    processedBooking = await taxiRideService.confirmPayment(booking.bookingRef, {
+      provider,
+      providerReference,
+      paymentId: payment.id,
+      source: options.source || 'employee_dashboard',
+    });
+  } else if (status === 'successful') {
     try {
-      Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking, { source: options.source || 'employee_dashboard' }) || {});
-      await repository.bookings.save(booking, { bookingRef: booking.bookingRef });
+      Object.assign(processedBooking, await paymentSettlementService.settleBookingPayment(processedBooking, { source: options.source || 'employee_dashboard' }) || {});
+      await repository.bookings.save(processedBooking, { bookingRef: processedBooking.bookingRef });
     } catch (error) {
-      booking.settlementStatus = 'reconciliation_required';
-      booking.settlementError = cleanText(error.message, 1000);
-      await repository.bookings.save(booking, { bookingRef: booking.bookingRef });
+      processedBooking.settlementStatus = 'reconciliation_required';
+      processedBooking.settlementError = cleanText(error.message, 1000);
+      await repository.bookings.save(processedBooking, { bookingRef: processedBooking.bookingRef });
     }
   }
-  await notificationService.paymentUpdated(booking, payment);
-  if (status === 'successful' && normalize(booking.serviceType) === 'hotel') await notificationService.bookingConfirmed(booking);
-  return { payment, booking, replayed: false };
+  await notificationService.paymentUpdated(processedBooking, payment);
+  if (status === 'successful' && serviceType === 'hotel') await notificationService.bookingConfirmed(processedBooking);
+  return { payment, booking: processedBooking, replayed: false };
 }
 
 

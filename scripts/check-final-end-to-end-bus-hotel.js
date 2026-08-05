@@ -86,7 +86,7 @@ check('Employee hotel operations call the canonical stay service', employeeCheck
 check('Dashboard actions distinguish hotels from bus tickets', dashboardJs.includes('isHotelBooking') && dashboardJs.includes('/employee/hotels/bookings/'));
 check('Dashboard hides hotel check-in until payment succeeds', dashboardJs.includes("paymentStatusKey === 'successful'"));
 check('Manual successful hotel payment uses canonical hotel lifecycle transactionally', dashboardAction.includes('hotelRepository.applyPaymentLifecycle') && dashboardAction.includes('Hotel booking has no canonical reservation') && dashboardAction.includes('repository.withTransaction'));
-check('Manual paid hotel booking sends confirmation voucher', dashboardAction.includes('notificationService.bookingConfirmed(booking)'));
+check('Manual paid hotel booking sends confirmation voucher', dashboardAction.includes('notificationService.bookingConfirmed(processedBooking)'));
 check('Manual dashboard payments cannot record failed money', dashboardAction.includes("Dashboard payments may only be pending or successful"));
 check('Pending manual payments can transition idempotently to successful', dashboardAction.includes('A pending payment may be confirmed only with its original amount and currency') && dashboardAction.includes("['pending', 'created', 'processing'].includes(normalize(existing.status))"));
 check('Dashboard repository exposes room-night inventory', dashboardRepository.includes("roomNights: new MongoCollection('roomNightInventories')"));

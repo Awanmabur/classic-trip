@@ -18,12 +18,12 @@
       <div class="badge badgeInfo" style="width:max-content"><i class="fa-solid fa-magnifying-glass"></i> Search ticket</div>
       <form action="/tickets" method="get" style="display:grid;gap:12px">
         <div class="field">
-          <label>Booking reference <span style="color:var(--danger)">*</span></label>
-          <div class="control"><i class="fa-solid fa-ticket"></i><input name="bookingRef" placeholder="e.g. CT-BUS-1042" value="<%= query.bookingRef || '' %>" required></div>
+          <label for="ticketLookupReference">Booking reference <span style="color:var(--danger)">*</span></label>
+          <div class="control"><i class="fa-solid fa-ticket"></i><input id="ticketLookupReference" name="bookingRef" placeholder="e.g. CT-BUS-1042" value="<%= query.bookingRef || '' %>" required></div>
         </div>
         <div class="field">
-          <label>Phone or email <span style="color:var(--muted);font-weight:700">(for guest tickets)</span></label>
-          <div class="control"><i class="fa-solid fa-phone"></i><input name="contact" placeholder="Phone or email used at checkout" value="<%= query.contact || '' %>"></div>
+          <label for="ticketLookupContact">Phone or email <span style="color:var(--muted);font-weight:700">(for guest tickets)</span></label>
+          <div class="control"><i class="fa-solid fa-phone"></i><input id="ticketLookupContact" name="contact" placeholder="Phone or email used at checkout" value="<%= query.contact || '' %>"></div>
         </div>
         <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Find Ticket</button>
       </form>
@@ -40,7 +40,7 @@
     </div>
 
     <div>
-      <% if (booking) { const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful'; %>
+      <% if (booking) { const ready = typeof ticketReady !== 'undefined' ? Boolean(ticketReady) : booking.paymentStatus === 'successful'; const retryablePayment = !ready && booking.paymentStatus === 'pending' && ['pending', 'pending_payment', 'awaiting_payment', 'payment_processing'].includes(String(booking.bookingStatus || '').toLowerCase()); %>
         <div class="card" style="padding:20px;display:grid;gap:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <span class="badge <%= ready ? 'badgeOk' : 'badgeWarn' %>"><i class="fa-solid <%= ready ? 'fa-circle-check' : 'fa-clock' %>"></i> <%= ready ? 'Confirmed booking found' : 'Booking found — payment pending' %></span>
@@ -58,10 +58,11 @@
             <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
             <div><span>Amount</span><b><%= money((booking.pricing || {}).total || 0, (booking.pricing || {}).currency) %></b></div>
           </div>
-          <% if (!ready) { %><div class="notice">Payment is still pending or failed. No QR or PDF voucher is valid until the payment provider confirms success.</div><% } %>
+          <% if (!ready) { %><div class="notice"><%= query.paymentRetry === 'unavailable' ? 'The payment provider is temporarily unavailable. Your inventory remains protected until the hold expires; please try again.' : query.paymentRetry === 'declined' ? 'The provider declined this payment. Released inventory must be booked again.' : 'Payment is still pending. No QR or PDF voucher is valid until the payment provider confirms success.' %></div><% } %>
           <div class="actions">
             <a class="btn btnPrimary" href="<%= booking.publicTicketUrl || ('/tickets/' + booking.bookingRef) %>"><i class="fa-solid <%= ready ? 'fa-qrcode' : 'fa-circle-info' %>"></i> <%= ready ? 'Open Full Ticket' : 'Open Booking Status' %></a>
             <% if (ready && booking.publicTicketPdfUrl) { %><a class="btn btnGhost" href="<%= booking.publicTicketPdfUrl %>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a><% } %>
+            <% if (retryablePayment) { %><form method="post" action="/bookings/<%= encodeURIComponent(booking.bookingRef) %>/payment/retry" style="display:contents"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><button class="btn btnGhost" type="submit"><i class="fa-solid fa-credit-card"></i> Continue payment</button></form><% } %>
           </div>
         </div>
       <% } else if (lookupAttempted) { %>

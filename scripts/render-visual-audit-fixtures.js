@@ -110,7 +110,7 @@ async function render() {
     isCompanyDashboard: true,
     companySupportsHotel: true,
   }, { async: false });
-  const dashboardHtml = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stay dashboard visual audit</title><link rel="stylesheet" href="/css/base.css"><link rel="stylesheet" href="/css/components.css"><link rel="stylesheet" href="/css/dashboard-workspace.css"><link rel="stylesheet" href="/css/dashboard-service-additions.css"><link rel="stylesheet" href="/css/completion-fixes.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></head><body class="dashboardBody"><main class="main" style="max-width:1320px;margin:0 auto;padding:14px">${hotelSection}</main></body></html>`;
+  const dashboardHtml = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stay dashboard visual audit</title><link rel="stylesheet" href="/css/base.css"><link rel="stylesheet" href="/css/components.css"><link rel="stylesheet" href="/css/dashboard-workspace.css"><link rel="stylesheet" href="/css/dashboard-service-additions.css"><link rel="stylesheet" href="/css/completion-fixes.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><style>.section{display:block!important}</style></head><body class="dashboardBody"><main class="main" style="max-width:1320px;margin:0 auto;padding:14px">${hotelSection}</main></body></html>`;
   fs.writeFileSync(path.join(output, 'hotel-dashboard.html'), dashboardHtml);
   process.stdout.write(`${output}\n`);
 }

@@ -322,28 +322,31 @@ async function createGuestBooking(payload, req) {
   const paymentService = require('../payment/paymentService');
   const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider || env.paymentProvider);
   const { booking } = await buildBooking({ ...payload, deferPayment: true }, req);
+  const intentBase = {
+    id: `payment-intent-${booking.bookingRef}`,
+    intentRef: `PI-${booking.bookingRef}`,
+    bookingId: booking.id,
+    bookingRef: booking.bookingRef,
+    companyId: booking.companyId,
+    customerUserId: booking.customerUserId || '',
+    provider,
+    idempotencyKey: `${provider}:${booking.bookingRef}:initiate`,
+    amount: booking.pricing?.total,
+    currency: booking.pricing?.currency,
+    status: 'created',
+    expiresAt: booking.lockedUntil,
+    attempts: [{ at: new Date().toISOString(), provider, status: 'created' }],
+    metadata: { source: 'bookingService.createGuestBooking' },
+  };
+  await persistPaymentIntent(intentBase);
+  // Claim the finite service capacity before creating an external payable order.
+  await persistBooking(booking, payload, 0, { claimInventory: true });
+  await recordBookingTimeline(booking, 'booking.created', `Booking ${booking.bookingRef} created`, 'Inventory was selected and booking record was created.', { metadata: { source: payload.source || 'checkout', holdId: payload.holdId || '' } });
+  await recordBookingTimeline(booking, 'inventory.claimed', `Inventory claimed for ${booking.bookingRef}`, 'Selected service capacity was connected to this booking.', { entityType: 'inventory', entityId: payload.holdId || booking.scheduleId || booking.listingId });
+
+  let payment;
   try {
-    const intentBase = {
-      id: `payment-intent-${booking.bookingRef}`,
-      intentRef: `PI-${booking.bookingRef}`,
-      bookingId: booking.id,
-      bookingRef: booking.bookingRef,
-      companyId: booking.companyId,
-      customerUserId: booking.customerUserId || '',
-      provider,
-      idempotencyKey: `${provider}:${booking.bookingRef}:initiate`,
-      amount: booking.pricing?.total,
-      currency: booking.pricing?.currency,
-      status: 'created',
-      expiresAt: booking.lockedUntil,
-      attempts: [{ at: new Date().toISOString(), provider, status: 'created' }],
-      metadata: { source: 'bookingService.createGuestBooking' },
-    };
-    await persistPaymentIntent(intentBase);
-    await persistBooking(booking, payload, 0, { claimInventory: true });
-    await recordBookingTimeline(booking, 'booking.created', `Booking ${booking.bookingRef} created`, 'Inventory was selected and booking record was created.', { metadata: { source: payload.source || 'checkout', holdId: payload.holdId || '' } });
-    await recordBookingTimeline(booking, 'inventory.claimed', `Inventory claimed for ${booking.bookingRef}`, booking.serviceType === 'bus' ? 'Selected seat inventory was connected to this booking.' : booking.serviceType === 'hotel' ? 'Selected room inventory was connected to this booking.' : 'Selected service capacity was connected to this booking.', { entityType: 'inventory', entityId: payload.holdId || booking.scheduleId || booking.listingId });
-    const payment = await paymentService.initiatePayment({
+    payment = await paymentService.initiatePayment({
       ...payload,
       provider,
       bookingRef: booking.bookingRef,
@@ -354,53 +357,78 @@ async function createGuestBooking(payload, req) {
       callbackUrl: `${env.appUrl}/booking/payment/callback?bookingRef=${encodeURIComponent(booking.bookingRef)}`,
       description: `Classic Trip booking ${booking.bookingRef}`,
     });
-    if (String(payment.status || '').toLowerCase() === 'failed') {
-      const paymentError = new Error(payment.message || payment.failureReason || 'Payment could not be completed');
-      paymentError.status = 402;
-      paymentError.code = 'payment_failed';
-      throw paymentError;
-    }
+  } catch (error) {
+    // Network/configuration errors are not declines. Keep the booking and its
+    // inventory retryable until the canonical expiry job releases it.
+    await persistPaymentIntent({
+      ...intentBase,
+      status: 'pending',
+      failureReason: String(error.message || 'Payment provider unavailable').slice(0, 1000),
+      attempts: [...intentBase.attempts, { at: new Date().toISOString(), provider, status: 'initiation_error', providerReference: '' }],
+    });
+    Object.assign(booking, {
+      paymentProvider: provider,
+      paymentStatus: 'pending',
+      bookingStatus: 'pending_payment',
+      paymentInitiationStatus: 'retry_required',
+      paymentFailureReason: String(error.message || 'Payment provider unavailable').slice(0, 1000),
+    });
+    await recordBookingTimeline(booking, 'payment.initiation_error', `Payment provider unavailable for ${booking.bookingRef}`, 'The booking remains protected and payment can be retried before the inventory hold expires.', { entityType: 'payment', status: 'pending', metadata: { provider } });
+    payment = null;
+  }
+
+  if (payment && String(payment.status || '').toLowerCase() === 'failed') {
+    const failureReason = payment.message || payment.failureReason || 'Payment could not be completed';
+    await persistPaymentIntent({
+      ...intentBase,
+      providerReference: payment.providerReference || '',
+      status: 'failed',
+      failedAt: new Date().toISOString(),
+      failureReason,
+      attempts: [...intentBase.attempts, { at: new Date().toISOString(), provider, status: 'failed', providerReference: payment.providerReference || '' }],
+    });
+    await purgeFailedBookingArtifacts(booking, payload, failureReason);
+    const paymentError = new Error(failureReason);
+    paymentError.status = 402;
+    paymentError.code = 'payment_failed';
+    throw paymentError;
+  }
+
+  if (payment) {
+    const paymentStatus = String(payment.status || 'pending').toLowerCase() === 'successful' ? 'successful' : 'pending';
     await persistPaymentIntent({
       ...intentBase,
       providerReference: payment.providerReference || '',
       checkoutUrl: payment.checkoutUrl || '',
-      status: payment.status || 'pending',
-      paidAt: payment.status === 'successful' ? new Date().toISOString() : null,
-      attempts: [...intentBase.attempts, { at: new Date().toISOString(), provider, status: payment.status || 'pending', providerReference: payment.providerReference || '' }],
+      status: paymentStatus,
+      paidAt: paymentStatus === 'successful' ? (payment.paidAt || new Date().toISOString()) : null,
+      attempts: [...intentBase.attempts, { at: new Date().toISOString(), provider, status: paymentStatus, providerReference: payment.providerReference || '' }],
     });
-    booking.paymentProvider = payment.provider;
-    booking.paymentRef = payment.providerReference;
-    booking.checkoutUrl = payment.checkoutUrl || '';
-    booking.paymentStatus = payment.status || booking.paymentStatus;
-    if (booking.paymentStatus === 'successful') {
+    Object.assign(booking, {
+      paymentProvider: payment.provider || provider,
+      paymentRef: payment.providerReference || '',
+      checkoutUrl: payment.checkoutUrl || '',
+      paymentStatus,
+      paymentInitiationStatus: 'ready',
+      paymentFailureReason: '',
+    });
+    if (paymentStatus === 'successful') {
       booking.bookingStatus = 'confirmed';
+      booking.lockedUntil = null;
+      booking.bookingItems = (booking.bookingItems || []).map((item) => ({ ...item, status: 'confirmed' }));
+      booking.ticketLegs = (booking.ticketLegs || []).map((leg) => ({ ...leg, status: 'valid', issuedAt: leg.issuedAt || new Date().toISOString() }));
+      try {
       Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking) || {});
+      } catch (error) {
+        booking.settlementStatus = 'reconciliation_required';
+        booking.settlementError = String(error.message || 'Settlement reconciliation required').slice(0, 1000);
+      }
       await recordBookingTimeline(booking, 'payment.succeeded', `Payment received for ${booking.bookingRef}`, 'Payment was confirmed and tickets are valid for operation.', { entityType: 'payment', entityId: payment.providerReference || booking.paymentRef || '', status: 'successful', metadata: { provider: payment.provider } });
       await recordBookingTimeline(booking, 'ticket.issued', `Ticket issued for ${booking.bookingRef}`, `${(booking.ticketLegs || []).length || 1} ticket leg(s) are available for QR validation.`, { entityType: 'ticket', entityId: booking.ticketLegs?.[0]?.id || booking.bookingRef, status: 'issued' });
     } else {
+      booking.bookingStatus = 'pending_payment';
       await recordBookingTimeline(booking, 'payment.pending', `Payment pending for ${booking.bookingRef}`, 'Booking is waiting for payment confirmation before operation.', { entityType: 'payment', entityId: payment.providerReference || booking.paymentRef || '', status: booking.paymentStatus || 'pending', metadata: { provider: payment.provider, checkoutUrl: payment.checkoutUrl || '' } });
     }
-  } catch (error) {
-    booking.paymentStatus = 'failed';
-    booking.bookingStatus = 'cancelled';
-    await persistPaymentIntent({
-      id: `payment-intent-${booking.bookingRef}`,
-      intentRef: `PI-${booking.bookingRef}`,
-      bookingId: booking.id,
-      bookingRef: booking.bookingRef,
-      companyId: booking.companyId,
-      customerUserId: booking.customerUserId || '',
-      provider,
-      idempotencyKey: `${provider}:${booking.bookingRef}:initiate`,
-      amount: booking.pricing?.total,
-      currency: booking.pricing?.currency,
-      status: 'failed',
-      failedAt: new Date().toISOString(),
-      failureReason: error.message,
-      metadata: { source: 'bookingService.createGuestBooking' },
-    });
-    await purgeFailedBookingArtifacts(booking, payload, error.message);
-    throw error;
   }
   await persistBooking(booking, payload, 0, { skipHoldConsume: true });
   const notificationService = require('../notification/notificationService');
@@ -422,10 +450,12 @@ async function createGuestBooking(payload, req) {
       meta: { bookingRef: booking.bookingRef, checkoutUrl: booking.checkoutUrl },
     });
   }
-  const ticketPdfService = require('../pdf/ticketPdfService');
-  const listing = await commerceRepository.listings.findOne({ id: booking.listingId });
-  booking.ticketPdf = await ticketPdfService.uploadTicketPdf(booking, listing);
-  await persistBooking(booking, payload, 0, { skipHoldConsume: true });
+  if (booking.paymentStatus === 'successful') {
+    const ticketPdfService = require('../pdf/ticketPdfService');
+    const listing = await commerceRepository.listings.findOne({ id: booking.listingId });
+    booking.ticketPdf = await ticketPdfService.uploadTicketPdf(booking, listing);
+    await persistBooking(booking, payload, 0, { skipHoldConsume: true });
+  }
   return booking;
 }
 

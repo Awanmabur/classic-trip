@@ -280,7 +280,11 @@ async function bookingForm(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-function ticketIsReady(booking = {}) { return String(booking.paymentStatus || '').toLowerCase() === 'successful' && !['cancelled','refunded','failed','expired'].includes(String(booking.bookingStatus || '').toLowerCase()); }
+function ticketIsReady(booking = {}) {
+  const validStatuses = ['confirmed', 'booked', 'in_progress', 'completed', 'checked_in', 'checked_out', 'rescheduled', 'partially_checked_in'];
+  return String(booking.paymentStatus || '').toLowerCase() === 'successful'
+    && validStatuses.includes(String(booking.bookingStatus || '').toLowerCase());
+}
 function attachTicketLinks(booking = {}) { if (booking?.bookingRef) { booking.publicTicketUrl = ticketAccessService.ticketUrl(booking); if (ticketIsReady(booking)) booking.publicTicketPdfUrl = ticketAccessService.ticketUrl(booking, '.pdf'); else delete booking.publicTicketPdfUrl; } return booking; }
 function ticketLookupRedirect(bookingRef = '') { return `/tickets${bookingRef ? `?bookingRef=${encodeURIComponent(bookingRef)}` : ''}`; }
 function domainBookingUrl(booking = {}, lookupCode = '') {
@@ -328,9 +332,12 @@ async function ticketLookupPage(req, res, next) {
   try {
     const bookingRef = req.query.bookingRef || ''; const contact = req.query.contact || ''; const accessCode = req.query.accessCode || req.query.code || '';
     let booking = await findBooking(bookingRef);
-    if (booking && !(ticketAccessService.contactMatches(booking, contact) || ticketAccessService.accessCodeMatches(booking, accessCode) || ticketAccessService.userCanAccess?.(req, booking))) booking = null;
+    if (booking && !ticketAccessService.canAccessBooking(req, booking)) booking = null;
     const ticketReady = booking ? ticketIsReady(booking) : false;
-    if (booking) attachTicketLinks(booking);
+    if (booking) {
+      ticketAccessService.grantSessionAccess(req, booking.bookingRef);
+      attachTicketLinks(booking);
+    }
     const listing = booking ? await findListingById(booking.listingId) : null; const qrDataUrl = booking && ticketReady ? await qrService.toDataUrl(booking.qrCodeValue) : '';
     res.render('pages/ticket-lookup', { seo: { title: 'Find ticket | Classic Trip' }, query: req.query, lookupAttempted: Boolean(bookingRef), booking, listing, qrDataUrl, ticketReady });
   } catch (error) { next(error); }

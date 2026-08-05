@@ -15,6 +15,9 @@ const paymentWebhookEventSchema = new Schema({
   failureReason: String,
   rawPayload: Schema.Types.Mixed,
   rawBodyHash: String,
+  deliveryCount: { type: Number, default: 1 },
+  lastReceivedAt: Date,
+  outcome: String,
 }, { timestamps: true });
 
 paymentWebhookEventSchema.index({ provider: 1, idempotencyKey: 1 }, { unique: true, sparse: true });

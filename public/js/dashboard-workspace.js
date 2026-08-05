@@ -1138,13 +1138,17 @@ window.addEventListener('DOMContentLoaded', function () {
       const table = wrap.querySelector('table');
       if (!table) return;
       wrap.dataset.enhanced = 'true';
+      const tableName = wrap.closest('.card, .tabPane, .section')?.querySelector('.cardTitle h3, h3, h4')?.textContent?.trim() || `Dashboard table ${index + 1}`;
+      wrap.setAttribute('tabindex', '0');
+      wrap.setAttribute('role', 'region');
+      wrap.setAttribute('aria-label', `${tableName} — scroll horizontally for more columns`);
       const tools = document.createElement('div');
       tools.className = 'tableTools';
       tools.innerHTML = `
-        <div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-table-search placeholder="Search this table"></div>
-        <div class="control"><i class="fa-solid fa-filter"></i><select data-table-status><option value="">All statuses</option><option>active</option><option>confirmed</option><option>pending</option><option>review</option><option>refund</option><option>suspended</option></select></div>
-        <div class="control"><i class="fa-regular fa-calendar"></i><input data-table-date type="date"></div>
-        <button class="btn" type="button" data-export-table><i class="fa-solid fa-download"></i> Export CSV</button>`;
+        <div class="control"><i class="fa-solid fa-magnifying-glass"></i><input data-table-search aria-label="Search ${escapeHtml(tableName)}" placeholder="Search this table"></div>
+        <div class="control"><i class="fa-solid fa-filter"></i><select data-table-status aria-label="Filter ${escapeHtml(tableName)} by status"><option value="">All statuses</option><option>active</option><option>confirmed</option><option>pending</option><option>review</option><option>refund</option><option>suspended</option></select></div>
+        <div class="control"><i class="fa-regular fa-calendar"></i><input data-table-date type="date" aria-label="Filter ${escapeHtml(tableName)} by date"></div>
+        <button class="btn" type="button" data-export-table aria-label="Export ${escapeHtml(tableName)} as CSV"><i class="fa-solid fa-download"></i> Export CSV</button>`;
       wrap.parentNode.insertBefore(tools, wrap);
       const runFilter = () => {
         const q = tools.querySelector('[data-table-search]').value.toLowerCase().trim();
@@ -1353,6 +1357,22 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function initDashboardFilters(scope = document) {
     scope.querySelectorAll('[data-filter-target]').forEach(applyDashboardFilter);
+  }
+
+  function enhanceFormLabels(scope = document) {
+    let generated = 0;
+    scope.querySelectorAll('.field').forEach((field) => {
+      const label = field.querySelector(':scope > label');
+      const control = field.querySelector('input:not([type="hidden"]), select, textarea');
+      if (!label || !control || control.hasAttribute('aria-label') || control.hasAttribute('aria-labelledby')) return;
+      if (!control.id) {
+        do {
+          generated += 1;
+          control.id = `dashboard-field-${generated}`;
+        } while (document.getElementById(control.id) !== control);
+      }
+      label.setAttribute('for', control.id);
+    });
   }
 
   function closeMenu() {
@@ -3820,9 +3840,20 @@ window.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('keydown', function (e) {
       const tabBtn = e.target.closest && e.target.closest('.innerTabs .tabBtn[data-tab-target]');
-      if (!tabBtn || (e.key !== 'Enter' && e.key !== ' ')) return;
+      if (!tabBtn) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activateTab(tabBtn);
+        return;
+      }
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+      const tabs = Array.from(tabBtn.closest('.innerTabs')?.querySelectorAll('.tabBtn[data-tab-target]') || []);
+      if (!tabs.length) return;
       e.preventDefault();
-      activateTab(tabBtn);
+      const current = Math.max(0, tabs.indexOf(tabBtn));
+      const nextIndex = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : e.key === 'ArrowRight' ? (current + 1) % tabs.length : (current - 1 + tabs.length) % tabs.length;
+      tabs[nextIndex].focus();
+      activateTab(tabs[nextIndex], false);
     });
 
     document.addEventListener('click', function (e) {
@@ -4001,6 +4032,15 @@ window.addEventListener('DOMContentLoaded', function () {
     return text || 'available';
   }
 
+  function normalizeHotelCalendarDate(value = '') {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) return isoMatch[1];
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+
   function parseHotelCalendarRows(rows = []) {
     return (Array.isArray(rows) ? rows : []).map((row) => {
       const cells = rowCells(row);
@@ -4010,19 +4050,19 @@ window.addEventListener('DOMContentLoaded', function () {
       const unit = detail.roomUnit || {};
       const type = detail.roomType || {};
       const booking = detail.booking || {};
-      const date = night.date || cells[0] || '';
+      const date = normalizeHotelCalendarDate(night.date || cells[0] || '');
       const unitLabel = unit.unitNumber || night.roomUnitId || cells[1] || 'Room';
-      const status = normalizeHotelStatus(night.status || cells[3] || meta.status || 'available');
+      const status = normalizeHotelStatus(night.status || cells[4] || meta.status || 'available');
       return {
         id: night.id || meta.id || `${unitLabel}-${date}`,
         date,
         unit: unitLabel,
         roomType: type.name || cells[2] || 'Room type',
         status,
-        displayStatus: night.status || cells[3] || status,
-        bookingRef: night.bookingRef || booking.bookingRef || cells[4] || '',
-        guest: night.guestName || booking.guestSnapshot?.fullName || cells[5] || '',
-        price: night.price || cells[6] || '',
+        displayStatus: night.status || cells[4] || status,
+        bookingRef: night.bookingRef || booking.bookingRef || cells[5] || '',
+        guest: night.guestName || booking.guestSnapshot?.fullName || cells[6] || '',
+        price: night.price || cells[7] || '',
         search: [date, unitLabel, type.name, cells.join(' '), night.bookingRef, night.guestName, booking.bookingRef].filter(Boolean).join(' ').toLowerCase(),
         detail: detail.roomNight ? detail : { ...detail, roomNight: night, roomUnit: unit, roomType: type, booking }
       };
@@ -4031,6 +4071,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function dateAdd(date, days) {
     const d = new Date(`${date}T00:00:00.000Z`);
+    if (Number.isNaN(d.getTime())) return '';
     d.setUTCDate(d.getUTCDate() + Number(days || 0));
     return d.toISOString().slice(0, 10);
   }
@@ -4044,7 +4085,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const days = Math.max(1, Math.min(30, Number($('#hotelCalendarDays')?.value || 7)));
     const today = new Date().toISOString().slice(0, 10);
     const firstDataDate = rows.map(r => r.date).filter(Boolean).sort()[0] || today;
-    const start = $('#hotelCalendarStart')?.value || firstDataDate;
+    const start = normalizeHotelCalendarDate($('#hotelCalendarStart')?.value || firstDataDate) || today;
     const dates = Array.from({ length: days }, (_, i) => dateAdd(start, i));
     grid.style.setProperty('--hotel-days', String(days));
     if (!rows.length) {
@@ -4332,6 +4373,7 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#companyPayoutRequestTable', data.payoutRequests || [], 'generic');
     fillTable('#companyFinanceStatementTable', data.financeStatements || [], 'generic');
     initDashboardFilters(document);
+    enhanceFormLabels(document);
 
     serviceDashboards.forEach(service => {
       const key = String(service.key || '').replace(/-/g, '');
@@ -4351,10 +4393,25 @@ window.addEventListener('DOMContentLoaded', function () {
     });
     fillBars('categoryBars', Array.from(categoryCounts.entries()).sort((a, b) => b[1] - a[1]));
 
-    $$('.innerTabs').forEach(group => {
-      group.querySelectorAll('.tabBtn').forEach(btn => {
+    $$('.innerTabs').forEach((group, groupIndex) => {
+      group.setAttribute('role', 'tablist');
+      if (!group.hasAttribute('aria-label')) {
+        const label = group.closest('.card, .section')?.querySelector('.cardTitle h3, h2, h3')?.textContent?.trim();
+        group.setAttribute('aria-label', label ? `${label} views` : `Dashboard views ${groupIndex + 1}`);
+      }
+      group.querySelectorAll('.tabBtn').forEach((btn, buttonIndex) => {
         btn.type = 'button';
         btn.setAttribute('role', 'tab');
+        if (!btn.id) btn.id = `dashboard-tab-${groupIndex + 1}-${buttonIndex + 1}`;
+        const paneId = btn.dataset.tabTarget;
+        if (paneId) {
+          btn.setAttribute('aria-controls', paneId);
+          const pane = document.getElementById(paneId);
+          if (pane) {
+            pane.setAttribute('role', 'tabpanel');
+            pane.setAttribute('aria-labelledby', btn.id);
+          }
+        }
         btn.onclick = function(event) {
           event.preventDefault();
           event.stopPropagation();
@@ -4367,6 +4424,8 @@ window.addEventListener('DOMContentLoaded', function () {
     });
 
     enhanceTables();
+    const crudBody = document.getElementById('crudBody');
+    if (crudBody) new MutationObserver(() => enhanceFormLabels(crudBody)).observe(crudBody, { childList: true, subtree: true });
     bindEvents();
     const initialPage = shell.activePage || new URLSearchParams(window.location.search).get('page') || String(window.location.hash || '').replace('#', '') || 'overview';
     showPage(initialPage);

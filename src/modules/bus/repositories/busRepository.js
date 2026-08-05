@@ -124,7 +124,10 @@ async function outbox({ eventType, aggregateType, aggregateId, companyId = '', p
     payload,
     status: 'pending',
     attempts: 0,
+    maxAttempts: 8,
+    availableAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   await busRepository.outboxEvents.save(row, { dedupeKey: row.dedupeKey }, session ? { session } : {});
   return row;

@@ -33,7 +33,7 @@
       else { cornerCls='available'; cornerIcon='fa-circle-check'; cornerText=(l.remainingInventory||l.availability||'Live')+' left'; }
       var typeIcon = typeIcons[l.type] || 'fa-ticket';
     %>
-    <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" role="button" tabindex="0" aria-label="Open <%= l.title %>" data-url="<%= l.url %>" data-saved-action="open">
+    <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" data-url="<%= l.url %>" data-saved-action="open">
       <div class="thumb">
         <img src="<%= l.img || '' %>" alt="<%= l.title %>">
         <div class="cornerBadge <%= cornerCls %>"><i class="fa-solid <%= cornerIcon %>"></i> <%= cornerText %></div>
@@ -42,8 +42,8 @@
           <span class="badge badgeInfo"><i class="fa-solid <%= typeIcon %>"></i> <%= l.typeLabel || l.type %></span>
         </div>
         <div class="thumbActions">
-          <button class="miniIcon loved" type="button" title="Saved" data-id="<%= l.id %>" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>
-          <button class="miniIcon" type="button" title="Share" data-url="<%= l.url %>" data-title="<%= l.title %>" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>
+          <button class="miniIcon loved" type="button" title="Saved" aria-label="Remove <%= l.title %> from saved trips" data-id="<%= l.id %>" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>
+          <button class="miniIcon" type="button" title="Share" aria-label="Share <%= l.title %>" data-url="<%= l.url %>" data-title="<%= l.title %>" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>
         </div>
       </div>
       <div class="listingBody">
@@ -128,14 +128,6 @@ document.addEventListener('click', function(event){
     if(url && url.charAt(0)==='/') location.assign(url);
   }
 });
-document.addEventListener('keydown', function(event){
-  if(!['Enter',' '].includes(event.key)) return;
-  var card=event.target.closest('[data-saved-action="open"]');
-  if(!card) return;
-  event.preventDefault();
-  var url=card.dataset.url;
-  if(url && url.charAt(0)==='/') location.assign(url);
-});
 </script>
 
 <% if (!currentUser) { %>
@@ -153,13 +145,13 @@ document.addEventListener('keydown', function(event){
   function corner(l){if(!l.bookable)return{cls:'promo',icon:'fa-clock',text:'Teaser'};return{cls:'available',icon:'fa-circle-check',text:'Live'};}
   cards.innerHTML=saved.map(function(l){
     var c=corner(l),ti=iconMap[l.type]||'fa-ticket';
-    return '<article class="listing" data-id="'+esc(l.id)+'" data-url="'+esc(l.url||'/')+'" role="button" tabindex="0" aria-label="Open '+esc(l.title)+'" data-saved-action="open">'
+    return '<article class="listing" data-id="'+esc(l.id)+'" data-url="'+esc(l.url||'/')+'" data-saved-action="open">'
       +'<div class="thumb">'+(l.img?'<img src="'+esc(l.img)+'" alt="'+esc(l.title)+'">':'')
       +'<div class="cornerBadge '+c.cls+'"><i class="fa-solid '+c.icon+'"></i> '+esc(c.text)+'</div>'
       +'<div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> '+esc(l.rating||'New')+'</span><span class="badge badgeInfo"><i class="fa-solid '+ti+'"></i> '+esc(l.type||'Service')+'</span></div>'
       +'<div class="thumbActions">'
-      +'<button class="miniIcon loved" type="button" title="Saved" data-id="'+esc(l.id)+'" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>'
-      +'<button class="miniIcon" type="button" title="Share" data-url="'+esc(l.url||'/')+'" data-title="'+esc(l.title)+'" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>'
+      +'<button class="miniIcon loved" type="button" title="Saved" aria-label="Remove '+esc(l.title)+' from saved trips" data-id="'+esc(l.id)+'" data-saved-action="unsave"><i class="fa-solid fa-heart"></i></button>'
+      +'<button class="miniIcon" type="button" title="Share" aria-label="Share '+esc(l.title)+'" data-url="'+esc(l.url||'/')+'" data-title="'+esc(l.title)+'" data-saved-action="share"><i class="fa-solid fa-share-nodes"></i></button>'
       +'</div></div>'
       +'<div class="listingBody"><h3 class="listingTitle">'+esc(l.title)+'</h3>'
       +'<div class="meta"><span><i class="fa-regular fa-clock"></i> '+esc(l.time||'Flexible')+'</span><span><i class="fa-solid fa-layer-group"></i> Live availability</span>'+(l.partner?'<span><i class="fa-solid fa-building"></i> '+esc(l.partner)+'</span>':'')+'</div>'

@@ -132,10 +132,15 @@ async function claimNext(workerId = `worker-${process.pid}`) {
 
   outbox.assertReady();
   const row = await outbox.repository.findOneAndUpdate({
-    status: { $in: ['pending', 'failed'] },
-    availableAt: { $lte: now },
+    $or: [
+      { status: { $in: ['pending', 'failed'] }, availableAt: { $lte: now } },
+      // A process may die after claiming an event but before recording the
+      // outcome. Reclaim only an expired processing lease so events cannot be
+      // stranded forever.
+      { status: 'processing', lockedAt: { $lte: lockExpiredAt } },
+    ],
     attempts: { $lt: 100 },
-    $or: [{ lockedAt: null }, { lockedAt: { $exists: false } }, { lockedAt: { $lte: lockExpiredAt } }],
+    $and: [{ $or: [{ lockedAt: null }, { lockedAt: { $exists: false } }, { lockedAt: { $lte: lockExpiredAt } }] }],
   }, {
     $set: { status: 'processing', lockedAt: now, lockOwner: workerId, updatedAt: now },
   }, { sort: { availableAt: 1, createdAt: 1 }, new: true });
