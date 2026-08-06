@@ -22,7 +22,7 @@ const homeJs = read('public/js/home.js');
 const css = read('public/css/completion-fixes.css');
 const dashboard = read('src/services/dashboard/dashboardProjectionEngine.js');
 
-check('release is based on the safe 1.6.7 baseline and versioned 1.6.10', pkg.version === '1.6.10');
+check('release is based on the safe 1.6.7 baseline and versioned 1.6.11', pkg.version === '1.6.11');
 check('rolling route guard has a real routes repository', companyRepository.includes("routes: new MongoCollection('routes')"));
 check('route-stop guards also have a real repository', companyRepository.includes("routeStops: new MongoCollection('routeStops')"));
 check('bus route validation reads the defined routes repository', companyService.includes('companyRepository.routes.findOne'));
@@ -46,4 +46,4 @@ check('bottom navigation uses five stable columns', css.includes('grid-template-
 check('route chips remain horizontally scrollable', css.includes('.companyRouteList') && css.includes('overflow-x:auto'));
 check('dashboard price-from falls back to fare products and segments', dashboard.includes('listingFareFromIndex') && dashboard.includes('state.busSegmentFares'));
 
-console.log(`v1.6.10 safe route/preview/navigation checks passed (${passed}/${passed}).`);
+console.log(`v1.6.11 safe route/preview/navigation checks passed (${passed}/${passed}).`);

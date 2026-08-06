@@ -54,11 +54,14 @@ router.get('/:listingId/availability', publicReadLimiter, async (req, res, next)
         const hold = await busInventoryService.assertActiveHold(holdId, holdToken);
         if (String(hold.scheduleId) !== String(scheduleId)) throw Object.assign(new Error('Seat hold belongs to another departure'), { status: 403 });
       }
+      const scheduleRecord = (data.schedules || []).find((row) => catalogService.sameId(row, scheduleId)) || null;
       const availability = await busInventoryService.getAvailability({
         scheduleId,
         originStopId: clean(req.query.originStopId),
         destinationStopId: clean(req.query.destinationStopId),
         holdId,
+        scheduleRecord,
+        listingRecord: raw,
       });
       if (String(availability.schedule.listingId) !== String(raw.id)) return res.status(404).json({ error: 'Schedule not found for this listing' });
       return res.json({ listingId: raw.id, scheduleId, ...availability });

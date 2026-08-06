@@ -18,7 +18,7 @@ const DB_READ_CONCURRENCY = Math.max(
 const snapshotCache = new Map();
 const snapshotInflight = new Map();
 const dashboardHeadCache = new Map();
-const DASHBOARD_HEAD_TTL_MS = 60_000;
+const DASHBOARD_HEAD_TTL_MS = 300_000;
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
   .filter((key) => !['notificationTemplates', 'serviceCategories', 'tripSchedules', 'holds', 'inventoryHolds', 'walletLedgerEntries', 'campaigns', 'refunds', 'blogPosts'].includes(key));
 
@@ -491,19 +491,41 @@ async function companySnapshot(companyId, context = {}) {
   const directEntities = scopedCompanyEntities(snapshot.companies[0], context).filter((entity) => repositories[entity]);
   const directTasks = [...directEntities];
   if (needsPeople) directTasks.push('__company_users__');
-  await mapWithConcurrency(directTasks, async (entity) => {
-    if (entity === '__company_users__') {
-      snapshot.users = await list('users', { companyId }, { limit: 220, sort: { updatedAt: -1 } });
-      return;
-    }
-    if (entity === 'seats') return;
-    // Live seat maps need only bookings attached to the already-scoped dated
-    // departures. Loading the company's entire booking history was one of the
-    // largest causes of multi-minute page renders.
-    if (normalizedCompanyPage(context) === 'seat-maps' && entity === 'bookings') return;
-    const query = companyEntityQuery(entity, companyId, context);
-    snapshot[entity] = await list(entity, query.filter, query.options);
-  });
+
+  // These dashboard collections are company-scoped but do not depend on listing,
+  // schedule or booking ids. Start them in the same read wave as the primary page
+  // data instead of waiting for every direct query to finish first.
+  const independentRelatedTasks = [
+    ['categories', {}, 250],
+    ['wallets', { ownerType: 'company', ownerId: companyId }, 30],
+    ['walletTransactions', { ownerType: 'company', ownerId: companyId }, 750],
+    ['commissions', { companyId }, 750],
+    ['correspondenceMessages', { companyId }, 800],
+    ['notificationDeliveryAttempts', { companyId }, 800],
+  ].filter(([entity]) => (!context.activePage || desiredEntities.has(entity)) && repositories[entity]);
+  if (companyServiceType(snapshot.companies[0]) === 'flight') {
+    if (!context.activePage || desiredEntities.has('airports')) independentRelatedTasks.push(['airports', { status: 'active' }, 2000]);
+    if (!context.activePage || desiredEntities.has('aircraftTypes')) independentRelatedTasks.push(['aircraftTypes', { status: 'active' }, 500]);
+  }
+
+  await Promise.all([
+    mapWithConcurrency(directTasks, async (entity) => {
+      if (entity === '__company_users__') {
+        snapshot.users = await list('users', { companyId }, { limit: 220, sort: { updatedAt: -1 } });
+        return;
+      }
+      if (entity === 'seats') return;
+      // Live seat maps need only bookings attached to the already-scoped dated
+      // departures. Loading the company's entire booking history was one of the
+      // largest causes of multi-minute page renders.
+      if (normalizedCompanyPage(context) === 'seat-maps' && entity === 'bookings') return;
+      const query = companyEntityQuery(entity, companyId, context);
+      snapshot[entity] = await list(entity, query.filter, query.options);
+    }),
+    mapWithConcurrency(independentRelatedTasks, async ([entity, filter, limit]) => {
+      snapshot[entity] = await list(entity, filter, limit);
+    }),
+  ]);
 
   // Membership is the authoritative tenant link. Include linked accounts even
   // when an older accepted invitation did not persist user.companyId.
@@ -530,27 +552,19 @@ async function companySnapshot(companyId, context = {}) {
   const listingIds = ids(snapshot.listings);
   const bookingRefs = ids(snapshot.bookings, 'bookingRef');
   const bookingIds = ids(snapshot.bookings);
-  const serviceType = companyServiceType(snapshot.companies[0]);
-
   const seatLimit = page === 'seat-maps' ? 4000 : page === 'bookings' ? 2500 : 1200;
   const relatedTasks = [
-    ['categories', {}, 250],
     ['seats', scheduleIds.length ? { $or: [
       { scheduleId: { $in: scheduleIds } },
       { departureId: { $in: scheduleIds } },
       { tripScheduleId: { $in: scheduleIds } },
     ] } : { scheduleId: '__none__' }, seatLimit],
     ['passengers', bookingIds.length ? { bookingId: { $in: bookingIds } } : { bookingId: '__none__' }, page === 'bookings' ? 1500 : 500],
-    ['wallets', { ownerType: 'company', ownerId: companyId }, 30],
-    ['walletTransactions', { ownerType: 'company', ownerId: companyId }, 750],
-    ['commissions', { companyId }, 750],
     ['cartCheckoutAttempts', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
     ['paymentIntents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
     ['receiptInvoices', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
     ['taxFeeRecords', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
     ['bookingTimelineEvents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 900],
-    ['correspondenceMessages', { companyId }, 800],
-    ['notificationDeliveryAttempts', { companyId }, 800],
     ['promoterLinks', listingIds.length ? { listingId: { $in: listingIds } } : { listingId: '__none__' }, 750],
   ].filter(([entity]) => !context.activePage || desiredEntities.has(entity));
   const relatedPromise = mapWithConcurrency(relatedTasks, async ([entity, filter, limit]) => {
@@ -563,10 +577,6 @@ async function companySnapshot(companyId, context = {}) {
     snapshot.users = [...mergedUsers.values()];
   }
   await relatedPromise;
-  if (serviceType === 'flight' && (!context.activePage || desiredEntities.has('airports') || desiredEntities.has('aircraftTypes'))) {
-    snapshot.airports = await list('airports', { status: 'active' }, 2000);
-    snapshot.aircraftTypes = await list('aircraftTypes', { status: 'active' }, 500);
-  }
   return snapshot;
 }
 
@@ -574,12 +584,14 @@ async function customerSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const page = String(context.activePage || 'overview').trim().toLowerCase();
   const customerId = context.customerId;
-  const user = await one('users', { id: customerId });
+  const [user, notifications] = await Promise.all([
+    one('users', { id: customerId }),
+    list('notifications', {
+      $or: [{ customerId }, { userId: customerId }, { audience: 'customer' }],
+    }, { limit: 80, sort: { createdAt: -1 } }),
+  ]);
   snapshot.users = [user].filter(Boolean);
-
-  snapshot.notifications = await list('notifications', {
-    $or: [{ customerId }, { userId: customerId }, { audience: 'customer' }],
-  }, { limit: 80, sort: { createdAt: -1 } });
+  snapshot.notifications = notifications;
 
   const bookingPages = new Set(['overview', 'bookings', 'ticket', 'passengers', 'receipts', 'refunds', 'support', 'reviews', 'wallet']);
   const ownership = [{ customerUserId: customerId }];
@@ -651,10 +663,14 @@ async function promoterSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const promoterId = context.promoterId;
   const page = String(context.activePage || 'overview').trim().toLowerCase();
-  snapshot.users = [await one('users', { id: promoterId })].filter(Boolean);
-  snapshot.notifications = await list('notifications', {
-    $or: [{ promoterId }, { userId: promoterId }, { audience: 'promoter' }],
-  }, { limit: 80, sort: { createdAt: -1 } });
+  const [promoterUser, promoterNotifications] = await Promise.all([
+    one('users', { id: promoterId }),
+    list('notifications', {
+      $or: [{ promoterId }, { userId: promoterId }, { audience: 'promoter' }],
+    }, { limit: 80, sort: { createdAt: -1 } }),
+  ]);
+  snapshot.users = [promoterUser].filter(Boolean);
+  snapshot.notifications = promoterNotifications;
 
   const campaignPages = new Set(['overview', 'links', 'share', 'campaigns', 'bus-dashboard', 'hotel-dashboard', 'tour-dashboard', 'rental-dashboard', 'cargo-dashboard', 'offline-sales']);
   const performancePages = new Set(['overview', 'performance', 'fraud']);

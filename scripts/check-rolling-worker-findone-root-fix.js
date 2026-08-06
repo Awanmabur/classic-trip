@@ -14,7 +14,7 @@ const materializer = read('src/jobs/materializeSchedules.js');
 const regression = read('tests/unit/rollingWorkerFindOneRepair.test.js');
 const sw = read('public/sw.js');
 
-check('release and browser cache are v1.6.10', pkg.version === '1.6.10' && sw.includes('classic-trip-static-v1.6.10'));
+check('release and browser cache are v1.6.11', pkg.version === '1.6.11' && sw.includes('classic-trip-static-v1.6.11'));
 check('existing rolling windows use the same single-date batch creator as the first date',
   materializer.includes("tagRollingFailure(error, 'repair_existing_window_create')")
   && materializer.includes('const result = await companyService.createScheduleBatch(rule.companyId'));

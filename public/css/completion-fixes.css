@@ -1529,7 +1529,7 @@ body.sitePage > .siteFooter{
   }
 }
 
-/* v1.6.10-safe — all operator routes, stable preview controls, and aligned public navigation. */
+/* v1.6.11-safe — all operator routes, stable preview controls, and aligned public navigation. */
 .companyRouteList{
   display:flex;
   align-items:center;
@@ -1686,5 +1686,23 @@ body.sitePage > .siteFooter{
   .homePage .sectionListingCollection[data-view="bars"] .thumb{
     height:154px!important;
     min-height:154px!important;
+  }
+}
+
+
+/* v1.6.11 speed/phone navigation finish: a clearly rounded floating dock. */
+@media(max-width:680px){
+  body.homePage > .bottomNav,
+  body.sitePage > .bottomNav{
+    bottom:max(10px,env(safe-area-inset-bottom))!important;
+    border-radius:34px!important;
+    padding:7px!important;
+    gap:3px!important;
+    overflow:hidden!important;
+    box-shadow:0 18px 44px rgba(0,0,0,.34)!important;
+  }
+  body.homePage > .bottomNav button,
+  body.sitePage > .bottomNav button{
+    border-radius:22px!important;
   }
 }

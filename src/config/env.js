@@ -193,8 +193,8 @@ const env = {
     slowRequestThresholdMs: number('SLOW_REQUEST_THRESHOLD_MS', 2000),
     homeCacheTtlMs: number('HOME_CACHE_TTL_MS', 300000),
     homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 1800000),
-    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
-    dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 300000),
+    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
+    dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 8),
     // Global admission limit for heavy Mongo reads across *all* concurrent
     // dashboard/catalog requests. This is intentionally separate from each

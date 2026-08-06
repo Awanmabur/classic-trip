@@ -29,13 +29,13 @@ let snapshotCachedAt = 0;
 let snapshotInflight = null;
 const listingSnapshotCache = new Map();
 const listingSnapshotInflight = new Map();
-const LISTING_SNAPSHOT_TTL_MS = 30_000;
-const LISTING_SNAPSHOT_STALE_MS = 120_000;
+const LISTING_SNAPSHOT_TTL_MS = 300_000;
+const LISTING_SNAPSHOT_STALE_MS = 1_800_000;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
-  const concurrency = Math.max(2, Math.min(4, Number(env.mongoPool?.max || 5) - 1));
+  const concurrency = Math.max(2, Math.min(8, Number(env.performance?.mongoReadConcurrency || 8), Number(env.mongoPool?.max || 10) - 2));
   let cursor = 0;
   async function worker() {
     while (cursor < tasks.length) {
@@ -49,20 +49,21 @@ async function runCatalogTasks(tasks = []) {
 }
 
 async function loadSnapshotFresh() {
-  const [categories, listingRows, blogs, platformConfig] = await runCatalogTasks([
+  // The public catalog used to hydrate every Seat and RoomNightInventory row before
+  // rendering a single card. That made the home and marketing pages grow slower as
+  // real inventory was added. Cards can use the immutable schedule counts and live
+  // room-unit status; authoritative seat/room-night reads remain in the availability
+  // and checkout services where they belong.
+  const [categories, listingRows, companies, blogs, platformConfig] = await runCatalogTasks([
     () => commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
     () => commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
+    () => commerceRepository.companies.list({ status: { $ne: 'archived' } }, { sort: { name: 1 }, limit: 5000 }),
     () => contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
     () => getPlatformConfig(),
   ]);
-  const initialCompanyIds = unique(listingRows.map((row) => row.companyId).map(text));
-  const companies = initialCompanyIds.length
-    ? await runMongoRead(() => commerceRepository.companies.list({ id: { $in: initialCompanyIds } }, { sort: { name: 1 }, limit: 5000 }))
-    : [];
   const productionListings = listingRows.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings: listingRows, companies })));
   const listingIds = unique(productionListings.map(entityId));
   const currentTime = new Date();
-  const today = currentTime.toISOString().slice(0, 10);
   const none = { id: '__no_public_inventory__' };
   const listingFilter = listingIds.length ? { listingId: { $in: listingIds } } : none;
   const [routes, serviceAddons, schedules, roomTypes, roomUnits, links, campaigns] = await runCatalogTasks([
@@ -83,10 +84,8 @@ async function loadSnapshotFresh() {
     () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
   ]);
   const routeIds = unique(routes.map(entityId));
-  const scheduleIds = unique(schedules.map(entityId));
   const vehicleIds = unique(schedules.map((row) => row.vehicleId).map(text));
-  const roomTypeIds = unique(roomTypes.map(entityId));
-  const [routeStops, fareProducts, segmentFares, seats, vehicles, roomNights] = await runCatalogTasks([
+  const [routeStops, fareProducts, segmentFares, vehicles] = await runCatalogTasks([
     () => routeIds.length
       ? commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 20000 })
       : [],
@@ -96,20 +95,35 @@ async function loadSnapshotFresh() {
     () => routeIds.length
       ? commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 })
       : [],
-    () => scheduleIds.length
-      ? commerceRepository.seats.list({ scheduleId: { $in: scheduleIds } }, { limit: 50000 })
-      : [],
     () => vehicleIds.length
       ? commerceRepository.vehicles.list({ id: { $in: vehicleIds }, status: { $ne: 'archived' } }, { limit: 10000 })
       : [],
-    () => roomTypeIds.length
-      ? commerceRepository.roomNights.list({ roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 50000 })
-      : [],
   ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
-  return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
+  return {
+    categories: productionCategories,
+    listings: productionListings,
+    companies,
+    routes,
+    routeStops,
+    fareProducts,
+    segmentFares,
+    serviceAddons,
+    schedules,
+    // Inventory is deliberately loaded only by the selected-listing availability
+    // APIs. Keeping these arrays empty prevents 50k+ compatibility rows from
+    // blocking every public page while preserving the existing card fallbacks.
+    seats: [],
+    vehicles,
+    roomTypes,
+    roomUnits,
+    roomNights: [],
+    links,
+    campaigns,
+    blogs,
+    platformConfig,
+  };
 }
-
 
 function listingSnapshotKey(identifier, serviceType = '') {
   return `${canonicalPublicServiceType(serviceType)}:${normalize(identifier)}`;
@@ -219,7 +233,10 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
     () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes ? [...snapshotFareProducts.values()] : commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 500 })),
     () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes && snapshotSegmentFares.size ? [...snapshotSegmentFares.values()] : commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 3000 })),
     () => roomTypeIds.length ? commerceRepository.roomUnits.list({ listingId, roomTypeId: { $in: roomTypeIds }, status: { $nin: ['archived', 'maintenance'] } }, { limit: 1000 }) : [],
-    () => roomTypeIds.length ? commerceRepository.roomNights.list({ listingId, roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 5000 }) : [],
+    // Date-specific room-night availability is loaded only after the traveler
+    // selects check-in/check-out dates. Initial preview/payment rendering needs
+    // room types and units, not thousands of future nightly rows.
+    () => [],
   ]);
   const seats = [];
   const vehicles = [];

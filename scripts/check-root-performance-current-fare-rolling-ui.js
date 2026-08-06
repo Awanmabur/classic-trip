@@ -31,7 +31,7 @@ const repository = read('src/repositories/mongoRepository.js');
 const releaseCheck = read('scripts/check-final-home-payment-release.js');
 const sw = read('public/sw.js');
 
-check('Package and browser cache are v1.6.10', pkg.version === '1.6.10' && sw.includes('classic-trip-static-v1.6.10'));
+check('Package and browser cache are v1.6.11', pkg.version === '1.6.11' && sw.includes('classic-trip-static-v1.6.11'));
 check('Normal and dedicated-worker startup keep rolling work out of the web process',
   start.includes('const webRollingFallback = !runBackgroundWorker')
   && start.includes("nodeEnv !== 'production'")
@@ -49,7 +49,7 @@ check('Only an explicitly started fallback/worker owns the in-memory rolling que
 check('Background rolling uses one dated departure per batch',
   materializer.includes('const BACKGROUND_BATCH_SIZE = 1') && outbox.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
 check('Background rolling yields between batches',
-  materializer.includes('const BACKGROUND_BATCH_PAUSE_MS = 2000') && materializer.includes('await sleep(BACKGROUND_BATCH_PAUSE_MS)'));
+  materializer.includes('const BACKGROUND_BATCH_PAUSE_MS = 4000') && materializer.includes('await sleep(BACKGROUND_BATCH_PAUSE_MS)'));
 check('Worker waits for the redirect/request burst before startup repair', worker.includes('startupDelayMs: 10000'));
 check('Rolling cache invalidation is delayed until the drain settles',
   materializer.includes('after the whole rolling drain') && materializer.includes('}, 5000);'));

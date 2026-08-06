@@ -282,7 +282,7 @@ function createDashboardProjection(initialState = {}) {
     return formatMoney(booking.pricing?.total, booking.pricing?.currency || platformCurrency());
   }
   const dashboardDataCache = new Map();
-  const DASHBOARD_DATA_CACHE_MS = 5000;
+  const DASHBOARD_DATA_CACHE_MS = 60_000;
   function dashboardData(role = 'admin', context = {}) {
     // computeDashboardData assembles its payload almost entirely out of repeated full
     // linear scans over state.bookings/schedules/seats/etc per row (e.g. seatsForSchedule

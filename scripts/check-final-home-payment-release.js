@@ -27,7 +27,7 @@ function check(label, condition) {
   passed += 1;
 }
 
-check('release version is 1.6.10', pkg.version === '1.6.10');
+check('release version is 1.6.11', pkg.version === '1.6.11');
 check('checkout preparation avoids duplicate full availability loading', controller.includes('const context = await publicListingContext(req.params.slug, req.params.serviceType)') && controller.includes('holdSeats performs'));
 check('booking page reuses the prefetched marketplace snapshot', controller.includes('publicContext)') && controller.includes('includeReturnSchedules: false') && controller.includes('compactAvailability: true'));
 check('seat-hold item identifiers are allocated in one database call', repository.includes('nextIds') && inventory.includes("repository.nextIds('hold-item', inventoryRows.length)"));

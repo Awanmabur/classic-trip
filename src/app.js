@@ -96,6 +96,13 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
   immutable: env.isProduction,
   setHeaders(res, filePath) {
     if (/\.(?:webmanifest)$/i.test(filePath)) res.setHeader('Content-Type', 'application/manifest+json');
+    // `npm start` normally runs with NODE_ENV=development. The old zero-cache
+    // policy made every dashboard navigation refetch all CSS, JS, fonts and
+    // images even when nothing changed. Keep development updates responsive but
+    // allow a short browser cache; versioned asset URLs still invalidate cleanly.
+    if (!env.isProduction && /\.(?:css|js|mjs|png|jpe?g|webp|svg|gif|ico|woff2?|ttf)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+    }
   },
 }));
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
