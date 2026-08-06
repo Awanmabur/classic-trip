@@ -13,6 +13,7 @@
   const listingImage = listing.img || listing.image || listing.media?.[0]?.url || '';
   const listingPartner = listing.partner || listing.companyName || 'Service partner';
   const listingRoute = listing.routeLabel || [listing.from, listing.to].filter(Boolean).join(' → ');
+  const companyRoutes = isBusListing && Array.isArray(listing.routes) ? listing.routes : [];
   const stayTypeLabels = {hotel:'Hotel',lodge:'Lodge',resort:'Resort',guest_house:'Guest house',serviced_apartment:'Serviced apartment',apartment:'Apartment',entire_home:'Entire home',private_room:'Private room',shared_room:'Shared room',villa:'Villa',cottage:'Cottage',cabin:'Cabin',bungalow:'Bungalow',homestay:'Homestay',holiday_home:'Holiday home',farm_stay:'Farm stay',bed_and_breakfast:'Bed & breakfast',hostel:'Hostel',camp:'Camp'};
   const stayTypeLabel = isHotelListing ? (stayTypeLabels[String(listing.stayType || listing.type || '').toLowerCase()] || 'Stay') : '';
   const listingPlace = (isBusListing || isFlightListing || isCargoListing) ? (listingRoute || listing.location || (isCargoListing ? 'Pickup and delivery area' : 'Route information')) : (listing.location || listing.city || listingRoute || (isTaxiListing ? 'Service zone' : isTourListing ? 'Tour location' : isRentalListing ? 'Pickup location' : 'Property location'));
@@ -29,7 +30,7 @@
   const availabilityIcon = listing.isSponsored ? 'fa-bullhorn' : listing.bookable ? 'fa-circle-check' : remaining <= 0 && numericAvailabilityApplies ? 'fa-circle-xmark' : 'fa-clock';
   const priceUnit = isBusListing ? 'Fare by stops' : isHotelListing ? `Starting price · per available night${stayTypeLabel ? ` · ${stayTypeLabel}` : ''}` : isFlightListing ? 'Starting airfare · live dated departure' : isTaxiListing ? 'Estimated fare · request an exact quote' : isTourListing ? 'Starting price · per participant' : isRentalListing ? 'Starting price · per rental day' : isCargoListing ? (listing.pricingUnit === 'per_kg' ? 'Starting price · per kilogram' : listing.pricingUnit === 'per_package' ? 'Starting price · per package' : 'Starting price · per shipment') : 'Starting price';
 %>
-<article class="listing marketplaceListingCard <%= isBusListing ? 'referenceBusCard' : '' %>" data-id="<%= listing.id || listingIdentifier %>" data-group="<%= listing.group || listingType %>" data-service-type="<%= listingType %>" data-stay-type="<%= listing.stayType || '' %>" data-corridor="<%= listing.corridor || 'regional' %>">
+<article class="listing marketplaceListingCard <%= isBusListing ? 'referenceBusCard' : '' %>" data-id="<%= listing.listingId || listing.id || listingIdentifier %>" data-catalog-key="<%= listing.catalogKey || listing.id || listingIdentifier %>" data-group="<%= listing.group || listingType %>" data-service-type="<%= listingType %>" data-stay-type="<%= listing.stayType || '' %>" data-corridor="<%= listing.corridor || 'regional' %>">
   <a class="listingThumbLink" href="<%= listingHref %>" aria-label="View <%= listing.title || 'service' %>">
     <div class="thumb">
       <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.title || 'Service image' %>" loading="lazy" decoding="async"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
@@ -43,6 +44,13 @@
       <span><i class="fa-solid <%= (isBusListing || isFlightListing || isCargoListing) ? 'fa-route' : 'fa-location-dot' %>"></i> <%= listingPlace %></span>
       <span><i class="fa-solid fa-building"></i> <%= listingPartner %></span>
     </div>
+    <% if (companyRoutes.length) { %>
+      <div class="companyRouteList" aria-label="All company routes">
+        <% companyRoutes.forEach((route) => { const routeText = route.label || [route.origin, route.destination].filter(Boolean).join(' → '); %>
+          <span class="companyRouteChip" title="<%= routeText %>"><i class="fa-solid fa-route"></i> <%= routeText %></span>
+        <% }) %>
+      </div>
+    <% } %>
     <p class="desc"><%= listingDescription %></p>
     <div class="priceRow">
       <div><div class="price"><%= listingAmount > 0 ? money(listingAmount, listing.currency) : 'Price pending' %></div><div class="small"><%= listing.bookable ? priceUnit : 'Open service details' %></div></div>

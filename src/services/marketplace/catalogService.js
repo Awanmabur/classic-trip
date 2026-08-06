@@ -417,7 +417,7 @@ function liveCampaignFor(data, listingId, now = new Date()) {
     && (!campaign.endsAt || new Date(campaign.endsAt) >= now));
 }
 
-function catalogItem(data, listing) {
+function catalogItem(data, listing, preferredRoute = null) {
   const stableId = entityId(listing);
   const company = companyFor(data, listing.companyId || listing.companySlug);
   const schedules = listingSchedules(data, stableId).filter((row) => active(row));
@@ -437,8 +437,43 @@ function catalogItem(data, listing) {
     : serviceType === 'hotel'
       ? (roomInventory || number(listing.availableRooms || listing.inventory))
       : number(listing.remainingInventory || listing.inventory || listing.availability);
-  const route = listingRoutes(data, stableId)[0] || {};
+  const activeRoutes = listingRoutes(data, stableId)
+    .filter((row) => normalize(row.status) !== 'archived');
+  const preferredRouteId = entityId(preferredRoute || {});
+  const route = (preferredRouteId && activeRoutes.find((row) => sameId(row, preferredRouteId))) || activeRoutes[0] || {};
   const fareCatalog = serviceType === 'bus' ? fareCatalogForListing(data, stableId) : { products: [], priceFrom: 0, fullRoutePrice: 0, currency: '' };
+  const routeSummaries = serviceType === 'bus' ? activeRoutes.map((routeRow) => {
+    const routeId = entityId(routeRow);
+    const routeSchedules = schedules
+      .filter((schedule) => sameId(schedule.routeId || schedule.routeSnapshot?.routeId, routeId))
+      .sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0));
+    const routeProducts = fareCatalog.products.filter((product) => sameId(product.routeId, routeId));
+    const routeAmounts = routeProducts
+      .flatMap((product) => [product.priceFrom, product.fullRouteAmount])
+      .map(number)
+      .filter((amount) => amount > 0);
+    const routeNext = routeSchedules[0] || null;
+    const label = routeRow.routeName || [routeRow.origin || routeRow.from, routeRow.destination || routeRow.to].filter(Boolean).join(' → ') || 'Bus route';
+    return {
+      id: routeId,
+      routeId,
+      label,
+      routeName: routeRow.routeName || label,
+      origin: routeRow.origin || routeRow.from || '',
+      destination: routeRow.destination || routeRow.to || '',
+      corridor: routeRow.corridor || normalize(`${routeRow.origin || routeRow.from || ''}-${routeRow.destination || routeRow.to || ''}`),
+      timezone: routeRow.timezone || routeNext?.timezone || 'Africa/Kampala',
+      scheduleCount: routeSchedules.length,
+      availableSeats: routeSchedules.reduce((sum, schedule) => sum + Math.max(0, number(schedule.availableSeats)), 0),
+      nextDepartAt: routeNext?.departAt || null,
+      priceFrom: routeAmounts.length ? Math.min(...routeAmounts) : number(routeNext?.basePrice || listing.priceFrom || listing.price),
+      currency: String(routeProducts.find((product) => product.currency)?.currency || routeNext?.currency || listing.currency || '').toUpperCase(),
+    };
+  }).sort((a, b) => {
+    const aTime = asDate(a.nextDepartAt)?.getTime() || Number.MAX_SAFE_INTEGER;
+    const bTime = asDate(b.nextDepartAt)?.getTime() || Number.MAX_SAFE_INTEGER;
+    return aTime - bTime || a.label.localeCompare(b.label);
+  }) : [];
   const from = listing.from || route.origin || route.from || listing.city || '';
   const to = listing.to || route.destination || route.to || listing.location || '';
   const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
@@ -514,6 +549,8 @@ function catalogItem(data, listing) {
     country: listing.country || company?.country || '',
     corridor: listing.corridor || route.corridor || normalize(`${from}-${to}`),
     routeLabel: listing.routeLabel || [from, to].filter(Boolean).join(' → ') || listing.title,
+    routes: routeSummaries,
+    routeCount: routeSummaries.length,
     nextDepartAt,
     nextDepartLabel,
     time: nextDepartLabel,
@@ -542,7 +579,7 @@ function catalogItem(data, listing) {
     url: serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/listings/${publicServiceSlug(serviceType)}/${listing.slug || stableId}`,
     bookingUrl: bookable ? (serviceType === 'flight' ? '/flights' : serviceType === 'local_transport' ? '/taxi' : `/book/${publicServiceSlug(serviceType)}/${listing.slug || stableId}`) : '',
     companyUrl: `/companies/${company?.slug || entityId(company || {})}`,
-    searchText: normalize([listing.title, listing.description, from, to, listing.city, listing.country, company?.name, serviceType].join(' ')),
+    searchText: normalize([listing.title, listing.description, from, to, listing.city, listing.country, company?.name, serviceType, ...routeSummaries.map((item) => item.label)].join(' ')),
   };
   return enriched;
 }

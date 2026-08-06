@@ -108,6 +108,31 @@ function createDashboardProjection(initialState = {}) {
     };
   }
   const state = initialState || emptyProductionState();
+  const listingFareFromIndex = new Map();
+  const fareProductListingById = new Map();
+  function rememberListingFare(listingId, amount, currency = '') {
+    const key = String(listingId || '');
+    const value = Number(amount || 0);
+    if (!key || !Number.isFinite(value) || value <= 0) return;
+    const current = listingFareFromIndex.get(key);
+    if (!current || value < current.amount) listingFareFromIndex.set(key, { amount: value, currency: String(currency || current?.currency || '').toUpperCase() });
+  }
+  for (const product of (state.fareProducts || [])) {
+    const productId = String(product.id || product._id || '');
+    const listingId = String(product.listingId || '');
+    if (productId && listingId) fareProductListingById.set(productId, listingId);
+    for (const amount of [product.priceFrom, product.basePrice, product.price, product.amount]) rememberListingFare(listingId, amount, product.currency);
+  }
+  for (const fare of (state.busSegmentFares || [])) {
+    const listingId = String(fare.listingId || fareProductListingById.get(String(fare.fareProductId || '')) || '');
+    rememberListingFare(listingId, fare.amount || fare.price, fare.currency);
+  }
+  function listingFareFrom(listing = {}) {
+    const indexed = listingFareFromIndex.get(String(listing.id || listing._id || ''));
+    const direct = Number(listing.priceFrom || listing.price || 0);
+    if (Number.isFinite(direct) && direct > 0 && (!indexed || direct <= indexed.amount)) return { amount: direct, currency: String(listing.currency || indexed?.currency || platformCurrency()).toUpperCase() };
+    return indexed || { amount: 0, currency: String(listing.currency || platformCurrency()).toUpperCase() };
+  }
   // `rooms` is a dashboard-only read model derived from canonical room types and units.
   // There is no writable Room collection in the runtime architecture.
   const unitCountByType = new Map();
@@ -462,7 +487,7 @@ function createDashboardProjection(initialState = {}) {
           : listing.status === 'draft'
             ? 'Draft'
             : listing.releaseStatus || listing.status || 'Draft';
-      return [listing.title, SERVICE_LABELS[listing.serviceType] || listing.serviceType || listing.type, detail.owner.companyName, listing.serviceType === 'hotel' ? `${detail.inventory.roomInventory} rooms` : `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats} seats`, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from || '-'} to ${listing.to || '-'}`, marketplaceState, formatMoney(listing.priceFrom, listing.currency), dashboardMeta('listing', listing.id, listing.title, listing.status, detail, ['view', 'bookings', 'occupancy', 'open'])];
+      return [listing.title, SERVICE_LABELS[listing.serviceType] || listing.serviceType || listing.type, detail.owner.companyName, listing.serviceType === 'hotel' ? `${detail.inventory.roomInventory} rooms` : `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats} seats`, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from || '-'} to ${listing.to || '-'}`, marketplaceState, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), dashboardMeta('listing', listing.id, listing.title, listing.status, detail, ['view', 'bookings', 'occupancy', 'open'])];
     });
     const paymentRows = visibleBookings.map(booking => {
       const payment = state.payments.find(item => item.bookingRef === booking.bookingRef || item.bookingId === booking.id) || {};
@@ -2398,7 +2423,7 @@ function createDashboardProjection(initialState = {}) {
       roomVisualMaps,
       bookedSeatGroups,
       bookedRoomGroups,
-      listings: listings.map(listing => [listing.title, listing.type, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from} to ${listing.to}`, listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`, formatMoney(listing.priceFrom), listing.status, {
+      listings: listings.map(listing => [listing.title, listing.type, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from} to ${listing.to}`, listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.status, {
         entity: 'listing',
         id: listing.id,
         label: listing.title,
@@ -3621,7 +3646,7 @@ function createDashboardProjection(initialState = {}) {
       share: shareListings.map(listing => {
         const detail = shareDetail(listing);
         const company = findCompany(listing.companyId) || {};
-        return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, `${listing.from || listing.city || ''}${listing.to ? ` to ${listing.to}` : ''}`, formatMoney(listing.priceFrom, listing.currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
+        return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, `${listing.from || listing.city || ''}${listing.to ? ` to ${listing.to}` : ''}`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
       }),
       commissions: bookings.map((booking, index) => {
         const detail = commissionDetail(booking, index);
@@ -3977,7 +4002,7 @@ function createDashboardProjection(initialState = {}) {
       },
       inventory: {
         basePrice: listing.priceFrom,
-        price: formatMoney(listing.priceFrom, listing.currency),
+        price: formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency),
         currency: listing.currency,
         totalSeats,
         bookedSeats,

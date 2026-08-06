@@ -31,7 +31,7 @@ const repository = read('src/repositories/mongoRepository.js');
 const releaseCheck = read('scripts/check-final-home-payment-release.js');
 const sw = read('public/sw.js');
 
-check('Package and browser cache are v1.6.7', pkg.version === '1.6.7' && sw.includes('classic-trip-static-v1.6.7'));
+check('Package and browser cache are v1.6.10', pkg.version === '1.6.10' && sw.includes('classic-trip-static-v1.6.10'));
 check('Normal and dedicated-worker startup keep rolling work out of the web process',
   start.includes('const webRollingFallback = !runBackgroundWorker')
   && start.includes("nodeEnv !== 'production'")

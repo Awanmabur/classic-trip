@@ -75,9 +75,17 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
   const data = prefetched.data || await catalogService.snapshotForListing(identifier, serviceType) || await catalogService.snapshot();
   const raw = prefetched.raw || catalogService.listingFor(data, identifier, serviceType);
   if (!raw || !catalogService.isPublicListing(raw, data)) return { data, raw: null };
-  const listing = catalogService.catalogItem(data, raw);
+  const selectedRouteId = String(selection.routeId || '').trim();
+  const selectedRoute = selectedRouteId
+    ? (data.routes || []).find((row) => catalogService.sameId(row, selectedRouteId)) || null
+    : null;
+  const listing = catalogService.catalogItem(data, raw, selectedRoute);
   const company = catalogService.companyFor(data, raw.companyId || raw.companySlug);
-  let availability = catalogService.availability(data, listing);
+  let availability = {
+    ...catalogService.availability(data, listing),
+    selectedRouteId,
+    routes: Array.isArray(listing.routes) ? listing.routes : [],
+  };
   if (normalize(listing.serviceType) === 'bus') {
     const now = new Date();
     const publicDepartureStates = new Set(['published', 'boarding', 'delayed']);

@@ -19,9 +19,12 @@
   const addons = previewData.addons || [];
   const previewSchedules = safeAvailability.schedules || [];
   const returnSchedules = safeAvailability.returnSchedules || [];
+  const busRoutes = Array.isArray(listing.routes) ? listing.routes : (safeAvailability.routes || []);
+  const initialRouteId = String(safeAvailability.selectedRouteId || safeAvailability.schedule?.routeId || '');
   const scheduleTicketClass = (schedule) => String(schedule?.vehicleClass || schedule?.seatMapSnapshot?.vehicleClass || '').toLowerCase() === 'vip' ? 'vip' : 'standard';
-  const ticketClassesAvailable = new Set(previewSchedules.map(scheduleTicketClass));
-  const initialTicketClass = scheduleTicketClass(safeAvailability.schedule || previewSchedules.find((schedule) => scheduleTicketClass(schedule) === 'standard') || previewSchedules[0] || {});
+  const initialRouteSchedules = initialRouteId ? previewSchedules.filter((schedule) => String(schedule.routeId || '') === initialRouteId) : previewSchedules;
+  const ticketClassesAvailable = new Set(initialRouteSchedules.map(scheduleTicketClass));
+  const initialTicketClass = scheduleTicketClass(safeAvailability.schedule || initialRouteSchedules.find((schedule) => scheduleTicketClass(schedule) === 'standard') || initialRouteSchedules[0] || {});
   const initialReturnSchedules = returnSchedules.filter((schedule) => scheduleTicketClass(schedule) === initialTicketClass);
   const routeStops = safeAvailability.stops || [];
   const selectedJourney = safeAvailability.journey || {};
@@ -67,8 +70,8 @@
             <div class="selector scheduleSelector">
               <div class="selectorTop">
                 <div>
-                  <b>Choose your travel date &amp; time</b>
-                  <div class="muted" style="font-size:13px;font-weight:800">Pick when you want to travel before choosing a seat. Seat availability updates for the selected trip.</div>
+                  <b>Choose your route, travel date &amp; time</b>
+                  <div class="muted" style="font-size:13px;font-weight:800">Select the company route first, then choose its departure time, boarding stop and drop-off stop before selecting seats.</div>
                 </div>
               </div>
               <% if (previewSchedules.length) { %>
@@ -89,19 +92,27 @@
                     <input type="checkbox" id="returnTripToggle" hidden aria-hidden="true">
                   </div>
                 </div>
-                <div class="bookingForm" style="margin-top:10px">
-                  <select class="full" id="outboundScheduleSelect" aria-label="Outbound schedule" data-listing-action="outbound-schedule" required>
-                    <option value="" <%= safeAvailability.scheduleId ? '' : 'selected' %> disabled>Select travel date and time</option>
-                    <% previewSchedules.forEach((schedule) => { %>
-                      <option value="<%= schedule.id %>" data-ticket-class="<%= scheduleTicketClass(schedule) %>" <%= schedule.id === safeAvailability.scheduleId ? 'selected' : '' %>><%= scheduleTicketClass(schedule) === 'vip' ? 'VIP Ticket' : 'Standard Ticket' %> · <%= schedule.departureLabel %></option>
+                <div class="bookingForm busJourneySelectionGrid" style="margin-top:10px">
+                  <select class="journeyControl journeyRouteControl" id="outboundRouteSelect" aria-label="Select bus route" data-listing-action="outbound-route" required>
+                    <option value="" <%= initialRouteId ? '' : 'selected' %> disabled>Select route</option>
+                    <% busRoutes.forEach((route) => { const routeValue = route.routeId || route.id; const routeText = route.label || route.routeName || [route.origin, route.destination].filter(Boolean).join(' →'); %>
+                      <option value="<%= routeValue %>" <%= String(routeValue) === initialRouteId ? 'selected' : '' %>><%= routeText %></option>
                     <% }) %>
                   </select>
-                  <select id="outboundOriginStopSelect" aria-label="Boarding stop" data-listing-action="outbound-journey">
+                  <select class="journeyControl journeyScheduleControl" id="outboundScheduleSelect" aria-label="Outbound travel date and time" data-listing-action="outbound-schedule" required <%= initialRouteId ? '' : 'disabled' %>>
+                    <option value="" <%= safeAvailability.scheduleId ? '' : 'selected' %> disabled><%= initialRouteId ? `Select ${initialTicketClass === 'vip' ? 'VIP Ticket' : 'Standard Ticket'} date and time` : 'Select route first' %></option>
+                    <% previewSchedules.filter((schedule) => !initialRouteId || String(schedule.routeId || '') === initialRouteId).forEach((schedule) => { %>
+                      <option value="<%= schedule.id %>" data-route-id="<%= schedule.routeId || '' %>" data-ticket-class="<%= scheduleTicketClass(schedule) %>" <%= schedule.id === safeAvailability.scheduleId ? 'selected' : '' %>><%= scheduleTicketClass(schedule) === 'vip' ? 'VIP Ticket' : 'Standard Ticket' %> · <%= schedule.departureLabel %></option>
+                    <% }) %>
+                  </select>
+                  <select class="journeyControl journeyBoardingControl" id="outboundOriginStopSelect" aria-label="Boarding stop" data-listing-action="outbound-journey" <%= safeAvailability.scheduleId ? '' : 'disabled' %>>
+                    <% if (!routeStops.length) { %><option value="" selected disabled>Select travel time first</option><% } %>
                     <% routeStops.filter((stop) => stop.pickupAllowed !== false).forEach((stop) => { %>
                       <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.originStopId ? 'selected' : '' %>>Board at: <%= stop.name %></option>
                     <% }) %>
                   </select>
-                  <select id="outboundDestinationStopSelect" aria-label="Drop-off stop" data-listing-action="outbound-journey">
+                  <select class="journeyControl journeyDropoffControl" id="outboundDestinationStopSelect" aria-label="Drop-off stop" data-listing-action="outbound-journey" <%= safeAvailability.scheduleId ? '' : 'disabled' %>>
+                    <% if (!routeStops.length) { %><option value="" selected disabled>Select travel time first</option><% } %>
                     <% routeStops.filter((stop) => stop.dropoffAllowed !== false).forEach((stop) => { %>
                       <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.destinationStopId ? 'selected' : '' %>>Drop at: <%= stop.name %></option>
                     <% }) %>
@@ -279,7 +290,9 @@
   let activeReturnSelections = [];
   let activeRoomTypeId = <%- toScriptJson(firstRoom || '') %>;
   let checkoutPreparePending = false;
-  const outboundSchedulesData = <%- toScriptJson(previewSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, routeId: schedule.routeId, vehicleId: schedule.vehicleId, vehicleClass: scheduleTicketClass(schedule), label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '', basePrice: Number(schedule.basePrice || 0), currency: schedule.currency || '', stops: schedule.stops || [], journey: schedule.journey || {} }))) %>;
+  const outboundSchedulesData = <%- toScriptJson(previewSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, routeId: schedule.routeId, vehicleId: schedule.vehicleId, vehicleClass: scheduleTicketClass(schedule), label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '', arriveAt: schedule.arriveAt || '', basePrice: Number(schedule.basePrice || 0), currency: schedule.currency || '', stops: schedule.stops || [], journey: schedule.journey || {} }))) %>;
+  const routeOptionsData = <%- toScriptJson(busRoutes.map((route) => ({ id: route.routeId || route.id, label: route.label || route.routeName || [route.origin, route.destination].filter(Boolean).join(' →'), origin: route.origin || '', destination: route.destination || '' }))) %>;
+  let activeRouteId = <%- toScriptJson(initialRouteId) %>;
   let returnSchedulesData = <%- toScriptJson(initialReturnSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, vehicleClass: scheduleTicketClass(schedule), originStopId: schedule.originStopId, destinationStopId: schedule.destinationStopId, label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
   let activeTicketClass = <%- toScriptJson(initialTicketClass) %>;
   const previewAddonOptions = <%- toScriptJson(addons) %>;
@@ -345,21 +358,72 @@
     outboundChoice?.setAttribute('aria-pressed', hasReturn ? 'false' : 'true');
     returnChoice?.setAttribute('aria-pressed', hasReturn ? 'true' : 'false');
   }
+  function schedulesForActiveRoute() {
+    if (!activeRouteId) return [];
+    return outboundSchedulesData.filter((schedule) => String(schedule.routeId || '') === String(activeRouteId));
+  }
+  function syncRouteTicketClasses() {
+    const routeSchedules = schedulesForActiveRoute();
+    const counts = {
+      standard: routeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'standard').length,
+      vip: routeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'vip').length,
+    };
+    const standardButton = document.getElementById('standardTicketChoice');
+    const vipButton = document.getElementById('vipTicketChoice');
+    if (standardButton) standardButton.disabled = counts.standard === 0;
+    if (vipButton) vipButton.disabled = counts.vip === 0;
+    const standardCount = document.getElementById('standardTicketCount');
+    const vipCount = document.getElementById('vipTicketCount');
+    if (standardCount) standardCount.textContent = `${counts.standard} departure(s)`;
+    if (vipCount) vipCount.textContent = `${counts.vip} departure(s)`;
+    if (!counts[activeTicketClass]) activeTicketClass = counts.standard ? 'standard' : counts.vip ? 'vip' : 'standard';
+    syncTicketChoiceState();
+    return counts;
+  }
   function renderOutboundScheduleOptions({ preserveSelection = true } = {}) {
     const select = document.getElementById('outboundScheduleSelect');
     if (!select) return;
     const previous = preserveSelection ? String(select.value || previewPricing.scheduleId || '') : '';
-    const choices = outboundSchedulesData.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === activeTicketClass);
-    select.innerHTML = `<option value="" disabled>Select ${escapeHtml(ticketClassLabel(activeTicketClass))} date and time</option>${choices.map((schedule) => `<option value="${escapeHtml(schedule.id)}" data-ticket-class="${escapeHtml(activeTicketClass)}">${escapeHtml(ticketClassLabel(activeTicketClass))} · ${escapeHtml(schedule.label || schedule.id)}</option>`).join('')}`;
+    if (!activeRouteId) {
+      select.innerHTML = '<option value="" selected disabled>Select route first</option>';
+      select.disabled = true;
+      return;
+    }
+    const choices = schedulesForActiveRoute().filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === activeTicketClass);
+    select.innerHTML = `<option value="" disabled>Select ${escapeHtml(ticketClassLabel(activeTicketClass))} date and time</option>${choices.map((schedule) => `<option value="${escapeHtml(schedule.id)}" data-route-id="${escapeHtml(schedule.routeId || '')}" data-ticket-class="${escapeHtml(activeTicketClass)}">${escapeHtml(ticketClassLabel(activeTicketClass))} · ${escapeHtml(schedule.label || schedule.id)}</option>`).join('')}`;
     const retained = choices.some((schedule) => String(schedule.id) === previous) ? previous : '';
     select.value = retained;
     if (!retained) select.selectedIndex = 0;
     select.disabled = choices.length === 0;
   }
+  async function onOutboundRouteChange() {
+    const routeSelect = document.getElementById('outboundRouteSelect');
+    activeRouteId = String(routeSelect?.value || '');
+    previewPricing.scheduleId = '';
+    previewPricing.originStopId = '';
+    previewPricing.destinationStopId = '';
+    returnSchedulesData = [];
+    returnPricing.scheduleId = '';
+    activeReturnSelections = [];
+    syncRouteTicketClasses();
+    renderOutboundScheduleOptions({ preserveSelection: false });
+    await onOutboundScheduleChange();
+    const url = new URL(window.location.href);
+    if (activeRouteId) url.searchParams.set('routeId', activeRouteId); else url.searchParams.delete('routeId');
+    ['scheduleId', 'originStopId', 'destinationStopId'].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    const route = routeOptionsData.find((item) => String(item.id) === activeRouteId);
+    if (route) notify(`${route.label} selected. Now choose the travel date and time.`);
+  }
   async function setTicketClass(ticketClass) {
     const requested = normalizedTicketClass(ticketClass);
-    if (!outboundSchedulesData.some((schedule) => normalizedTicketClass(schedule.vehicleClass) === requested)) {
-      notify(`${ticketClassLabel(requested)} is not scheduled for this service yet.`);
+    if (!activeRouteId) {
+      notify('Select the route first.');
+      document.getElementById('outboundRouteSelect')?.focus();
+      return;
+    }
+    if (!schedulesForActiveRoute().some((schedule) => normalizedTicketClass(schedule.vehicleClass) === requested)) {
+      notify(`${ticketClassLabel(requested)} is not scheduled for the selected route yet.`);
       return;
     }
     if (requested === activeTicketClass) return;
@@ -709,7 +773,14 @@
       if (!response.ok) throw new Error(result.error || 'Unable to load reverse departures.');
       returnScheduleCache.set(cacheKey, { data: result, expiresAt: Date.now() + 30000 });
     }
-    returnSchedulesData = (result.departures || []).filter((item) => normalizedTicketClass(item.vehicleClass) === activeTicketClass);
+    const outboundSchedule = outboundSchedulesData.find((item) => String(item.id) === String(previewPricing.scheduleId)) || {};
+    const outboundFloor = new Date(outboundSchedule.arriveAt || outboundSchedule.departAt || 0).getTime();
+    returnSchedulesData = (result.departures || []).filter((item) => {
+      const returnTime = new Date(item.departAt || 0).getTime();
+      return normalizedTicketClass(item.vehicleClass) === activeTicketClass
+        && Number.isFinite(returnTime)
+        && (!Number.isFinite(outboundFloor) || returnTime > outboundFloor);
+    });
     const select = document.getElementById('returnScheduleSelect');
     const notice = document.getElementById('returnTripNotice');
     if (select) {
@@ -726,6 +797,11 @@
   function applySchedulePreview(scheduleId) {
     const schedule = outboundSchedulesData.find((item) => String(item.id) === String(scheduleId));
     if (!schedule) return false;
+    if (schedule.routeId) {
+      activeRouteId = String(schedule.routeId);
+      const routeSelect = document.getElementById('outboundRouteSelect');
+      if (routeSelect) routeSelect.value = activeRouteId;
+    }
     if (Number(schedule.basePrice || 0) > 0) previewPricing.basePrice = Number(schedule.basePrice || 0);
     if (schedule.currency) previewPricing.currency = schedule.currency;
     if ((schedule.stops || []).length) {
@@ -766,6 +842,12 @@
       activeSelection = '';
       activeSelectionLabel = '';
       renderOutboundSeats([]);
+      ['outboundOriginStopSelect', 'outboundDestinationStopSelect'].forEach((id) => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        control.innerHTML = '<option value="" selected disabled>Select travel time first</option>';
+        control.disabled = true;
+      });
       returnSchedulesData = [];
       returnPricing.scheduleId = '';
       returnPricing.originStopId = '';
@@ -1128,6 +1210,7 @@
   });
   document.addEventListener('change', (event) => {
     const actions = {
+      'outbound-route': () => onOutboundRouteChange(),
       'outbound-schedule': () => onOutboundScheduleChange(),
       'outbound-journey': () => {
         clearTimeout(outboundJourneyDebounce);
@@ -1142,8 +1225,9 @@
     };
     actions[event.target.dataset.listingAction]?.();
   });
-  Object.assign(window, { sharePreviewListing, togglePreviewAddon, selectPreviewOption, onOutboundScheduleChange, onOutboundJourneyChange, onReturnScheduleChange, setTicketClass, setTripType, toggleReturnTrip, toggleReturnSeat, goPaymentPage });
+  Object.assign(window, { sharePreviewListing, togglePreviewAddon, selectPreviewOption, onOutboundRouteChange, onOutboundScheduleChange, onOutboundJourneyChange, onReturnScheduleChange, setTicketClass, setTripType, toggleReturnTrip, toggleReturnSeat, goPaymentPage });
   if (previewPricing.serviceType === 'bus') {
+    syncRouteTicketClasses();
     renderOutboundScheduleOptions({ preserveSelection: true });
     syncTicketChoiceState();
     renderOutboundSeats(initialPreviewSeats, currentOutboundLayout);

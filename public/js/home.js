@@ -112,7 +112,11 @@
   }
 
   function listingId(item) {
-    return String(item?.id || item?._id || '').trim();
+    return String(item?.listingId || item?.id || item?._id || '').trim();
+  }
+
+  function catalogKey(item) {
+    return String(item?.catalogKey || item?.id || item?._id || '').trim();
   }
 
   function listingUrl(item) {
@@ -205,8 +209,17 @@
     return { className: 'promo', icon: 'fa-clock', text: 'View service' };
   }
 
+  function companyRoutesHtml(item, isBus) {
+    if (!isBus || !Array.isArray(item.routes) || !item.routes.length) return '';
+    return `<div class="companyRouteList" aria-label="All company routes">${item.routes.map((route) => {
+      const label = route.label || [route.origin, route.destination].filter(Boolean).join(' → ') || 'Bus route';
+      return `<span class="companyRouteChip" title="${escapeHtml(label)}"><i class="fa-solid fa-route"></i> ${escapeHtml(label)}</span>`;
+    }).join('')}</div>`;
+  }
+
   function cardHtml(item) {
     const id = listingId(item);
+    const key = catalogKey(item);
     const group = String(item.group || item.serviceType || 'more');
     const type = String(item.serviceType || item.type || group || 'service').toLowerCase();
     const isBus = type === 'bus';
@@ -231,11 +244,12 @@
       : isHotel ? 'Verified stay with dated availability and secure booking.'
         : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
           : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : isTour ? 'Verified activity with published capacity, guide details and secure booking.' : isRental ? 'Verified vehicle rental with pickup, return and live availability.' : isCargo ? 'Verified parcel and freight movement with pickup and delivery details.' : 'Verified travel service.');
+    const routeList = companyRoutesHtml(item, isBus);
     const priceHint = item.bookable
       ? (isBus ? 'Fare by stops' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
-    return `<article class="listing marketplaceListingCard serviceCard serviceCard--${escapeHtml(type)}${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
+    return `<article class="listing marketplaceListingCard serviceCard serviceCard--${escapeHtml(type)}${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-catalog-key="${escapeHtml(key)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
       <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
         <div class="thumb">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}" loading="lazy" decoding="async">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
@@ -246,6 +260,7 @@
       <div class="listingBody">
         <h3 class="listingTitle"><a href="${escapeHtml(listingUrl(item))}">${escapeHtml(item.title || 'Untitled service')}</a></h3>
         <div class="meta"><span><i class="fa-solid ${(isBus || isFlight) ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
+        ${routeList}
         <p class="desc">${escapeHtml(description)}</p>
         <div class="priceRow"><div><div class="price">${price}</div><div class="small">${escapeHtml(priceHint)}</div></div><div class="actions"><a class="btn btnGhost" href="${escapeHtml(listingUrl(item))}"><i class="fa-regular fa-eye"></i> View</a>${item.bookable ? `<a class="btn btnPrimary" href="${escapeHtml(bookingUrl(item))}"><i class="fa-solid fa-ticket"></i> Book</a>` : ''}</div></div>
       </div>
@@ -365,7 +380,7 @@
     const match = listings.find((item) => equivalentCorridor(item.corridor) === equivalentCorridor(activeCorridor));
     if (match && groupConfig[match.group]) {
       const rows = listings.filter((item) => item.group === match.group);
-      visibleCounts[match.group] = Math.max(visibleCounts[match.group], rows.findIndex((item) => listingId(item) === listingId(match)) + 1);
+      visibleCounts[match.group] = Math.max(visibleCounts[match.group], rows.findIndex((item) => catalogKey(item) === catalogKey(match)) + 1);
       renderGroup(match.group);
       updateSavedButtons();
       applyCorridorHighlight();
@@ -444,7 +459,7 @@
 
     const card = event.target.closest('.listing');
     if (card && !event.target.closest('a,button,input,select,textarea,label')) {
-      const item = listings.find((row) => listingId(row) === String(card.dataset.id || ''));
+      const item = listings.find((row) => catalogKey(row) === String(card.dataset.catalogKey || card.dataset.id || ''));
       if (item) window.location.assign(listingUrl(item));
     }
   });

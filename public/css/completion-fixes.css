@@ -1528,3 +1528,163 @@ body.sitePage > .siteFooter{
     margin-right:auto!important;
   }
 }
+
+/* v1.6.10-safe — all operator routes, stable preview controls, and aligned public navigation. */
+.companyRouteList{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:1px 0 3px;
+  scrollbar-width:none;
+  overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.companyRouteList::-webkit-scrollbar{display:none}
+.companyRouteChip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  flex:0 0 auto;
+  max-width:240px;
+  padding:4px 7px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--soft);
+  color:var(--text);
+  font-size:10px;
+  font-weight:850;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.companyRouteChip i{color:var(--brand)}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteList{gap:4px;padding-bottom:1px}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{max-width:170px;padding:3px 6px;font-size:8.5px}
+
+/* Route and travel time stay opposite on the first line; boarding and drop-off stay opposite below. */
+.listingPreviewPage .busJourneySelectionGrid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:center!important;
+}
+.listingPreviewPage .busJourneySelectionGrid>.journeyControl{
+  min-width:0!important;
+  width:100%!important;
+  margin:0!important;
+}
+.listingPreviewPage .busJourneySelectionGrid>.journeyPriceHint{grid-column:1/-1!important}
+
+/* The home template uses header.nav while shared pages use nav.nav. Align both with the body and footer. */
+:root{--ct-public-shell-width:min(calc(100% - 16px),1220px)}
+body.homePage > header.nav,
+body.homePage > .nav,
+body.sitePage > nav.nav,
+body.homePage .container,
+body.sitePage .container,
+body.homePage > .siteFooter,
+body.sitePage > .siteFooter{
+  width:var(--ct-public-shell-width)!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+@media(max-width:680px){
+  :root{--ct-public-shell-width:calc(100% - 12px)}
+  body.homePage > header.nav,
+  body.homePage > .nav,
+  body.sitePage > nav.nav,
+  body.homePage .container,
+  body.sitePage .container,
+  body.homePage > .siteFooter,
+  body.sitePage > .siteFooter{
+    width:var(--ct-public-shell-width)!important;
+    max-width:none!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+  body.homePage > header.nav,
+  body.sitePage > nav.nav{padding-inline:7px!important}
+
+  body.homePage > .bottomNav,
+  body.sitePage > .bottomNav{
+    left:50%!important;
+    right:auto!important;
+    transform:translateX(-50%)!important;
+    width:var(--ct-public-shell-width)!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:6px!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:stretch!important;
+    gap:2px!important;
+    border-radius:20px!important;
+    box-sizing:border-box!important;
+  }
+  body.homePage > .bottomNav button,
+  body.sitePage > .bottomNav button{
+    width:100%!important;
+    min-width:0!important;
+    min-height:48px!important;
+    height:auto!important;
+    margin:0!important;
+    padding:4px 1px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    overflow:hidden!important;
+    border-radius:14px!important;
+  }
+  body.homePage > .bottomNav button i,
+  body.sitePage > .bottomNav button i{
+    width:28px!important;
+    height:28px!important;
+    min-width:28px!important;
+    display:grid!important;
+    place-items:center!important;
+    font-size:15px!important;
+    line-height:1!important;
+  }
+  body.homePage > .bottomNav button span,
+  body.sitePage > .bottomNav button span{
+    display:block!important;
+    max-width:100%!important;
+    font-size:9px!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  .listingPreviewPage .busJourneySelectionGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+  .listingPreviewPage .busJourneySelectionGrid>.journeyControl{
+    min-height:42px!important;
+    padding-inline:7px!important;
+    font-size:10px!important;
+    text-overflow:ellipsis!important;
+  }
+  .companyRouteChip{max-width:190px;font-size:9px;padding:4px 6px}
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+    grid-template-columns:148px minmax(0,1fr)!important;
+    min-height:154px!important;
+    height:154px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    height:154px!important;
+    min-height:154px!important;
+  }
+}

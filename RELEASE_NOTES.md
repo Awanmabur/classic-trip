@@ -1,3 +1,24 @@
+# Classic Trip 1.6.10 — Safe v1.6.7 Company Routes, Preview, Navigation and Rolling Repair
+
+Release date: 6 August 2026
+
+## Fixed
+
+- Rebuilt directly from the safer v1.6.7 baseline.
+- Added the missing `routes` and `routeStops` company repository collections that caused the rolling worker's `undefined.findOne` failure.
+- Showed all active operator routes inside each bus card and Bars card without duplicating the card.
+- Put route and travel date/time opposite each other, with boarding and drop-off opposite below, inside the existing journey container.
+- Filtered departures when the route changes and cleared stale fare, seat and return state.
+- Excluded return departures that are not strictly later than the outbound journey.
+- Aligned the real homepage `header.nav`, shared top navigation, body containers, footer and phone bottom navigation to one width.
+- Stabilized the five phone bottom-navigation actions.
+- Restored dashboard **Price from** through a pre-indexed fare-product/segment fallback.
+- Advanced application, asset and service-worker versions to `1.6.10`.
+
+See `SAFE_V167_COMPANY_ROUTES_PREVIEW_NAV_ROLLING_FIX_REPORT_v1.6.10.md` for the complete implementation and verification record.
+
+---
+
 # Classic Trip 1.6.7 — Rolling Worker `undefined.findOne` Root Repair
 
 Release date: 6 August 2026

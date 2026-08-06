@@ -65,7 +65,7 @@ check('Booking indexes support schedule-scoped seat-map reads',
   booking.includes('bookingSchema.index({ companyId: 1, scheduleId: 1, createdAt: -1 })')
   && booking.includes("bookingSchema.index({ companyId: 1, 'ticketLegs.scheduleId': 1, createdAt: -1 })"));
 check('Dashboard asset cache is bumped for repaired client code',
-  serviceWorker.includes('classic-trip-static-v1.6.7'));
+  serviceWorker.includes('classic-trip-static-v1.6.10'));
 check('The full verification gate includes this dashboard repair audit',
   packageJson.scripts.verify.includes('npm run check:dashboard-runtime-repair'));
 
