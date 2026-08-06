@@ -15,6 +15,9 @@ async function start() {
   if (!env.mongoUri) throw new Error('MONGO_URI is required for the background worker');
   await Promise.all([connectDb(), connectRedis()]);
   await ensurePlatformConfig();
+  // Establish the single low-priority rolling queue owner before cron tasks are
+  // registered, so materializeSchedules is queue-first even during startup.
+  scheduleMaterializer.startWebFallback({ startupDelayMs: 10000 });
   const jobs = startScheduledJobs({ force: true });
   logger.startup('Classic Trip background worker started', { jobs: jobs.jobs });
   // Reconcile legacy "active" departures and fill the rolling month as soon
@@ -23,7 +26,6 @@ async function start() {
   // The worker is the single rolling-queue owner under `npm start`. It drains
   // all remaining dates in bounded batches and keeps the five-minute repair
   // scan, while the web process stays free to serve fares, checkout and dashboards.
-  scheduleMaterializer.startWebFallback({ startupDelayMs: 10000 });
   setImmediate(async () => {
     try {
       const restored = await restoreLegacyDemotedBusListings();

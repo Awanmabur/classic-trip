@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { env } = require('../config/env');
 const logger = require('../config/logger');
 const jobLeaseService = require('../services/shared/jobLeaseService');
+const { mongoose } = require('../config/db');
 
 const jobs = {
   processOutbox: {
@@ -65,6 +66,23 @@ const scheduledTasks = new Map();
 const lastRuns = new Map();
 const runningJobs = new Map();
 
+function jobTimeoutMs(definition = {}) {
+  return Math.max(5000, Math.min(Number(env.jobs.maxRunMs || 45000), Math.max(5000, Number(definition.leaseTtlMs || 60000) - 1000)));
+}
+
+function withTimeout(promise, milliseconds, name) {
+  let timer;
+  const timeout = new Promise((resolve, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`${name} exceeded the ${milliseconds}ms job deadline`);
+      error.code = 'job_timeout';
+      reject(error);
+    }, milliseconds);
+    timer.unref?.();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function runJob(name) {
   const definition = jobs[name];
   if (!definition) {
@@ -80,6 +98,12 @@ async function runJob(name) {
       reason: 'previous_run_still_active',
       startedAt: runningJobs.get(name).toISOString(),
     };
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    const skipped = { name, ok: true, skipped: true, reason: 'mongodb_unavailable' };
+    lastRuns.set(name, skipped);
+    return skipped;
   }
 
   const startedAt = new Date();
@@ -98,7 +122,7 @@ async function runJob(name) {
       };
     }
     stopLeaseHeartbeat = jobLeaseService.keepAlive(lease, definition.leaseTtlMs);
-    const result = await definition.module().run();
+    const result = await withTimeout(Promise.resolve().then(() => definition.module().run()), jobTimeoutMs(definition), name);
     const finishedAt = new Date();
     const status = {
       name,

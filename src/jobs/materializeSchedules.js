@@ -12,8 +12,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const RULE_LEASE_TTL_MS = 20 * 60 * 1000;
 const BACKGROUND_BATCH_SIZE = 1;
 const BACKGROUND_REPAIR_INTERVAL_MS = 5 * 60 * 1000;
-const BACKGROUND_BATCH_PAUSE_MS = 4000;
+const BACKGROUND_BATCH_PAUSE_MS = 2000;
 const PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000;
+const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const backgroundQueue = new Map();
 const rollingCacheInvalidationTimers = new Map();
 const publicationBlockerCooldown = new Map();
@@ -90,6 +91,84 @@ function tagRollingFailure(error, stage) {
   if (!failure.rollingStage) failure.rollingStage = stage;
   if (!failure.code && isInternalRuntimeFailure(failure)) failure.code = 'rolling_internal_runtime_failure';
   return failure;
+}
+
+
+function vehicleConflictFailures(failures = []) {
+  return (failures || []).filter((failure) => /vehicle_schedule_conflict|vehicle is already assigned|overlapping departure/i.test(String(failure || '')));
+}
+
+function activePersistentBlocker(rule = {}, now = new Date()) {
+  const until = rule.materializationBlockedUntil ? new Date(rule.materializationBlockedUntil) : null;
+  if (!rule.materializationBlockerCode || !until || Number.isNaN(until.getTime()) || until <= now) return null;
+  return {
+    code: rule.materializationBlockerCode,
+    reason: rule.materializationBlockerReason || 'Recurring departure materialization is temporarily blocked',
+    failures: Array.isArray(rule.materializationBlockerFailures) ? rule.materializationBlockerFailures : [],
+    until,
+  };
+}
+
+async function persistVehicleConflictBlocker(rule, failures = []) {
+  const conflicts = vehicleConflictFailures(failures);
+  if (!conflicts.length) return { blocked: false, persisted: false };
+  // Re-read before writing because the queue and cron can discover the same rule.
+  // Never extend an existing active blocker: one deterministic overlap gets one
+  // cooldown window until the operator edits/resumes the rule.
+  const current = await busOperationsRepository.scheduleRules.findOne({ id: rule.id, companyId: rule.companyId });
+  const existingBlocker = activePersistentBlocker(current || rule, new Date());
+  if (existingBlocker) {
+    return {
+      blocked: true,
+      persisted: false,
+      blockedUntil: existingBlocker.until.toISOString(),
+      failures: existingBlocker.failures.length ? existingBlocker.failures : conflicts.slice(0, 8),
+    };
+  }
+  const blockedUntil = new Date(Date.now() + VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS).toISOString();
+  const updateResult = await busOperationsRepository.scheduleRules.updateOne({
+    id: rule.id,
+    companyId: rule.companyId,
+    $or: [
+      { materializationBlockedUntil: { $exists: false } },
+      { materializationBlockedUntil: null },
+      { materializationBlockedUntil: { $lte: new Date() } },
+    ],
+  }, {
+    $set: {
+      materializationBlockedAt: new Date().toISOString(),
+      materializationBlockedUntil: blockedUntil,
+      materializationBlockerCode: 'vehicle_schedule_conflict',
+      materializationBlockerReason: conflicts[0],
+      materializationBlockerFailures: conflicts.slice(0, 8),
+      materializationStateUpdatedAt: new Date().toISOString(),
+    },
+  });
+  if (!Number(updateResult?.matchedCount || updateResult?.n || 0)) {
+    const winner = await busOperationsRepository.scheduleRules.findOne({ id: rule.id, companyId: rule.companyId });
+    const winnerBlocker = activePersistentBlocker(winner || {}, new Date());
+    if (winnerBlocker) return {
+      blocked: true,
+      persisted: false,
+      blockedUntil: winnerBlocker.until.toISOString(),
+      failures: winnerBlocker.failures.length ? winnerBlocker.failures : conflicts.slice(0, 8),
+    };
+  }
+  return { blocked: true, persisted: true, blockedUntil, failures: conflicts.slice(0, 8) };
+}
+
+async function clearExpiredOrResolvedBlocker(rule) {
+  if (!rule.materializationBlockerCode) return;
+  await busOperationsRepository.scheduleRules.updateOne({ id: rule.id, companyId: rule.companyId }, {
+    $unset: {
+      materializationBlockedAt: '',
+      materializationBlockedUntil: '',
+      materializationBlockerCode: '',
+      materializationBlockerReason: '',
+      materializationBlockerFailures: '',
+    },
+    $set: { materializationStateUpdatedAt: new Date().toISOString() },
+  });
 }
 
 function matchingFutureDates(rule, cursor, windowEnd, now) {
@@ -213,6 +292,14 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
   // transient setup conflict.
   const cursor = ruleStart > today ? new Date(ruleStart) : today;
   const windowEnd = ruleEnd && ruleEnd < horizonEnd ? ruleEnd : horizonEnd;
+  const persistedBlocker = activePersistentBlocker(rule, now);
+  if (persistedBlocker) {
+    return {
+      created: 0, published: 0, draft: 0, skipped: 0, expected: 0, existing: 0, pending: 0,
+      failures: persistedBlocker.failures.length ? persistedBlocker.failures : [persistedBlocker.reason],
+      blocked: true, blockedUntil: persistedBlocker.until.toISOString(), blockerCode: persistedBlocker.code,
+    };
+  }
   const ruleKey = queuedRuleKey(rule.companyId, rule.id);
   const blocker = publicationBlockerCooldown.get(ruleKey);
   if (blocker && blocker.expiresAt <= Date.now()) publicationBlockerCooldown.delete(ruleKey);
@@ -346,6 +433,7 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     }
   }
 
+  const unresolvedPending = pending + Math.max(0, dates.length - created);
   const finalFailures = [...failures].slice(0, 8);
   if (finalFailures.length && draft > 0) {
     publicationBlockerCooldown.set(ruleKey, {
@@ -355,6 +443,10 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
   } else if (!finalFailures.length && published > 0) {
     publicationBlockerCooldown.delete(ruleKey);
   }
+  const blockerResult = unresolvedPending > 0 && skipped > 0
+    ? await persistVehicleConflictBlocker(rule, finalFailures)
+    : { blocked: false, persisted: false };
+  if (!blockerResult.blocked && rule.materializationBlockerCode) await clearExpiredOrResolvedBlocker(rule);
   await companyService.recordScheduleRuleMaterialization(rule.companyId, rule.id, windowEnd.toISOString());
   return {
     created,
@@ -363,9 +455,13 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     skipped,
     expected: expectedDates.length,
     existing: expectedDates.length - missingDates.length,
-    pending,
+    pending: unresolvedPending,
     failures: finalFailures,
     reconciled: reconciled.published + reconciled.draft + draftReconciliation.published,
+    blocked: blockerResult.blocked,
+    blockerPersisted: blockerResult.persisted,
+    blockedUntil: blockerResult.blockedUntil || '',
+    blockerCode: blockerResult.blocked ? 'vehicle_schedule_conflict' : '',
   };
 }
 
@@ -406,32 +502,55 @@ async function materializeRuleWithLease(rule, horizonEnd, now, options = {}) {
 
 async function run(now = new Date()) {
   const horizonEnd = startOfDay(new Date(now.getTime() + HORIZON_DAYS * DAY_MS));
-  const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' });
+  const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
+  const blockedRules = activeRules.filter((rule) => activePersistentBlocker(rule, now));
+  const eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now));
+
+  // In the dedicated worker, the low-priority queue owns date creation. The
+  // cron callback only discovers and queues eligible rules, so it cannot spend
+  // 45 seconds creating departures or compete with dashboard/payment traffic.
+  if (backgroundQueueOwner) {
+    let queued = 0;
+    eligibleRules.forEach((rule) => {
+      if (queueRuleMaterialization(rule.companyId, rule.id)) queued += 1;
+    });
+    return {
+      rulesConsidered: activeRules.length,
+      rulesBlocked: blockedRules.length,
+      rulesQueued: queued,
+      rollingWindowDays: ROLLING_WINDOW_DAYS,
+      schedulesCreated: 0,
+      schedulesPublished: 0,
+      schedulesDraft: 0,
+      legacySchedulesReconciled: 0,
+      daysSkipped: 0,
+      results: [],
+    };
+  }
+
+  // CLI/tests without a queue owner still receive bounded synchronous work.
+  const deadline = Date.now() + 25_000;
   let totalCreated = 0;
   let totalPublished = 0;
   let totalDraft = 0;
   let totalSkipped = 0;
   let totalReconciled = 0;
   const results = [];
-  for (const rule of activeRules) {
+  for (const rule of eligibleRules) {
+    if (Date.now() >= deadline) break;
     // eslint-disable-next-line no-await-in-loop
-    const {
-      created, published, draft, skipped, reconciled = 0, pending = 0,
-    } = await materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: BACKGROUND_BATCH_SIZE });
+    const result = await materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: BACKGROUND_BATCH_SIZE });
+    const { created = 0, published = 0, draft = 0, skipped = 0, reconciled = 0, pending = 0 } = result;
     totalCreated += created;
     totalPublished += published;
     totalDraft += draft;
     totalSkipped += skipped;
     totalReconciled += reconciled;
-    if (pending > 0 && created > 0) queueRuleMaterialization(rule.companyId, rule.id);
-    if (created || skipped || reconciled || pending) {
-      results.push({
-        ruleId: rule.id, created, published, draft, skipped, reconciled, pending,
-      });
-    }
+    if (created || skipped || reconciled || pending) results.push({ ruleId: rule.id, created, published, draft, skipped, reconciled, pending });
   }
   return {
     rulesConsidered: activeRules.length,
+    rulesBlocked: blockedRules.length,
     rollingWindowDays: ROLLING_WINDOW_DAYS,
     schedulesCreated: totalCreated,
     schedulesPublished: totalPublished,
@@ -526,6 +645,17 @@ async function drainBackgroundQueue() {
         await sleep(750);
         continue;
       }
+      if (result?.blocked) {
+        if (result.blockerPersisted) {
+          logger.warn('Rolling departure rule blocked by a vehicle schedule conflict', {
+            companyId: job.companyId,
+            ruleId: job.ruleId,
+            blockedUntil: result.blockedUntil || '',
+            failures: result.failures || [],
+          });
+        }
+        continue;
+      }
       logger.info('Rolling departure batch completed', {
         companyId: job.companyId,
         ruleId: job.ruleId,
@@ -543,16 +673,9 @@ async function drainBackgroundQueue() {
         job.attempts = 0;
         backgroundQueue.set(key, job);
       } else if (pending > 0 && skipped > 0) {
-        // A permanent configuration or validation error can leave the earliest
-        // dates missing. Do not hot-loop over those same dates every 250 ms. The
-        // five-minute repair scan will retry after an operator fixes the blocker.
-        logger.warn('Rolling departure queue paused until the next repair scan', {
-          companyId: job.companyId,
-          ruleId: job.ruleId,
-          pending,
-          skipped,
-          failures: result.failures || [],
-        });
+        // Permanent validation failures do not hot-loop. Deterministic vehicle
+        // overlaps are persisted above and skipped by all repair scans. Other
+        // configuration errors wait for the next bounded scan without log spam.
       } else if (pending > 0) {
         // Never silently abandon an incomplete window when a repository/batch
         // returns no progress and no permanent validation error. Retry a bounded
@@ -582,8 +705,10 @@ async function drainBackgroundQueue() {
 
 async function queueAllActiveRules() {
   const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
-  activeRules.forEach((rule) => queueRuleMaterialization(rule.companyId, rule.id));
-  return activeRules.length;
+  const now = new Date();
+  const eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now));
+  eligibleRules.forEach((rule) => queueRuleMaterialization(rule.companyId, rule.id));
+  return eligibleRules.length;
 }
 
 function startWebFallback(options = {}) {

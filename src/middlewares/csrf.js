@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { env } = require('../config/env');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SKIPPED_PATHS = [
@@ -8,13 +9,69 @@ const SKIPPED_PATHS = [
 
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, matches session cookie
 
+// These pages contain no state-changing form for a signed-out visitor. Keeping
+// them token-free avoids allocating and persisting a server session merely to
+// render public marketing content.
+const READ_ONLY_PUBLIC_PATHS = [
+  /^\/$/,
+  /^\/search$/,
+  /^\/services$/,
+  /^\/routes$/,
+  /^\/companies(?:\/[^/]+)?$/,
+  /^\/partner\/[^/]+$/,
+  /^\/promoters$/,
+  /^\/promoter-program$/,
+  /^\/partner-commission$/,
+  /^\/blogs(?:\/[^/]+)?$/,
+  /^\/how-it-works$/,
+  /^\/privacy$/,
+  /^\/terms$/,
+];
+
+function isReadOnlyPublicRequest(req) {
+  return SAFE_METHODS.has(String(req.method || '').toUpperCase())
+    && READ_ONLY_PUBLIC_PATHS.some((pattern) => pattern.test(String(req.path || '')));
+}
+
+function shouldIssueToken(req) {
+  if (!SAFE_METHODS.has(String(req.method || '').toUpperCase())) return true;
+  if (req.session?.user || req.session?.csrfToken) return true;
+  return !isReadOnlyPublicRequest(req);
+}
+
 function shouldSkip(req) {
   if (process.env.NODE_ENV === 'test') return true;
   if (SAFE_METHODS.has(req.method)) return true;
   return SKIPPED_PATHS.some((pattern) => pattern.test(req.path));
 }
 
+function csrfSignature(raw) {
+  return crypto.createHmac('sha256', env.sessionSecret).update(String(raw || '')).digest('base64url');
+}
+
+function signedAnonymousToken() {
+  const raw = crypto.randomBytes(24).toString('base64url');
+  return `${raw}.${csrfSignature(raw)}`;
+}
+
+function validAnonymousToken(token) {
+  const value = String(token || '');
+  const splitAt = value.lastIndexOf('.');
+  if (splitAt < 1) return false;
+  const raw = value.slice(0, splitAt);
+  const signature = value.slice(splitAt + 1);
+  return timingSafeEqual(signature, csrfSignature(raw));
+}
+
 function ensureToken(req) {
+  // Signed-out forms use a signed double-submit cookie. This keeps login,
+  // registration, listing preview and checkout preparation CSRF-protected
+  // without writing an otherwise empty server-side session on every GET.
+  if (!req.session?.user && !req.session?.csrfToken) {
+    const cookieToken = req.cookies?.['XSRF-TOKEN'];
+    if (validAnonymousToken(cookieToken)) return cookieToken;
+    return signedAnonymousToken();
+  }
   if (!req.session) return '';
   if (!req.session.csrfToken) req.session.csrfToken = crypto.randomBytes(32).toString('hex');
   return req.session.csrfToken;
@@ -101,11 +158,11 @@ function requireCsrfToken(req, res, next) {
 }
 
 function csrfToken(req, res, next) {
-  const token = ensureToken(req);
+  const token = shouldIssueToken(req) ? ensureToken(req) : '';
   req.csrfToken = () => token;
   res.locals.csrfToken = token;
 
-  if (token) {
+  if (token && req.cookies?.['XSRF-TOKEN'] !== token) {
     res.cookie('XSRF-TOKEN', token, {
       httpOnly: false,
       sameSite: 'lax',
@@ -149,4 +206,8 @@ module.exports = {
   expectedRequestOrigin,
   suppliedRequestOrigin,
   normalizeOrigin,
+  isReadOnlyPublicRequest,
+  shouldIssueToken,
+  signedAnonymousToken,
+  validAnonymousToken,
 };

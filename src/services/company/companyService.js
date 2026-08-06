@@ -1,6 +1,7 @@
 const { currencyForCountry, normalizeCountry } = require('../../config/countryMarkets');
 const crypto = require('crypto');
 const toSlug = require('../../utils/slugify');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const { ENABLED_BOOKING_TYPES, COMPANY_STATUS, LISTING_STATUS } = require('../../config/constants');
 const { nextId } = require('../data/idService');
 const { normalizeCompanyType } = require('../../utils/companyServiceType');
@@ -163,7 +164,7 @@ async function writeAudit(actorId, action, target, meta = {}, options = {}) {
   return row;
 }
 function listingType(serviceType) { return SERVICE_LABELS[serviceType] || serviceType; }
-function listingRouteLabel(payload) { return payload.from || payload.to ? [payload.from, payload.to].filter(Boolean).join(' to ') : payload.city || payload.country || ''; }
+function listingRouteLabel(payload) { return payload.from || payload.to ? formatRouteLabel(payload.from, payload.to) : payload.city || payload.country || ''; }
 
 async function createCompany(payload = {}) {
   const platformConfig = await getPlatformConfig();
@@ -1129,6 +1130,7 @@ async function updateVehicleStatusDispatch(companyId, vehicleId, payload = {}, a
 
 async function createScheduleBatchDispatch(companyId, payload = {}) { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); return busDepartureService.createScheduleBatch(companyId, payload, payload.actorId || payload.createdBy || 'company-admin'); }
 async function createScheduleDispatch(companyId, payload = {}) { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); if (payload.routeId) await assertBusRoute(companyId, payload.routeId); return busDepartureService.createSchedule(companyId, payload, payload.actorId || payload.createdBy || 'company-admin'); }
+async function repairScheduleInventoryDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.repairScheduleInventory(companyId, scheduleId, actor); }
 async function updateScheduleDispatch(companyId, scheduleId, payload = {}) { await assertBusSchedule(companyId, scheduleId); return busDepartureService.updateSchedule(companyId, scheduleId, payload, payload.actorId || payload.updatedBy || 'company-admin'); }
 async function publishScheduleDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.publishSchedule(companyId, scheduleId, actor); }
 async function archiveScheduleDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.archiveSchedule(companyId, scheduleId, actor); }
@@ -1150,7 +1152,7 @@ module.exports = {
   updateVehicleSeatTemplate: updateVehicleSeatTemplateDispatch, updateVehicleStatus: updateVehicleStatusDispatch,
   createSchedule: createScheduleDispatch, createScheduleBatch: createScheduleBatchDispatch, createScheduleRule: createScheduleRuleDispatch, updateScheduleRule: updateScheduleRuleDispatch,
   pauseScheduleRule: pauseScheduleRuleDispatch, resumeScheduleRule: resumeScheduleRuleDispatch, cancelScheduleRule: cancelScheduleRuleDispatch,
-  recordScheduleRuleMaterialization: busDepartureService.recordScheduleRuleMaterialization, updateSchedule: updateScheduleDispatch,
+  recordScheduleRuleMaterialization: busDepartureService.recordScheduleRuleMaterialization, repairScheduleInventory: repairScheduleInventoryDispatch, updateSchedule: updateScheduleDispatch,
   publishSchedule: publishScheduleDispatch, archiveSchedule: archiveScheduleDispatch, transitionSchedule: transitionScheduleDispatch,
   completeSchedule: completeScheduleDispatch, duplicateSchedule: duplicateScheduleDispatch, updateSeatStatus: updateSeatStatusDispatch,
   createFareProduct: busSetupService.createFareProduct, updateFareProduct: busSetupService.updateFareProduct, archiveFareProduct: busSetupService.archiveFareProduct,

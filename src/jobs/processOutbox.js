@@ -1,10 +1,11 @@
 const outboxService = require('../services/shared/outboxService');
 const { handlers } = require('../services/shared/outboxHandlers');
+const { env } = require('../config/env');
 
 async function run() {
-  // A short, frequent batch prevents the worker from monopolising the shared
-  // MongoDB pool while still draining up to 150 events per minute.
-  return outboxService.processBatch(handlers, { limit: 25 });
+  // Keep each pass small. A DNS/topology interruption must not hold the worker
+  // for minutes or compete with login, preview, checkout, and dashboard reads.
+  return outboxService.processBatch(handlers, { limit: env.jobs.outboxBatchSize });
 }
 
 module.exports = { run };

@@ -82,7 +82,7 @@ const app = read('src/app.js');
   'helmet({',
   'contentSecurityPolicy',
   'csrfToken',
-  'compression()',
+  'compression({ threshold: 1024, level: 6 })',
   "express.json({ limit: '2mb'",
   "app.use('/api/webhooks'",
 ].forEach((fragment) => check(`Application security/config includes ${fragment}`, app.includes(fragment)));

@@ -1,6 +1,7 @@
 'use strict';
 
 const toSlug = require('../../../utils/slugify');
+const { formatRouteLabel } = require('../../../utils/routeLabel');
 const repository = require('../repositories/busRepository');
 const { evaluateDriverAssignment } = require('../../../services/company/driverEligibilityService');
 const { LISTING_DESCRIPTION_MIN_LENGTH, assertPublicDescription, normalizePublicDescription } = require('../../../config/contentRules');
@@ -631,7 +632,7 @@ async function createRoute(companyId, payload = {}, actor = 'company-admin') {
     id: await repository.nextId('route'),
     listingId: listing.id,
     companyId,
-    routeName: cleanText(payload.routeName || payload.name || `${origin.name} to ${destination.name}`, 180),
+    routeName: cleanText(formatRouteLabel(origin.name, destination.name, payload.routeName || payload.name), 180),
     routeCode: cleanText(payload.routeCode || `${origin.name.slice(0, 3)}-${destination.name.slice(0, 3)}`, 40).toUpperCase(),
     timezone: cleanText(payload.timezone || timezoneForCountry(origin.branch?.country || listing.country), 80),
     version: 1,
@@ -1197,7 +1198,7 @@ async function createFareProduct(companyId, payload = {}, actor = 'company-admin
     companyId,
     listingId: listing.id,
     routeId: route.id,
-    name: cleanText(payload.name || payload.fareName || `${route.routeName || `${route.origin} to ${route.destination}`} ${fareClass} fare`, 180),
+    name: cleanText(payload.name || payload.fareName || `${formatRouteLabel(route.origin, route.destination, route.routeName)} ${fareClass} fare`, 180),
     fareClass,
     currency: cleanText(listing.currency, 10).toUpperCase(),
     refundable: boolValue(payload.refundable),

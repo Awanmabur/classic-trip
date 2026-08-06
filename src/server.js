@@ -28,10 +28,10 @@ async function start() {
   httpServer.headersTimeout = 66_000;
   httpServer.requestTimeout = 45_000;
   httpServer.maxRequestsPerSocket = 1_000;
-  // A standalone web process may explicitly opt into the lease-protected repair
-  // queue. Normal and separate-worker production launchers keep it disabled so
-  // two processes do not scan the same rules or invalidate dashboard caches.
-  const fallbackDefault = env.nodeEnv === 'production' ? 'false' : 'true';
+  // Keep rolling materialization out of the request-serving process by default,
+  // including direct development launches. Operators without a dedicated worker
+  // can still opt in explicitly with WEB_ROLLING_FALLBACK=true.
+  const fallbackDefault = 'false';
   const webRollingFallback = String(process.env.WEB_ROLLING_FALLBACK || fallbackDefault).trim().toLowerCase() === 'true';
   if (webRollingFallback) scheduleMaterializer.startWebFallback();
   return httpServer;

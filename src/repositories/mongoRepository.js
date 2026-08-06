@@ -1,4 +1,5 @@
 const { mongoose } = require('../config/db');
+const { env } = require('../config/env');
 
 function mongoReady() {
   return mongoose.connection.readyState === 1;
@@ -19,13 +20,19 @@ function retryableReadError(error) {
   const name = String(error?.name || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return name.includes('mongowaitqueuetimeout')
-    || name.includes('serverselection')
     || name.includes('mongonetwork')
     || message.includes('timed out while checking out a connection')
-    || message.includes('server selection timed out')
     || message.includes('connection pool')
     || message.includes('econnreset')
     || message.includes('connection closed');
+}
+
+function queryMaxTime(options = {}) {
+  return Math.max(500, Number(options.maxTimeMS || env.mongoConnection?.queryMaxTimeMs || 5000));
+}
+
+function applyReadDeadline(query, options = {}) {
+  return typeof query?.maxTimeMS === 'function' ? query.maxTimeMS(queryMaxTime(options)) : query;
 }
 
 function sleep(milliseconds) {
@@ -43,7 +50,7 @@ async function runRetryableRead(work) {
       // A short retry is safe for reads and lets the driver's pool/topology
       // recover from a transient Atlas checkout or election without turning a
       // normal page request into an immediate 503. Writes are never retried here.
-      await sleep(125);
+      await sleep(75);
     }
   }
   throw lastError;
@@ -151,6 +158,7 @@ class MongoRepository {
       if (options.sort) query = query.sort(options.sort);
       if (options.limit) query = query.limit(options.limit);
       if (options.skip) query = query.skip(options.skip);
+      query = applyReadDeadline(query, options);
       return (await query.lean()).map(clean);
     });
   }
@@ -161,6 +169,7 @@ class MongoRepository {
       let query = this.Model.findOne(this.normalizeFilter(filter));
       if (options.session) query = query.session(options.session);
       if (options.select) query = query.select(options.select);
+      query = applyReadDeadline(query, options);
       return clean(await query.lean());
     });
   }
@@ -170,6 +179,7 @@ class MongoRepository {
     return runRetryableRead(async () => {
       let query = this.Model.countDocuments(this.normalizeFilter(filter));
       if (options.session) query = query.session(options.session);
+      query = applyReadDeadline(query, options);
       return query;
     });
   }
@@ -184,6 +194,7 @@ class MongoRepository {
         { $group: { _id: `$${safeField}`, count: { $sum: 1 } } },
       ]);
       if (options.session) aggregate = aggregate.session(options.session);
+      aggregate = aggregate.option({ maxTimeMS: queryMaxTime(options) });
       const rows = await aggregate.exec();
       return rows.map((row) => ({ key: row._id, count: Number(row.count || 0) }));
     });
@@ -200,7 +211,7 @@ class MongoRepository {
     requireMongo(this.entity);
     if (!row) return row;
     const resolvedFilter = this.normalizeFilter(filter || this.defaultFilter(row));
-    await this.Model.updateOne(resolvedFilter, { $set: this.prepareRow(row) }, { upsert: true, runValidators: true, ...options });
+    await this.Model.updateOne(resolvedFilter, { $set: this.prepareRow(row) }, { upsert: true, runValidators: true, maxTimeMS: queryMaxTime(options), ...options });
     return row;
   }
 
@@ -226,22 +237,22 @@ class MongoRepository {
 
   async updateOne(filter, update, options = {}) {
     requireMongo(this.entity);
-    return this.Model.updateOne(this.normalizeFilter(filter), this.prepareUpdate(update), { runValidators: true, ...options });
+    return this.Model.updateOne(this.normalizeFilter(filter), this.prepareUpdate(update), { runValidators: true, maxTimeMS: queryMaxTime(options), ...options });
   }
 
   async updateMany(filter, update, options = {}) {
     requireMongo(this.entity);
-    return this.Model.updateMany(this.normalizeFilter(filter), this.prepareUpdate(update), { runValidators: true, ...options });
+    return this.Model.updateMany(this.normalizeFilter(filter), this.prepareUpdate(update), { runValidators: true, maxTimeMS: queryMaxTime(options), ...options });
   }
 
   async findOneAndUpdate(filter, update, options = { new: true }) {
     requireMongo(this.entity);
-    return clean(await this.Model.findOneAndUpdate(this.normalizeFilter(filter), this.prepareUpdate(update), { new: true, runValidators: true, ...options }).lean());
+    return clean(await this.Model.findOneAndUpdate(this.normalizeFilter(filter), this.prepareUpdate(update), { new: true, runValidators: true, maxTimeMS: queryMaxTime(options), ...options }).lean());
   }
 
   async deleteMany(filter = {}, options = {}) {
     requireMongo(this.entity);
-    return this.Model.deleteMany(this.normalizeFilter(filter), options);
+    return this.Model.deleteMany(this.normalizeFilter(filter), { maxTimeMS: queryMaxTime(options), ...options });
   }
 }
 

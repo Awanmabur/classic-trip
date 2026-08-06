@@ -55,7 +55,7 @@
     $('#flightResultsPanel').classList.remove('hidden');
     $('#flightCheckoutPanel').classList.add('hidden');
     $('#flightOfferCount').textContent = `${rows.length} offer${rows.length === 1 ? '' : 's'}`;
-    $('#flightResultSummary').textContent = `${data.criteria?.origin?.city || data.criteria?.origin?.iataCode || ''} to ${data.criteria?.destination?.city || data.criteria?.destination?.iataCode || ''} · ${String(data.criteria?.cabinClass || 'economy').replaceAll('_', ' ')}`;
+    $('#flightResultSummary').textContent = `${data.criteria?.origin?.city || data.criteria?.origin?.iataCode || ''} ⇄ ${data.criteria?.destination?.city || data.criteria?.destination?.iataCode || ''} · ${String(data.criteria?.cabinClass || 'economy').replaceAll('_', ' ')}`;
     $('#flightOffers').innerHTML = rows.length ? rows.map((row, index) => {
       const segments = row.segments?.length ? row.segments : [row.departure, row.returnDeparture].filter(Boolean);
       const policy = row.policy?.outbound || row.policy || {};
@@ -88,7 +88,7 @@
       state.seatMaps.set(segment.departureId, data);
       state.selectedSeats.set(segment.departureId, []);
       const section = document.createElement('section'); section.className = 'travelerCard';
-      section.innerHTML = `<div class="travelerTitle"><div><h3>${esc(data.departure.flightNumber)} seat map</h3><span class="muted">${esc(data.departure.originAirportId)} → ${esc(data.departure.destinationAirportId)} · choose ${Number(state.offer.passengerCounts?.totalSeats || 1)} seats</span></div><span class="badge badgeInfo" data-seat-count="${esc(segment.departureId)}">0 selected</span></div><div class="seatMap">${(data.seats || []).map((seat) => `<button class="flightSeat ${seat.status !== 'available' ? 'unavailable' : ''}" type="button" data-seat-departure="${esc(segment.departureId)}" data-seat-number="${esc(seat.seatNumber)}" ${seat.status !== 'available' ? 'disabled' : ''}><input type="checkbox" tabindex="-1"><span>${esc(seat.seatNumber)}</span></button>`).join('')}</div>`;
+      section.innerHTML = `<div class="travelerTitle"><div><h3>${esc(data.departure.flightNumber)} seat map</h3><span class="muted">${esc(data.departure.originAirportId)} ⇄ ${esc(data.departure.destinationAirportId)} · choose ${Number(state.offer.passengerCounts?.totalSeats || 1)} seats</span></div><span class="badge badgeInfo" data-seat-count="${esc(segment.departureId)}">0 selected</span></div><div class="seatMap">${(data.seats || []).map((seat) => `<button class="flightSeat ${seat.status !== 'available' ? 'unavailable' : ''}" type="button" data-seat-departure="${esc(segment.departureId)}" data-seat-number="${esc(seat.seatNumber)}" ${seat.status !== 'available' ? 'disabled' : ''}><input type="checkbox" tabindex="-1"><span>${esc(seat.seatNumber)}</span></button>`).join('')}</div>`;
       holder.appendChild(section);
     }
     $$('[data-seat-number]', holder).forEach((button) => button.addEventListener('click', () => toggleSeat(button)));

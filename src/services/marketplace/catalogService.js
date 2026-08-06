@@ -4,10 +4,12 @@ const promoterRepository = require('../../repositories/domain/promoterRepository
 const { publicCatalogGroup } = require('./catalogGrouping');
 const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPublicListing: publicListingVisible } = require('./catalogVisibility');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
+const redisRuntime = require('../../config/redis');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
@@ -27,15 +29,18 @@ function isPublicListing(row, data = {}) { return publicListingVisible(row, data
 let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
+let homeBootstrapCache = null;
+let homeBootstrapCachedAt = 0;
+let homeBootstrapInflight = null;
 const listingSnapshotCache = new Map();
 const listingSnapshotInflight = new Map();
-const LISTING_SNAPSHOT_TTL_MS = 300_000;
-const LISTING_SNAPSHOT_STALE_MS = 1_800_000;
+const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
+const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
-  const concurrency = Math.max(2, Math.min(8, Number(env.performance?.mongoReadConcurrency || 8), Number(env.mongoPool?.max || 10) - 2));
+  const concurrency = Math.max(2, Math.min(4, Number(env.mongoPool?.max || 5) - 1));
   let cursor = 0;
   async function worker() {
     while (cursor < tasks.length) {
@@ -49,21 +54,20 @@ async function runCatalogTasks(tasks = []) {
 }
 
 async function loadSnapshotFresh() {
-  // The public catalog used to hydrate every Seat and RoomNightInventory row before
-  // rendering a single card. That made the home and marketing pages grow slower as
-  // real inventory was added. Cards can use the immutable schedule counts and live
-  // room-unit status; authoritative seat/room-night reads remain in the availability
-  // and checkout services where they belong.
-  const [categories, listingRows, companies, blogs, platformConfig] = await runCatalogTasks([
+  const [categories, listingRows, blogs, platformConfig] = await runCatalogTasks([
     () => commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
     () => commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
-    () => commerceRepository.companies.list({ status: { $ne: 'archived' } }, { sort: { name: 1 }, limit: 5000 }),
     () => contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 500 }),
     () => getPlatformConfig(),
   ]);
+  const initialCompanyIds = unique(listingRows.map((row) => row.companyId).map(text));
+  const companies = initialCompanyIds.length
+    ? await runMongoRead(() => commerceRepository.companies.list({ id: { $in: initialCompanyIds } }, { sort: { name: 1 }, limit: 5000 }))
+    : [];
   const productionListings = listingRows.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings: listingRows, companies })));
   const listingIds = unique(productionListings.map(entityId));
   const currentTime = new Date();
+  const today = currentTime.toISOString().slice(0, 10);
   const none = { id: '__no_public_inventory__' };
   const listingFilter = listingIds.length ? { listingId: { $in: listingIds } } : none;
   const [routes, serviceAddons, schedules, roomTypes, roomUnits, links, campaigns] = await runCatalogTasks([
@@ -84,8 +88,10 @@ async function loadSnapshotFresh() {
     () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
   ]);
   const routeIds = unique(routes.map(entityId));
+  const scheduleIds = unique(schedules.map(entityId));
   const vehicleIds = unique(schedules.map((row) => row.vehicleId).map(text));
-  const [routeStops, fareProducts, segmentFares, vehicles] = await runCatalogTasks([
+  const roomTypeIds = unique(roomTypes.map(entityId));
+  const [routeStops, fareProducts, segmentFares, seats, vehicles, roomNights] = await runCatalogTasks([
     () => routeIds.length
       ? commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 20000 })
       : [],
@@ -95,35 +101,20 @@ async function loadSnapshotFresh() {
     () => routeIds.length
       ? commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 30000 })
       : [],
+    () => scheduleIds.length
+      ? commerceRepository.seats.list({ scheduleId: { $in: scheduleIds } }, { limit: 50000 })
+      : [],
     () => vehicleIds.length
       ? commerceRepository.vehicles.list({ id: { $in: vehicleIds }, status: { $ne: 'archived' } }, { limit: 10000 })
       : [],
+    () => roomTypeIds.length
+      ? commerceRepository.roomNights.list({ roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 50000 })
+      : [],
   ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
-  return {
-    categories: productionCategories,
-    listings: productionListings,
-    companies,
-    routes,
-    routeStops,
-    fareProducts,
-    segmentFares,
-    serviceAddons,
-    schedules,
-    // Inventory is deliberately loaded only by the selected-listing availability
-    // APIs. Keeping these arrays empty prevents 50k+ compatibility rows from
-    // blocking every public page while preserving the existing card fallbacks.
-    seats: [],
-    vehicles,
-    roomTypes,
-    roomUnits,
-    roomNights: [],
-    links,
-    campaigns,
-    blogs,
-    platformConfig,
-  };
+  return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
 }
+
 
 function listingSnapshotKey(identifier, serviceType = '') {
   return `${canonicalPublicServiceType(serviceType)}:${normalize(identifier)}`;
@@ -159,8 +150,8 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
   const today = now.toISOString().slice(0, 10);
   const [company, routes, serviceAddons, schedules, roomTypes, platformConfig] = await runCatalogTasks([
     () => commerceRepository.companies.findOne({ id: listing.companyId }),
-    () => isBus ? commerceRepository.routes.list({ listingId, status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 120 }) : [],
-    () => commerceRepository.serviceAddons.list({ listingId, status: 'active' }, { sort: { sortOrder: 1, createdAt: 1 }, limit: 120 }),
+    () => isBus ? commerceRepository.routes.list({ listingId, status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 80 }) : [],
+    () => commerceRepository.serviceAddons.list({ listingId, status: 'active' }, { sort: { sortOrder: 1, createdAt: 1 }, limit: 80 }),
     () => isBus ? commerceRepository.schedules.list({
       listingId,
       status: { $in: ['published', 'boarding', 'delayed'] },
@@ -169,8 +160,8 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
         { status: 'boarding' },
         { status: 'delayed', arriveAt: { $gte: now } },
       ],
-    }, { sort: { departAt: 1 }, limit: 180 }) : [],
-    () => isHotel ? commerceRepository.roomTypes.list({ listingId, status: 'active' }, { sort: { createdAt: -1 }, limit: 120 }) : [],
+    }, { sort: { departAt: 1 }, limit: 90 }) : [],
+    () => isHotel ? commerceRepository.roomTypes.list({ listingId, status: 'active' }, { sort: { createdAt: -1 }, limit: 80 }) : [],
     () => getPlatformConfig(),
   ]);
   const routeIds = unique(routes.map(entityId));
@@ -229,14 +220,11 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
   const snapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotStopRouteIds.has(String(routeId)));
   const fareSnapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotFareRouteIds.has(String(routeId)));
   const [routeStops, fareProducts, segmentFares, roomUnits, roomNights] = await runCatalogTasks([
-    () => !isBus || !routeIds.length ? [] : (snapshotsCoverRoutes ? snapshotStops : commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 1000 })),
-    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes ? [...snapshotFareProducts.values()] : commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 500 })),
-    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes && snapshotSegmentFares.size ? [...snapshotSegmentFares.values()] : commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 3000 })),
-    () => roomTypeIds.length ? commerceRepository.roomUnits.list({ listingId, roomTypeId: { $in: roomTypeIds }, status: { $nin: ['archived', 'maintenance'] } }, { limit: 1000 }) : [],
-    // Date-specific room-night availability is loaded only after the traveler
-    // selects check-in/check-out dates. Initial preview/payment rendering needs
-    // room types and units, not thousands of future nightly rows.
-    () => [],
+    () => !isBus || !routeIds.length ? [] : (snapshotsCoverRoutes ? snapshotStops : commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 400 })),
+    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes ? [...snapshotFareProducts.values()] : commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 160 })),
+    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes && snapshotSegmentFares.size ? [...snapshotSegmentFares.values()] : commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 1200 })),
+    () => roomTypeIds.length ? commerceRepository.roomUnits.list({ listingId, roomTypeId: { $in: roomTypeIds }, status: { $nin: ['archived', 'maintenance'] } }, { limit: 300 }) : [],
+    () => roomTypeIds.length ? commerceRepository.roomNights.list({ listingId, roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 1500 }) : [],
   ]);
   const seats = [];
   const vehicles = [];
@@ -262,15 +250,53 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
   };
 }
 
+function sharedListingSnapshotKey(key) {
+  return redisRuntime.key('listing-snapshot', key);
+}
+
+async function readSharedListingSnapshot(key) {
+  const client = redisRuntime.activeClient();
+  if (!client) return null;
+  try {
+    const encoded = await client.get(sharedListingSnapshotKey(key));
+    if (!encoded) return null;
+    const parsed = JSON.parse(encoded);
+    if (!parsed?.value || !Number(parsed.createdAt)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function writeSharedListingSnapshot(key, value, createdAt = Date.now()) {
+  const client = redisRuntime.activeClient();
+  if (!client || !value) return;
+  try {
+    await client.set(sharedListingSnapshotKey(key), JSON.stringify({ createdAt, value }), { PX: LISTING_SNAPSHOT_STALE_MS });
+  } catch (_) {}
+}
+
 async function snapshotForListing(identifier, serviceType = '', options = {}) {
   const key = listingSnapshotKey(identifier, serviceType);
-  const cached = listingSnapshotCache.get(key);
+  let cached = listingSnapshotCache.get(key);
+  if (!options.force && !cached) {
+    const shared = await readSharedListingSnapshot(key);
+    if (shared) {
+      listingSnapshotCache.set(key, { value: shared.value, createdAt: shared.createdAt });
+      cached = listingSnapshotCache.get(key);
+    }
+  }
   const age = cached ? Date.now() - cached.createdAt : Infinity;
   if (!options.force && cached && age <= LISTING_SNAPSHOT_TTL_MS) return cached.value;
   if (!options.force && cached && age <= LISTING_SNAPSHOT_STALE_MS) {
     if (!listingSnapshotInflight.has(key)) {
       const refresh = loadListingSnapshotFresh(identifier, serviceType)
-        .then((value) => value ? rememberListingSnapshot(key, value) : null)
+        .then(async (value) => {
+          if (!value) return null;
+          const remembered = rememberListingSnapshot(key, value);
+          await writeSharedListingSnapshot(key, remembered);
+          return remembered;
+        })
         .finally(() => listingSnapshotInflight.delete(key));
       listingSnapshotInflight.set(key, refresh);
       refresh.catch(() => {});
@@ -280,7 +306,12 @@ async function snapshotForListing(identifier, serviceType = '', options = {}) {
   let inflight = listingSnapshotInflight.get(key);
   if (!inflight) {
     inflight = loadListingSnapshotFresh(identifier, serviceType)
-      .then((value) => value ? rememberListingSnapshot(key, value) : null)
+      .then(async (value) => {
+        if (!value) return null;
+        const remembered = rememberListingSnapshot(key, value);
+        await writeSharedListingSnapshot(key, remembered);
+        return remembered;
+      })
       .finally(() => listingSnapshotInflight.delete(key));
     listingSnapshotInflight.set(key, inflight);
   }
@@ -326,12 +357,14 @@ function invalidateMarketplaceCache() {
   // forcing a refresh. Listing-scoped snapshots are small enough to clear and
   // must not retain an unpublished schedule/listing after an operator change.
   snapshotCachedAt = 0;
+  homeBootstrapCache = null;
+  homeBootstrapCachedAt = 0;
   listingSnapshotCache.clear();
 }
 
 async function prewarmHome() {
   await snapshot({ force: true });
-  return homeBootstrap();
+  return homeBootstrap({ force: true });
 }
 
 function companyFor(data, identifier) {
@@ -385,7 +418,7 @@ function fareCatalogForListing(data, listingId) {
       name: product.name || product.fareClass || 'Fare',
       fareClass: product.fareClass || 'standard',
       routeId: product.routeId || '',
-      routeLabel: route.routeName || [route.origin, route.destination].filter(Boolean).join(' → '),
+      routeLabel: formatRouteLabel(route.origin, route.destination, route.routeName),
       currency: String(product.currency || fullRoute?.currency || '').toUpperCase(),
       refundable: Boolean(product.refundable),
       changeable: Boolean(product.changeable),
@@ -470,7 +503,7 @@ function catalogItem(data, listing, preferredRoute = null) {
       .map(number)
       .filter((amount) => amount > 0);
     const routeNext = routeSchedules[0] || null;
-    const label = routeRow.routeName || [routeRow.origin || routeRow.from, routeRow.destination || routeRow.to].filter(Boolean).join(' → ') || 'Bus route';
+    const label = formatRouteLabel(routeRow.origin || routeRow.from, routeRow.destination || routeRow.to, routeRow.routeName) || 'Bus route';
     return {
       id: routeId,
       routeId,
@@ -565,7 +598,7 @@ function catalogItem(data, listing, preferredRoute = null) {
     city: listing.city || from || to,
     country: listing.country || company?.country || '',
     corridor: listing.corridor || route.corridor || normalize(`${from}-${to}`),
-    routeLabel: listing.routeLabel || [from, to].filter(Boolean).join(' → ') || listing.title,
+    routeLabel: formatRouteLabel(from, to, listing.routeLabel) || listing.title,
     routes: routeSummaries,
     routeCount: routeSummaries.length,
     nextDepartAt,
@@ -807,8 +840,7 @@ async function searchWithMeta(query = {}) {
   return { data, results, meta: { total: results.length, marketplace, typeStats: marketplace.typeStats, routeHighlights: marketplace.routeHighlights, query } };
 }
 
-async function homeBootstrap() {
-  const data = await snapshot();
+function buildHomeBootstrap(data) {
   const listings = data.listings.filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
   const marketplace = marketplaceInfo(listings);
   const campaigns = data.campaigns
@@ -827,6 +859,34 @@ async function homeBootstrap() {
     marketplace,
     heroStats: { liveRoutes: marketplace.routeHighlights.length, verifiedPartners: marketplace.stats.partners, bookableInventory: listings.filter((row) => row.bookable).length, totalServices: marketplace.stats.liveListings, availableNow: marketplace.stats.availableNow, departuresNext24h: marketplace.stats.departuresNext24h },
   };
+}
+
+async function refreshHomeBootstrap() {
+  if (homeBootstrapInflight) return homeBootstrapInflight;
+  homeBootstrapInflight = snapshot()
+    .then((data) => buildHomeBootstrap(data))
+    .then((value) => {
+      homeBootstrapCache = value;
+      homeBootstrapCachedAt = Date.now();
+      return value;
+    })
+    .finally(() => { homeBootstrapInflight = null; });
+  return homeBootstrapInflight;
+}
+
+async function homeBootstrap(options = {}) {
+  const age = homeBootstrapCache ? Date.now() - homeBootstrapCachedAt : Infinity;
+  if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheTtlMs) return homeBootstrapCache;
+  if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheStaleMs) {
+    refreshHomeBootstrap().catch(() => {});
+    return homeBootstrapCache;
+  }
+  try {
+    return await refreshHomeBootstrap();
+  } catch (error) {
+    if (homeBootstrapCache) return homeBootstrapCache;
+    throw error;
+  }
 }
 
 async function recordReferralClick(code, listingId, request = {}) {

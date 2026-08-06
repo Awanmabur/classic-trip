@@ -1529,7 +1529,7 @@ body.sitePage > .siteFooter{
   }
 }
 
-/* v1.6.11-safe — all operator routes, stable preview controls, and aligned public navigation. */
+/* v1.6.10-safe — all operator routes, stable preview controls, and aligned public navigation. */
 .companyRouteList{
   display:flex;
   align-items:center;
@@ -1690,19 +1690,334 @@ body.sitePage > .siteFooter{
 }
 
 
-/* v1.6.11 speed/phone navigation finish: a clearly rounded floating dock. */
-@media(max-width:680px){
+/* v1.6.11 — speed-first public rendering and a clearly rounded phone navigation shell. */
+@supports (content-visibility:auto){
+  body.homePage main > section:not(:first-child),
+  body.sitePage main > section:not(:first-child),
+  body.sitePage .marketingPage > section:not(:first-child),
+  body.homePage > .siteFooter,
+  body.sitePage > .siteFooter{
+    content-visibility:auto;
+    contain-intrinsic-size:1px 620px;
+  }
+}
+
+@media(max-width:1050px){
   body.homePage > .bottomNav,
   body.sitePage > .bottomNav{
-    bottom:max(10px,env(safe-area-inset-bottom))!important;
     border-radius:34px!important;
-    padding:7px!important;
-    gap:3px!important;
     overflow:hidden!important;
-    box-shadow:0 18px 44px rgba(0,0,0,.34)!important;
+    contain:layout paint!important;
+    -webkit-backdrop-filter:blur(10px)!important;
+    backdrop-filter:blur(10px)!important;
+    transition:transform .16s ease,opacity .16s ease!important;
   }
   body.homePage > .bottomNav button,
   body.sitePage > .bottomNav button{
-    border-radius:22px!important;
+    border-radius:19px!important;
+    transition:background-color .14s ease,color .14s ease,transform .14s ease!important;
   }
+}
+
+@media(max-width:680px){
+  body.homePage > .bottomNav,
+  body.sitePage > .bottomNav{
+    border-radius:32px!important;
+    padding:7px!important;
+  }
+  body.homePage > .bottomNav button,
+  body.sitePage > .bottomNav button{
+    border-radius:18px!important;
+  }
+}
+
+
+/* v1.6.13 — desktop bars follow their content; phone bars remain on the approved v1.6.10 dimensions. */
+@media(min-width:681px){
+  .homePage .sectionListingCollection[data-view="bars"]{
+    align-items:start!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+    height:auto!important;
+    min-height:0!important;
+    align-items:stretch!important;
+    align-self:start!important;
+    overflow:hidden!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink{
+    height:auto!important;
+    min-height:100%!important;
+    align-self:stretch!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    height:100%!important;
+    min-height:100%!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingBody{
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:flex-start!important;
+    align-items:stretch!important;
+    gap:5px!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    padding:11px 12px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    align-items:flex-start!important;
+    align-content:flex-start!important;
+    gap:4px!important;
+    width:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+    height:auto!important;
+    padding:1px 0!important;
+    overflow:visible!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{
+    flex:0 1 auto!important;
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    line-height:1.2!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .desc,
+  .homePage .sectionListingCollection[data-view="bars"] .priceRow{
+    margin-top:0!important;
+    margin-bottom:0!important;
+  }
+}
+
+@media(max-width:680px){
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+    grid-template-columns:148px minmax(0,1fr)!important;
+    min-height:154px!important;
+    height:154px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    min-height:154px!important;
+    height:154px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+    min-height:0!important;
+    max-height:none!important;
+    height:auto!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding:1px 0 3px!important;
+  }
+}
+
+/* Seat-map alignment: center the complete cabin and every physical row inside its card. */
+.dashboardBody #seat-maps .seatPreviewPanel{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  justify-items:center!important;
+  align-items:start!important;
+  width:100%!important;
+  min-width:0!important;
+}
+.dashboardBody #seat-maps .seatPreviewPanel[hidden]{display:none!important}
+.dashboardBody #seat-maps .seatPreviewMetaCard,
+.dashboardBody #seat-maps .seatPreviewPanel>.notice{
+  width:min(720px,100%)!important;
+  box-sizing:border-box!important;
+}
+.dashboardBody #seat-maps .busCabin{
+  justify-self:center!important;
+  margin-inline:auto!important;
+}
+.dashboardBody #seat-maps .busCabinDeck{
+  width:100%!important;
+  box-sizing:border-box!important;
+  justify-items:center!important;
+  justify-content:center!important;
+}
+.dashboardBody #seat-maps .busSeatRow{
+  justify-content:center!important;
+  justify-self:center!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.dashboardBody #seat-maps .busCabinFront{
+  margin:4px auto 18px!important;
+  padding:8px!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.dashboardBody #seat-maps .driverPod{
+  padding:12px 16px!important;
+  margin:4px!important;
+  min-height:50px!important;
+  text-align:center!important;
+}
+
+/* Every occupied/taken state is red; orange remains reserved for blocked/maintenance seats. */
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).taken,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).booked,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).sold,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).confirmed,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).occupied,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).checked_in,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).checked-in,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).no_show,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).no-show{
+  background:#ef4444!important;
+  border-color:#dc2626!important;
+  color:#fff!important;
+  opacity:1!important;
+}
+
+/* v1.6.14 — Vision Coaches desktop-bar proportions, deterministic seat colours, and visible driver spacing. */
+@media(min-width:681px){
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+    grid-template-columns:190px minmax(0,1fr)!important;
+    align-items:start!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    width:190px!important;
+    height:150px!important;
+    min-height:150px!important;
+    max-height:150px!important;
+    aspect-ratio:auto!important;
+    align-self:start!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumb img{
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingBody{
+    align-self:start!important;
+    gap:3px!important;
+    padding:9px 11px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+    gap:3px!important;
+    padding:0!important;
+    margin:0!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{
+    padding:3px 6px!important;
+    line-height:1.15!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] :is(.meta,.desc,.priceRow,.actions){
+    margin-top:0!important;
+    margin-bottom:0!important;
+  }
+}
+
+/* The driver/front marker must have visible air before the first physical row. */
+.dashboardBody #seat-maps .busCabinFront{
+  column-gap:14px!important;
+  row-gap:12px!important;
+  margin:4px auto 24px!important;
+  padding:10px!important;
+}
+.dashboardBody #seat-maps .driverPod{
+  padding:12px 18px!important;
+  margin:0 6px!important;
+  min-height:50px!important;
+}
+.dashboardBody #seat-maps .busCabinDeck{margin-top:8px!important;}
+.listingPreviewPage .busSeatLayoutBox .vehicleFront{
+  width:calc(100% - 16px)!important;
+  max-width:620px!important;
+  min-height:42px!important;
+  height:auto!important;
+  margin:0 auto 20px!important;
+  padding:8px 22px!important;
+  box-sizing:border-box!important;
+}
+
+/* Final authoritative seat-state layer. Booking/ticket evidence always wins. */
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat)[data-seat-state="taken"],
+.dashboardBody #seat-maps .busSeatRow .seat.has-ticket,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-booked,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-taken,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-sold,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-confirmed,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-occupied,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-checked_in,
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat).seat-status-no_show{
+  background:#dc2626!important;
+  background-image:none!important;
+  border-color:#b91c1c!important;
+  color:#fff!important;
+  opacity:1!important;
+  text-decoration:none!important;
+  box-shadow:inset 0 -4px 0 rgba(69,10,10,.32)!important;
+}
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat)[data-seat-state="holding"]{
+  background:#22c55e!important;
+  background-image:none!important;
+  border-color:#16a34a!important;
+  color:#052e16!important;
+}
+:is(.homePage,.sitePage,.dashboardBody) :is(.seat,.returnSeat)[data-seat-state="blocked"]{
+  background:#ff7a18!important;
+  background-image:none!important;
+  border-color:#ea580c!important;
+  color:#fff!important;
+}
+
+
+/* v1.6.14 final precision layer: fixed compact desktop image, centred aisle, and unmistakable driver gap. */
+@media(min-width:681px){
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    height:150px!important;
+    min-height:150px!important;
+    max-height:150px!important;
+    align-self:start!important;
+  }
+}
+.dashboardBody #seat-maps .busCabinFront{
+  margin-bottom:0!important;
+  padding:10px 10px 22px!important;
+  border-bottom:1px dashed var(--line2)!important;
+}
+.dashboardBody #seat-maps .busCabinDeck{
+  margin-top:18px!important;
+  width:100%!important;
+  justify-items:center!important;
+}
+@media(min-width:761px){
+  .dashboardBody #seat-maps .busSeatRow[data-side-slots="1"]{--seat-side-width:66px;}
+  .dashboardBody #seat-maps .busSeatRow[data-side-slots="2"]{--seat-side-width:144px;}
+  .dashboardBody #seat-maps .busSeatRow[data-side-slots="3"]{--seat-side-width:222px;}
+  .dashboardBody #seat-maps .busSeatRow[data-side-slots="4"]{--seat-side-width:300px;}
+  .dashboardBody #seat-maps .busSeatRow[data-side-slots]{
+    grid-template-columns:var(--seat-side-width) 34px var(--seat-side-width)!important;
+    width:max-content!important;
+    margin-inline:auto!important;
+  }
+  .dashboardBody #seat-maps .busSeatGroup{
+    width:var(--seat-side-width)!important;
+    min-width:var(--seat-side-width)!important;
+    display:flex!important;
+  }
+  .dashboardBody #seat-maps .busSeatGroup--left{justify-content:flex-end!important;}
+  .dashboardBody #seat-maps .busSeatGroup--right{justify-content:flex-start!important;}
+}
+.dashboardBody #seat-maps .seatChip.taken,
+.dashboardBody #seat-maps .seatChip.booked,
+.dashboardBody #seat-maps .seatChip.sold,
+.dashboardBody #seat-maps .seatChip.occupied,
+.dashboardBody #seat-maps .seatChip.checked_in,
+.dashboardBody #seat-maps .seatChip.no_show{
+  background:#dc2626!important;
+  border-color:#b91c1c!important;
+  color:#fff!important;
+  opacity:1!important;
+  text-decoration:none!important;
 }

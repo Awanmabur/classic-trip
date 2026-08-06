@@ -26,6 +26,12 @@ const scheduleRuleSchema = new Schema({
   // rechecks the complete live window so deleted or previously skipped dates
   // can be repaired safely.
   materializedThrough: Date,
+  materializationBlockedAt: Date,
+  materializationBlockedUntil: { type: Date, index: true },
+  materializationBlockerCode: { type: String, index: true },
+  materializationBlockerReason: String,
+  materializationBlockerFailures: [String],
+  materializationStateUpdatedAt: Date,
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });

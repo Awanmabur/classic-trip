@@ -8,16 +8,19 @@ const sessionConfig = require('./config/session');
 const passport = require('./config/passport');
 const { env } = require('./config/env');
 const { getCachedPlatformConfig } = require('./services/platform/platformConfigService');
+const { formatRouteLabel } = require('./utils/routeLabel');
 const { SERVICE_REGISTRY, ACTIVE_SERVICE_TYPES, COMING_SOON_SERVICE_TYPES } = require('./config/serviceRegistry');
 const { publicMarkets } = require('./config/countryMarkets');
 const { attachUser } = require('./middlewares/auth');
 const { attachReferral } = require('./middlewares/referral');
 const { csrfToken } = require('./middlewares/csrf');
 const flashMiddleware = require('./middlewares/flash');
+const publicPerformance = require('./middlewares/publicPerformance');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
+const PUBLIC_MARKETS = publicMarkets();
 app.disable('x-powered-by');
 
 function cspOrigin(value) {
@@ -29,6 +32,7 @@ const configuredMapTileOrigin = cspOrigin(env.maps?.tileUrl);
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.set('view cache', env.isProduction);
 
 app.use((req, res, next) => {
   req.id = crypto.randomUUID();
@@ -90,19 +94,12 @@ app.get('/sw.js', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   return res.sendFile(path.join(__dirname, '..', 'public', 'sw.js'));
 });
-app.use(compression());
+app.use(compression({ threshold: 1024, level: 6 }));
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   maxAge: env.isProduction ? '30d' : 0,
   immutable: env.isProduction,
   setHeaders(res, filePath) {
     if (/\.(?:webmanifest)$/i.test(filePath)) res.setHeader('Content-Type', 'application/manifest+json');
-    // `npm start` normally runs with NODE_ENV=development. The old zero-cache
-    // policy made every dashboard navigation refetch all CSS, JS, fonts and
-    // images even when nothing changed. Keep development updates responsive but
-    // allow a short browser cache; versioned asset URLs still invalidate cleanly.
-    if (!env.isProduction && /\.(?:css|js|mjs|png|jpe?g|webp|svg|gif|ico|woff2?|ttf)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
-    }
   },
 }));
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
@@ -115,6 +112,7 @@ app.use(attachUser);
 app.use(attachReferral);
 app.use(csrfToken);
 app.use(flashMiddleware);
+app.use(publicPerformance);
 app.use((req, res, next) => {
   res.locals.appName = env.appName;
   res.locals.currentPath = req.path;
@@ -127,8 +125,9 @@ app.use((req, res, next) => {
   res.locals.serviceCatalog = SERVICE_REGISTRY;
   res.locals.activeServiceTypes = ACTIVE_SERVICE_TYPES;
   res.locals.comingSoonServiceTypes = COMING_SOON_SERVICE_TYPES;
-  res.locals.countryMarkets = publicMarkets();
+  res.locals.countryMarkets = PUBLIC_MARKETS;
   res.locals.money = (amount, currency = platformConfig.defaultCurrency) => `${String(currency || platformConfig.defaultCurrency).toUpperCase()} ${Math.round(Number(amount) || 0).toLocaleString('en-GB')}`;
+  res.locals.routeDisplay = (origin, destination, fallback = '') => formatRouteLabel(origin, destination, fallback);
   // Escapes `<` so JSON embedded inside <script> tags (via <%- %>) can't be broken out of
   // with a `</script>` payload in user-controlled data.
   res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/</g, '\\u003c');

@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { mongoose } = require('../../config/db');
 const redisRuntime = require('../../config/redis');
+const { env } = require('../../config/env');
 
 const RENEW_SCRIPT = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -59,7 +60,7 @@ async function acquireMongo(name, owner, ttlMs) {
     }, {
       $set: { ownerId: owner, renewedAt: timestamp, expiresAt },
       $setOnInsert: { acquiredAt: timestamp },
-    }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }).lean();
+    }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true, maxTimeMS: env.mongoConnection.queryMaxTimeMs }).lean();
     if (!row || row.ownerId !== owner) return { acquired: false, backend: 'mongo', ownerId: owner };
   } catch (error) {
     if (Number(error?.code) === 11000) return { acquired: false, backend: 'mongo', ownerId: owner };
@@ -74,11 +75,12 @@ async function acquireMongo(name, owner, ttlMs) {
       const result = await ScheduledJobLease.updateOne(
         { name, ownerId: owner },
         { $set: { renewedAt, expiresAt: new Date(renewedAt.getTime() + ttlMs) } },
+        { maxTimeMS: env.mongoConnection.queryMaxTimeMs },
       );
       return Number(result.modifiedCount || result.nModified || 0) === 1;
     },
     async release() {
-      const result = await ScheduledJobLease.deleteOne({ name, ownerId: owner });
+      const result = await ScheduledJobLease.deleteOne({ name, ownerId: owner }, { maxTimeMS: env.mongoConnection.queryMaxTimeMs });
       return Number(result.deletedCount || 0) === 1;
     },
   };

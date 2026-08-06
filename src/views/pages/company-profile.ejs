@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <main class="container marketingPage companyProfileMarketingPage" style="padding:16px 0 30px">
@@ -44,7 +45,7 @@
         <% if (!routes.length) { %><div class="empty">No live routes yet for this partner.</div><% } %>
         <% routes.forEach(route => { %>
           <div class="routeItem">
-            <div><strong><%= route.origin %> to <%= route.destination %></strong><div class="small"><%= (route.boardingPoints || []).join(' - ') %></div></div>
+            <div><strong><%= ctRoute(route.origin, route.destination, route.routeName) %></strong><div class="small"><%= (route.boardingPoints || []).join(' - ') %></div></div>
             <% if (route.listing?.slug) { %><a class="btn btnPrimary" href="/listings/bus/<%= route.listing.slug %>">Book route</a><% } %>
           </div>
         <% }) %>

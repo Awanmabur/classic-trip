@@ -29,8 +29,8 @@ const verification = read('src/controllers/admin/verificationController.js');
 const upload = read('src/middlewares/upload.js');
 const packageJson = JSON.parse(read('package.json'));
 
-check('Mongo server-selection timeout cannot fall back to the former 5-second value', env.includes("Math.max(30000, number('MONGO_SERVER_SELECTION_TIMEOUT_MS'"));
-check('Mongo wait queue has a meaningful transient-failure window', env.includes("Math.max(30000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS'"));
+check('Mongo server-selection timeout is fail-fast and configurable', env.includes("Math.max(2500, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000)"));
+check('Mongo wait queue is bounded to protect user-facing requests', env.includes("Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 2500)"));
 check('Startup performs multiple bounded connection attempts', env.includes("number('MONGO_CONNECT_RETRY_ATTEMPTS', 5)") && db.includes('isRetryableConnectionError'));
 check('Dashboard and marketplace share the process-wide Mongo read gate', dashboard.includes('runMongoRead') && catalog.includes('runMongoRead') && gate.includes('MAX_ACTIVE_READS'));
 check('Read gate reserves pool capacity for auth/session/write traffic', gate.includes('reservedConnections') && gate.includes('poolSize - reservedConnections'));

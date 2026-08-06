@@ -46,8 +46,10 @@ check('Rolling repair batches use the proven single-date batch path after day on
   && !materializer.includes('const series = await busDepartureService.createScheduleSeries'));
 check('Scheduled and outbox rolling passes are bounded instead of flooding the database pool',
   materializer.includes('{ maxCreates: BACKGROUND_BATCH_SIZE }') && outboxHandlers.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
-check('Permanent rolling blockers pause until the repair interval rather than hot-looping',
-  materializer.includes('queue paused until the next repair scan'));
+check('Permanent rolling blockers persist a cooldown and are excluded from scans rather than hot-looping',
+  materializer.includes("materializationBlockerCode: 'vehicle_schedule_conflict'")
+  && materializer.includes('VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS')
+  && materializer.includes('eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now))'));
 check('Rolling feedback reports publication blockers rather than false success',
   scheduleController.includes('Draft blockers:') && scheduleController.includes('background rolling worker'));
 check('Payment providers have controlled request timeouts',
@@ -75,8 +77,8 @@ check('Public catalog invalidation runs only for catalog-changing mutations',
   flash.includes('affectsPublicCatalog') && flash.includes('invalidateMarketplaceCache'));
 check('Production assets and home catalog use longer safe caches',
   app.includes("env.isProduction ? '30d' : 0") && env.includes("number('HOME_CACHE_TTL_MS', 300000)"));
-check('Release cache key and package version are 1.6.11',
-  pkg.version === '1.6.11' && serviceWorker.includes('classic-trip-static-v1.6.11'));
+check('Release cache key and package version preserve the v1.6.11+ baseline',
+  pkg.version === '1.6.14' && serviceWorker.includes(`classic-trip-static-v${pkg.version}`));
 check('Full verification runs this repair audit',
   pkg.scripts.verify.includes('npm run check:performance-edit-payment-repair'));
 

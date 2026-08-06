@@ -10,16 +10,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.11" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.14" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <style>
@@ -113,8 +109,9 @@
 
 
 </style>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.11">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.14">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
+  <script src="/js/external-styles-idle.js?v=1.6.14" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="authPage">
   <div class="navWrap">
@@ -309,9 +306,7 @@
 
   <div class="toast" id="toast">Action completed</div>
 
-  <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/pwa.js?v=20260727-3" defer></script>
-
-  <script src="/js/auth-page.js?v=1.6.11" defer></script>
+  <script src="/js/auth-page.js?v=1.6.14" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.14" data-modules="/js/mobile-navigation.js?v=1.6.14|/js/pwa.js?v=1.6.14" defer></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <%
@@ -47,7 +48,7 @@
         <div>
           <div class="badge badgeInfo" id="modalType"><i class="fa-solid <%= serviceIcon %>"></i> <%= listing.type || listing.serviceType %></div>
           <div class="sheetTitle" id="modalTitle"><%= listing.title %></div>
-          <div class="sheetSub" id="modalSub"><%= [partnerName, [listing.from, listing.to].filter(Boolean).join(' to '), scheduleLabel].filter(Boolean).join(' · ') %></div>
+          <div class="sheetSub" id="modalSub"><%= [partnerName, ctRoute(listing.from, listing.to, listing.routeLabel), scheduleLabel].filter(Boolean).join(' · ') %></div>
         </div>
         <div class="sheetTopActions">
           <a class="iconbtn" title="Partner profile" href="/companies/<%= listing.companySlug %>"><i class="fa-solid fa-building"></i></a>
@@ -95,7 +96,7 @@
                 <div class="bookingForm busJourneySelectionGrid" style="margin-top:10px">
                   <select class="journeyControl journeyRouteControl" id="outboundRouteSelect" aria-label="Select bus route" data-listing-action="outbound-route" required>
                     <option value="" <%= initialRouteId ? '' : 'selected' %> disabled>Select route</option>
-                    <% busRoutes.forEach((route) => { const routeValue = route.routeId || route.id; const routeText = route.label || route.routeName || [route.origin, route.destination].filter(Boolean).join(' →'); %>
+                    <% busRoutes.forEach((route) => { const routeValue = route.routeId || route.id; const routeText = ctRoute(route.origin, route.destination, route.label || route.routeName); %>
                       <option value="<%= routeValue %>" <%= String(routeValue) === initialRouteId ? 'selected' : '' %>><%= routeText %></option>
                     <% }) %>
                   </select>
@@ -291,7 +292,7 @@
   let activeRoomTypeId = <%- toScriptJson(firstRoom || '') %>;
   let checkoutPreparePending = false;
   const outboundSchedulesData = <%- toScriptJson(previewSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, routeId: schedule.routeId, vehicleId: schedule.vehicleId, vehicleClass: scheduleTicketClass(schedule), label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '', arriveAt: schedule.arriveAt || '', basePrice: Number(schedule.basePrice || 0), currency: schedule.currency || '', stops: schedule.stops || [], journey: schedule.journey || {} }))) %>;
-  const routeOptionsData = <%- toScriptJson(busRoutes.map((route) => ({ id: route.routeId || route.id, label: route.label || route.routeName || [route.origin, route.destination].filter(Boolean).join(' →'), origin: route.origin || '', destination: route.destination || '' }))) %>;
+  const routeOptionsData = <%- toScriptJson(busRoutes.map((route) => ({ id: route.routeId || route.id, label: ctRoute(route.origin, route.destination, route.label || route.routeName), origin: route.origin || '', destination: route.destination || '' }))) %>;
   let activeRouteId = <%- toScriptJson(initialRouteId) %>;
   let returnSchedulesData = <%- toScriptJson(initialReturnSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, vehicleClass: scheduleTicketClass(schedule), originStopId: schedule.originStopId, destinationStopId: schedule.destinationStopId, label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
   let activeTicketClass = <%- toScriptJson(initialTicketClass) %>;
@@ -582,14 +583,14 @@
   }
   function togglePreviewAddon() { refreshPreviewTotals(); }
   function seatStatusClass(seat) {
-    const status = String(seat.status || '').toLowerCase();
-    if (['blocked', 'maintenance', 'disabled', 'unavailable'].includes(status)) return status === 'maintenance' ? 'maintenance' : 'blocked';
-    if (['taken', 'booked', 'checked_in', 'no_show'].includes(status)) return 'taken';
-    if (['locked', 'held'].includes(status)) return 'holding';
+    const status = String(seat.status || '').toLowerCase().replace(/[-\s]+/g, '_');
+    if (seat.bookingRef || seat.ticketNumber || ['taken', 'booked', 'sold', 'confirmed', 'occupied', 'checked_in', 'no_show'].includes(status)) return 'taken';
+    if (['locked', 'held', 'reserved', 'pending_payment'].includes(status)) return 'holding';
+    if (['blocked', 'maintenance', 'disabled', 'unavailable', 'non_sellable'].includes(status)) return status === 'maintenance' ? 'maintenance' : 'blocked';
     return 'available';
   }
   function seatUnavailable(seat) {
-    return ['taken', 'booked', 'checked_in', 'no_show', 'locked', 'held', 'blocked', 'maintenance', 'disabled', 'unavailable'].includes(String(seat.status || '').toLowerCase()) || seat.available === false;
+    return seatStatusClass(seat) !== 'available' || seat.available === false;
   }
   function seatButtonHtml(seat, kind) {
     const number = String(seat.seatNumber || '');
@@ -598,9 +599,9 @@
     const selected = kind === 'return' ? activeReturnSelections.includes(number) : activeSelections.includes(number);
     const statusClass = `${seatStatusClass(seat)}${selected && !seatUnavailable(seat) ? ' selected' : ''}`;
     if (kind === 'return') {
-      return `<button class="returnSeat ${statusClass}" type="button" data-return-seat="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-listing-action="return-seat" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+      return `<button class="returnSeat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-return-seat="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-listing-action="return-seat" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
     }
-    return `<button class="seat ${statusClass}" type="button" data-choice="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-seat-kind="outbound" data-listing-action="select-option" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+    return `<button class="seat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-choice="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-seat-kind="outbound" data-listing-action="select-option" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
   }
   function layoutSides(layoutName, seatCount) {
     const normalized = String(layoutName || '').toLowerCase();

@@ -6,7 +6,7 @@
 <link rel="icon" type="image/png" href="/images/favicon-48.png" />
 <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
-<link rel="stylesheet" href="/css/pwa.css?v=1.6.11" />
+<link rel="stylesheet" href="/css/pwa.css?v=1.6.14" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -16,16 +16,13 @@
 <meta name="csrf-token" content="<%= csrfToken || '' %>" />
 <meta name="theme-color" content="#070a12" />
 <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="/js/csrf.js?v=20260722-3" defer></script>
-<script src="/js/notifications.js" defer></script>
-<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.11">
+<link rel="preload" href="/js/dashboard-workspace.js?v=1.6.14" as="script" fetchpriority="low">
+<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.14">
 <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.11">
+<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.14">
 <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
+  <script src="/js/external-styles-idle.js?v=1.6.14" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="dashboardBody">
 <%
@@ -130,9 +127,34 @@ const allowedBrowserArrays = new Set(browserCommonArrayKeys.concat(browserPageAr
 const activeServiceDashboard = (viewDashboardData?.dashboardFeatures?.services || []).find(function(service){ return service.key === browserActivePage; });
 if (activeServiceDashboard) ['listings','bookings','reports','routeInventory','stayInventory'].forEach(function(key){ allowedBrowserArrays.add(key); });
 const browserDashboardData = {};
+const browserCommonObjectKeys = new Set(['mode','company','profile','serviceProfile','stats','dashboardFeatures','hotelSubview','manifestSubview','requestedPath']);
+const browserPageObjectKeys = {
+overview:['performance','systemHealth'], analytics:['performance'], performance:['performance'], system:['systemHealth'], settings:['settings'],
+'company-profile':['options'], listings:['options'], routes:['options'], vehicles:['options'], schedules:['options'], 'seat-maps':['options'], 'hotel-rooms':['options'],
+manifests:['options'], checkins:['options'], staff:['options'], bookings:['options'], 'offline-sales':['options'], handover:['options'], profile:['options']
+};
+const allowedBrowserObjects = new Set([...(browserPageObjectKeys[browserActivePage] || []), ...browserCommonObjectKeys]);
 Object.entries(viewDashboardData).forEach(function(entry){
 const key = entry[0]; const value = entry[1];
-if (!Array.isArray(value) || allowedBrowserArrays.has(key)) browserDashboardData[key] = value;
+if (Array.isArray(value)) {
+if (allowedBrowserArrays.has(key)) browserDashboardData[key] = value;
+return;
+}
+if (value && typeof value === 'object') {
+if (!allowedBrowserObjects.has(key)) return;
+if (key === 'options') {
+const boundedOptions = {};
+Object.entries(value).forEach(function(optionEntry){
+const optionKey = optionEntry[0]; const optionValue = optionEntry[1];
+boundedOptions[optionKey] = Array.isArray(optionValue) ? optionValue.slice(0,120) : optionValue;
+});
+browserDashboardData[key] = boundedOptions;
+return;
+}
+browserDashboardData[key] = value;
+return;
+}
+if (value !== undefined && value !== null) browserDashboardData[key] = value;
 });
 const employeeCompanyName = dashboardData?.company?.name || companyServiceProfile.companyName || 'your company';
 const employeeFirstName = String(dashboardShell?.profileName || 'there').trim().split(/\s+/)[0] || 'there';
@@ -745,7 +767,8 @@ return '#'+page;
 <%- include('sections/dynamic-page', Object.assign({}, sectionLocals, { item, employeeDynamicAction, employeeDynamicLabel, dynamicActionHref })) %>
 <% }) %>
 <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: browserDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
-<script src="/js/pwa.js?v=20260727-3" defer></script>
-<script src="/js/dashboard-workspace.js?v=1.6.11" defer></script>
+<script src="/js/dashboard-shell.js?v=1.6.14" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.14" data-start="paint" data-modules="/js/dashboard-workspace.js?v=1.6.14" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.14" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.14" defer></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%
   const listingType = String(listing.serviceType || listing.type || listing.group || 'service').toLowerCase();
   const isBusListing = listingType === 'bus';
@@ -12,7 +13,7 @@
   const bookingHref = isFlightListing ? `/flights?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : isTaxiListing ? `/taxi?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : (listing.bookingUrl || listingHref);
   const listingImage = listing.img || listing.image || listing.media?.[0]?.url || '';
   const listingPartner = listing.partner || listing.companyName || 'Service partner';
-  const listingRoute = listing.routeLabel || [listing.from, listing.to].filter(Boolean).join(' → ');
+  const listingRoute = ctRoute(listing.from, listing.to, listing.routeLabel);
   const companyRoutes = isBusListing && Array.isArray(listing.routes) ? listing.routes : [];
   const stayTypeLabels = {hotel:'Hotel',lodge:'Lodge',resort:'Resort',guest_house:'Guest house',serviced_apartment:'Serviced apartment',apartment:'Apartment',entire_home:'Entire home',private_room:'Private room',shared_room:'Shared room',villa:'Villa',cottage:'Cottage',cabin:'Cabin',bungalow:'Bungalow',homestay:'Homestay',holiday_home:'Holiday home',farm_stay:'Farm stay',bed_and_breakfast:'Bed & breakfast',hostel:'Hostel',camp:'Camp'};
   const stayTypeLabel = isHotelListing ? (stayTypeLabels[String(listing.stayType || listing.type || '').toLowerCase()] || 'Stay') : '';
@@ -46,7 +47,7 @@
     </div>
     <% if (companyRoutes.length) { %>
       <div class="companyRouteList" aria-label="All company routes">
-        <% companyRoutes.forEach((route) => { const routeText = route.label || [route.origin, route.destination].filter(Boolean).join(' → '); %>
+        <% companyRoutes.forEach((route) => { const routeText = ctRoute(route.origin, route.destination, route.label); %>
           <span class="companyRouteChip" title="<%= routeText %>"><i class="fa-solid fa-route"></i> <%= routeText %></span>
         <% }) %>
       </div>

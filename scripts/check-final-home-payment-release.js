@@ -27,7 +27,7 @@ function check(label, condition) {
   passed += 1;
 }
 
-check('release version is 1.6.11', pkg.version === '1.6.11');
+check('release preserves the v1.6.11+ payment baseline', pkg.version === '1.6.14');
 check('checkout preparation avoids duplicate full availability loading', controller.includes('const context = await publicListingContext(req.params.slug, req.params.serviceType)') && controller.includes('holdSeats performs'));
 check('booking page reuses the prefetched marketplace snapshot', controller.includes('publicContext)') && controller.includes('includeReturnSchedules: false') && controller.includes('compactAvailability: true'));
 check('seat-hold item identifiers are allocated in one database call', repository.includes('nextIds') && inventory.includes("repository.nextIds('hold-item', inventoryRows.length)"));
@@ -37,9 +37,9 @@ check('checkout identifiers are allocated in bounded batches', booking.includes(
 check('successful payment defers compatibility summaries until after canonical inventory commits', booking.includes('deferCompatibilityRefresh: true') && booking.includes('inventoryService.queueCompatibilityRefresh(reservation.scheduleId, seatNumbers)'));
 check('seat-hold transaction keeps same-session writes sequential', inventory.includes('Mongoose explicitly does not') && !inventory.slice(inventory.indexOf('await repository.withTransaction(async (session) => {'), inventory.indexOf('async function assertActiveHold')).includes('await Promise.all(['));
 check('rolling worker and outbox creation use bounded batches', materializer.includes('materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: BACKGROUND_BATCH_SIZE })') && outboxHandlers.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
-check('rolling queue avoids permanent-error hot loops', materializer.includes('queue paused until the next repair scan') && materializer.includes('const created = Number(result?.created || 0)') && materializer.includes('pending > 0 && created > 0') && materializer.includes('pending > 0 && skipped > 0'));
+check('rolling queue avoids permanent-error hot loops', materializer.includes('persistVehicleConflictBlocker') && materializer.includes('activePersistentBlocker') && materializer.includes('pending > 0 && created > 0') && !materializer.includes('Rolling departure queue paused until the next repair scan'));
 check('checkout skips global stale-hold sweeps and releases only selected expired holds', !inventory.slice(inventory.indexOf('async function holdSeats'), inventory.indexOf('async function assertActiveHold')).includes('expireStaleHolds()') && inventory.includes('staleSelectedHoldIds'));
-check('desktop bars use the approved compact image/body layout and one-line descriptions', css.includes('grid-template-columns:160px minmax(0,1fr)') && css.includes('min-height:150px;height:150px') && css.includes('max-height:none;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'));
+check('desktop bars use the approved image/body layout and natural content height', css.includes('grid-template-columns:190px minmax(0,1fr)!important') && css.includes('@media(min-width:681px)') && css.includes('height:auto!important') && css.includes('max-height:none!important'));
 check('availability badge is outside the thumbnail and anchored to the bar corner', listingCard.indexOf('</a>') < listingCard.indexOf('cornerBadge') && css.includes('[data-view="bars"] .cornerBadge{position:absolute;top:10px;right:10px'));
 check('decorative section color overrides were removed', !css.includes('marketplaceSection--bus::before') && !css.includes('marketplaceSection--hotel .sectionViewToggle button.active{color:'));
 check('checkout prepares reusable drafts before taking another hold', draft.indexOf('await reusableDraft') < draft.indexOf('await validateLeg(outboundInput'));

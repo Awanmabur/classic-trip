@@ -1,5 +1,8 @@
 'use strict';
-window.addEventListener('DOMContentLoaded', function () {
+(function bootDashboard(start) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
+})(function () {
   const bootstrapNode = document.getElementById('dashboardWorkspaceBootstrap');
   const bootstrap = bootstrapNode ? JSON.parse(bootstrapNode.textContent || '{}') : {};
   const backendDashboardData = bootstrap.dashboardData || {};
@@ -24,6 +27,13 @@ window.addEventListener('DOMContentLoaded', function () {
     return ['support', 'finance', 'operations', 'content'].includes(dashboardRoleKey)
       ? `/${dashboardRoleKey}/reports/custom`
       : '/admin/reports/custom';
+  }
+
+  function routeDisplay(origin, destination, fallback = '') {
+    const from = String(origin || '').trim();
+    const to = String(destination || '').trim();
+    if (from && to) return `${from} ⇄ ${to}`;
+    return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ ');
   }
 
   function setFieldError(field, message) {
@@ -1263,12 +1273,13 @@ window.addEventListener('DOMContentLoaded', function () {
   function fillTable(selector, rows, type = 'booking') {
     const target = $(selector);
     if (!target) return;
-    rows = Array.isArray(rows) ? rows : [];
     const section = target.closest('.section');
     if (section && !section.classList.contains('is-open')) {
       pendingTableRenders.set(selector, { rows, type });
       return;
     }
+    rows = typeof rows === 'function' ? rows() : rows;
+    rows = Array.isArray(rows) ? rows : [];
     if (!rows.length) {
       setHtml(selector, '<tr class="emptyTableRow"><td colspan="99"><div class="emptyTableState"><div class="miniLogo"><i class="fa-solid fa-circle-info"></i></div><div><strong>No records found</strong><span>This tab has no matching records yet. Use the page action above to create the first connected record.</span></div></div></td></tr>');
       return;
@@ -2051,7 +2062,7 @@ window.addEventListener('DOMContentLoaded', function () {
       overrides: 'vehicle[rowLayoutOverrides]'
     });
     if (origin.value && destination.value && origin.value !== destination.value) {
-      const routeName = `${origin.title || origin.label} to ${destination.title || destination.label}`;
+      const routeName = routeDisplay(origin.title || origin.label, destination.title || destination.label);
       autoSetField(form, 'route[routeName]', routeName);
       const fareClass = fieldControl(form, 'fare[fareClass]')?.value || 'standard';
       autoSetField(form, 'fare[name]', `${routeName} ${fareClass} fare`);
@@ -2105,10 +2116,10 @@ window.addEventListener('DOMContentLoaded', function () {
       }
       const originName = origin.title || origin.label;
       const destinationName = destination.title || destination.label;
-      autoSetField(form, 'routeName', `${originName} to ${destinationName}`);
+      autoSetField(form, 'routeName', routeDisplay(originName, destinationName));
       autoSetField(form, 'routeCode', `${routeCodePart(origin)}-${routeCodePart(destination)}`);
       autoSetField(form, 'timezone', timezoneForCountryBrowser(origin.country || listing.country));
-      setSmartSummary(form, `${originName} → ${destinationName}. Route name, code, timezone, listing policies, endpoint stops and route segments are generated from these selections.`, 'ready');
+      setSmartSummary(form, `${routeDisplay(originName, destinationName)}. Route name, code, timezone, listing policies, endpoint stops and route segments are generated from these selections.`, 'ready');
     }
   }
 
@@ -3236,7 +3247,7 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'vehicle[inspectionExpiresAt]', label:'Inspection expiry', type:'date', icon:'fa-calendar-xmark', required:true },
         { name:'vehicle[insuranceRef]', label:'Insurance reference', icon:'fa-shield-halved', required:true, placeholder:'POLICY-001' },
         { name:'vehicle[insuranceExpiresAt]', label:'Insurance expiry', type:'date', icon:'fa-calendar-xmark', required:true },
-        { name:'route[routeName]', label:'Route name', icon:'fa-route', placeholder:'Kampala to Mbarara' },
+        { name:'route[routeName]', label:'Route name', icon:'fa-route', placeholder:'Kampala ⇄ Mbarara' },
         { name:'route[originBranchId]', label:'Origin terminal / branch', type:'select', icon:'fa-location-dot', options:branches, required:true, help:'The origin name and city are derived from this record.' },
         { name:'route[destinationBranchId]', label:'Destination terminal / branch', type:'select', icon:'fa-location-dot', options:branches, required:true, help:'Must be different from the origin.' },
         { name:'route[boardingBranchIds]', label:'Additional boarding points', type:'multiselect', icon:'fa-map-pin', options:branches, help:'Select existing company branches. The origin is added automatically.' },
@@ -4142,43 +4153,47 @@ window.addEventListener('DOMContentLoaded', function () {
       }
     });
 
-    if (els.openMenu) els.openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
-    if (els.sideBackdrop) els.sideBackdrop.addEventListener('click', closeMenu);
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && document.body.classList.contains('menu-open')) closeMenu();
-    });
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 900 && document.body.classList.contains('menu-open')) closeMenu();
-    }, { passive: true });
-
-    const savedDashboardTheme = (() => {
-      try { return localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme'); } catch (_) { return null; }
-    })();
-    if (savedDashboardTheme === 'light' || savedDashboardTheme === 'dark') {
-      document.documentElement.dataset.theme = savedDashboardTheme;
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', savedDashboardTheme === 'dark' ? '#070a12' : '#f8fafc');
-      if (els.themeIcon) els.themeIcon.className = savedDashboardTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-    }
-
-    if (els.btnTheme) {
-      els.btnTheme.addEventListener('click', function () {
-        const root = document.documentElement;
-        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-        root.dataset.theme = next;
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#070a12' : '#f8fafc');
-        try { localStorage.setItem('classicTripTheme', next); } catch (_) { /* Storage can be unavailable. */ }
-        if (els.themeIcon) els.themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-        toast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
+    // The tiny dashboard-shell.js owns menu, theme and side-search before first
+    // paint. Keep this fallback for pages/tests that load the workspace alone.
+    if (!window.__classicTripDashboardShellReady) {
+      if (els.openMenu) els.openMenu.addEventListener('click', () => document.body.classList.add('menu-open'));
+      if (els.sideBackdrop) els.sideBackdrop.addEventListener('click', closeMenu);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.body.classList.contains('menu-open')) closeMenu();
       });
-    }
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 900 && document.body.classList.contains('menu-open')) closeMenu();
+      }, { passive: true });
 
-    if (els.sideSearch) {
-      els.sideSearch.addEventListener('input', function (e) {
-        const q = e.target.value.toLowerCase().trim();
-        $$('#sideNav .navBtn').forEach(btn => {
-          btn.style.display = btn.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+      const savedDashboardTheme = (() => {
+        try { return localStorage.getItem('classicTripTheme') || localStorage.getItem('ct-theme') || localStorage.getItem('ct_auth_theme'); } catch (_) { return null; }
+      })();
+      if (savedDashboardTheme === 'light' || savedDashboardTheme === 'dark') {
+        document.documentElement.dataset.theme = savedDashboardTheme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', savedDashboardTheme === 'dark' ? '#070a12' : '#f8fafc');
+        if (els.themeIcon) els.themeIcon.className = savedDashboardTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+      }
+
+      if (els.btnTheme) {
+        els.btnTheme.addEventListener('click', function () {
+          const root = document.documentElement;
+          const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          root.dataset.theme = next;
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#070a12' : '#f8fafc');
+          try { localStorage.setItem('classicTripTheme', next); } catch (_) { /* Storage can be unavailable. */ }
+          if (els.themeIcon) els.themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+          toast(next === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
         });
-      });
+      }
+
+      if (els.sideSearch) {
+        els.sideSearch.addEventListener('input', function (e) {
+          const q = e.target.value.toLowerCase().trim();
+          $$('#sideNav .navBtn').forEach(btn => {
+            btn.style.display = btn.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+          });
+        });
+      }
     }
 
     document.addEventListener('keydown', function (e) {
@@ -4461,19 +4476,19 @@ window.addEventListener('DOMContentLoaded', function () {
     fillOverviewStats();
     fillRecent();
     fillTable('#bookingsTable', data.bookings);
-    fillTable('#bookingsBusTable', data.bookings.filter(r => rowServiceType(r) === 'bus'));
-    fillTable('#bookingsHotelTable', data.bookings.filter(r => ['hotel','stay','airbnb'].includes(rowServiceType(r))));
-    fillTable('#bookingsHoldTable', data.bookings.filter(r => /hold/i.test(r[5]) || /left/i.test(r[4])));
-    fillTable('#bookingsRefundedTable', data.bookings.filter(r => /refund/i.test(r[5])));
+    fillTable('#bookingsBusTable', () => data.bookings.filter(r => rowServiceType(r) === 'bus'));
+    fillTable('#bookingsHotelTable', () => data.bookings.filter(r => ['hotel','stay','airbnb'].includes(rowServiceType(r))));
+    fillTable('#bookingsHoldTable', () => data.bookings.filter(r => /hold/i.test(r[5]) || /left/i.test(r[4])));
+    fillTable('#bookingsRefundedTable', () => data.bookings.filter(r => /refund/i.test(r[5])));
     fillTable('#partnersTable', data.partners, 'partners');
-    fillTable('#partnersBusTable', data.partners.filter(r => /bus/i.test(r[1])), 'partners');
-    fillTable('#partnersHotelTable', data.partners.filter(r => /hotel|stay partner/i.test(r[1])), 'partners');
-    fillTable('#partnersFlightTable', data.partners.filter(r => /flight|travel agent/i.test(r[1])), 'partners');
-    fillTable('#partnersBodaTable', data.partners.filter(r => /boda rider/i.test(r[1])), 'partners');
-    fillTable('#partnersCarTable', data.partners.filter(r => /car driver/i.test(r[1])), 'partners');
-    fillTable('#partnersFleetTable', data.partners.filter(r => /fleet|rental/i.test(r[1])), 'partners');
-    fillTable('#partnersMobilityCompanyTable', data.partners.filter(r => /taxi|mobility company/i.test(r[1])), 'partners');
-    fillTable('#partnersPendingTable', data.partners.filter(r => /pending|review|submitted/i.test(r[4])), 'partners');
+    fillTable('#partnersBusTable', () => data.partners.filter(r => /bus/i.test(r[1])), 'partners');
+    fillTable('#partnersHotelTable', () => data.partners.filter(r => /hotel|stay partner/i.test(r[1])), 'partners');
+    fillTable('#partnersFlightTable', () => data.partners.filter(r => /flight|travel agent/i.test(r[1])), 'partners');
+    fillTable('#partnersBodaTable', () => data.partners.filter(r => /boda rider/i.test(r[1])), 'partners');
+    fillTable('#partnersCarTable', () => data.partners.filter(r => /car driver/i.test(r[1])), 'partners');
+    fillTable('#partnersFleetTable', () => data.partners.filter(r => /fleet|rental/i.test(r[1])), 'partners');
+    fillTable('#partnersMobilityCompanyTable', () => data.partners.filter(r => /taxi|mobility company/i.test(r[1])), 'partners');
+    fillTable('#partnersPendingTable', () => data.partners.filter(r => /pending|review|submitted/i.test(r[4])), 'partners');
     fillTable('#listingsTable', data.listings, 'listings');
     fillTable('#priceRulesTable', data.priceRules || [], 'generic');
     fillTable('#adminRoutesTable', data.routes || data.routeInventory || [], 'routes');
@@ -4495,20 +4510,20 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#financeAuditTable', data.financeAudit, 'audit');
     fillTable('#securityAuditTable', data.securityAudit, 'audit');
     fillTable('#adminsTable', data.admins, 'admins');
-    fillTable('#kycTable', data.kyc.filter(r => /pending|review/i.test(r[5])), 'kyc');
-    fillTable('#kycApprovedTable', data.kyc.filter(r => /approved|verified/i.test(r[5])), 'kyc');
-    fillTable('#kycRejectedTable', data.kyc.filter(r => /rejected|failed/i.test(r[5])), 'kyc');
-    fillTable('#kycBankTable', data.kyc.filter(r => /bank|mismatch/i.test(r[3]) || /bank|mismatch/i.test(r[5])), 'kyc');
-    fillTable('#kycExpiredTable', data.kyc.filter(r => /expired/i.test(r[1]) || /expired/i.test(r[5])), 'kyc');
+    fillTable('#kycTable', () => data.kyc.filter(r => /pending|review/i.test(r[5])), 'kyc');
+    fillTable('#kycApprovedTable', () => data.kyc.filter(r => /approved|verified/i.test(r[5])), 'kyc');
+    fillTable('#kycRejectedTable', () => data.kyc.filter(r => /rejected|failed/i.test(r[5])), 'kyc');
+    fillTable('#kycBankTable', () => data.kyc.filter(r => /bank|mismatch/i.test(r[3]) || /bank|mismatch/i.test(r[5])), 'kyc');
+    fillTable('#kycExpiredTable', () => data.kyc.filter(r => /expired/i.test(r[1]) || /expired/i.test(r[5])), 'kyc');
     fillTable('#refundsTable', data.refunds, 'refunds');
-    fillTable('#customerTicketTable', customerTicketRows());
+    fillTable('#customerTicketTable', customerTicketRows);
     fillTable('#customerSavedTable', data.saved, 'generic');
-    fillTable('#customerPassengersTable', customerPassengerRows(), 'generic');
+    fillTable('#customerPassengersTable', customerPassengerRows, 'generic');
     fillTable('#customerReceiptsTable', data.receipts, 'generic');
     fillTable('#customerWalletTable', data.wallet, 'generic');
     fillTable('#customerSecurityTable', data.security, 'generic');
-    fillTable('#customerRefundsTable', customerRefundRows(), 'refunds');
-    fillTable('#customerSupportTable', customerSupportRows(), 'support');
+    fillTable('#customerRefundsTable', customerRefundRows, 'refunds');
+    fillTable('#customerSupportTable', customerSupportRows, 'support');
     fillTable('#customerReviewsTable', data.reviews, 'generic');
     fillTable('#customerNotificationsTable', data.notifications, 'notifications');
     fillTable('#promoterLinksTable', data.links, 'generic');
@@ -4519,11 +4534,11 @@ window.addEventListener('DOMContentLoaded', function () {
     fillTable('#promoterCommissionsTable', data.commissions, 'generic');
     fillTable('#promoterWithdrawalsTable', data.withdrawals, 'generic');
     fillTable('#promoterPayoutsTable', data.payouts, 'generic');
-    fillTable('#promoterSupportTable', promoterSupportRows(), 'support');
+    fillTable('#promoterSupportTable', promoterSupportRows, 'support');
     fillTable('#driverOpsTable', data.driverOps.length ? data.driverOps : data.schedules, 'generic');
-    fillTable('#driverManifestTable', driverManifestRows(), 'generic');
+    fillTable('#driverManifestTable', driverManifestRows, 'generic');
     fillTable('#driverIncidentsTable', data.driverIncidents.length ? data.driverIncidents : data.support, 'generic');
-    renderPromoterPerformance();
+    if (document.getElementById('promoterPerformanceBars')) renderPromoterPerformance();
     fillTable('#employeeHandoversTable', data.handovers, 'generic');
     fillTable('#notificationsTable', data.notifications, 'notifications');
     fillTable('#companyBranchesTable', data.branches || [], 'generic');
@@ -4545,7 +4560,7 @@ window.addEventListener('DOMContentLoaded', function () {
     renderHotelRoomCalendar();
     initHotelCalendarControls();
     fillTable('#companyBusManifestTable', (data.bookedSeatGroups || []).map(g => [g.scheduleId || '-', g.routeLabel || '-', g.vehicleName || '-', g.travelDate || g.departAt || '-', String(g.totalBooked || 0), String(g.totalHeld || 0), g.status || 'active', { entity: 'manifest', id: g.scheduleId || '', detail: { entity: 'manifest', manifest: g, schedule: { id: g.scheduleId, status: g.status }, routeLabel: g.routeLabel, vehicleName: g.vehicleName, travelDate: g.travelDate, totalBooked: g.totalBooked, totalHeld: g.totalHeld, status: g.status } }]), 'generic');
-    const busPassengerRows = (data.bookedSeatGroups || []).flatMap(g => (g.seats || []).map(seat => [
+    fillTable('#companyBusPassengerManifestTable', () => (data.bookedSeatGroups || []).flatMap(g => (g.seats || []).map(seat => [
       seat.seatNumber || '-',
       seat.passengerName || 'Passenger pending',
       seat.bookingRef || '-',
@@ -4554,8 +4569,7 @@ window.addEventListener('DOMContentLoaded', function () {
       seat.checkInStatus || '-',
       seat.status || '-',
       { entity: 'manifest_passenger', id: seat.bookingRef || `${g.scheduleId}:${seat.seatNumber}`, label: seat.passengerName || seat.seatNumber || 'Passenger', detail: { entity: 'manifest_passenger', manifest: g, seat, schedule: { id: g.scheduleId, status: g.status }, routeLabel: g.routeLabel, vehicleName: g.vehicleName, travelDate: g.travelDate } }
-    ]));
-    fillTable('#companyBusPassengerManifestTable', busPassengerRows, 'generic');
+    ])), 'generic');
     fillTable('#companyHotelManifestTable', data.hotelManifestAll || [], 'generic');
     fillTable('#companyHotelArrivalsTable', data.hotelArrivals || [], 'generic');
     fillTable('#companyHotelDeparturesTable', data.hotelDepartures || [], 'generic');

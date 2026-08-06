@@ -38,7 +38,7 @@ check(!/memory|fallback store|repair/i.test(onboarding), 'One-click setup must n
 check(/validateSchedulePublish/.test(departures), 'Departure publication must validate the canonical relationship chain');
 check(/seat_segment_inventory_missing/.test(departures), 'Departure publication must require persisted seat-segment inventory');
 check(/departure_must_be_future/.test(departures), 'Departure publication must reject past departures');
-check(!/repairSchedule|resolveOwnedBusListing|infer/i.test(departures), 'Departure service must not infer or repair incomplete records');
+check(/repairScheduleInventory/.test(departures) && /inventoryRepairSnapshot/.test(departures) && /inventory_repair_requires_manual_review/.test(departures) && !/resolveOwnedBusListing/i.test(departures), 'Departure repair must use immutable canonical snapshots and refuse passenger-active records');
 
 check(/Publication controls marketplace visibility/.test(visibility), 'Published bus listings must remain discoverable between dated departures');
 check(/schedule\.companyId/.test(visibility) && /schedule\.listingId/.test(visibility), 'Public schedule matching must use exact ownership links');
@@ -47,7 +47,7 @@ check(!/SERVICE_ALIASES|coach|bus_company|publishedBusDeparture/.test(visibility
 check(/persisted_inventory/.test(liveMaps), 'Live seat maps must identify persisted inventory');
 check(!/capacity_fallback|schedule_inventory_snapshot|needsRepair|vehicle_seat_template/.test(liveMaps), 'Live seat maps must not fabricate or recover inventory');
 check(/inventoryMissing/.test(liveMaps), 'Incomplete departures must be reported explicitly');
-check(/This departure has no persisted seat inventory/.test(seatMapView), 'The dashboard must explain incomplete canonical departures');
+check(/saved seat inventory is incomplete/.test(seatMapView) && /Repair seat inventory/.test(seatMapView), 'The dashboard must explain and safely repair incomplete canonical departures');
 
 check(/function syncScheduleForm/.test(dashboard), 'Schedule form must auto-fill linked bus data');
 check(/function syncVehicleSeatTemplateForm/.test(dashboard), 'Seat-template form must synchronize the selected vehicle');

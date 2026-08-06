@@ -1,4 +1,5 @@
 const { platformCurrency } = require('../../utils/currency');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const PDFDocument = require('pdfkit');
 const operationsRepository = require('../../repositories/domain/operationsRepository');
 const timelineService = require('../support/timelineService');
@@ -157,7 +158,7 @@ function buildManifestFromData(data, companyId, scheduleId, options = {}) {
     schedule, listing, company, route, vehicle, routeStops, bookings, passengers, seats,
     stats: { passengers: passengers.length, bookings: bookings.length, checkedIn, noShows, boarding: Math.max(0, passengers.length - checkedIn - noShows - cancelled), totalSeats: seats.length || schedule.totalSeats || 0, availableSeats: seats.filter((seat) => ['available', 'open'].includes(normalize(seat.status))).length, bookedSeats: passengers.length },
     generatedAt: new Date().toISOString(), generatedBy: options.generatedBy || 'Classic Trip operator', printMode: options.printMode || 'before_departure',
-    title: `${clean(route.origin || listing.from || listing.title || 'Route')} to ${clean(route.destination || listing.to || 'destination')}`,
+    title: formatRouteLabel(clean(route.origin || listing.from || listing.title || 'Route'), clean(route.destination || listing.to || 'destination')),
     departureLabel: asDate(schedule.departAt), driverLabel: driverNamesForSchedule(data, schedule), scheduleStatus: clean(schedule.status || 'scheduled'),
   };
 }
@@ -233,7 +234,7 @@ function canonicalBusManifestView(manifest, options = {}) {
     generatedAt: manifest.generatedAt || new Date().toISOString(),
     generatedBy: options.generatedBy || 'Classic Trip operator',
     printMode: options.printMode || 'before_departure',
-    title: `${originName} to ${destinationName}`,
+    title: formatRouteLabel(originName, destinationName),
     departureLabel: asDate(manifest.schedule.departAt),
     driverLabel,
     scheduleStatus: clean(manifest.schedule.status || 'scheduled'),
@@ -303,7 +304,7 @@ function buildCustomerListFromData(data, companyId, filters = {}) {
       scheduleStatus: schedule.status || '',
       departureDate: dateKey(schedule.departAt),
       departureLabel: asDate(schedule.departAt),
-      routeLabel: `${manifest.route.origin || manifest.listing.from || '-'} to ${manifest.route.destination || manifest.listing.to || '-'}`,
+      routeLabel: formatRouteLabel(manifest.route.origin || manifest.listing.from || '-', manifest.route.destination || manifest.listing.to || '-', manifest.route.routeName),
       vehicleLabel: manifest.vehicle.name || manifest.vehicle.plateOrCode || schedule.vehicleName || '',
       driverLabel: manifest.driverLabel,
       driverIds: [schedule.driverEmployeeId, schedule.driverUserId, ...(schedule.driverIds || [])].filter(Boolean),
@@ -345,7 +346,7 @@ async function customerManifestFilterOptionsLive(companyId) {
   const promoterIds = data.bookings.map((booking) => booking.promoterAttribution?.promoterId).filter(Boolean);
   return {
     schedules: data.schedules.filter((row) => active(row.status)).map((row) => ({ value: row.id, label: `${asDate(row.departAt)} - ${row.id}` })),
-    routes: data.routes.filter((row) => active(row.status)).map((row) => ({ value: row.id, label: row.routeName || `${row.origin || ''} to ${row.destination || ''}` })),
+    routes: data.routes.filter((row) => active(row.status)).map((row) => ({ value: row.id, label: formatRouteLabel(row.origin, row.destination, row.routeName) })),
     vehicles: data.vehicles.filter((row) => active(row.status)).map((row) => ({ value: row.id, label: `${row.name || row.id}${row.plateOrCode ? ` - ${row.plateOrCode}` : ''}` })),
     drivers,
     branches: data.branches.filter((row) => active(row.status)).map((row) => ({ value: row.id, label: `${row.name}${row.city ? ` - ${row.city}` : ''}` })),

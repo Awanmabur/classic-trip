@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <%
@@ -41,7 +42,7 @@
   };
   const formatDate = (value) => value ? new Date(String(value).length === 10 ? value + 'T00:00:00Z' : value).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }) : 'Not set';
   const routePoint = (point) => typeof point === 'string' ? point : (point?.address || point?.name || point?.city || point?.district || point?.iataCode || 'Not set');
-  const flightRoute = (booking.bookingLegs || []).map(leg => [leg.originAirportId || leg.origin, leg.destinationAirportId || leg.destination].filter(Boolean).join(' → ')).filter(Boolean).join(' / ');
+  const flightRoute = (booking.bookingLegs || []).map(leg => [leg.originAirportId || leg.origin, leg.destinationAirportId || leg.destination].filter(Boolean).join(' ⇄ ')).filter(Boolean).join(' / ');
   const detailLabels = {
     bus:'Passenger details', hotel:'Guest and stay details', flight:'Traveler and flight details', local_transport:'Passenger and ride details',
     tour:'Participant and tour details', car_rental:'Renter and vehicle details', cargo:'Sender and shipment details'
@@ -103,7 +104,7 @@
           <% if (hotelStay.specialRequests) { %><div><span>Stay requests</span><b><%= hotelStay.specialRequests %></b></div><% } %>
         <% } else if (isFlightTicket) { %>
           <div><span>Travelers</span><b><%= (booking.passengers || []).length || 1 %></b></div>
-          <div><span>Itinerary</span><b><%= flightRoute || [safeListing.origin, safeListing.destination].filter(Boolean).join(' → ') || 'Agent itinerary' %></b></div>
+          <div><span>Itinerary</span><b><%= flightRoute || [safeListing.origin, safeListing.destination].filter(Boolean).join(' ⇄ ') || 'Agent itinerary' %></b></div>
           <div><span>Flight</span><b><%= firstLeg.flightNumber || safeListing.flightNumber || 'Agent confirmation' %></b></div>
           <div><span>Departure</span><b><%= firstLeg.departAt ? new Date(firstLeg.departAt).toLocaleString('en-GB') : 'See itinerary' %></b></div>
         <% } else if (isTaxiTicket) { %>
@@ -121,11 +122,11 @@
           <div><span>Pickup</span><b><%= formatDate(reservation.pickupDate) %><%= reservation.pickupTime ? ' · ' + reservation.pickupTime : '' %></b></div>
           <div><span>Return</span><b><%= formatDate(reservation.returnDate) %><%= reservation.returnTime ? ' · ' + reservation.returnTime : '' %></b></div>
           <div><span>Rental period</span><b><%= Number(reservation.rentalDays || 1) %> day(s)</b></div>
-          <div><span>Locations</span><b><%= reservation.pickupLocation || 'Not set' %> → <%= reservation.returnLocation || 'Not set' %></b></div>
+          <div><span>Locations</span><b><%= ctRoute(reservation.pickupLocation || 'Not set', reservation.returnLocation || 'Not set') %></b></div>
           <div><span>Driver option</span><b><%= String(reservation.driverOption || 'self_drive').replace(/_/g, ' ') %></b></div>
         <% } else if (isCargoTicket) { %>
           <div><span>Pickup date</span><b><%= formatDate(reservation.pickupDate) %></b></div>
-          <div><span>Route</span><b><%= reservation.pickupLocation || 'Not set' %> → <%= reservation.deliveryLocation || 'Not set' %></b></div>
+          <div><span>Route</span><b><%= ctRoute(reservation.pickupLocation || 'Not set', reservation.deliveryLocation || 'Not set') %></b></div>
           <div><span>Shipment</span><b><%= Number(reservation.packageCount || 1) %> package(s) · <%= Number(reservation.weightKg || 0) %> kg · <%= reservation.cargoType || 'Cargo' %></b></div>
           <div><span>Recipient</span><b><%= reservation.recipientName || 'Not set' %><%= reservation.recipientPhone ? ' · ' + reservation.recipientPhone : '' %></b></div>
           <% if (reservation.dimensions) { %><div><span>Dimensions</span><b><%= reservation.dimensions %></b></div><% } %>

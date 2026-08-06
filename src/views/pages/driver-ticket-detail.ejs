@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +13,7 @@
     @media(max-width:760px){body{padding:10px}.sheet{border-radius:18px}.hero{padding:18px;display:grid;grid-template-columns:1fr}.hero h1{font-size:22px}.tools{padding:12px 14px}.tools .btn{flex:1;text-align:center}.grid,.forms{grid-template-columns:1fr;padding-left:14px;padding-right:14px}.compactTop{padding-top:14px}.fullWidth{grid-column:auto}.row{align-items:flex-start}.row b{overflow-wrap:anywhere}}
 .btn.primary:hover,.btn.primary:focus-visible,.btn.primary:active{color:#fff;-webkit-text-fill-color:#fff}</style>
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.11">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.14">
 </head>
 <body class="standalonePage">
   <%- include('../partials/site-flash') %>
@@ -21,7 +22,7 @@
     <nav class="tools"><button class="btn primary" type="button" data-page-action="print">Print detail</button><a class="btn" href="/tickets/<%= encodeURIComponent(ticket.booking.bookingRef) %>">Customer ticket</a><a class="btn" href="/tickets/<%= encodeURIComponent(ticket.booking.bookingRef) %>.pdf">Ticket PDF</a><% if(ticket.schedule){ %><a class="btn" href="/driver/schedules/<%= encodeURIComponent(ticket.schedule.id) %>/manifest">Manifest</a><% } %><a class="btn" href="/driver/dashboard#driver-manifest">Dashboard</a></nav>
     <section class="grid">
       <div class="card"><h3>Passenger</h3><div class="row"><span>Name</span><b><%= ticket.printable.passengerName %></b></div><div class="row"><span>Ticket</span><b><%= ticket.printable.ticketNumber %></b></div><div class="row"><span>Contact</span><b><%= ticket.printable.contact %></b></div><div class="row"><span>Seat</span><b><%= ticket.printable.seat %></b></div><div class="row"><span>Pickup</span><b><%= ticket.printable.pickupPoint %></b></div><div class="row"><span>Dropoff</span><b><%= ticket.printable.dropoffPoint %></b></div><div class="row"><span>Notes</span><b><%= ticket.printable.notes || '-' %></b></div><div class="row"><span>Check-in</span><b><%= ticket.printable.status %></b></div></div>
-      <div class="card"><h3>Trip</h3><div class="row"><span>Schedule</span><b><%= ticket.schedule ? ticket.schedule.id : '-' %></b></div><div class="row"><span>Departure</span><b><%= ticket.printable.departureLabel %></b></div><div class="row"><span>Route</span><b><%= ticket.route.origin || ticket.listing.from || '-' %> → <%= ticket.route.destination || ticket.listing.to || '-' %></b></div><div class="row"><span>Company</span><b><%= ticket.company.name || '-' %></b></div></div>
+      <div class="card"><h3>Trip</h3><div class="row"><span>Schedule</span><b><%= ticket.schedule ? ticket.schedule.id : '-' %></b></div><div class="row"><span>Departure</span><b><%= ticket.printable.departureLabel %></b></div><div class="row"><span>Route</span><b><%= ctRoute(ticket.route.origin || ticket.listing.from || '-', ticket.route.destination || ticket.listing.to || '-', ticket.route.routeName) %></b></div><div class="row"><span>Company</span><b><%= ticket.company.name || '-' %></b></div></div>
       <div class="card"><h3>Payment</h3><div class="row"><span>Status</span><b><%= ticket.printable.paymentStatus %></b></div><div class="row"><span>Total</span><b><%= ticket.printable.amount %></b></div><div class="row"><span>Provider</span><b><%= ticket.booking.paymentProvider || '-' %></b></div><div class="row"><span>Reference</span><b><%= ticket.booking.paymentRef || '-' %></b></div></div>
       <div class="card"><h3>Audit</h3><div class="row"><span>Created</span><b><%= ticket.booking.createdAt ? new Date(ticket.booking.createdAt).toLocaleString('en-UG') : '-' %></b></div><div class="row"><span>Checked by</span><b><%= ticket.booking.checkedInBy || ticket.booking.noShowBy || '-' %></b></div><div class="row"><span>QR</span><b><%= ticket.booking.qrCodeValue || ticket.booking.bookingRef %></b></div><div class="row"><span>Source</span><b><%= ticket.booking.source || ticket.booking.bookingSource || 'online' %></b></div></div>
     </section>

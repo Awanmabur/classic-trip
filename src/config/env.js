@@ -46,16 +46,20 @@ const env = {
     min: Math.max(0, number('MONGO_MIN_POOL_SIZE', 1)),
     max: Math.max(5, number('MONGO_MAX_POOL_SIZE', 24)),
     maxIdleTimeMs: Math.max(10000, number('MONGO_MAX_IDLE_TIME_MS', 60000)),
-    // Keep a meaningful queue window even when an older .env still contains
-    // the former 8-second value. Normal traffic should be bounded by the
-    // dashboard read limiter; this window absorbs brief Atlas topology changes.
-    waitQueueTimeoutMs: Math.max(30000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 30000)),
+    // User-facing requests must never sit behind a stalled Atlas checkout for
+    // tens of seconds. Bulk dashboard reads have their own admission gate and
+    // stale-cache fallback, so a short queue is safer and substantially faster.
+    waitQueueTimeoutMs: Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 2500)),
     maxConnecting: Math.max(2, number('MONGO_MAX_CONNECTING', 4)),
   },
   mongoConnection: {
-    serverSelectionTimeoutMs: Math.max(30000, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 30000)),
-    connectTimeoutMs: Math.max(30000, number('MONGO_CONNECT_TIMEOUT_MS', 30000)),
-    socketTimeoutMs: Math.max(45000, number('MONGO_SOCKET_TIMEOUT_MS', 90000)),
+    // Fail fast during DNS/topology trouble. The previous 30–90 second values
+    // multiplied across many dashboard reads and background jobs, producing
+    // minute-long freezes even though cached data was available.
+    serverSelectionTimeoutMs: Math.max(2500, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000)),
+    connectTimeoutMs: Math.max(3000, number('MONGO_CONNECT_TIMEOUT_MS', 5000)),
+    socketTimeoutMs: Math.max(8000, number('MONGO_SOCKET_TIMEOUT_MS', 15000)),
+    queryMaxTimeMs: Math.max(1000, number('MONGO_QUERY_MAX_TIME_MS', 5000)),
     retryAttempts: Math.max(1, Math.min(8, number('MONGO_CONNECT_RETRY_ATTEMPTS', 5))),
     retryDelayMs: Math.max(250, number('MONGO_CONNECT_RETRY_DELAY_MS', 750)),
     autoIndex: booleanFlag('MONGO_AUTO_INDEX', false),
@@ -193,18 +197,25 @@ const env = {
     slowRequestThresholdMs: number('SLOW_REQUEST_THRESHOLD_MS', 2000),
     homeCacheTtlMs: number('HOME_CACHE_TTL_MS', 300000),
     homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 1800000),
-    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
+    homeViewCacheTtlMs: number('HOME_VIEW_CACHE_TTL_MS', 60000),
+    homeViewCacheStaleMs: number('HOME_VIEW_CACHE_STALE_MS', 600000),
+    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 8),
     // Global admission limit for heavy Mongo reads across *all* concurrent
     // dashboard/catalog requests. This is intentionally separate from each
     // snapshot's local worker count so page navigation cannot exhaust the pool.
     mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 10)),
+    mongoReadQueueTimeoutMs: Math.max(250, number('MONGO_READ_QUEUE_TIMEOUT_MS', 1200)),
+    listingCacheTtlMs: Math.max(30000, number('LISTING_SNAPSHOT_TTL_MS', 300000)),
+    listingCacheStaleMs: Math.max(120000, number('LISTING_SNAPSHOT_STALE_MS', 1800000)),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
+    maxRunMs: Math.max(5000, number('JOB_MAX_RUN_MS', 45000)),
+    outboxBatchSize: Math.max(1, Math.min(25, number('OUTBOX_BATCH_SIZE', 8))),
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
-    processOutbox: process.env.JOB_PROCESS_OUTBOX || '*/10 * * * * *',
+    processOutbox: process.env.JOB_PROCESS_OUTBOX || '*/30 * * * * *',
     expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
     releaseCommission: process.env.JOB_RELEASE_COMMISSION || '*/10 * * * *',
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',

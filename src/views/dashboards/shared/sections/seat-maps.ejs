@@ -136,18 +136,29 @@
                   </div>
                 <% } %>
                 <% if(!previewSeats.length){ %>
-                  <div class="notice" style="margin:0 0 12px"><strong>This departure has no persisted seat inventory.</strong> Delete the incomplete departure and create it again after publishing the selected vehicle template. Canonical departures generate their inventory transactionally.</div>
+                  <div class="notice seatInventoryRepairNotice" style="margin:0 0 12px">
+                    <strong>This departure’s saved seat inventory is incomplete.</strong>
+                    Classic Trip can rebuild it safely from the immutable route and seat-map snapshots stored with this departure.
+                    <% if(isCompanyDashboard && map.scheduleId){ %>
+                      <form method="POST" action="/company/schedules/<%= map.scheduleId %>/repair-inventory" style="margin-top:10px">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+                        <button class="btn btnBlue" type="submit"><i class="fa-solid fa-screwdriver-wrench"></i> Repair seat inventory</button>
+                      </form>
+                    <% } else { %>
+                      <div style="margin-top:8px"><small>Ask a company administrator to run the inventory repair.</small></div>
+                    <% } %>
+                  </div>
                 <% } %>
                 <div class="busCabin" aria-label="Realistic bus cabin seat map" data-driver-position="<%= map.driverPosition || 'right' %>">
-                  <div class="busCabinFront"><div class="busDoor"><i class="fa-solid fa-door-open"></i>&nbsp; Front door</div><div class="busWindshield"><i class="fa-solid fa-bus"></i>&nbsp; Front windshield</div><div class="driverPod"><i class="fa-solid fa-steering-wheel"></i>&nbsp; Driver</div></div>
+                  <div class="busCabinFront"><div class="busDoor"><i class="fa-solid fa-door-open"></i>&nbsp; Front door</div><div class="busWindshield"><i class="fa-solid fa-bus"></i>&nbsp; Front windshield</div><div class="driverPod"><i class="fa-solid fa-steering-wheel"></i>&nbsp; DRIVER - FRONT</div></div>
                   <div class="busCabinDeck">
                     <% rows.forEach(function(row){ const hasPhysicalSides = row.some(function(seat){ return seat.side === 'left' || seat.side === 'right'; }); const hasPhysicalColumns = row.some(function(seat){ return Number(seat.column || seat.col || 0) > 0; }); const sides = hasPhysicalSides ? [row.filter(function(seat){ return seat.side === 'left'; }), row.filter(function(seat){ return seat.side === 'right'; })] : hasPhysicalColumns ? [row.filter(function(seat){ return Number(seat.column || seat.col || 0) <= layoutSides[0]; }), row.filter(function(seat){ return Number(seat.column || seat.col || 0) > layoutSides[0]; })] : [row.slice(0, layoutSides[0]), row.slice(layoutSides[0])]; %>
-                      <div class="busSeatRow" data-layout="<%= layoutName %>">
+                      <div class="busSeatRow" data-layout="<%= layoutName %>" data-side-slots="<%= Math.max(sides[0].length, sides[1].length, 1) %>">
                         <% sides.forEach(function(side, sideIndex){ %>
                           <% if(sideIndex === 1){ %><span class="busAisle" aria-hidden="true"></span><% } %>
-                          <span class="busSeatGroup">
-                            <% side.forEach(function(seat){ const seatDetail = { entity:'seat', id:[seat.scheduleId || map.scheduleId, seat.seatNumber || seat.id].filter(Boolean).join(':'), seat: seat, seatMap: { scheduleId: map.scheduleId, routeLabel: map.routeLabel, vehicleName: map.vehicleName, layoutName: layoutName, status: map.status }, schedule: { id: map.scheduleId, departAt: map.departAt, status: map.status } }; %>
-                              <button class="seat <%= String(seat.status || 'available').toLowerCase() %> <%= seat.bookingRef ? 'has-ticket' : '' %>" data-modal="view" data-type="seat" data-label="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %>" data-row-id="<%= seatDetail.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(seatDetail)) %>" title="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %> - <%= seat.status || 'available' %>"><small>Seat No</small><b><%= seat.displaySeatNumber || seat.seatNumber || seat.id %></b></button>
+                          <span class="busSeatGroup busSeatGroup--<%= sideIndex === 0 ? 'left' : 'right' %>">
+                            <% side.forEach(function(seat){ const seatDetail = { entity:'seat', id:[seat.scheduleId || map.scheduleId, seat.seatNumber || seat.id].filter(Boolean).join(':'), seat: seat, seatMap: { scheduleId: map.scheduleId, routeLabel: map.routeLabel, vehicleName: map.vehicleName, layoutName: layoutName, status: map.status }, schedule: { id: map.scheduleId, departAt: map.departAt, status: map.status } }; const rawSeatStatus = String(seat.status || 'available').toLowerCase().replace(/[-\s]+/g,'_'); const seatVisualState = (seat.bookingRef || seat.ticketNumber || /^(taken|booked|sold|confirmed|occupied|checked_in|no_show)$/.test(rawSeatStatus)) ? 'taken' : /^(held|locked|reserved|pending_payment)$/.test(rawSeatStatus) ? 'holding' : /^(blocked|maintenance|disabled|unavailable|non_sellable)$/.test(rawSeatStatus) ? 'blocked' : 'available'; %>
+                              <button class="seat <%= seatVisualState %> seat-status-<%= rawSeatStatus %> <%= seat.bookingRef ? 'has-ticket' : '' %>" data-seat-state="<%= seatVisualState %>" style="<%= seatVisualState === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : '' %>" data-modal="view" data-type="seat" data-label="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %>" data-row-id="<%= seatDetail.id %>" data-row-detail="<%= encodeURIComponent(JSON.stringify(seatDetail)) %>" title="Seat No <%= seat.displaySeatNumber || seat.seatNumber || seat.id %> - <%= seat.status || 'available' %>"><small>Seat No</small><b><%= seat.displaySeatNumber || seat.seatNumber || seat.id %></b></button>
                             <% }) %>
                           </span>
                         <% }) %>

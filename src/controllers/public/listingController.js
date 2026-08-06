@@ -105,8 +105,6 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
         destinationStopId: selection.destinationStopId,
         holdId: selection.holdId,
         seatNumbers: selection.compactAvailability ? (selection.selectedSeats || selection.selected || '') : [],
-        scheduleRecord: requested,
-        listingRecord: raw,
       });
       const schedules = departures.map((schedule) => scheduleCatalogPreview(data, schedule));
       const returnSchedules = selection.includeReturnSchedules === false ? [] : await busSearchService.findReturnDepartures({
@@ -268,8 +266,6 @@ async function bookingForm(req, res, next) {
         returnDestinationStopId: draft.return?.destinationStopId || '',
       };
       const contextPromise = catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false, compactAvailability: true }, publicContext);
-      const prefetchedReturnSchedule = (publicContext.data?.schedules || [])
-        .find((row) => catalogService.sameId(row, source.returnScheduleId)) || null;
       const returnAvailabilityPromise = source.returnScheduleId
         ? busInventoryService.getAvailability({
           scheduleId: source.returnScheduleId,
@@ -277,8 +273,6 @@ async function bookingForm(req, res, next) {
           destinationStopId: source.returnDestinationStopId,
           holdId: source.returnHoldId,
           seatNumbers: source.returnSeats || '',
-          scheduleRecord: prefetchedReturnSchedule,
-          listingRecord: publicContext.raw,
         })
         : Promise.resolve(null);
       [context, returnAvailability] = await Promise.all([contextPromise, returnAvailabilityPromise]);

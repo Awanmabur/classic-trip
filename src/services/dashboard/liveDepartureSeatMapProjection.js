@@ -1,5 +1,7 @@
 'use strict';
 
+const { formatRouteLabel } = require('../../utils/routeLabel');
+
 function key(value) {
   return String(value == null ? '' : value).trim();
 }
@@ -26,10 +28,10 @@ function seatNumberOf(seat = {}, index = 0) {
 
 function canonicalSeatStatus(value) {
   const status = normalize(value || 'available');
-  if (['taken', 'booked', 'sold', 'confirmed', 'checked_in'].includes(status)) return 'booked';
+  if (['taken', 'booked', 'sold', 'confirmed', 'occupied', 'checked_in', 'no_show'].includes(status)) return 'booked';
   if (['locked', 'held', 'selected', 'pending_payment', 'reserved'].includes(status)) return 'held';
   if (['blocked', 'maintenance', 'disabled', 'unavailable', 'non_sellable'].includes(status)) return 'blocked';
-  if (['cancelled', 'refunded', 'no_show'].includes(status)) return status;
+  if (['cancelled', 'refunded'].includes(status)) return status;
   return 'available';
 }
 
@@ -171,7 +173,7 @@ function buildLiveDepartureSeatMaps(input = {}) {
       listingId: listing.id,
       listingTitle: listing.title,
       routeId: route.id,
-      routeLabel: key(route.routeName || [origin, destination].filter(Boolean).join(' to ')),
+      routeLabel: formatRouteLabel(origin, destination, route.routeName),
       vehicleId: vehicle.id,
       vehicleName: key(vehicle.name || vehicle.plateOrCode),
       layoutName: key(version?.layoutName || vehicle.layoutName || schedule.layoutName || '2x2'),

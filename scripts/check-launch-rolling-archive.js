@@ -95,7 +95,7 @@ check(`Every archive-capable model has a cleanup policy${uncovered.length ? ` ($
   'BusIncidentReported',
 ].forEach((topic) => check(`Known domain event ${topic} is acknowledged once`, outboxHandlers.includes(`${topic}: acknowledgeDomainFact`)));
 check('Unknown outbox topics still fail visibly', read('src/services/shared/outboxService.js').includes('No outbox handler registered'));
-check('Outbox work uses short pool-friendly batches', outboxJob.includes('limit: 25'));
+check('Outbox work uses short pool-friendly batches', outboxJob.includes('env.jobs.outboxBatchSize') && env.includes("number('OUTBOX_BATCH_SIZE', 8)"));
 check('Cron jobs cannot overlap themselves', scheduler.includes('runningJobs.has(name)')
   && scheduler.includes("reason: 'previous_run_still_active'"));
 check('Worker owns the delayed rolling repair queue after deploy', worker.includes('scheduleMaterializer.startWebFallback')
@@ -114,7 +114,7 @@ check('Production Redis remains mandatory for sessions and cache', render.includ
 check('Atlas startup and pool queue tolerate transient topology changes', db.includes('isRetryableConnectionError')
   && db.includes('retryAttempts')
   && env.includes('MONGO_SERVER_SELECTION_TIMEOUT_MS')
-  && env.includes("Math.max(30000, number('MONGO_WAIT_QUEUE_TIMEOUT_MS'"));
+  && env.includes("Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS'"));
 check('Web process does not start jobs or read-model maintenance', !server.includes('startScheduledJobs')
   && !server.includes('prewarmHome')
   && !server.includes('runStartupReadMaintenance'));

@@ -188,6 +188,24 @@ async function publish(req, res, next) {
   }
 }
 
+async function repairInventory(req, res, next) {
+  try {
+    const result = await companyService.repairScheduleInventory(
+      companyId(req),
+      req.params.id,
+      req.session?.user?.id || 'company-admin',
+    );
+    if (req.flash) req.flash('success', `Seat inventory repaired: ${result.seatCount} seats across ${result.segmentCount} route segments.`);
+    res.redirect('/company/seat-maps');
+  } catch (error) {
+    if (req.flash && [409, 422].includes(Number(error.status || 0))) {
+      req.flash('error', error.message);
+      return res.redirect('/company/seat-maps');
+    }
+    return next(error);
+  }
+}
+
 async function updateSeat(req, res, next) {
   try {
     await companyService.updateSeatStatus(companyId(req), req.body);
@@ -280,7 +298,7 @@ async function cancelRule(req, res, next) {
 }
 
 module.exports = {
-  create, update, archive, publish, updateSeat, transition, duplicate, complete,
+  create, update, archive, publish, repairInventory, updateSeat, transition, duplicate, complete,
   createRule, updateRule, pauseRule, resumeRule, cancelRule, rollingSchedulePayload,
   materializationSummary,
 };

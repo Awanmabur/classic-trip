@@ -43,8 +43,10 @@ module.exports = function sessionConfig() {
         minPoolSize: 0,
         maxPoolSize: 5,
         maxIdleTimeMS: 60000,
-        waitQueueTimeoutMS: Math.max(5000, env.mongoPool.waitQueueTimeoutMs),
-        serverSelectionTimeoutMS: 10000,
+        waitQueueTimeoutMS: env.mongoPool.waitQueueTimeoutMs,
+        serverSelectionTimeoutMS: env.mongoConnection.serverSelectionTimeoutMs,
+        connectTimeoutMS: env.mongoConnection.connectTimeoutMs,
+        socketTimeoutMS: env.mongoConnection.socketTimeoutMs,
       },
       // Default touchAfter is 0, which makes connect-mongo write to Mongo on every
       // single request just to refresh the session's expiry, even when nothing in

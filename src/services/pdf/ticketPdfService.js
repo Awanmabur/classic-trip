@@ -1,6 +1,7 @@
 'use strict';
 
 const { platformCurrency } = require('../../utils/currency');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { env } = require('../../config/env');
@@ -130,7 +131,7 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
         writeLine(doc, 'Seat', displaySeatNo(passenger.seatOrRoom || passenger.seatNumber, serviceType), y); y += 30;
         writeLine(doc, 'Trip type', tripType, y); y += 30;
         const firstLeg = (booking.bookingLegs || [])[0] || {};
-        if (firstLeg.origin || firstLeg.destination) { writeLine(doc, 'Journey', `${clean(firstLeg.origin, '-')} to ${clean(firstLeg.destination, '-')}`, y); y += 30; }
+        if (firstLeg.origin || firstLeg.destination) { writeLine(doc, 'Journey', formatRouteLabel(clean(firstLeg.origin, '-'), clean(firstLeg.destination, '-')), y); y += 30; }
       } else if (isHotel) {
         writeLine(doc, 'Check-in', hotelStay.checkIn || '-', y); y += 30;
         writeLine(doc, 'Check-out', hotelStay.checkOut || '-', y); y += 30;
@@ -165,11 +166,11 @@ async function buildTicketPdfBuffer(booking, listing = {}) {
         writeLine(doc, 'Pickup', `${clean(reservation.pickupDate, '-')} ${clean(reservation.pickupTime)}`.trim(), y); y += 30;
         writeLine(doc, 'Return', `${clean(reservation.returnDate, '-')} ${clean(reservation.returnTime)}`.trim(), y); y += 30;
         writeLine(doc, 'Rental period', `${Number(reservation.rentalDays || 1)} day(s)`, y); y += 30;
-        writeLine(doc, 'Locations', `${clean(reservation.pickupLocation, '-')} to ${clean(reservation.returnLocation, '-')}`.slice(0, 110), y); y += 30;
+        writeLine(doc, 'Locations', formatRouteLabel(clean(reservation.pickupLocation, '-'), clean(reservation.returnLocation, '-')).slice(0, 110), y); y += 30;
         writeLine(doc, 'Driver option', clean(reservation.driverOption, 'self drive').replace(/_/g, ' '), y); y += 30;
       } else if (isCargo) {
         writeLine(doc, 'Pickup date', reservation.pickupDate || '-', y); y += 30;
-        writeLine(doc, 'Route', `${clean(reservation.pickupLocation, '-')} to ${clean(reservation.deliveryLocation, '-')}`.slice(0, 110), y); y += 30;
+        writeLine(doc, 'Route', formatRouteLabel(clean(reservation.pickupLocation, '-'), clean(reservation.deliveryLocation, '-')).slice(0, 110), y); y += 30;
         writeLine(doc, 'Shipment', `${Number(reservation.packageCount || 1)} package(s), ${Number(reservation.weightKg || 0)} kg, ${clean(reservation.cargoType, 'cargo')}`, y); y += 30;
         writeLine(doc, 'Recipient', `${clean(reservation.recipientName, 'Not set')} ${clean(reservation.recipientPhone)}`.trim(), y); y += 30;
         if (reservation.dimensions) { writeLine(doc, 'Dimensions', reservation.dimensions, y); y += 30; }

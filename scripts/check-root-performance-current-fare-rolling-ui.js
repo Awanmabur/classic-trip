@@ -31,14 +31,15 @@ const repository = read('src/repositories/mongoRepository.js');
 const releaseCheck = read('scripts/check-final-home-payment-release.js');
 const sw = read('public/sw.js');
 
-check('Package and browser cache are v1.6.11', pkg.version === '1.6.11' && sw.includes('classic-trip-static-v1.6.11'));
+check('Package and browser cache preserve the v1.6.11+ baseline', pkg.version === '1.6.14' && sw.includes(`classic-trip-static-v${pkg.version}`));
 check('Normal and dedicated-worker startup keep rolling work out of the web process',
   start.includes('const webRollingFallback = !runBackgroundWorker')
   && start.includes("nodeEnv !== 'production'")
   && start.includes("WEB_ROLLING_FALLBACK: webRollingFallback ? 'true' : 'false'")
   && start.includes("WEB_ROLLING_FALLBACK: 'false'"));
-check('Production web fallback is explicit and disabled in the separate-worker blueprint',
-  server.includes("env.nodeEnv === 'production' ? 'false' : 'true'")
+check('Web fallback is opt-in and disabled in the separate-worker blueprint',
+  server.includes("const fallbackDefault = 'false'")
+  && server.includes('WEB_ROLLING_FALLBACK=true')
   && envExample.includes('WEB_ROLLING_FALLBACK=false')
   && render.includes('key: WEB_ROLLING_FALLBACK'));
 check('Only an explicitly started fallback/worker owns the in-memory rolling queue',
@@ -49,7 +50,7 @@ check('Only an explicitly started fallback/worker owns the in-memory rolling que
 check('Background rolling uses one dated departure per batch',
   materializer.includes('const BACKGROUND_BATCH_SIZE = 1') && outbox.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
 check('Background rolling yields between batches',
-  materializer.includes('const BACKGROUND_BATCH_PAUSE_MS = 4000') && materializer.includes('await sleep(BACKGROUND_BATCH_PAUSE_MS)'));
+  materializer.includes('const BACKGROUND_BATCH_PAUSE_MS = 2000') && materializer.includes('await sleep(BACKGROUND_BATCH_PAUSE_MS)'));
 check('Worker waits for the redirect/request burst before startup repair', worker.includes('startupDelayMs: 10000'));
 check('Rolling cache invalidation is delayed until the drain settles',
   materializer.includes('after the whole rolling drain') && materializer.includes('}, 5000);'));
@@ -57,14 +58,16 @@ check('Repeated publication blockers have a five-minute cooldown',
   materializer.includes('PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000')
   && materializer.includes('publicationBlockerCooldown.set(ruleKey'));
 check('Permanent rolling errors do not hot-loop',
-  materializer.includes('queue paused until the next repair scan')
-  && materializer.includes('pending > 0 && skipped > 0'));
+  materializer.includes('persistVehicleConflictBlocker')
+  && materializer.includes('eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now))')
+  && !materializer.includes('Rolling departure queue paused until the next repair scan'));
 check('Rolling feedback names the background worker and keeps blocker text',
   scheduleController.includes('queued for the background rolling worker')
   && scheduleController.includes('Draft blockers:'));
 check('Flash text no longer truncates the permit blocker mid-word', (flash.match(/slice\(0, 700\)/g) || []).length >= 2);
-check('The formerly failing release assertion follows current no-hot-loop semantics',
-  releaseCheck.includes('pending > 0 && created > 0') && releaseCheck.includes('pending > 0 && skipped > 0'));
+check('The release assertion follows persisted no-hot-loop semantics',
+  releaseCheck.includes('persistVehicleConflictBlocker')
+  && releaseCheck.includes('activePersistentBlocker'));
 
 check('Departure state survives the immediate hold-to-payment redirect', inventory.includes('const SCHEDULE_STATE_TTL_MS = 5000'));
 check('Live availability uses immutable route, seat-map and fare snapshots',

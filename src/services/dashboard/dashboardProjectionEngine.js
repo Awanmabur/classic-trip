@@ -1,4 +1,5 @@
 const { platformCurrency } = require('../../utils/currency');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const { getCachedPlatformConfig } = require('../platform/platformConfigService');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const crypto = require('crypto');
@@ -282,7 +283,7 @@ function createDashboardProjection(initialState = {}) {
     return formatMoney(booking.pricing?.total, booking.pricing?.currency || platformCurrency());
   }
   const dashboardDataCache = new Map();
-  const DASHBOARD_DATA_CACHE_MS = 60_000;
+  const DASHBOARD_DATA_CACHE_MS = 5000;
   function dashboardData(role = 'admin', context = {}) {
     // computeDashboardData assembles its payload almost entirely out of repeated full
     // linear scans over state.bookings/schedules/seats/etc per row (e.g. seatsForSchedule
@@ -487,7 +488,7 @@ function createDashboardProjection(initialState = {}) {
           : listing.status === 'draft'
             ? 'Draft'
             : listing.releaseStatus || listing.status || 'Draft';
-      return [listing.title, SERVICE_LABELS[listing.serviceType] || listing.serviceType || listing.type, detail.owner.companyName, listing.serviceType === 'hotel' ? `${detail.inventory.roomInventory} rooms` : `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats} seats`, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from || '-'} to ${listing.to || '-'}`, marketplaceState, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), dashboardMeta('listing', listing.id, listing.title, listing.status, detail, ['view', 'bookings', 'occupancy', 'open'])];
+      return [listing.title, SERVICE_LABELS[listing.serviceType] || listing.serviceType || listing.type, detail.owner.companyName, listing.serviceType === 'hotel' ? `${detail.inventory.roomInventory} rooms` : `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats} seats`, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : formatRouteLabel(listing.from || '-', listing.to || '-'), marketplaceState, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), dashboardMeta('listing', listing.id, listing.title, listing.status, detail, ['view', 'bookings', 'occupancy', 'open'])];
     });
     const paymentRows = visibleBookings.map(booking => {
       const payment = state.payments.find(item => item.bookingRef === booking.bookingRef || item.bookingId === booking.id) || {};
@@ -529,7 +530,7 @@ function createDashboardProjection(initialState = {}) {
       const company = findCompany(route.companyId || listing.companyId) || {};
       const schedules = state.schedules.filter(schedule => schedule.routeId === route.id || schedule.listingId === route.listingId);
       const stops = [route.boardingPoints, route.dropoffPoints].flat().filter(Boolean).length || (Array.isArray(state.routeStops) ? state.routeStops.filter(stop => stop.routeId === route.id).length : 0);
-      const label = route.routeName || `${route.origin || listing.from || '-'} to ${route.destination || listing.to || '-'}`;
+      const label = formatRouteLabel(route.origin || listing.from || '-', route.destination || listing.to || '-', route.routeName);
       return [label, listing.title || route.listingId || '-', company.name || listing.partner || '-', `${stops} stops`, `${schedules.length} schedules`, route.status || listing.status || 'active', dashboardMeta('route', route.id, label, route.status || listing.status || 'active', {
         route,
         listing: listingDetail(listing),
@@ -556,7 +557,7 @@ function createDashboardProjection(initialState = {}) {
       const listing = findListing(route.listingId) || {};
       const schedules = schedulesForListing(route.listingId);
       const detail = listingDetail(listing);
-      return [`${route.origin || detail.service.from || '-'} to ${route.destination || detail.service.to || '-'}`, detail.service.vehicleDetails || listing.type || 'Inventory', detail.owner.companyName || 'Partner', `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats}`, `${schedules.length} schedules`, route.status || listing.status || 'active', formatMoney(listing.priceFrom || 0, listing.currency), dashboardMeta('route', route.id, `${route.origin} to ${route.destination}`, route.status, {
+      return [formatRouteLabel(route.origin || detail.service.from || '-', route.destination || detail.service.to || '-', route.routeName), detail.service.vehicleDetails || listing.type || 'Inventory', detail.owner.companyName || 'Partner', `${detail.inventory.remainingSeats}/${detail.inventory.totalSeats}`, `${schedules.length} schedules`, route.status || listing.status || 'active', formatMoney(listing.priceFrom || 0, listing.currency), dashboardMeta('route', route.id, formatRouteLabel(route.origin, route.destination, route.routeName), route.status, {
         route,
         listing: detail
       }, ['view', 'bookings', 'occupancy', 'open'])];
@@ -1387,9 +1388,9 @@ function createDashboardProjection(initialState = {}) {
       return {
         id: route.id,
         value: route.id,
-        label: `${route.origin} to ${route.destination}${listing ? ` - ${listing.title}` : ''}`,
+        label: `${formatRouteLabel(route.origin, route.destination, route.routeName)}${listing ? ` - ${listing.title}` : ''}`,
         listingId: route.listingId,
-        routeName: route.routeName || `${route.origin} to ${route.destination}`,
+        routeName: formatRouteLabel(route.origin, route.destination, route.routeName),
         routeCode: route.routeCode || '',
         origin: route.origin || '',
         destination: route.destination || '',
@@ -2132,7 +2133,7 @@ function createDashboardProjection(initialState = {}) {
       const repeat = Array.isArray(rule.daysOfWeek) && rule.daysOfWeek.length
         ? rule.daysOfWeek.map((day) => weekdayLabels[Number(day)] || String(day)).join(', ')
         : 'Every day';
-      const label = `${route.routeName || [route.origin, route.destination].filter(Boolean).join(' → ') || 'Route'} at ${rule.departureTime || '--:--'}`;
+      const label = `${formatRouteLabel(route.origin, route.destination, route.routeName) || 'Route'} at ${rule.departureTime || '--:--'}`;
       return [
         label,
         repeat,
@@ -2154,7 +2155,7 @@ function createDashboardProjection(initialState = {}) {
       const fullFare = fares.find((row) => String(row.fromStopId || '') === String(route.originStopId || '') && String(row.toStopId || '') === String(route.destinationStopId || ''))
         || fares.slice().sort((a, b) => (Number(b.toOrder || 0) - Number(b.fromOrder || 0)) - (Number(a.toOrder || 0) - Number(a.fromOrder || 0)))[0]
         || {};
-      const routeLabel = route.routeName || [route.origin, route.destination].filter(Boolean).join(' → ') || 'Route not available';
+      const routeLabel = formatRouteLabel(route.origin, route.destination, route.routeName) || 'Route not available';
       return [
         fare.name || fare.fareClass || 'Fare plan',
         routeLabel,
@@ -2175,13 +2176,13 @@ function createDashboardProjection(initialState = {}) {
       const toStop = stopByIdForFares.get(String(fare.toStopId || '')) || {};
       return [
         product.name || product.fareClass || 'Fare plan',
-        `${fromStop.name || route.origin || 'Origin'} → ${toStop.name || route.destination || 'Destination'}`,
-        route.routeName || [route.origin, route.destination].filter(Boolean).join(' → ') || '-',
+        formatRouteLabel(fromStop.name || route.origin || 'Origin', toStop.name || route.destination || 'Destination'),
+        formatRouteLabel(route.origin, route.destination, route.routeName) || '-',
         formatMoney(fare.amount || 0, fare.currency || product.currency || companyCurrency),
-        `${fare.fromOrder ?? '-'} → ${fare.toOrder ?? '-'}`,
+        `${fare.fromOrder ?? '-'} ⇄ ${fare.toOrder ?? '-'}`,
         fare.status || 'active',
         {
-          entity: 'segment_fare', id: fare.id, label: `${fromStop.name || 'Origin'} to ${toStop.name || 'Destination'}`, status: fare.status,
+          entity: 'segment_fare', id: fare.id, label: formatRouteLabel(fromStop.name || 'Origin', toStop.name || 'Destination'), status: fare.status,
           detail: { segmentFare: fare, fareProduct: product, route, fromStop, toStop, purpose: 'This is the price charged when a passenger boards at the selected first stop and leaves at the selected later stop.' }
         }
       ];
@@ -2365,7 +2366,7 @@ function createDashboardProjection(initialState = {}) {
         aircraftTypes: aircraftTypes.map(row => ({ id: row.id, value: row.id, label: `${row.manufacturer || ''} ${row.model || row.name || row.id}`.trim(), seatCapacity: row.seatCapacity || row.maxSeats || 0 })),
         aircraft: aircraft.map(row => ({ id: row.id, value: row.id, label: `${row.registrationNumber || row.tailNumber || row.id} - ${row.name || row.modelName || 'Aircraft'}`, status: row.status, seatMapVersionId: row.activeSeatMapVersionId || '' })),
         flightSeatMaps: flightSeatMapVersions.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.layoutName || 'Seat map'} v${row.version || 1}`, aircraftId: row.aircraftId, status: row.status, totalSeats: row.totalSeats || (row.seats || []).length })),
-        flightRoutes: flightRoutes.map(row => ({ id: row.id, value: row.id, label: `${row.routeCode || ''} ${row.originAirportCode || row.originAirportId || ''} → ${row.destinationAirportCode || row.destinationAirportId || ''}`.trim(), listingId: row.listingId, status: row.status })),
+        flightRoutes: flightRoutes.map(row => ({ id: row.id, value: row.id, label: `${row.routeCode || ''} ${formatRouteLabel(row.originAirportCode || row.originAirportId || '', row.destinationAirportCode || row.destinationAirportId || '')}`.trim(), listingId: row.listingId, status: row.status })),
         flightFareFamilies: flightFareFamilies.map(row => ({ id: row.id, value: row.id, label: `${row.name || row.code || 'Fare'} - ${row.cabinClass || 'economy'}`, routeId: row.routeId, status: row.status })),
         flightDepartures: flightDepartures.map(row => ({ id: row.id, value: row.id, label: `${row.flightNumber || row.id} - ${dateValue(row.departAt)}`, routeId: row.routeId, aircraftId: row.aircraftId, status: row.operationalStatus || row.publicationStatus })),
         flightAncillaries: flightAncillaries.map(row => ({ id: row.id, value: row.id, label: row.name || row.code || row.id, type: row.type, price: row.price, currency: row.currency, status: row.status })),
@@ -2423,7 +2424,7 @@ function createDashboardProjection(initialState = {}) {
       roomVisualMaps,
       bookedSeatGroups,
       bookedRoomGroups,
-      listings: listings.map(listing => [listing.title, listing.type, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : `${listing.from} to ${listing.to}`, listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.status, {
+      listings: listings.map(listing => [listing.title, listing.type, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : formatRouteLabel(listing.from, listing.to), listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.status, {
         entity: 'listing',
         id: listing.id,
         label: listing.title,
@@ -2433,12 +2434,12 @@ function createDashboardProjection(initialState = {}) {
           company: companyDetail(company)
         }
       }]),
-      routes: visibleRoutes.map(route => [route.routeName || `${route.origin} to ${route.destination}`, bookingTitle({
+      routes: visibleRoutes.map(route => [formatRouteLabel(route.origin, route.destination, route.routeName), bookingTitle({
         listingId: route.listingId
       }), `${route.boardingPoints?.length || 0} boarding`, `${route.dropoffPoints?.length || 0} dropoffs`, route.corridor || '', route.status, {
         entity: 'route',
         id: route.id,
-        label: route.routeName || `${route.origin} to ${route.destination}`,
+        label: formatRouteLabel(route.origin, route.destination, route.routeName),
         status: route.status,
         detail: {
           route,
@@ -2448,7 +2449,7 @@ function createDashboardProjection(initialState = {}) {
       }]),
       routeStops: visibleRouteStops.map(stop => {
         const route = visibleRoutes.find(item => item.id === stop.routeId) || {};
-        return [route.routeName || `${route.origin || ''} to ${route.destination || ''}`.trim() || stop.routeId, stop.name, stop.stopType || 'intermediate', String(stop.stopOrder || 0), String(stop.timeOffsetMinutes || 0), stop.status || 'active', {
+        return [formatRouteLabel(route.origin, route.destination, route.routeName) || stop.routeId, stop.name, stop.stopType || 'intermediate', String(stop.stopOrder || 0), String(stop.timeOffsetMinutes || 0), stop.status || 'active', {
           entity: 'routeStop',
           id: stop.id,
           label: stop.name,
@@ -2710,7 +2711,7 @@ function createDashboardProjection(initialState = {}) {
       }),
       routes: (data.routes || []).map(row => {
         const meta = rowMetaLike(row);
-        const route = state.routes.find(item => item.companyId === companyId && (item.id === meta?.id || item.routeName === row[0] || `${item.origin} to ${item.destination}` === row[0])) || {};
+        const route = state.routes.find(item => item.companyId === companyId && (item.id === meta?.id || item.routeName === row[0] || formatRouteLabel(item.origin, item.destination, item.routeName) === row[0])) || {};
         const listing = findListing(route.listingId) || {};
         return withMeta(row, dashboardMeta('route', route.id || row[0], row[0], row[5], {
           route,
@@ -2980,7 +2981,7 @@ function createDashboardProjection(initialState = {}) {
       schedules: scheduleRows.length ? scheduleRows : safeDriverOpsRows,
       routes: state.routes.filter(route => route.companyId === companyId && route.status !== 'archived').map(route => {
         const listing = findListing(route.listingId) || {};
-        return [route.routeName || `${route.origin || listing.from || '-'} to ${route.destination || listing.to || '-'}`, listing.title || route.listingId || '-', `${(route.boardingPoints || []).length} boarding`, `${(route.dropoffPoints || []).length} dropoffs`, route.corridor || '-', route.status || 'active', dashboardMeta('route', route.id, route.routeName || `${route.origin || '-'} to ${route.destination || '-'}`, route.status || 'active', {
+        return [formatRouteLabel(route.origin || listing.from || '-', route.destination || listing.to || '-', route.routeName), listing.title || route.listingId || '-', `${(route.boardingPoints || []).length} boarding`, `${(route.dropoffPoints || []).length} dropoffs`, route.corridor || '-', route.status || 'active', dashboardMeta('route', route.id, formatRouteLabel(route.origin || '-', route.destination || '-', route.routeName), route.status || 'active', {
           route,
           listing: listingDetail(listing),
           company: companyDetail(findCompany(companyId) || {})
@@ -3256,7 +3257,7 @@ function createDashboardProjection(initialState = {}) {
     const savedListings = state.savedListings?.filter(item => item.userId === customerUser.id).map(item => findListing(item.listingId)).filter(Boolean) || state.listings.filter(listing => listing.isFeatured || listing.bookable).slice(0, 8);
     const bookingMeta = (booking, actions = ['view', 'ticket', 'receipt', 'refund', 'support', 'review', 'export']) => dashboardMeta('booking', booking.bookingRef, booking.bookingRef, booking.bookingStatus, bookingDetail(booking), actions);
     const bookingRows = bookings.map(booking => [booking.bookingRef, bookingTitle(booking), bookingCompany(booking), dateValue(booking.createdAt || booking.travelDate || booking.departAt), bookingCustomer(booking), booking.bookingStatus, bookingTotal(booking), bookingMeta(booking)]);
-    const savedRows = savedListings.map(listing => [listing.title, listing.type || listing.serviceType, listing.partner || findCompany(listing.companyId)?.name || '', `${listing.from || listing.city || listing.location || '-'}${listing.to ? ` to ${listing.to}` : ''}`, formatMoney(listing.priceFrom || listing.price || 0, listing.currency || platformCurrency()), listing.bookable ? 'Available' : listing.status || 'Saved', dashboardMeta('saved_listing', listing.id, listing.title, listing.status || 'saved', listingDetail(listing), ['view', 'book', 'remove', 'export'])]);
+    const savedRows = savedListings.map(listing => [listing.title, listing.type || listing.serviceType, listing.partner || findCompany(listing.companyId)?.name || '', listing.to ? formatRouteLabel(listing.from || listing.city || listing.location || '-', listing.to) : (listing.from || listing.city || listing.location || '-'), formatMoney(listing.priceFrom || listing.price || 0, listing.currency || platformCurrency()), listing.bookable ? 'Available' : listing.status || 'Saved', dashboardMeta('saved_listing', listing.id, listing.title, listing.status || 'saved', listingDetail(listing), ['view', 'book', 'remove', 'export'])]);
     const receiptRows = (state.receiptInvoices || [])
       .filter((document) => document.documentType === 'receipt' && bookings.some((booking) => booking.bookingRef === document.bookingRef))
       .map((document) => {
@@ -3646,7 +3647,7 @@ function createDashboardProjection(initialState = {}) {
       share: shareListings.map(listing => {
         const detail = shareDetail(listing);
         const company = findCompany(listing.companyId) || {};
-        return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, `${listing.from || listing.city || ''}${listing.to ? ` to ${listing.to}` : ''}`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
+        return [listing.title, listing.type || listing.serviceType, company.name || listing.partner, listing.to ? formatRouteLabel(listing.from || listing.city || '', listing.to) : (listing.from || listing.city || ''), formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.isSponsored ? 'Promotion' : listing.bookable ? 'Available' : 'Review', dashboardMeta('share_listing', listing.id, listing.title, listing.isSponsored ? 'promotion' : 'available', detail, ['view', 'copy', 'share', 'export'])];
       }),
       commissions: bookings.map((booking, index) => {
         const detail = commissionDetail(booking, index);
@@ -3995,7 +3996,7 @@ function createDashboardProjection(initialState = {}) {
         address: listing.address || listing.location || '',
         city: listing.city || '',
         country: listing.country || '',
-        routeDetails: routes.map(route => `${route.origin} to ${route.destination}`).join('; '),
+        routeDetails: routes.map(route => formatRouteLabel(route.origin, route.destination, route.routeName)).join('; '),
         vehicleDetails: state.vehicles.filter(vehicle => sameRecordId(vehicle.listingId, listingId)).map(vehicle => `${vehicle.name} (${vehicle.plateOrCode || 'no plate'})`).join('; '),
         departure: schedules[0]?.departAt || listing.departure || '',
         arrival: schedules[0]?.arriveAt || listing.arrival || ''

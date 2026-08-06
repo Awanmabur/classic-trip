@@ -1,6 +1,7 @@
 'use strict';
 
 const { mongoose } = require('../../config/db');
+const { formatRouteLabel } = require('../../utils/routeLabel');
 const { POLICIES, RETENTION_DAYS } = require('../../jobs/purgeArchivedRecords');
 const { nextId } = require('../data/idService');
 const platformRepository = require('../../repositories/domain/platformRepository');
@@ -183,11 +184,11 @@ function firstText(row, fields) {
 
 function recordName(row, modelName) {
   if (modelName === 'Route') {
-    return firstText(row, ['routeName']) || `${row.origin || 'Origin'} → ${row.destination || 'Destination'}`;
+    return firstText(row, ['routeName']) || formatRouteLabel(row.origin || 'Origin', row.destination || 'Destination', row.routeName);
   }
   if (modelName === 'RouteStop') return firstText(row, ['name']) || `Stop ${row.stopOrder || ''}`.trim();
   if (modelName === 'BusSegmentFare') {
-    return `${row.fromStopName || 'Origin'} → ${row.toStopName || 'Destination'}`;
+    return formatRouteLabel(row.fromStopName || 'Origin', row.toStopName || 'Destination');
   }
   if (modelName === 'TripSchedule') {
     return firstText(row, ['vehicleName', 'routeName']) || 'Scheduled departure';

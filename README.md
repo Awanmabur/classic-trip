@@ -5,35 +5,23 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.0
+## Current release — version 1.6.14
 
-- Standard Ticket and VIP Ticket are explicit side-by-side choices backed by the dated departure's whole-vehicle class.
-- One-way Ticket and Return Ticket are explicit journey choices; the return panel remains visible and explains when no matching reverse departure is available.
-- Partner departure creation defaults to an indefinite rolling 30-day rule. The worker prepares the initial month and adds one new far-end day every day.
-- Bus setup starts with the required terminal, stay setup starts with the required listing, and tour, rental and cargo dashboards now receive their correct company quick actions.
-- Public and partner stay room layouts use responsive room cards instead of bus-seat styling.
-- Every role dashboard now renders only menu-authorised sections and uses role-owned actions for customer, promoter, support, finance, operations, content, employee and driver workflows.
-- Promoter links and driver trip updates, incidents, handovers and profile changes have complete protected endpoints.
-- The full release gate includes dedicated platform-experience, ticket, rolling-departure and dashboard-setup contracts plus 69 unit tests.
+- Phone listing bars remain unchanged.
+- Desktop bars now follow their content while keeping the image fixed at a compact 190 × 150 px Vision Coaches-style proportion, so wrapped routes never stretch the image or create hidden content.
+- `DRIVER - FRONT` has a visible divider and gap before the first row; equal left/right seat tracks keep the complete dashboard cabin and aisle centered.
+- Booking/ticket evidence is authoritative: taken, booked, sold, confirmed, occupied, checked-in and no-show seats are red; orange is reserved for blocked/maintenance seats.
+- Origin/destination routes use `Origin ⇄ Destination` across public pages, dashboards, manifests, archives and PDFs.
+- Rolling vehicle-conflict blocker fields are persisted by the canonical schema, an active blocker is not repeatedly extended, and scheduled materialization queues low-priority work instead of running until the 45-second deadline.
+- The v1.6.12/v1.6.13 fail-fast MongoDB, dedicated worker, page-scoped dashboard reads, deferred JavaScript, preview prefetch and bounded payment/listing reads remain preserved.
 
-This release completes the ticket-choice, recurring-departure, partner-setup, stay-layout and dashboard-role hardening while preserving the approved platform shell.
-
-- Repeated Proceed to payment requests reuse a matching active secure draft, preventing duplicate seat holds and avoidable 409 responses.
-- Genuine seat conflicts remain protected and refresh the live seat inventory for reselection.
-- Hero statistics are hidden on phones while remaining visible on larger screens.
-- Featured buses use a two-row phone swipe rail with one full column and about one quarter of the next visible; desktop card sections keep three fixed columns.
-- Each marketplace section has a service-appropriate card design plus a compact bar/list view toggle.
-- Compact bars show one per row on phones and two per row on desktop.
-- Four records are shown first; More appears only when additional database records exist.
-- Section view preferences are remembered independently.
-
-Run the focused regression gate with:
+Run the focused dependency-free release gate with:
 
 ```bash
-npm run check:final-home-payment
+npm run check:v1614-bars-seats-routes-rolling
 ```
 
-See `RELEASE_NOTES.md` for the exact changes and `FINAL_RELEASE_CHECKLIST.md` for deployment steps.
+See `RELEASE_NOTES.md`, `BAR_SEAT_ROUTE_ROLLING_FIX_REPORT_v1.6.14.md`, and `FINAL_RELEASE_CHECKLIST.md`.
 
 ## Seven-service marketplace completion
 

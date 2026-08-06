@@ -1,6 +1,6 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.7.
+Use this checklist for version 1.6.14.
 
 ## 1. Clean installation
 
@@ -57,6 +57,8 @@ For local development or a single process service, the normal launcher starts bo
 npm start
 ```
 
+Do not run rolling jobs inside `src/server.js`. The web fallback is disabled by default; use the dedicated worker launched by `npm start`, or explicitly set `WEB_ROLLING_FALLBACK=true` only when no worker process exists.
+
 For a deployment with a dedicated worker service, use:
 
 Web:
@@ -86,7 +88,7 @@ Confirm all of the following:
 - Clicking service types does not shift the hero left or right.
 - Phone hero statistics are hidden while desktop statistics remain visible.
 - Featured buses show two phone rows with one full card column and about one quarter of the next column visible.
-- Every marketplace section can toggle between its unique card layout and compact bars; bars use one column on phones and two on desktop.
+- Every marketplace section can toggle between its unique card layout and compact bars; phone bars retain the approved layout, while desktop bars use natural content height and a fixed compact 190 × 150 px image.
 - More controls appear only when additional database listings are available and load real records.
 - Login, logout, password reset, verification, and role redirects work.
 - A published bus listing with a live departure shows the booking/payment action.
@@ -100,6 +102,22 @@ Confirm all of the following:
 ## 8. Rollback readiness
 
 Before launch, record the previous deployed commit/archive, preserve a verified database backup, and confirm that application rollback does not require reversing destructive migrations. The release migrations in this project provide dry-run commands; execute dry-run first whenever historical data must be normalized.
+
+## v1.6.14 focused checks
+
+- [ ] Phone bar layout and dimensions match the approved pre-v1.6.14 phone presentation.
+- [ ] Desktop bar images remain exactly 190 px wide × 150 px high while the text side grows naturally for additional route chips.
+- [ ] No route chip is hidden, clipped or placed behind another bar element, and compact bars do not contain unnecessary vertical gaps.
+- [ ] `DRIVER - FRONT` has a visible divider and an 18 px gap before the first seat row.
+- [ ] The complete dashboard cabin and aisle remain centered for symmetric and asymmetric templates such as 2×2, 2×3 and 3×2.
+- [ ] A seat with a booking reference, ticket number, or occupied/taken status is red in both dashboard and public preview views.
+- [ ] Only blocked, disabled, unavailable and maintenance seats are orange.
+- [ ] Public cards, booking views, dashboards, manifests, archives and PDFs show `Origin ⇄ Destination` rather than origin `to` destination or a one-way arrow.
+- [ ] `ScheduleRule` records persist blocker code, reason, failure list and blocked-until time in MongoDB.
+- [ ] Repeated scans do not extend an already active vehicle-conflict blocker.
+- [ ] The scheduled `materializeSchedules` callback queues eligible rules and completes well below the 45-second deadline.
+- [ ] `npm run check:v1614-bars-seats-routes-rolling` passes 14/14.
+- [ ] After `npm ci`, `npm run release:check` passes including the EJS/Mongoose runtime groups and production dependency audit.
 
 ## v1.6.7 focused checks
 
@@ -124,3 +142,18 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - [ ] Promoter referral-link creation and driver trip-update, incident, handover and profile actions persist successfully.
 - [ ] Keyboard focus is visible and dashboard dialogs trap focus, close with Escape and restore focus.
 - [ ] `npm run check:platform-experience`, `npm run check:ticket-rolling-setup` and the complete `npm run release:check` pass.
+
+
+## v1.6.12 ultra-speed checks
+
+- [ ] Render web service has `ENABLE_JOBS=false`, `RUN_BACKGROUND_WORKER=false`, and `WEB_ROLLING_FALLBACK=false`.
+- [ ] Render worker alone has `ENABLE_JOBS=true`; Redis is connected and required.
+- [ ] Mongo wait queue, server selection, connect and socket values are 2500/4000/5000/15000 ms, not the old 30000/90000 ms values.
+- [ ] Login content appears immediately even when Google Fonts/CDN resources are slow or unavailable.
+- [ ] Hovering/touching a listing card makes its preview navigation noticeably faster.
+- [ ] Preview and payment do not trigger a complete marketplace/seat-history read.
+- [ ] Each dashboard URL loads only its active page and does not serialize unrelated role data.
+- [ ] The dashboard menu/theme/sidebar search work immediately while the CRUD workspace loads after first paint.
+- [ ] During a temporary Atlas interruption, cached dashboards/listings remain readable and requests fail within seconds rather than hanging for minutes.
+- [ ] Superseded by v1.6.14: verify phone remains approved and desktop uses natural height with a fixed 190 × 150 px image.
+- [ ] `DRIVER - FRONT` has visible spacing and the seat-map cabin is centered.

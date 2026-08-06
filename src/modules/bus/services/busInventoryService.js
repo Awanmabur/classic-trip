@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { formatRouteLabel } = require('../../../utils/routeLabel');
 const repository = require('../repositories/busRepository');
 const {
   cleanText,
@@ -28,10 +29,6 @@ const staticContextInflight = new Map();
 const scheduleStateCache = new Map();
 const scheduleStateInflight = new Map();
 const compatibilityRefreshQueue = new Map();
-const availabilityCache = new Map();
-const availabilityInflight = new Map();
-const AVAILABILITY_CACHE_TTL_MS = 1500;
-const AVAILABILITY_CACHE_LIMIT = 600;
 let compatibilityRefreshTimer = null;
 let compatibilityRefreshRunning = false;
 
@@ -140,14 +137,11 @@ function contextFromScheduleSnapshots(schedule = {}) {
   };
 }
 
-async function scheduleContext(scheduleId, { requirePublished = true, scheduleRecord: prefetchedSchedule = null, listingRecord: prefetchedListing = null } = {}) {
-  // Listing/checkout controllers already own a verified listing-scoped snapshot.
-  // Reuse its selected schedule and listing instead of reading both documents
-  // again from Atlas before the live segment-inventory query.
-  const cleanScheduleId = cleanText(scheduleId, 180);
-  const schedule = prefetchedSchedule && String(prefetchedSchedule.id || prefetchedSchedule._id || '') === cleanScheduleId
-    ? cacheScheduleState(cleanScheduleId, prefetchedSchedule)
-    : await scheduleRecord(cleanScheduleId);
+async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
+  // Read the mutable departure status once, then use its immutable publication
+  // snapshots for route/stops/segments/seat layout/fare metadata. Existing code
+  // re-read seven collections from Atlas for every stop change and checkout.
+  const schedule = await scheduleRecord(scheduleId);
   if (!schedule) throw validationError('Bus departure not found', 404);
   if (requirePublished && !['published', 'delayed', 'boarding'].includes(normalize(schedule.status))) throw conflictError('This departure is not open for booking', 'departure_not_bookable');
   if (new Date(schedule.departAt).getTime() <= Date.now()) throw conflictError('This departure has already closed', 'departure_closed');
@@ -160,16 +154,8 @@ async function scheduleContext(scheduleId, { requirePublished = true, scheduleRe
     if (!inflight) {
       inflight = (async () => {
         const snapshotContext = contextFromScheduleSnapshots(schedule);
-        const usablePrefetchedListing = prefetchedListing
-          && String(prefetchedListing.id || prefetchedListing._id || '') === String(schedule.listingId || '')
-          && String(prefetchedListing.companyId || '') === String(schedule.companyId || '')
-          && normalize(prefetchedListing.serviceType) === 'bus'
-          && normalize(prefetchedListing.status) === 'active'
-          && normalize(prefetchedListing.releaseStatus) === 'published'
-          ? prefetchedListing
-          : null;
         const [listing, route, stopsRaw, segments, seatMapVersion, fareProduct] = await Promise.all([
-          usablePrefetchedListing ? Promise.resolve(usablePrefetchedListing) : repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus', status: 'active', releaseStatus: 'published' }),
+          repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus', status: 'active', releaseStatus: 'published' }),
           snapshotContext ? Promise.resolve(snapshotContext.route) : repository.routes.findOne({ id: schedule.routeId, companyId: schedule.companyId, status: 'active' }),
           snapshotContext ? Promise.resolve(snapshotContext.stops) : repository.routeStops.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 }, limit: 240 }),
           snapshotContext ? Promise.resolve(snapshotContext.segments) : repository.routeSegments.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: 'active' }, { sort: { segmentOrder: 1 }, limit: 240 }),
@@ -211,8 +197,8 @@ function inventoryStatusAvailable(row, allowedHoldId = '') {
   return !!allowedHoldId && row.status === 'held' && row.holdId === allowedHoldId && new Date(row.lockedUntil).getTime() > Date.now();
 }
 
-async function getAvailabilityFresh({ scheduleId, originStopId, destinationStopId, holdId = '', seatNumbers = [], scheduleRecord: prefetchedSchedule = null, listingRecord: prefetchedListing = null } = {}) {
-  const context = await scheduleContext(scheduleId, { scheduleRecord: prefetchedSchedule, listingRecord: prefetchedListing });
+async function getAvailability({ scheduleId, originStopId, destinationStopId, holdId = '', seatNumbers = [] } = {}) {
+  const context = await scheduleContext(scheduleId);
   const originId = cleanText(originStopId || context.schedule.originStopId || context.route.originStopId, 180);
   const destinationId = cleanText(destinationStopId || context.schedule.destinationStopId || context.route.destinationStopId, 180);
   const range = routeRange(context.stops, originId, destinationId);
@@ -302,51 +288,6 @@ async function getAvailabilityFresh({ scheduleId, originStopId, destinationStopI
     availableSeats: seats.filter((seat) => seat.available).length,
     fare: { baseAmountPerSeat: fare.amount, currency: context.fareProduct.currency, fareProductId: context.fareProduct.id, fareProductName: context.fareProduct.name, fareClass: context.fareProduct.fareClass, refundable: !!context.fareProduct.refundable, changeable: !!context.fareProduct.changeable, baggageAllowanceKg: Number(context.fareProduct.baggageAllowanceKg || 0), source: fare.source },
   };
-}
-
-
-function availabilityCacheKey({ scheduleId, originStopId, destinationStopId, seatNumbers = [] } = {}) {
-  const seats = seatList(seatNumbers).sort().join(',');
-  return [cleanText(scheduleId, 180), cleanText(originStopId, 180), cleanText(destinationStopId, 180), seats].join('|');
-}
-
-function rememberAvailability(key, value) {
-  if (availabilityCache.size >= AVAILABILITY_CACHE_LIMIT) {
-    const oldest = availabilityCache.keys().next().value;
-    if (oldest) availabilityCache.delete(oldest);
-  }
-  availabilityCache.set(key, { value, expiresAt: Date.now() + AVAILABILITY_CACHE_TTL_MS });
-  return value;
-}
-
-function invalidateAvailabilityCache(scheduleId = '') {
-  const prefix = `${cleanText(scheduleId, 180)}|`;
-  if (!prefix || prefix === '|') {
-    availabilityCache.clear();
-    availabilityInflight.clear();
-    return;
-  }
-  for (const key of availabilityCache.keys()) if (key.startsWith(prefix)) availabilityCache.delete(key);
-  for (const key of availabilityInflight.keys()) if (key.startsWith(prefix)) availabilityInflight.delete(key);
-}
-
-async function getAvailability(input = {}) {
-  // Holds must always see their own live rows. Normal fare/seat previews are safe
-  // to deduplicate for 1.5 seconds because holdSeats re-checks every segment inside
-  // the transaction before reserving anything.
-  if (cleanText(input.holdId, 180)) return getAvailabilityFresh(input);
-  const key = availabilityCacheKey(input);
-  const cached = availabilityCache.get(key);
-  if (cached?.expiresAt > Date.now()) return cached.value;
-  if (cached) availabilityCache.delete(key);
-  let inflight = availabilityInflight.get(key);
-  if (!inflight) {
-    inflight = getAvailabilityFresh(input)
-      .then((value) => rememberAvailability(key, value))
-      .finally(() => availabilityInflight.delete(key));
-    availabilityInflight.set(key, inflight);
-  }
-  return inflight;
 }
 
 async function recalculateCompatibilitySeats(scheduleId, seatNumbers, session = null) {
@@ -478,7 +419,7 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     seatNumbers: seats,
     itemIds: [],
     itemCount: seats.length * availability.journey.segmentIds.length,
-    selectedLabel: `${seats.join(', ')} · ${availability.journey.originName} to ${availability.journey.destinationName}`,
+    selectedLabel: `${seats.join(', ')} · ${formatRouteLabel(availability.journey.originName, availability.journey.destinationName)}`,
     token: hashToken(token),
     tokenPreview: tokenPreview(token),
     guest: context.guest || {},
@@ -562,7 +503,6 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     if (error.code === 11000) throw conflictError('One or more selected seats were just held by another traveler', 'seat_unavailable');
     throw error;
   }
-  invalidateAvailabilityCache(hold.scheduleId);
   queueCompatibilityRefresh(hold.scheduleId, seats);
   return { ...hold, accessToken: token, seats: seats.map((seatNumber) => availableMap.get(seatNumber)), fare: availability.fare, journey: availability.journey };
 }
@@ -640,7 +580,6 @@ async function consumeHold(holdId, { bookingId, bookingRef, bookingItemId, reser
     await recalculateScheduleAvailableSeats(hold.scheduleId, session);
   }
   await repository.outbox({ eventType: 'BusInventoryBooked', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { bookingId, bookingRef, reservationId, scheduleId: hold.scheduleId, seatNumbers: hold.seatNumbers }, dedupeKey: `BusInventoryBooked:${hold.id}:${bookingId}`, session });
-  invalidateAvailabilityCache(hold.scheduleId);
   return hold;
 }
 
@@ -677,7 +616,6 @@ async function releaseHold(holdId, reason = 'released', actor = 'system', sessio
   };
   if (session) await execute(session);
   else await repository.withTransaction(execute);
-  invalidateAvailabilityCache(hold.scheduleId);
   return hold;
 }
 
@@ -695,5 +633,4 @@ module.exports = {
   recalculateCompatibilitySeats,
   recalculateScheduleAvailableSeats,
   queueCompatibilityRefresh,
-  invalidateAvailabilityCache,
 };

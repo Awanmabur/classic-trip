@@ -21,6 +21,7 @@ function loadRepositoryWithState(readyState) {
     exports: {},
     require(request) {
       if (request === '../config/db') return { mongoose: fakeMongoose };
+      if (request === '../config/env') return { env: { mongoConnection: { queryMaxTimeMs: 3000 } } };
       throw new Error(`Unexpected dependency in repository readiness check: ${request}`);
     },
   };

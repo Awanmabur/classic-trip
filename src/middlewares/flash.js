@@ -1,6 +1,7 @@
 function takeFlash(session = {}) {
-  const messages = Array.isArray(session.flashMessages) ? session.flashMessages : [];
-  session.flashMessages = [];
+  if (!Array.isArray(session.flashMessages) || session.flashMessages.length === 0) return [];
+  const messages = session.flashMessages;
+  delete session.flashMessages;
   return messages.filter((message) => message && message.text).map((message) => ({
     type: ['success', 'error', 'warning', 'info'].includes(message.type) ? message.type : 'info',
     text: String(message.text || '').slice(0, 700),

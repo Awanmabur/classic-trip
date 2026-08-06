@@ -48,6 +48,12 @@
   let activeCorridor = 'all';
   let drawerReturnFocus = null;
 
+  function routeDisplay(origin, destination, fallback = '') {
+    const from = String(origin || '').trim();
+    const to = String(destination || '').trim();
+    if (from && to) return `${from} ⇄ ${to}`;
+    return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ ');
+  }
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -212,7 +218,7 @@
   function companyRoutesHtml(item, isBus) {
     if (!isBus || !Array.isArray(item.routes) || !item.routes.length) return '';
     return `<div class="companyRouteList" aria-label="All company routes">${item.routes.map((route) => {
-      const label = route.label || [route.origin, route.destination].filter(Boolean).join(' → ') || 'Bus route';
+      const label = routeDisplay(route.origin, route.destination, route.label) || 'Bus route';
       return `<span class="companyRouteChip" title="${escapeHtml(label)}"><i class="fa-solid fa-route"></i> ${escapeHtml(label)}</span>`;
     }).join('')}</div>`;
   }
@@ -232,7 +238,7 @@
     const icon = serviceIcons[type] || 'fa-ticket';
     const badge = availabilityBadge(item);
     const image = safeImageUrl(item.img || item.image || item.media?.[0]?.url || '');
-    const route = item.routeLabel || [item.from, item.to].filter(Boolean).join(' → ');
+    const route = routeDisplay(item.from, item.to, item.routeLabel);
     const place = (isBus || isFlight || isCargo) ? (route || item.location || item.city || 'Route information') : (item.location || item.city || route || (isTaxi ? 'Service zone' : isTour ? 'Meeting area' : isRental ? 'Pickup location' : 'Property location'));
     const rating = Number(item.ratingAverage || item.rating);
     const ratingText = Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : 'New';

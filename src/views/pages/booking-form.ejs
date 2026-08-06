@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <%
@@ -303,11 +304,11 @@
               <% } %>
               <% if (listing.serviceType === 'bus') { %>
                 <div><span>Trip type</span><b><%= requestedReturnSeatList.length ? 'Return ticket' : 'One-way ticket' %></b></div>
-                <div><span>Outbound journey</span><b><%= safeAvailability.journey?.originName || listing.from %> → <%= safeAvailability.journey?.destinationName || listing.to %></b></div>
+                <div><span>Outbound journey</span><b><%= ctRoute(safeAvailability.journey?.originName || listing.from, safeAvailability.journey?.destinationName || listing.to) %></b></div>
                 <div><span>Outbound seats</span><b><%= formatBusSeats(selectedSeatListForForm) %></b></div>
               <% } %>
               <% if (requestedReturnSeatList.length) { %>
-                <div><span>Return journey</span><b><%= safeReturnAvailability.journey?.originName || 'Return origin' %> → <%= safeReturnAvailability.journey?.destinationName || 'Return destination' %></b></div>
+                <div><span>Return journey</span><b><%= ctRoute(safeReturnAvailability.journey?.originName || 'Return origin', safeReturnAvailability.journey?.destinationName || 'Return destination') %></b></div>
                 <div><span>Return schedule</span><b><%= safeReturnAvailability.schedule?.departAt || requestedReturnScheduleId %></b></div>
                 <div><span>Return seats</span><b><%= formatBusSeats(requestedReturnSeatList) %></b></div>
               <% } %>

@@ -39,7 +39,7 @@ function responseStub() {
 const previousNodeEnv = process.env.NODE_ENV;
 process.env.NODE_ENV = 'development';
 try {
-  const session = {};
+  const session = { user: { id: 'csrf-test-user', role: 'company_admin' } };
   const getReq = {
     method: 'GET',
     path: '/company/listings',

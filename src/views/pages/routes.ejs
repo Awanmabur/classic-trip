@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
 <main class="container marketingPage routesMarketingPage" style="padding:16px 0 30px">
@@ -42,7 +43,7 @@
         <article class="promoCard routeCard">
           <div class="promoIcon"><i class="fa-solid fa-bus"></i></div>
           <span class="badge badgeInfo"><%= route.corridor %></span>
-          <h3><%= route.origin %> to <%= route.destination %></h3>
+          <h3><%= ctRoute(route.origin, route.destination, route.routeName) %></h3>
           <p><%= route.listing?.partner || route.listing?.companyName %> - <%= route.scheduleCount %> schedules - <%= route.availableSeats %> seats.</p>
           <% if (route.nextDepartAt) { %><div class="small">Next: <%= new Date(route.nextDepartAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %></div><% } %>
           <div class="actions">

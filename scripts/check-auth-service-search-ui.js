@@ -17,10 +17,11 @@ const serviceJs = read('public/js/home-service-search.js');
 const login = read('src/views/pages/auth/login.ejs');
 const authJs = read('public/js/auth-page.js');
 const css = read('public/css/completion-fixes.css');
+const version = JSON.parse(read('package.json')).version;
 const serviceTypes = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'];
 
 check('homepage loads the isolated service-search controller before the main homepage controller',
-  home.indexOf('/js/home-service-search.js?v=1.6.11') > 0 && home.indexOf('/js/home-service-search.js?v=1.6.11') < home.indexOf('/js/home.js?v=1.6.11'));
+  home.indexOf(`/js/home-service-search.js?v=${version}`) > 0 && home.indexOf(`/js/home-service-search.js?v=${version}`) < home.indexOf(`/js/home.js?v=${version}`));
 check('all seven service tabs have explicit controller keys', serviceTypes.every((type) => home.includes(`data-service-tab="${type}"`)));
 check('all seven service panels remain separate real containers', serviceTypes.every((type) => home.includes(`data-search-panel="${type}"`)));
 check('each tab is linked to a unique panel', ['busSearchPanel','staySearchPanel','flightSearchPanel','taxiSearchPanel','tourSearchPanel','rentalSearchPanel','cargoSearchPanel'].every((id) => home.includes(`aria-controls="${id}"`) && home.includes(`id="${id}"`)));
@@ -34,7 +35,7 @@ check('date limits remain service-specific', serviceJs.includes("['stayCheckInIn
 check('service panels remain two columns on phones', /@media\(max-width:680px\)[\s\S]*\.homePage \.serviceSearchPanel[\s\S]*repeat\(2,minmax\(0,1fr\)\)/.test(css));
 check('hero and service strip remain width-contained', css.includes('.homePage .heroCard,') && css.includes('#searchTabs.tabs') && css.includes('overflow-x:auto!important'));
 
-check('authentication loads its isolated controller', login.includes('/js/auth-page.js?v=1.6.11'));
+check('authentication loads its isolated controller', login.includes(`/js/auth-page.js?v=${version}`));
 check('login, signup, and partner switches are explicit buttons', ['login','signup','partner'].every((name) => login.includes(`type="button"`) && login.includes(`data-open-panel="${name}"`)));
 check('inactive authentication panels start hidden', ['signupPanel','supportPanel','forgotPanel','partnerPanel'].every((id) => new RegExp(`id="${id}"[^>]*\\shidden(?:\\s|>)[^>]*aria-hidden="true"`).test(login)));
 check('authentication switching updates hidden, inert, and aria state', authJs.includes('panel.hidden = !active') && authJs.includes("panel.toggleAttribute('inert', !active)") && authJs.includes("panel.setAttribute('aria-hidden'"));

@@ -1,3 +1,4 @@
+<% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,7 +28,7 @@
     @media(max-width:420px){.summary,.meta{grid-template-columns:1fr}}
 .btn.primary:hover,.btn.primary:focus-visible,.btn.primary:active{color:#fff;-webkit-text-fill-color:#fff}</style>
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.11">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.14">
 </head>
 <body class="standalonePage">
   <%- include('../partials/site-flash') %>
@@ -56,7 +57,7 @@
     <section class="meta">
       <div class="box"><h3>Company</h3><p><%= manifest.company.name || '-' %></p><p class="muted"><%= manifest.company.city || '' %> <%= manifest.company.country || '' %></p></div>
       <div class="box"><h3>Vehicle / Driver</h3><p><%= manifest.vehicle.name || manifest.schedule.vehicleName || '-' %></p><p class="muted"><%= manifest.vehicle.plateOrCode || '' %> • <%= manifest.driverLabel || manifest.schedule.driverName || 'Driver not set' %></p></div>
-      <div class="box"><h3>Route</h3><p><%= manifest.route.origin || manifest.listing.from || '-' %> → <%= manifest.route.destination || manifest.listing.to || '-' %></p><p class="muted"><%= manifest.schedule.gate || manifest.schedule.platform || 'Boarding gate not set' %></p></div>
+      <div class="box"><h3>Route</h3><p><%= ctRoute(manifest.route.origin || manifest.listing.from || '-', manifest.route.destination || manifest.listing.to || '-') %></p><p class="muted"><%= manifest.schedule.gate || manifest.schedule.platform || 'Boarding gate not set' %></p></div>
     </section>
     <div class="tableScroll">
     <table>

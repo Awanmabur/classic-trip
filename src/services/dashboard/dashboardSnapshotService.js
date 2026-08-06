@@ -18,7 +18,7 @@ const DB_READ_CONCURRENCY = Math.max(
 const snapshotCache = new Map();
 const snapshotInflight = new Map();
 const dashboardHeadCache = new Map();
-const DASHBOARD_HEAD_TTL_MS = 300_000;
+const DASHBOARD_HEAD_TTL_MS = 60_000;
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
   .filter((key) => !['notificationTemplates', 'serviceCategories', 'tripSchedules', 'holds', 'inventoryHolds', 'walletLedgerEntries', 'campaigns', 'refunds', 'blogPosts'].includes(key));
 
@@ -323,14 +323,23 @@ function emptySnapshot() {
   return snapshot;
 }
 
+const DASHBOARD_SAFE_SELECT = Object.freeze({
+  users: '-passwordHash -passwordResetTokenHash -emailVerificationTokenHash -mfaSecretEncrypted -mfaRecoveryCodeHashes -refreshTokenHash',
+  payments: '-rawPayload -providerPayload -providerResponse -webhookPayload',
+  bookings: '-qrCodeDataUrl -ticketPdfBuffer -voucherPdfBuffer -rawPaymentPayload',
+  notifications: '-providerPayload -deliveryPayload',
+  auditLogs: '-requestBody -responseBody',
+});
+
 async function list(entity, filter = {}, limitOrOptions = 2500) {
   const options = typeof limitOrOptions === 'number'
     ? { limit: limitOrOptions }
     : (limitOrOptions || {});
   const limit = Math.max(1, Number(options.limit || 2500));
   const sort = options.sort || { createdAt: -1 };
+  const select = options.select || DASHBOARD_SAFE_SELECT[entity] || '';
   const repository = repositories.readyRepository(entity);
-  return runMongoRead(() => repository.list(filter, { sort, limit, ...(options.select ? { select: options.select } : {}) }));
+  return runMongoRead(() => repository.list(filter, { sort, limit, ...(select ? { select } : {}) }));
 }
 
 async function one(entity, filter = {}) {
@@ -382,7 +391,7 @@ function companyEntityQuery(entity, companyId, context = {}) {
   const page = normalizedCompanyPage(context);
   const now = new Date();
   const recentCutoff = new Date(now.getTime() - (45 * 24 * 60 * 60 * 1000));
-  const activePageLimit = context.activePage ? 240 : 1200;
+  const activePageLimit = context.activePage ? 80 : 300;
   const options = { limit: activePageLimit, sort: { createdAt: -1 } };
   let filter = base;
 
@@ -399,22 +408,22 @@ function companyEntityQuery(entity, companyId, context = {}) {
         departAt: { $gte: recentCutoff },
         status: { $ne: 'archived' },
       }] };
-      options.limit = 180;
+      options.limit = 80;
       options.sort = { departAt: 1 };
     } else if (page === 'overview') {
       filter = { $and: [base, { status: { $ne: 'archived' } }] };
-      options.limit = 120;
+      options.limit = 80;
       options.sort = { departAt: 1 };
     }
   } else if (entity === 'scheduleRules') {
-    options.limit = page === 'schedules' ? 120 : 80;
+    options.limit = page === 'schedules' ? 80 : 40;
     options.sort = { updatedAt: -1 };
   } else if (entity === 'notifications') {
-    options.limit = 60;
+    options.limit = 35;
   } else if (['companyEmployees', 'invitations', 'verificationReviews'].includes(entity)) {
-    options.limit = ['staff', 'schedules', 'manifests', 'checkins', 'mobility'].includes(page) ? 220 : 80;
+    options.limit = ['staff', 'schedules', 'manifests', 'checkins', 'mobility'].includes(page) ? 100 : 40;
   } else if (['listings', 'routes', 'vehicles', 'fareProducts', 'busSegmentFares', 'serviceAddons'].includes(entity)) {
-    options.limit = ['schedules', 'routes', 'vehicles', 'listings'].includes(page) ? 260 : 120;
+    options.limit = ['schedules', 'routes', 'vehicles', 'listings'].includes(page) ? 120 : 50;
   }
   return { filter, options };
 }
@@ -451,23 +460,23 @@ async function adminSnapshot(context = {}) {
       return;
     }
     if (!repositories[entity]) return;
-    const options = { limit: overview ? 160 : 320, sort: { createdAt: -1 } };
+    const options = { limit: overview ? 60 : 120, sort: { createdAt: -1 } };
     let filter = {};
-    if (entity === 'notifications') options.limit = 80;
-    if (entity === 'companies') options.limit = overview ? 180 : 400;
-    if (entity === 'users') options.limit = ['partners', 'admins', 'kyc', 'customers', 'promoters'].includes(page) ? 500 : 220;
-    if (entity === 'bookings') options.limit = overview ? 180 : 450;
-    if (entity === 'payments') options.limit = page === 'payments' ? 500 : 220;
-    if (entity === 'auditLogs') options.limit = page === 'audit' ? 500 : 180;
+    if (entity === 'notifications') options.limit = 40;
+    if (entity === 'companies') options.limit = overview ? 80 : 160;
+    if (entity === 'users') options.limit = ['partners', 'admins', 'kyc', 'customers', 'promoters'].includes(page) ? 160 : 80;
+    if (entity === 'bookings') options.limit = overview ? 70 : 160;
+    if (entity === 'payments') options.limit = page === 'payments' ? 160 : 80;
+    if (entity === 'auditLogs') options.limit = page === 'audit' ? 160 : 60;
     if (entity === 'schedules') {
       filter = {
         status: { $ne: 'archived' },
         departAt: { $gte: new Date(Date.now() - (45 * 24 * 60 * 60 * 1000)) },
       };
-      options.limit = overview ? 120 : 300;
+      options.limit = overview ? 60 : 120;
       options.sort = { departAt: 1 };
     }
-    if (entity === 'seats') options.limit = ['seat-maps', 'inventory'].includes(page) ? 4000 : 1000;
+    if (entity === 'seats') options.limit = ['seat-maps', 'inventory'].includes(page) ? 1800 : 400;
     snapshot[entity] = await list(entity, filter, options);
   });
   return snapshot;
@@ -491,47 +500,25 @@ async function companySnapshot(companyId, context = {}) {
   const directEntities = scopedCompanyEntities(snapshot.companies[0], context).filter((entity) => repositories[entity]);
   const directTasks = [...directEntities];
   if (needsPeople) directTasks.push('__company_users__');
-
-  // These dashboard collections are company-scoped but do not depend on listing,
-  // schedule or booking ids. Start them in the same read wave as the primary page
-  // data instead of waiting for every direct query to finish first.
-  const independentRelatedTasks = [
-    ['categories', {}, 250],
-    ['wallets', { ownerType: 'company', ownerId: companyId }, 30],
-    ['walletTransactions', { ownerType: 'company', ownerId: companyId }, 750],
-    ['commissions', { companyId }, 750],
-    ['correspondenceMessages', { companyId }, 800],
-    ['notificationDeliveryAttempts', { companyId }, 800],
-  ].filter(([entity]) => (!context.activePage || desiredEntities.has(entity)) && repositories[entity]);
-  if (companyServiceType(snapshot.companies[0]) === 'flight') {
-    if (!context.activePage || desiredEntities.has('airports')) independentRelatedTasks.push(['airports', { status: 'active' }, 2000]);
-    if (!context.activePage || desiredEntities.has('aircraftTypes')) independentRelatedTasks.push(['aircraftTypes', { status: 'active' }, 500]);
-  }
-
-  await Promise.all([
-    mapWithConcurrency(directTasks, async (entity) => {
-      if (entity === '__company_users__') {
-        snapshot.users = await list('users', { companyId }, { limit: 220, sort: { updatedAt: -1 } });
-        return;
-      }
-      if (entity === 'seats') return;
-      // Live seat maps need only bookings attached to the already-scoped dated
-      // departures. Loading the company's entire booking history was one of the
-      // largest causes of multi-minute page renders.
-      if (normalizedCompanyPage(context) === 'seat-maps' && entity === 'bookings') return;
-      const query = companyEntityQuery(entity, companyId, context);
-      snapshot[entity] = await list(entity, query.filter, query.options);
-    }),
-    mapWithConcurrency(independentRelatedTasks, async ([entity, filter, limit]) => {
-      snapshot[entity] = await list(entity, filter, limit);
-    }),
-  ]);
+  await mapWithConcurrency(directTasks, async (entity) => {
+    if (entity === '__company_users__') {
+      snapshot.users = await list('users', { companyId }, { limit: 80, sort: { updatedAt: -1 } });
+      return;
+    }
+    if (entity === 'seats') return;
+    // Live seat maps need only bookings attached to the already-scoped dated
+    // departures. Loading the company's entire booking history was one of the
+    // largest causes of multi-minute page renders.
+    if (normalizedCompanyPage(context) === 'seat-maps' && entity === 'bookings') return;
+    const query = companyEntityQuery(entity, companyId, context);
+    snapshot[entity] = await list(entity, query.filter, query.options);
+  });
 
   // Membership is the authoritative tenant link. Include linked accounts even
   // when an older accepted invitation did not persist user.companyId.
   const linkedEmployeeUserIds = ids(snapshot.companyEmployees, 'userId');
   const linkedUsersPromise = linkedEmployeeUserIds.length
-    ? list('users', { id: { $in: linkedEmployeeUserIds } }, 220)
+    ? list('users', { id: { $in: linkedEmployeeUserIds } }, 120)
     : Promise.resolve([]);
 
   const scheduleIds = ids(snapshot.schedules);
@@ -546,26 +533,34 @@ async function companySnapshot(companyId, context = {}) {
           { 'bookingItems.scheduleId': { $in: scheduleIds } },
         ] },
       ],
-    }, { sort: { createdAt: -1 }, limit: 500 }) : [];
+    }, { sort: { createdAt: -1 }, limit: 240 }) : [];
   }
 
   const listingIds = ids(snapshot.listings);
   const bookingRefs = ids(snapshot.bookings, 'bookingRef');
   const bookingIds = ids(snapshot.bookings);
-  const seatLimit = page === 'seat-maps' ? 4000 : page === 'bookings' ? 2500 : 1200;
+  const serviceType = companyServiceType(snapshot.companies[0]);
+
+  const seatLimit = page === 'seat-maps' ? 1800 : page === 'bookings' ? 900 : 400;
   const relatedTasks = [
+    ['categories', {}, 250],
     ['seats', scheduleIds.length ? { $or: [
       { scheduleId: { $in: scheduleIds } },
       { departureId: { $in: scheduleIds } },
       { tripScheduleId: { $in: scheduleIds } },
     ] } : { scheduleId: '__none__' }, seatLimit],
-    ['passengers', bookingIds.length ? { bookingId: { $in: bookingIds } } : { bookingId: '__none__' }, page === 'bookings' ? 1500 : 500],
-    ['cartCheckoutAttempts', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
-    ['paymentIntents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
-    ['receiptInvoices', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
-    ['taxFeeRecords', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 600],
-    ['bookingTimelineEvents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 900],
-    ['promoterLinks', listingIds.length ? { listingId: { $in: listingIds } } : { listingId: '__none__' }, 750],
+    ['passengers', bookingIds.length ? { bookingId: { $in: bookingIds } } : { bookingId: '__none__' }, page === 'bookings' ? 400 : 160],
+    ['wallets', { ownerType: 'company', ownerId: companyId }, 30],
+    ['walletTransactions', { ownerType: 'company', ownerId: companyId }, 180],
+    ['commissions', { companyId }, 180],
+    ['cartCheckoutAttempts', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 240],
+    ['paymentIntents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 240],
+    ['receiptInvoices', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 240],
+    ['taxFeeRecords', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 240],
+    ['bookingTimelineEvents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 160],
+    ['correspondenceMessages', { companyId }, 180],
+    ['notificationDeliveryAttempts', { companyId }, 180],
+    ['promoterLinks', listingIds.length ? { listingId: { $in: listingIds } } : { listingId: '__none__' }, 180],
   ].filter(([entity]) => !context.activePage || desiredEntities.has(entity));
   const relatedPromise = mapWithConcurrency(relatedTasks, async ([entity, filter, limit]) => {
     if (repositories[entity]) snapshot[entity] = await list(entity, filter, limit);
@@ -577,6 +572,10 @@ async function companySnapshot(companyId, context = {}) {
     snapshot.users = [...mergedUsers.values()];
   }
   await relatedPromise;
+  if (serviceType === 'flight' && (!context.activePage || desiredEntities.has('airports') || desiredEntities.has('aircraftTypes'))) {
+    snapshot.airports = await list('airports', { status: 'active' }, 2000);
+    snapshot.aircraftTypes = await list('aircraftTypes', { status: 'active' }, 300);
+  }
   return snapshot;
 }
 
@@ -584,21 +583,19 @@ async function customerSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const page = String(context.activePage || 'overview').trim().toLowerCase();
   const customerId = context.customerId;
-  const [user, notifications] = await Promise.all([
-    one('users', { id: customerId }),
-    list('notifications', {
-      $or: [{ customerId }, { userId: customerId }, { audience: 'customer' }],
-    }, { limit: 80, sort: { createdAt: -1 } }),
-  ]);
+  const user = await one('users', { id: customerId });
   snapshot.users = [user].filter(Boolean);
-  snapshot.notifications = notifications;
+
+  snapshot.notifications = await list('notifications', {
+    $or: [{ customerId }, { userId: customerId }, { audience: 'customer' }],
+  }, { limit: 40, sort: { createdAt: -1 } });
 
   const bookingPages = new Set(['overview', 'bookings', 'ticket', 'passengers', 'receipts', 'refunds', 'support', 'reviews', 'wallet']);
   const ownership = [{ customerUserId: customerId }];
   if (user?.email) ownership.push({ 'guestSnapshot.email': String(user.email).toLowerCase() });
   if (user?.phone) ownership.push({ 'guestSnapshot.phone': user.phone });
   snapshot.bookings = bookingPages.has(page)
-    ? await list('bookings', { $or: ownership }, { limit: page === 'overview' ? 120 : 220, sort: { createdAt: -1 } })
+    ? await list('bookings', { $or: ownership }, { limit: page === 'overview' ? 80 : 160, sort: { createdAt: -1 } })
     : [];
 
   const bookingRefs = ids(snapshot.bookings, 'bookingRef');
@@ -608,24 +605,24 @@ async function customerSnapshot(context = {}) {
   const tasks = [];
   if (bookingPages.has(page)) {
     tasks.push(
-      ['listings', listingIds.length ? { id: { $in: listingIds } } : { id: '__none__' }, 240],
-      ['companies', companyIds.length ? { id: { $in: companyIds } } : { id: '__none__' }, 160],
+      ['listings', listingIds.length ? { id: { $in: listingIds } } : { id: '__none__' }, 160],
+      ['companies', companyIds.length ? { id: { $in: companyIds } } : { id: '__none__' }, 120],
     );
   }
   if (['overview', 'bookings', 'ticket', 'passengers'].includes(page)) {
-    tasks.push(['passengers', bookingIds.length ? { bookingId: { $in: bookingIds } } : { bookingId: '__none__' }, 400]);
+    tasks.push(['passengers', bookingIds.length ? { bookingId: { $in: bookingIds } } : { bookingId: '__none__' }, 160]);
   }
   if (['overview', 'bookings', 'ticket', 'receipts', 'wallet'].includes(page)) {
-    tasks.push(['payments', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 300]);
+    tasks.push(['payments', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 120]);
   }
   if (['overview', 'refunds'].includes(page)) {
     tasks.push(
-      ['refundRequests', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 220],
-      ['rescheduleRequests', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 220],
+      ['refundRequests', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 160],
+      ['rescheduleRequests', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 160],
     );
   }
-  if (['overview', 'reviews'].includes(page)) tasks.push(['reviews', { customerUserId: customerId }, 180]);
-  if (['overview', 'saved'].includes(page)) tasks.push(['savedListings', { userId: customerId }, 240]);
+  if (['overview', 'reviews'].includes(page)) tasks.push(['reviews', { customerUserId: customerId }, 120]);
+  if (['overview', 'saved'].includes(page)) tasks.push(['savedListings', { userId: customerId }, 160]);
   if (['overview', 'support'].includes(page)) {
     tasks.push(['supportTickets', {
       $or: [{ ownerId: customerId }, { customerUserId: customerId }, ...(bookingRefs.length ? [{ bookingRef: { $in: bookingRefs } }] : [])],
@@ -633,12 +630,12 @@ async function customerSnapshot(context = {}) {
   }
   if (['overview', 'wallet'].includes(page)) tasks.push(['wallets', { ownerType: 'customer', ownerId: customerId }, 20]);
   if (['bookings', 'ticket', 'receipts'].includes(page)) {
-    tasks.push(['receiptInvoices', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 300]);
+    tasks.push(['receiptInvoices', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 120]);
   }
   if (['bookings', 'ticket', 'support'].includes(page)) {
-    tasks.push(['bookingTimelineEvents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 350]);
+    tasks.push(['bookingTimelineEvents', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 220]);
   }
-  if (page === 'support') tasks.push(['correspondenceMessages', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 300]);
+  if (page === 'support') tasks.push(['correspondenceMessages', bookingRefs.length ? { bookingRef: { $in: bookingRefs } } : { bookingRef: '__none__' }, 120]);
   if (page === 'security') {
     tasks.push(
       ['deviceSessions', { userId: customerId }, 80],
@@ -653,7 +650,7 @@ async function customerSnapshot(context = {}) {
   if (page === 'saved') {
     const savedListingIds = ids(snapshot.savedListings, 'listingId');
     snapshot.listings = savedListingIds.length
-      ? await list('listings', { id: { $in: savedListingIds }, status: { $ne: 'archived' } }, 240)
+      ? await list('listings', { id: { $in: savedListingIds }, status: { $ne: 'archived' } }, 160)
       : [];
   }
   return snapshot;
@@ -663,39 +660,35 @@ async function promoterSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const promoterId = context.promoterId;
   const page = String(context.activePage || 'overview').trim().toLowerCase();
-  const [promoterUser, promoterNotifications] = await Promise.all([
-    one('users', { id: promoterId }),
-    list('notifications', {
-      $or: [{ promoterId }, { userId: promoterId }, { audience: 'promoter' }],
-    }, { limit: 80, sort: { createdAt: -1 } }),
-  ]);
-  snapshot.users = [promoterUser].filter(Boolean);
-  snapshot.notifications = promoterNotifications;
+  snapshot.users = [await one('users', { id: promoterId })].filter(Boolean);
+  snapshot.notifications = await list('notifications', {
+    $or: [{ promoterId }, { userId: promoterId }, { audience: 'promoter' }],
+  }, { limit: 40, sort: { createdAt: -1 } });
 
   const campaignPages = new Set(['overview', 'links', 'share', 'campaigns', 'bus-dashboard', 'hotel-dashboard', 'tour-dashboard', 'rental-dashboard', 'cargo-dashboard', 'offline-sales']);
   const performancePages = new Set(['overview', 'performance', 'fraud']);
   const moneyPages = new Set(['overview', 'commissions', 'withdrawals', 'payouts']);
   const tasks = [];
-  if (campaignPages.has(page)) tasks.push(['promoterLinks', { promoterId }, page === 'overview' ? 180 : 500]);
+  if (campaignPages.has(page)) tasks.push(['promoterLinks', { promoterId }, page === 'overview' ? 120 : 300]);
   if (performancePages.has(page)) {
     tasks.push(
-      ['referralClicks', { promoterId }, page === 'overview' ? 250 : 800],
-      ['attributionSessions', { promoterId }, page === 'overview' ? 250 : 800],
-      ['campaignConversions', { promoterId }, page === 'overview' ? 250 : 800],
+      ['referralClicks', { promoterId }, page === 'overview' ? 160 : 400],
+      ['attributionSessions', { promoterId }, page === 'overview' ? 160 : 400],
+      ['campaignConversions', { promoterId }, page === 'overview' ? 160 : 400],
     );
   }
   if (['overview', 'offline-sales'].includes(page)) tasks.push(['agentProfiles', { $or: [{ userId: promoterId }, { promoterId }] }, 20]);
-  if (page === 'offline-sales') tasks.push(['offlineSales', { $or: [{ promoterId }, { agentId: promoterId }] }, 500]);
-  if (page === 'fraud') tasks.push(['fraudSignals', { $or: [{ promoterId }, { agentId: promoterId }] }, 500]);
+  if (page === 'offline-sales') tasks.push(['offlineSales', { $or: [{ promoterId }, { agentId: promoterId }] }, 300]);
+  if (page === 'fraud') tasks.push(['fraudSignals', { $or: [{ promoterId }, { agentId: promoterId }] }, 300]);
   if (moneyPages.has(page)) {
     tasks.push(
-      ['commissions', { promoterId }, page === 'overview' ? 250 : 700],
+      ['commissions', { promoterId }, page === 'overview' ? 160 : 360],
       ['wallets', { ownerType: 'promoter', ownerId: promoterId }, 20],
-      ['walletTransactions', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 180 : 600],
-      ['payoutRequests', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 120 : 400],
+      ['walletTransactions', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 120 : 300],
+      ['payoutRequests', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 80 : 240],
     );
   }
-  if (page === 'support') tasks.push(['supportTickets', { $or: [{ ownerId: promoterId }, { promoterId }] }, 300]);
+  if (page === 'support') tasks.push(['supportTickets', { $or: [{ ownerId: promoterId }, { promoterId }] }, 120]);
   await mapWithConcurrency(tasks, async ([entity, filter, limit]) => {
     if (repositories[entity]) snapshot[entity] = await list(entity, filter, limit);
   });
@@ -708,22 +701,22 @@ async function promoterSnapshot(context = {}) {
         status: 'active',
         releaseStatus: 'published',
         $or: [{ serviceType: 'bus' }, { bookable: { $ne: false } }],
-      }, page === 'overview' ? 180 : 500)
+      }, page === 'overview' ? 120 : 300)
       : [];
     snapshot.companies = snapshot.listings.length
-      ? await list('companies', { id: { $in: ids(snapshot.listings, 'companyId') } }, 240)
+      ? await list('companies', { id: { $in: ids(snapshot.listings, 'companyId') } }, 160)
       : [];
     const activeListingIds = ids(snapshot.listings);
     snapshot.promotionCampaigns = activeListingIds.length
-      ? await list('promotionCampaigns', { listingId: { $in: activeListingIds } }, 500)
+      ? await list('promotionCampaigns', { listingId: { $in: activeListingIds } }, 300)
       : [];
   }
 
   if (['overview', 'bookings'].includes(page)) {
     const bookingRefs = ids(snapshot.campaignConversions, 'bookingRef');
     snapshot.bookings = bookingRefs.length
-      ? await list('bookings', { bookingRef: { $in: bookingRefs } }, page === 'overview' ? 180 : 500)
-      : await list('bookings', { 'promoterAttribution.promoterId': promoterId }, page === 'overview' ? 180 : 500);
+      ? await list('bookings', { bookingRef: { $in: bookingRefs } }, page === 'overview' ? 120 : 300)
+      : await list('bookings', { 'promoterAttribution.promoterId': promoterId }, page === 'overview' ? 120 : 300);
   }
 
   // Offline sale creation alone needs live operational inventory. Other promoter
@@ -734,10 +727,10 @@ async function promoterSnapshot(context = {}) {
     const related = [
       ['routes', { listingId: { $in: activeListingIds } }, 500],
       ['schedules', { listingId: { $in: activeListingIds }, departAt: { $gte: now }, status: { $nin: ['archived', 'cancelled', 'draft'] } }, 240],
-      ['serviceAddons', { listingId: { $in: activeListingIds }, status: 'active' }, 350],
+      ['serviceAddons', { listingId: { $in: activeListingIds }, status: 'active' }, 160],
       ['hotelProperties', { listingId: { $in: activeListingIds }, status: 'active' }, 160],
-      ['roomTypes', { listingId: { $in: activeListingIds }, status: 'active' }, 350],
-      ['ratePlans', { listingId: { $in: activeListingIds }, status: 'active' }, 350],
+      ['roomTypes', { listingId: { $in: activeListingIds }, status: 'active' }, 160],
+      ['ratePlans', { listingId: { $in: activeListingIds }, status: 'active' }, 160],
       ['roomUnits', { listingId: { $in: activeListingIds }, status: { $nin: ['archived', 'maintenance'] } }, 500],
       ['roomNightInventories', { listingId: { $in: activeListingIds }, date: { $gte: now }, status: { $in: ['available', 'open'] } }, 900],
     ];
