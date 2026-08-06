@@ -5,8 +5,9 @@ const { connectDb, mongoose } = require('./config/db');
 const { connectRedis, closeRedis } = require('./config/redis');
 const logger = require('./config/logger');
 const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
-const { startScheduledJobs, stopScheduledJobs, runJob } = require('./jobs/scheduler');
+const { startScheduledJobs, stopScheduledJobs } = require('./jobs/scheduler');
 const { restoreLegacyDemotedBusListings } = require('./services/migrations/legacyBusListingPublicationRepair');
+const scheduleMaterializer = require('./jobs/materializeSchedules');
 
 let stopping = false;
 
@@ -19,6 +20,10 @@ async function start() {
   // Reconcile legacy "active" departures and fill the rolling month as soon
   // as a release starts; do not leave public listings on "Coming soon" until
   // the next 03:00 materialization cron.
+  // The worker is the single rolling-queue owner under `npm start`. It drains
+  // all remaining dates in bounded batches and keeps the five-minute repair
+  // scan, while the web process stays free to serve fares, checkout and dashboards.
+  scheduleMaterializer.startWebFallback({ startupDelayMs: 10000 });
   setImmediate(async () => {
     try {
       const restored = await restoreLegacyDemotedBusListings();
@@ -26,7 +31,6 @@ async function start() {
     } catch (error) {
       logger.warn('Legacy bus listing repair will retry on the next worker start', { error: error.message });
     }
-    await runJob('materializeSchedules');
   });
 }
 
@@ -35,6 +39,7 @@ async function shutdown(signal) {
   stopping = true;
   logger.info('Background worker shutdown started', { signal });
   stopScheduledJobs();
+  scheduleMaterializer.stopWebFallback();
   await closeRedis();
   if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
   process.exit(0);

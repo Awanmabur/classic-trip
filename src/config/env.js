@@ -191,15 +191,15 @@ const env = {
   performance: {
     logSlowRequests: booleanFlag('LOG_SLOW_REQUESTS', NORMALIZED_NODE_ENV === 'production'),
     slowRequestThresholdMs: number('SLOW_REQUEST_THRESHOLD_MS', 2000),
-    homeCacheTtlMs: number('HOME_CACHE_TTL_MS', 60000),
-    homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 300000),
+    homeCacheTtlMs: number('HOME_CACHE_TTL_MS', 300000),
+    homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 1800000),
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 300000),
-    dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 4),
+    dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 8),
     // Global admission limit for heavy Mongo reads across *all* concurrent
     // dashboard/catalog requests. This is intentionally separate from each
     // snapshot's local worker count so page navigation cannot exhaust the pool.
-    mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 6)),
+    mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 10)),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
@@ -210,7 +210,7 @@ const env = {
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
     expirePromotions: process.env.JOB_EXPIRE_PROMOTIONS || '*/30 * * * *',
     payoutReports: process.env.JOB_PAYOUT_REPORTS || '0 6 * * *',
-    materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '0 3 * * *',
+    materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '*/15 * * * *',
     dispatchTaxiRides: process.env.JOB_DISPATCH_TAXI_RIDES || '* * * * *',
     expireFlightHolds: process.env.JOB_EXPIRE_FLIGHT_HOLDS || '*/2 * * * *',
     purgeArchivedRecords: process.env.JOB_PURGE_ARCHIVED_RECORDS || '30 4 * * *',

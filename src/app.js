@@ -92,7 +92,7 @@ app.get('/sw.js', (req, res) => {
 });
 app.use(compression());
 app.use(express.static(path.join(__dirname, '..', 'public'), {
-  maxAge: env.isProduction ? '7d' : 0,
+  maxAge: env.isProduction ? '30d' : 0,
   immutable: env.isProduction,
   setHeaders(res, filePath) {
     if (/\.(?:webmanifest)$/i.test(filePath)) res.setHeader('Content-Type', 'application/manifest+json');

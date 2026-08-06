@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 process.env.NODE_ENV = 'production';
-require('../src/server');
+require('./start');

@@ -49,7 +49,10 @@ expect('web startup avoids all read-model pool pressure', mongoDashboard.include
   && !server.includes('restoreLegacyDemotedBusListings'));
 expect('login audits write in parallel', /await Promise\.all\(\[[\s\S]*securityRepository\.loginAudits\.save/.test(security));
 expect('notification panel follows active theme', notifications.includes('background:var(--panel') && notifications.includes('color:var(--text'));
-expect('successful writes invalidate dashboard snapshots', flashMiddleware.includes("dashboardSnapshotService').invalidate()"));
+expect('successful writes invalidate affected dashboard snapshots',
+  flashMiddleware.includes('invalidateDashboardMutation')
+  && flashMiddleware.includes('snapshotService.invalidate(role')
+  && flashMiddleware.includes("snapshotService.invalidate('admin'"));
 expect('slow requests expose timing and diagnostics', app.includes('Server-Timing') && app.includes("logger').warn('Slow request"));
 expect('dashboard cache settings are documented', envExample.includes('DASHBOARD_SNAPSHOT_TTL_MS') && envExample.includes('DASHBOARD_SNAPSHOT_STALE_MS'));
 

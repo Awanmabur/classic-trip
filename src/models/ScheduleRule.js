@@ -22,11 +22,15 @@ const scheduleRuleSchema = new Schema({
   driverIds: [String],
   vipPriceDelta: Number,
   status: { type: String, default: 'draft', index: true, enum: ['draft', 'active', 'paused', 'cancelled'] },
-  // Every schedule up to and including this date has already been materialized; the daily job
-  // only ever extends this watermark forward, never re-scans from startDate.
+  // Observability watermark for the furthest checked date. The daily job still
+  // rechecks the complete live window so deleted or previously skipped dates
+  // can be repaired safely.
   materializedThrough: Date,
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });
+
+scheduleRuleSchema.index({ companyId: 1, status: 1, startDate: 1 });
+scheduleRuleSchema.index({ companyId: 1, updatedAt: -1 });
 
 module.exports = model('ScheduleRule', scheduleRuleSchema);

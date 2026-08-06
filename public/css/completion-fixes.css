@@ -1176,16 +1176,26 @@ html[data-theme="dark"] .pwaInstallInstructions{
 .homePage .marketplaceSection .moreRow{margin-top:12px;display:flex;justify-content:center}
 .homePage .marketplaceSection .moreBtn.hide{display:none!important}
 
-/* Reusable bar view: one row per item on phones, two rows side-by-side on larger screens. */
+/* Reusable compact bar view. The image, details, availability badge and actions
+   follow one stable row like the approved bus reference instead of stretching. */
 .homePage .sectionListingCollection[data-view="bars"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;overflow:visible!important}
-.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{display:grid!important;grid-template-columns:148px minmax(0,1fr);align-items:stretch;align-self:start;min-height:0;height:auto;overflow:hidden}
-.homePage .sectionListingCollection[data-view="bars"] .listingThumbLink{height:auto;min-height:0;align-self:stretch}
-.homePage .sectionListingCollection[data-view="bars"] .thumb{height:100%;min-height:0;border-radius:0}
-.homePage .sectionListingCollection[data-view="bars"] .listingBody{padding:42px 12px 12px;align-content:center;min-width:0}
-.homePage .sectionListingCollection[data-view="bars"] .listingTitle{font-size:14px}
-.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{position:absolute;top:10px;right:10px;left:auto;z-index:4;max-width:calc(100% - 168px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.homePage .sectionListingCollection[data-view="bars"] .desc{display:block;min-height:0;max-height:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset}
-.homePage .sectionListingCollection[data-view="bars"] .priceRow{align-items:flex-end}
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{display:grid!important;grid-template-columns:160px minmax(0,1fr);align-items:stretch;align-self:start;min-height:150px;height:150px;overflow:hidden;border-radius:24px}
+.homePage .sectionListingCollection[data-view="bars"] .listingThumbLink{height:150px;min-height:150px;align-self:stretch;overflow:hidden}
+.homePage .sectionListingCollection[data-view="bars"] .thumb{height:150px;min-height:150px;border-radius:0}
+.homePage .sectionListingCollection[data-view="bars"] .thumb img{height:100%;width:100%;object-fit:cover}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges{left:9px;right:auto;bottom:9px;display:flex;align-items:center;gap:6px;max-width:calc(100% - 18px)}
+.homePage .sectionListingCollection[data-view="bars"] .listingBody{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:6px;padding:12px;align-content:stretch;min-width:0;overflow:hidden}
+.homePage .sectionListingCollection[data-view="bars"] .listingTitle{font-size:14px;line-height:1.25;padding-right:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .meta{min-width:0;display:block}
+.homePage .sectionListingCollection[data-view="bars"] .meta span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .meta span+span{display:none}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{position:absolute;top:10px;right:10px;left:auto;z-index:4;max-width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .desc{display:block;min-height:0;max-height:none;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .priceRow{align-items:flex-end;gap:8px;margin-top:auto;min-width:0}
+.homePage .sectionListingCollection[data-view="bars"] .priceRow>div:first-child{min-width:0}
+.homePage .sectionListingCollection[data-view="bars"] .price{white-space:nowrap}
+.homePage .sectionListingCollection[data-view="bars"] .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homePage .sectionListingCollection[data-view="bars"] .actions{flex:0 0 auto;gap:5px}
 .homePage .sectionListingCollection[data-view="bars"] .actions .btn{height:32px;padding:0 9px;font-size:10px}
 
 /* Featured buses: three fixed desktop columns; phone rail keeps two rows and previews one quarter of the next column. */
@@ -1265,20 +1275,26 @@ html[data-theme="dark"] .pwaInstallInstructions{
 @media(max-width:680px){
   /* Hero statistics must not consume phone space below search. */
   .homePage .heroCard>.stats,.homePage .hero .stats{display:none!important}
-  .homePage .sectionHead{align-items:flex-start;flex-wrap:wrap;min-width:0;max-width:100%}
+  .homePage .sectionHead{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:8px;min-width:0;max-width:100%}
   .homePage .sectionHead>div:first-child{min-width:0;max-width:100%}
-  .homePage .sectionHeadTools{width:100%;min-width:0;justify-content:space-between;flex-wrap:nowrap}
-  .homePage .sectionHeadTools>.btn,.homePage .sectionHeadTools>.badge{max-width:58%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .homePage .sectionViewToggle{margin-left:auto;flex:0 0 auto}
+  .homePage .sectionHeadTools{width:auto;max-width:100%;min-width:0;justify-self:end;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:nowrap}
+  .homePage .sectionHeadTools>.btn,.homePage .sectionHeadTools>.badge{flex:0 1 auto;max-width:min(56vw,210px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .homePage .sectionViewToggle{margin-left:0;flex:0 0 auto}
   .homePage .sectionViewToggle button{padding:0 9px}
   .homePage .sectionViewToggle button span{display:none}
 
   .homePage .sectionListingCollection[data-view="bars"]{grid-template-columns:1fr!important;overflow:visible!important}
-  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{grid-template-columns:116px minmax(0,1fr);min-height:138px}
-  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,.homePage .sectionListingCollection[data-view="bars"] .thumb{min-height:138px}
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{grid-template-columns:112px minmax(0,1fr);min-height:142px;height:142px;border-radius:20px}
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,.homePage .sectionListingCollection[data-view="bars"] .thumb{height:142px;min-height:142px}
+  .homePage .sectionListingCollection[data-view="bars"] .listingBody{padding:10px;gap:5px}
+  .homePage .sectionListingCollection[data-view="bars"] .listingTitle{font-size:13px;padding-right:72px}
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{top:8px;right:8px;max-width:78px;padding-inline:7px;font-size:9px}
   .homePage .sectionListingCollection[data-view="bars"] .desc{display:none}
   .homePage .sectionListingCollection[data-view="bars"] .priceRow{gap:6px}
-  .homePage .sectionListingCollection[data-view="bars"] .actions{gap:5px}
+  .homePage .sectionListingCollection[data-view="bars"] .price{font-size:13px}
+  .homePage .sectionListingCollection[data-view="bars"] .small{font-size:9px}
+  .homePage .sectionListingCollection[data-view="bars"] .actions{gap:4px}
+  .homePage .sectionListingCollection[data-view="bars"] .actions .btn{height:30px;padding:0 7px;font-size:9px}
 
   .homePage .sectionListingCollection--bus[data-view="cards"]{grid-template-columns:none!important;grid-template-rows:repeat(2,minmax(0,auto))!important;grid-auto-flow:column!important;grid-auto-columns:75vw!important;overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;padding:2px 18vw 8px 0;scrollbar-width:none}
   .homePage .sectionListingCollection--bus[data-view="cards"]::-webkit-scrollbar{display:none}
@@ -1314,7 +1330,7 @@ html[data-theme="dark"] .pwaInstallInstructions{
   .listingPreviewPage .stayOptionMeta{min-width:82px}
 }
 
-/* v1.6.1 — light-theme contrast must remain WCAG AA across every public flow. */
+/* v1.6.3 — light-theme contrast must remain WCAG AA across every public flow. */
 html[data-theme="light"] .badgeInfo{
   color:#1e40af!important;
   background:#eff6ff!important;
@@ -1385,4 +1401,130 @@ html[data-theme="light"] .btnBlue{
 }
 html[data-theme="light"] .pwaInstallCopy b{
   color:#854d0e!important;
+}
+
+
+/* v1.6.7 — approved compact bars, aligned public shell, and instant fare feedback. */
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+  grid-template-columns:190px minmax(0,1fr)!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges{
+  left:8px!important;
+  right:8px!important;
+  bottom:8px!important;
+  width:auto!important;
+  max-width:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:5px!important;
+  flex-wrap:nowrap!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges .thumbBadge{
+  min-width:0!important;
+  max-width:48%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadge--type{margin-right:auto!important}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadge--rating{margin-left:auto!important}
+.listingPreviewPage .journeyLiveCheck{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  margin-left:5px;
+  color:var(--muted);
+  font-size:.78em;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+/* Header, page body, footer and mobile navigation share one outer measure. */
+:root{--ct-public-shell-width:min(100% - 24px,1220px)}
+body.homePage > nav.nav,
+body.sitePage > nav.nav,
+.homePage .container,
+.sitePage .container,
+.homePage .siteFooter,
+.sitePage .siteFooter{
+  width:var(--ct-public-shell-width)!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+
+@media(max-width:680px){
+  :root{--ct-public-shell-width:min(100% - 16px,1220px)}
+  .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+    grid-template-columns:142px minmax(0,1fr)!important;
+    min-height:146px!important;
+    height:146px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .thumb{
+    height:146px!important;
+    min-height:146px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingBody{
+    padding:9px!important;
+    gap:4px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingTitle{
+    padding-right:66px!important;
+    font-size:12.5px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .desc{
+    display:block!important;
+    margin:0!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    font-size:9px!important;
+    line-height:1.2!important;
+    color:var(--muted)!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges{
+    left:6px!important;
+    right:6px!important;
+    bottom:6px!important;
+    gap:3px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .thumbBadge{
+    max-width:49%!important;
+    padding:4px 6px!important;
+    font-size:8px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+    max-width:70px!important;
+    padding-inline:6px!important;
+    font-size:8px!important;
+  }
+  body.homePage > .bottomNav,
+  body.sitePage > .bottomNav{
+    width:var(--ct-public-shell-width)!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+    border-radius:22px!important;
+  }
+}
+
+/* v1.6.7 root performance/UI final alignment. */
+body.homePage > .siteFooter,
+body.sitePage > .siteFooter{
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+@media(max-width:680px){
+  body.homePage > nav.nav,
+  body.sitePage > nav.nav,
+  body.homePage > .siteFooter,
+  body.sitePage > .siteFooter,
+  body.homePage > .bottomNav,
+  body.sitePage > .bottomNav{
+    left:auto!important;
+    right:auto!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
 }

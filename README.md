@@ -114,7 +114,8 @@ npm ci
 npm start
 ```
 
-- `npm start` uses Node's built-in watcher when `NODE_ENV` is not `production`.
+- `npm start` uses Node's built-in watcher when `NODE_ENV` is not `production` and also starts the background worker so rolling departures, outbox delivery and daily jobs work in a one-command/local deployment.
+- Set `RUN_BACKGROUND_WORKER=false` only when a dedicated worker service is already running.
 - Imported JavaScript changes restart the server automatically; EJS and CSS changes are served without an application restart.
 - No external development watcher is required.
 
@@ -622,16 +623,16 @@ DASHBOARD_SNAPSHOT_STALE_MS=30000
 Production now separates latency-sensitive web traffic from background work:
 
 - Redis stores Express sessions, shared rate limits and the short-lived failed-login counter. MongoDB remains the durable fallback when `REDIS_REQUIRED=false`.
-- `npm run worker` runs the outbox, notification delivery and scheduled jobs outside the web process. On Render, `render.yaml` provisions one Key Value service and one worker, and disables jobs in the web service.
+- `npm start` supervises web and worker processes for local or single-service deployments. `npm run worker` remains the dedicated background-process command. On Render, `render.yaml` provisions one Key Value service and one separate worker and sets `RUN_BACKGROUND_WORKER=false` on the web service.
 - Email and phone-verification delivery enter the encrypted transactional outbox instead of waiting for SMTP/SMS inside signup.
-- Bus departure batches resolve route, vehicle, seat map, fare and driver context once, create two dates concurrently, and run listing readiness once for the complete batch.
-- Recurring bus rules keep a rolling 30-day departure window; one day is added automatically each day.
+- Bus departure batches resolve route, vehicle, seat map, fare and driver context once, create up to four dates concurrently, and run listing readiness once for the complete batch.
+- Recurring bus rules keep a rolling 30-day departure window; one day is added automatically each day. The materializer runs every 15 minutes to repair gaps and publish Draft dates as soon as readiness is fixed.
 - Worker startup reconciles the rolling window once immediately, so an existing usable departure does not wait for the next 03:00 cron to leave “Coming soon”.
 - Known informational bus events are acknowledged once, outbox batches are deliberately short, and a scheduled job cannot start a second copy while its previous run is active.
 - Seat-segment inventory uses its canonical schedule/seat/segment identity. It no longer performs one MongoDB counter write for every inventory row.
 - Listing readiness uses one grouped inventory count and one driver query for all departures instead of querying once per departure.
 - Web and worker processes have separate connection-pool budgets so maintenance and schedule generation cannot consume all request connections.
-- The web process performs no catalogue prewarm, legacy repair or scheduled work; those tasks cannot compete with login or dashboard requests.
+- Dedicated web deployments perform no catalogue prewarm, legacy repair or scheduled work; the separate worker owns them. Single-service deployments receive the same separation through the `npm start` supervisor.
 
 Local development can omit Redis and continue through MongoDB/in-memory fallbacks. For a production process outside the Render Blueprint, configure:
 
@@ -641,10 +642,10 @@ REDIS_REQUIRED=true
 REDIS_PREFIX=classic-trip:
 ```
 
-Start the two process types separately:
+For one-service/local deployments, `npm start` is sufficient. For platforms with a dedicated worker, set `RUN_BACKGROUND_WORKER=false` on the web service and start the worker separately:
 
 ```bash
-npm start
+RUN_BACKGROUND_WORKER=false npm start
 npm run worker
 ```
 

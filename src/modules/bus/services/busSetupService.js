@@ -959,7 +959,8 @@ async function createVehicle(companyId, payload = {}, actor = 'company-admin') {
   const timestamp = nowIso();
   const layoutName = cleanText(payload.layoutName || payload.layout || '2x2', 40);
   const totalSeats = numberValue(payload.totalSeats || 32, { field: 'Total seats', min: 1, max: 300, integer: true });
-  const cols = numberValue(payload.columns || payload.cols || columnsForLayout(layoutName), { field: 'Seat columns', min: 1, max: 12, integer: true });
+  const namedLayoutColumns = /^\d+x\d+$/i.test(normalize(layoutName)) ? columnsForLayout(layoutName) : null;
+  const cols = numberValue(namedLayoutColumns || payload.columns || payload.cols || columnsForLayout(layoutName), { field: 'Seat columns', min: 1, max: 12, integer: true });
   const frontRowPassengerSeats = Number(payload.frontRowPassengerSeats) === 1 ? 1 : 0;
   const defaultRows = (frontRowPassengerSeats ? 1 : 0) + Math.ceil(Math.max(0, totalSeats - frontRowPassengerSeats) / cols);
   const rowOverrideRows = Array.isArray(payload.rowLayoutOverrides)

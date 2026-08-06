@@ -207,24 +207,32 @@ async function ensureLegHold(spec, context = {}) {
 }
 
 async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
-  const availability = await inventoryService.getAvailability({
-    scheduleId: hold.scheduleId,
-    originStopId: hold.originStopId,
-    destinationStopId: hold.destinationStopId,
-    holdId: hold.id,
-  });
-  const schedule = await repository.schedules.findOne({ id: hold.scheduleId, companyId: hold.companyId });
-  if (!schedule) throw conflictError('Held departure no longer exists', 'departure_configuration_missing');
   const seatNumbers = listCsv(hold.seatNumbers || hold.seatNumber);
   if (!seatNumbers.length) throw conflictError('Seat hold has no seats attached', 'hold_inventory_mismatch');
+  // Checkout only needs the seats attached to this hold. Reading the complete
+  // vehicle inventory again made the payment transition slow as soon as one
+  // real departure existed. The departure row is fetched concurrently.
+  const [availability, schedule] = await Promise.all([
+    inventoryService.getAvailability({
+      scheduleId: hold.scheduleId,
+      originStopId: hold.originStopId,
+      destinationStopId: hold.destinationStopId,
+      holdId: hold.id,
+      seatNumbers,
+    }),
+    repository.schedules.findOne({ id: hold.scheduleId, companyId: hold.companyId }),
+  ]);
+  if (!schedule) throw conflictError('Held departure no longer exists', 'departure_configuration_missing');
   if (seatNumbers.length !== passengers.length) throw validationError('Each trip leg must have one selected seat for every passenger');
   const seatByNumber = new Map(availability.seats.map((seat) => [String(seat.seatNumber).toUpperCase(), seat]));
   const selectedSeatRows = seatNumbers.map((number) => seatByNumber.get(String(number).toUpperCase()));
   if (selectedSeatRows.some((seat) => !seat)) throw conflictError('Seat-map version no longer matches this hold', 'seat_map_mismatch');
 
   const timestamp = nowIso();
-  const itemId = await repository.nextId('booking-item');
-  const reservationId = await repository.nextId('bus-reservation');
+  const [itemId, reservationId] = await Promise.all([
+    repository.nextId('booking-item'),
+    repository.nextId('bus-reservation'),
+  ]);
   const subtotal = selectedSeatRows.reduce((sum, seat) => sum + Number(availability.fare.baseAmountPerSeat || 0) + Number(seat.priceDelta || 0), 0);
   const total = subtotal;
   if (total <= 0) throw validationError('Server pricing produced an invalid booking total');
@@ -283,11 +291,15 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
   const assignments = [];
   const tickets = [];
   const ticketLegs = [];
+  const [assignmentIds, ticketIds] = await Promise.all([
+    repository.nextIds('bus-seat-assignment', passengers.length),
+    repository.nextIds('bus-ticket', passengers.length),
+  ]);
   for (let index = 0; index < passengers.length; index += 1) {
     const passenger = passengers[index];
     const seatNumber = seatNumbers[index];
     const assignment = {
-      id: await repository.nextId('bus-seat-assignment'),
+      id: assignmentIds[index],
       reservationId,
       bookingItemId: itemId,
       bookingId,
@@ -305,7 +317,7 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
     };
     const qrToken = randomToken(32);
     const ticket = {
-      id: await repository.nextId('bus-ticket'),
+      id: ticketIds[index],
       ticketNumber: generateCode('BUS', 12),
       bookingId,
       bookingRef,
@@ -420,25 +432,25 @@ async function buildCanonicalRows(payload = {}, req = null) {
   const bookingId = await repository.nextId('booking');
   const bookingRef = generateCode('CTB', 10);
   const passengerInputs = buildPassengerPayloads(payload, outboundSeats);
-  const passengers = [];
-  for (let index = 0; index < passengerInputs.length; index += 1) {
-    passengers.push({
-      ...passengerInputs[index],
-      id: await repository.nextId('passenger'),
-      bookingId,
-      bookingRef,
-      companyId: outboundHold.companyId,
-      listingId: outboundHold.listingId,
-      scheduleId: outboundHold.scheduleId,
-      passengerIndex: index,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    });
-  }
-  const legs = [];
-  for (let legIndex = 0; legIndex < holds.length; legIndex += 1) {
-    legs.push(await buildLeg({ hold: holds[legIndex], bookingId, bookingRef, passengers, legIndex }));
-  }
+  const passengerIds = await repository.nextIds('passenger', passengerInputs.length);
+  const passengers = passengerInputs.map((passenger, index) => ({
+    ...passenger,
+    id: passengerIds[index],
+    bookingId,
+    bookingRef,
+    companyId: outboundHold.companyId,
+    listingId: outboundHold.listingId,
+    scheduleId: outboundHold.scheduleId,
+    passengerIndex: index,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
+  // Outbound and return rows are independent until their totals are combined.
+  // Building both together removes a complete second chain of availability and
+  // ID lookups from round-trip checkout.
+  const legs = await Promise.all(holds.map((hold, legIndex) => buildLeg({
+    hold, bookingId, bookingRef, passengers, legIndex,
+  })));
   const currencies = unique(legs.map((leg) => leg.pricing.currency));
   if (currencies.length !== 1) throw validationError('All bus legs in one booking must use the same currency');
   const subtotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.subtotal || 0), 0);
@@ -1024,6 +1036,7 @@ async function confirmPayment(bookingRef, payment = {}) {
         tickets,
         actor: payment.source || 'payment-confirmation',
         session,
+        deferCompatibilityRefresh: true,
       });
       item.status = 'confirmed';
       item.updatedAt = timestamp;
@@ -1088,6 +1101,15 @@ async function confirmPayment(bookingRef, payment = {}) {
       session,
     });
   });
+  // Canonical segment inventory was committed above. Refresh the legacy seat and
+  // available-seat summaries after the payment response path instead of scanning
+  // the complete departure inventory inside the settlement transaction.
+  for (const reservation of records.reservations) {
+    const seatNumbers = records.assignments
+      .filter((row) => row.reservationId === reservation.id)
+      .map((row) => row.seatNumber);
+    inventoryService.queueCompatibilityRefresh(reservation.scheduleId, seatNumbers);
+  }
   try {
     Object.assign(booking, await paymentSettlementService.settleBookingPayment(booking, { source: payment.source || 'bus_booking' }) || {});
   } catch (error) {

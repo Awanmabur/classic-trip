@@ -30,7 +30,7 @@
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="<%= homeCanonical %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.1" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.7" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
   <meta property="og:type" content="website" />
@@ -42,15 +42,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.1">
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.7">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
     <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/notifications.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.1">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.7">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
@@ -406,7 +407,7 @@
 <% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
             <article class="promoCard blogCard">
               <div class="blogImage">
-                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
+                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>" loading="lazy" decoding="async"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
                 <span class="badge <%= badgeCls %> blogTag"><%= post.tag || 'Guide' %></span>
                 <div class="blogIconActions">
                   <a class="miniIcon" href="<%= post.url %>" title="Read"><i class="fa-regular fa-eye"></i></a>
@@ -486,7 +487,7 @@
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <script src="/js/home-service-search.js?v=1.6.1" defer></script>
-  <script src="/js/home.js?v=1.6.1" defer></script>
+  <script src="/js/home-service-search.js?v=1.6.7" defer></script>
+  <script src="/js/home.js?v=1.6.7" defer></script>
 </body>
 </html>

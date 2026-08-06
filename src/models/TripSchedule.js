@@ -48,6 +48,7 @@ const tripScheduleSchema = new Schema({
 }, { timestamps: true });
 
 tripScheduleSchema.index({ status: 1, departAt: 1 });
+tripScheduleSchema.index({ companyId: 1, status: 1, departAt: 1 });
 tripScheduleSchema.index({ companyId: 1, listingId: 1, status: 1, departAt: 1 });
 tripScheduleSchema.index({ companyId: 1, vehicleId: 1, status: 1, departAt: 1, arriveAt: 1 });
 tripScheduleSchema.index(

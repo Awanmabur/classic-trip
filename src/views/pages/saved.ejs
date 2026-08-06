@@ -35,7 +35,7 @@
     %>
     <article class="listing" data-id="<%= l.id %>" data-group="<%= l.group || l.serviceType %>" data-corridor="<%= l.corridor || 'regional' %>" data-url="<%= l.url %>" data-saved-action="open">
       <div class="thumb">
-        <img src="<%= l.img || '' %>" alt="<%= l.title %>">
+        <img src="<%= l.img || '' %>" alt="<%= l.title %>" loading="lazy" decoding="async">
         <div class="cornerBadge <%= cornerCls %>"><i class="fa-solid <%= cornerIcon %>"></i> <%= cornerText %></div>
         <div class="thumbBadges">
           <span class="badge badgeOk"><i class="fa-solid fa-star"></i> <%= l.rating || 'New' %></span>

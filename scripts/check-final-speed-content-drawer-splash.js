@@ -71,7 +71,7 @@ check('journey requests cancel stale responses and use short-lived caches', () =
 });
 check('return schedules load only when return travel is enabled', () => assert(details.includes("document.getElementById('returnTripToggle')?.checked")));
 check('static assets receive production caching and image lazy loading', () => {
-  assert(app.includes("maxAge: env.isProduction ? '7d' : 0"));
+  assert(app.includes("maxAge: env.isProduction ? '30d' : 0"));
   assert(app.includes('immutable: env.isProduction'));
   assert(card.includes('loading="lazy"') && card.includes('decoding="async"'));
 });

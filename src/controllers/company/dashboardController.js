@@ -76,7 +76,7 @@ function requestedSubviewFromRequest(req) {
 function allowedCompanyPage(page, serviceProfile = {}) {
   if (page === 'archive') return 'archive';
   const serviceDashboardPages = new Set(SERVICE_DASHBOARDS.map((service) => service.key));
-  if (serviceDashboardPages.has(page)) return 'overview';
+  if (serviceDashboardPages.has(page)) return page;
   const visiblePages = new Set(serviceProfile.visiblePages || []);
   return visiblePages.has(page) ? page : 'overview';
 }

@@ -21,7 +21,13 @@
         <span class="badge info"><i class="fa-solid fa-eye"></i> Operational oversight</span>
       <% } %>
     </div>
+    <div class="tableTools" data-filter-target="#adminSchedulesTable">
+      <div class="control" aria-label="Search departures"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Date, route, listing, vehicle or partner"></div>
+      <div class="control" aria-label="Status"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="boarding">Boarding</option><option value="delayed">Delayed</option><option value="cancelled">Cancelled</option></select></div>
+      <button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button>
+    </div>
     <div class="tableWrap"><table><thead><tr><th>Schedule</th><th>Route / Listing</th><th>Partner</th><th>Vehicle</th><th>Availability</th><th>Status</th><th></th></tr></thead><tbody id="adminSchedulesTable"></tbody></table></div>
+    <div class="filterEmpty" data-empty-for="#adminSchedulesTable">No departures match the current filters.</div>
   </div>
 
   <% if(isCompanyDashboard){ %>
@@ -33,7 +39,13 @@
         </div>
         <button class="btn" data-modal="create" data-type="schedule rule"><i class="fa-solid fa-plus"></i> Add recurring rule</button>
       </div>
+      <div class="tableTools" data-filter-target="#companyScheduleRulesTable">
+        <div class="control" aria-label="Search rules"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Route, time, vehicle, fare plan or driver"></div>
+        <div class="control" aria-label="Status"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="draft">Draft</option></select></div>
+        <button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button>
+      </div>
       <div class="tableWrap"><table><thead><tr><th>Route & time</th><th>Repeats</th><th>Date range</th><th>Vehicle</th><th>Fare plan</th><th>Driver</th><th>Status</th><th></th></tr></thead><tbody id="companyScheduleRulesTable"></tbody></table></div>
+      <div class="filterEmpty" data-empty-for="#companyScheduleRulesTable">No recurring rules match the current filters.</div>
     </div>
 
     <div class="grid2">
@@ -45,7 +57,9 @@
           </div>
           <button class="btn" data-modal="create" data-type="fare product"><i class="fa-solid fa-plus"></i> Add fare plan</button>
         </div>
+        <div class="tableTools" data-filter-target="#companyFareProductsTable"><div class="control" aria-label="Search fare plans"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Plan, route, class or amount"></div><div class="control" aria-label="Status"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="draft">Draft</option></select></div><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
         <div class="tableWrap"><table><thead><tr><th>Product</th><th>Route</th><th>Class</th><th>Full-route fare</th><th>Segments</th><th>Status</th><th></th></tr></thead><tbody id="companyFareProductsTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companyFareProductsTable">No fare plans match the current filters.</div>
       </div>
       <div class="card">
         <div class="cardHead">
@@ -55,7 +69,9 @@
           </div>
           <button class="btn" data-modal="create" data-type="segment fare"><i class="fa-solid fa-plus"></i> Add stop price</button>
         </div>
+        <div class="tableTools" data-filter-target="#companySegmentFaresTable"><div class="control" aria-label="Search stop prices"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Fare plan, stop pair, route or amount"></div><div class="control" aria-label="Status"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="draft">Draft</option></select></div><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
         <div class="tableWrap"><table><thead><tr><th>Fare plan</th><th>Boarding → drop-off</th><th>Route</th><th>Amount</th><th>Stop order</th><th>Status</th><th></th></tr></thead><tbody id="companySegmentFaresTable"></tbody></table></div>
+        <div class="filterEmpty" data-empty-for="#companySegmentFaresTable">No stop-to-stop prices match the current filters.</div>
       </div>
     </div>
 
@@ -67,7 +83,9 @@
         </div>
         <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-plus"></i> Add optional extra</button>
       </div>
+      <div class="tableTools" data-filter-target="#companyServiceAddonsTable"><div class="control" aria-label="Search add-ons"><i class="fa-solid fa-magnifying-glass"></i><input data-filter-search placeholder="Extra, listing, category or price"></div><div class="control" aria-label="Status"><i class="fa-solid fa-circle-check"></i><select data-filter-select><option value="">All statuses</option><option value="active">Active</option><option value="draft">Draft</option></select></div><button class="btn" type="button" data-filter-reset><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
       <div class="tableWrap"><table><thead><tr><th>Add-on</th><th>Listing</th><th>Category</th><th>Unit price</th><th>Charged</th><th>Available for</th><th>Status</th><th></th></tr></thead><tbody id="companyServiceAddonsTable"></tbody></table></div>
+      <div class="filterEmpty" data-empty-for="#companyServiceAddonsTable">No optional extras match the current filters.</div>
     </div>
   <% } %>
 </section>

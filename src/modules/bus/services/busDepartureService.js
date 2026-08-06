@@ -122,13 +122,16 @@ async function scheduleCreationContext(companyId, payload = {}) {
 }
 
 async function findVehicleConflicts(companyId, vehicleId, departAt, arriveAt, excludeId = '') {
-  const end = arriveAt || new Date(new Date(departAt).getTime() + 24 * 60 * 60 * 1000);
+  const start = new Date(departAt);
+  const end = arriveAt || new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const lookback = new Date(start.getTime() - (7 * 24 * 60 * 60 * 1000));
   const rows = await repository.schedules.list({
     companyId,
     vehicleId,
     ...(excludeId ? { id: { $ne: excludeId } } : {}),
     status: { $in: ['draft', 'active', 'published', 'boarding', 'delayed', 'departed'] },
-  });
+    departAt: { $gt: lookback, $lt: end },
+  }, { sort: { departAt: 1 }, limit: 250 });
   const startMs = new Date(departAt).getTime();
   const endMs = new Date(end).getTime();
   return rows.filter((row) => {
@@ -170,6 +173,7 @@ async function generateInventory({
   session = null,
   replaceExisting = true,
   persistSchedule = true,
+  auditInventory = true,
 }) {
   const timestamp = nowIso();
   const requestedBlockedSeats = parseList(blockedSeats).map(normalizeSeatNumber);
@@ -220,7 +224,7 @@ async function generateInventory({
   schedule.inventoryReadyAt = timestamp;
   schedule.seatInventorySnapshot = seats.map((seat) => ({ seatNumber: seat.seatNumber, seatClass: seat.seatClass, seatType: seat.seatType, priceDelta: seat.priceDelta, status: seat.status, blockedReason: seat.blockedReason }));
   if (persistSchedule) await repository.schedules.save(schedule, { id: schedule.id }, session ? { session } : {});
-  await repository.audit({ actorId: actorId(actor), action: 'bus.departure.inventory_generated', targetType: 'trip_schedule', targetId: schedule.id, companyId: schedule.companyId, metadata: { seatCount: seats.length, segmentCount: routeSegments.length, inventoryRows: inventory.length }, session });
+  if (auditInventory) await repository.audit({ actorId: actorId(actor), action: 'bus.departure.inventory_generated', targetType: 'trip_schedule', targetId: schedule.id, companyId: schedule.companyId, metadata: { seatCount: seats.length, segmentCount: routeSegments.length, inventoryRows: inventory.length }, session });
   return { seats, inventory };
 }
 
@@ -371,11 +375,17 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
       rows: seatMapVersion.rows,
       columns: seatMapVersion.columns,
       totalSeats: seatMapVersion.totalSeats,
+      numberingStartSide: seatMapVersion.numberingStartSide || 'left',
+      driverPosition: seatMapVersion.driverPosition || 'right',
+      frontRowPassengerSeats: Number(seatMapVersion.frontRowPassengerSeats || 0) === 1 ? 1 : 0,
+      rowLayoutOverrides: seatMapVersion.rowLayoutOverrides || [],
       seats: seatMapVersion.seats.map((seat) => ({
         seatNumber: seat.seatNumber,
         displayLabel: seat.displayLabel || seat.seatNumber,
         row: seat.row,
         col: seat.col,
+        column: seat.column ?? seat.col,
+        side: seat.side || '',
         deck: seat.deck || 'main',
         seatClass: seat.seatClass,
         seatType: seat.seatType,
@@ -384,7 +394,28 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
         blockedReason: seat.blockedReason || '',
       })),
     }),
-    fareSnapshot: immutableSnapshot({ fareProductId: fareProduct.id, name: fareProduct.name, fareClass: fareProduct.fareClass, currency: fareProduct.currency, refundable: fareProduct.refundable, changeable: fareProduct.changeable, baggageAllowanceKg: fareProduct.baggageAllowanceKg, baseFare: fare.amount, source: fare.source, fareIds: fare.fareIds }),
+    fareSnapshot: immutableSnapshot({
+      fareProductId: fareProduct.id,
+      name: fareProduct.name,
+      fareClass: fareProduct.fareClass,
+      currency: fareProduct.currency,
+      refundable: fareProduct.refundable,
+      changeable: fareProduct.changeable,
+      baggageAllowanceKg: fareProduct.baggageAllowanceKg,
+      baseFare: fare.amount,
+      source: fare.source,
+      fareIds: fare.fareIds,
+      fares: fares.map((row) => ({
+        id: row.id,
+        fromStopId: row.fromStopId,
+        toStopId: row.toStopId,
+        fromOrder: Number(row.fromOrder),
+        toOrder: Number(row.toOrder),
+        amount: Number(row.amount),
+        currency: row.currency || fareProduct.currency,
+        status: row.status || 'active',
+      })),
+    }),
     driverName: driver?.name || '',
     driverIds: driver ? [driver.employee.id, driver.user?.id].filter(Boolean) : [],
     driverEmployeeId: driver?.employee?.id || '',
@@ -419,6 +450,7 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
       session,
       replaceExisting: false,
       persistSchedule: false,
+      auditInventory: options.auditInventory !== false,
     });
     schedule.publishValidation = await validateSchedulePublish(companyId, schedule, {
       company,
@@ -516,11 +548,20 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
       ? new Date(departAt.getTime() + duration)
       : (routeDuration > 0 ? new Date(departAt.getTime() + routeDuration) : null),
   }));
+  const firstProposedAt = proposed[0].departAt;
+  const lastProposedEnd = proposed.reduce((latest, item) => {
+    const value = item.arriveAt || new Date(item.departAt.getTime() + 86_400_000);
+    return value > latest ? value : latest;
+  }, proposed[0].arriveAt || new Date(proposed[0].departAt.getTime() + 86_400_000));
   const existing = await repository.schedules.list({
     companyId,
     vehicleId: context.vehicle.id,
     status: { $in: ['draft', 'active', 'published', 'boarding', 'delayed', 'departed'] },
-  }, { sort: { departAt: 1 }, limit: 5000 });
+    departAt: {
+      $gt: new Date(firstProposedAt.getTime() - (7 * 24 * 60 * 60 * 1000)),
+      $lt: lastProposedEnd,
+    },
+  }, { sort: { departAt: 1 }, limit: 500 });
   const overlaps = (left, right) => {
     const leftStart = new Date(left.departAt).getTime();
     const rightStart = new Date(right.departAt).getTime();
@@ -550,10 +591,10 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
         arriveAt: item.arriveAt?.toISOString(),
         repeatUntil: undefined,
         repeatDays: undefined,
-      }, actor, { context, conflictsChecked: true, deferListingSync: true });
+      }, actor, { context, conflictsChecked: true, deferListingSync: true, auditInventory: false });
     }
   }
-  await Promise.all(Array.from({ length: Math.min(2, proposed.length) }, createNext));
+  await Promise.all(Array.from({ length: Math.min(4, proposed.length) }, createNext));
   const schedules = results.map((result) => result.schedule);
 
   // Publication readiness is listing-wide and was formerly recalculated once
@@ -572,6 +613,18 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
     });
     await repository.schedules.saveMany(publishedSchedules, (schedule) => ({ id: schedule.id }));
   }
+  await repository.audit({
+    actorId: actorId(actor),
+    action: 'bus.departure.batch_inventory_generated',
+    targetType: 'schedule_batch',
+    targetId: schedules[0]?.scheduleRuleId || schedules[0]?.id || 'schedule-batch',
+    companyId,
+    metadata: {
+      scheduleCount: schedules.length,
+      seatRows: schedules.reduce((total, schedule) => total + Number(schedule.totalSeats || 0), 0),
+      segmentRows: results.reduce((total, result) => total + Number(result.segmentInventory?.length || 0), 0),
+    },
+  });
   return {
     schedules,
     count: schedules.length,
@@ -584,6 +637,54 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
         ...result.publicationDeferred,
       } : null)
       .filter(Boolean),
+  };
+}
+
+async function createScheduleSeries(companyId, payloads = [], actor = 'company-admin') {
+  const rows = (Array.isArray(payloads) ? payloads : []).filter(Boolean).slice(0, MAX_BATCH_SCHEDULES);
+  if (!rows.length) return { results: [], count: 0, publishedCount: 0, draftCount: 0 };
+  // Resolve company, route, vehicle, seat-map and fare once for repair batches.
+  // Each date still performs its own vehicle-conflict check and transaction.
+  const context = await scheduleCreationContext(companyId, rows[0]);
+  const results = new Array(rows.length);
+  let cursor = 0;
+  async function createNext() {
+    while (cursor < rows.length) {
+      const index = cursor;
+      cursor += 1;
+      try {
+        const result = await createSchedule(companyId, rows[index], actor, {
+          context,
+          deferListingSync: true,
+          auditInventory: false,
+        });
+        results[index] = { ok: true, result };
+      } catch (error) {
+        results[index] = { ok: false, error };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(2, rows.length) }, createNext));
+  const successful = results.filter((item) => item?.ok).map((item) => item.result);
+  const publishedSchedules = successful.map((item) => item.schedule).filter((schedule) => normalize(schedule.status) === 'published');
+  if (publishedSchedules.length) {
+    const publication = await synchronizeListingPublicationAfterDeparture(companyId, context.listing.id, actor);
+    const checkedAt = nowIso();
+    publishedSchedules.forEach((schedule) => {
+      schedule.listingPublication = {
+        published: Boolean(publication.published),
+        reason: publication.reason,
+        checkedAt,
+        failures: publication.readiness?.failures || (publication.error ? [publication.error] : []),
+      };
+    });
+    await repository.schedules.saveMany(publishedSchedules, (schedule) => ({ id: schedule.id }));
+  }
+  return {
+    results,
+    count: successful.length,
+    publishedCount: publishedSchedules.length,
+    draftCount: successful.length - publishedSchedules.length,
   };
 }
 
@@ -1041,6 +1142,7 @@ module.exports = {
   validateSchedulePublish,
   createSchedule,
   createScheduleBatch,
+  createScheduleSeries,
   createScheduleRule,
   updateScheduleRule,
   pauseScheduleRule,

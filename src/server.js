@@ -4,6 +4,7 @@ const { connectRedis, closeRedis } = require('./config/redis');
 const logger = require('./config/logger');
 const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
 const repositories = require('./repositories');
+const scheduleMaterializer = require('./jobs/materializeSchedules');
 
 let httpServer = null;
 let shuttingDown = false;
@@ -27,6 +28,12 @@ async function start() {
   httpServer.headersTimeout = 66_000;
   httpServer.requestTimeout = 45_000;
   httpServer.maxRequestsPerSocket = 1_000;
+  // A standalone web process may explicitly opt into the lease-protected repair
+  // queue. Normal and separate-worker production launchers keep it disabled so
+  // two processes do not scan the same rules or invalidate dashboard caches.
+  const fallbackDefault = env.nodeEnv === 'production' ? 'false' : 'true';
+  const webRollingFallback = String(process.env.WEB_ROLLING_FALLBACK || fallbackDefault).trim().toLowerCase() === 'true';
+  if (webRollingFallback) scheduleMaterializer.startWebFallback();
   return httpServer;
 }
 
@@ -40,6 +47,7 @@ async function shutdown(signal, exitCode = 0) {
   }, 12_000);
   forceTimer.unref();
   try {
+    scheduleMaterializer.stopWebFallback();
     if (httpServer) {
       await new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
     }

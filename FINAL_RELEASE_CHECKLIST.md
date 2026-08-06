@@ -1,6 +1,6 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.0.
+Use this checklist for version 1.6.7.
 
 ## 1. Clean installation
 
@@ -51,19 +51,27 @@ This validates required secrets and provider configuration, tests MongoDB and Re
 
 ## 6. Start web and worker processes
 
+For local development or a single process service, the normal launcher starts both the web server and worker:
+
+```bash
+npm start
+```
+
+For a deployment with a dedicated worker service, use:
+
 Web:
 
 ```bash
-NODE_ENV=production npm start
+NODE_ENV=production RUN_BACKGROUND_WORKER=false ENABLE_JOBS=false npm start
 ```
 
 Worker:
 
 ```bash
-NODE_ENV=production npm run worker
+NODE_ENV=production ENABLE_JOBS=true npm run worker
 ```
 
-Only the worker should run scheduled jobs. Keep `ENABLE_JOBS=false` on the web process and `ENABLE_JOBS=true` on the worker.
+Only the dedicated worker should run scheduled jobs and own the rolling-departure queue. Keep `WEB_ROLLING_FALLBACK=false` on a web service that has a separate worker; set it to `true` only for a genuinely standalone web process with no worker.
 
 ## 7. Smoke tests after deployment
 
@@ -93,8 +101,18 @@ Confirm all of the following:
 
 Before launch, record the previous deployed commit/archive, preserve a verified database backup, and confirm that application rollback does not require reversing destructive migrations. The release migrations in this project provide dry-run commands; execute dry-run first whenever historical data must be normalized.
 
-## v1.6.0 focused checks
+## v1.6.7 focused checks
 
+- [ ] Starting with one existing Draft departure and 29 missing dates, the worker logs `created=1`, `skipped=0`, and a decreasing `pending` value on successive batches.
+- [ ] The worker does not log `Cannot read properties of undefined (reading 'findOne')` as a permanent skipped date or pause the queue because of that internal runtime error.
+- [ ] A missing operating permit keeps every generated date in Draft but does not stop the rolling window from reaching 30 dated departures.
+- [ ] Saving an active rolling rule returns after creating one dated departure; the remaining dates are produced only by the worker in low-priority batches.
+- [ ] The web process stays responsive while the rolling month is materialized, and dashboard cache invalidation occurs after the drain settles.
+- [ ] A missing operating permit creates Draft dates without a tight retry loop; publication succeeds after a valid, unexpired permit is added and the repair pass runs.
+- [ ] Changing boarding/drop-off stops keeps the preview fare visible, returns live availability within the bounded timeout, and does not load all rolling-date Seat rows.
+- [ ] Proceeding from a seat hold to payment reuses the selected departure snapshot and opens without a second full marketplace read.
+- [ ] Bars show the service badge at image bottom-left, rating/New at bottom-right, a wider image, and one-line phone description.
+- [ ] Header, body, footer and mobile bottom navigation have the same outer width.
 - [ ] Standard Ticket and VIP Ticket appear side by side and filter to matching departure classes.
 - [ ] Return Ticket remains selected and visible when a route has no matching reverse departure.
 - [ ] The normal partner departure form defaults to a rolling 30-day window.

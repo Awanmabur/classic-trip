@@ -17,15 +17,62 @@ function scheduleVehicleClass(schedule = {}) {
   return (schedule.seatMapSnapshot?.seats || []).some((seat) => normalize(seat.seatClass) === 'vip') ? 'vip' : 'standard';
 }
 
+function scheduleCatalogPreview(data = {}, schedule = {}) {
+  const route = (data.routes || []).find((row) => catalogService.sameId(row, schedule.routeId)) || {};
+  const stops = (data.routeStops || [])
+    .filter((row) => catalogService.sameId(row.routeId, schedule.routeId) && normalize(row.status) !== 'archived')
+    .sort((a, b) => Number(a.stopOrder || 0) - Number(b.stopOrder || 0))
+    .map((stop) => ({
+      id: catalogService.entityId(stop),
+      branchId: stop.branchId || '',
+      name: stop.name || stop.stopName || 'Stop',
+      stopType: stop.stopType || '',
+      stopOrder: Number(stop.stopOrder || 0),
+      pickupAllowed: stop.pickupAllowed !== false,
+      dropoffAllowed: stop.dropoffAllowed !== false,
+      publicInstructions: stop.publicInstructions || '',
+    }));
+  const originStopId = String(schedule.originStopId || route.originStopId || stops[0]?.id || '');
+  const destinationStopId = String(schedule.destinationStopId || route.destinationStopId || stops[stops.length - 1]?.id || '');
+  const origin = stops.find((stop) => String(stop.id) === originStopId) || stops[0] || {};
+  const destination = stops.find((stop) => String(stop.id) === destinationStopId) || stops[stops.length - 1] || {};
+  return {
+    id: catalogService.entityId(schedule),
+    listingId: schedule.listingId,
+    routeId: schedule.routeId,
+    vehicleId: schedule.vehicleId,
+    vehicleClass: scheduleVehicleClass(schedule),
+    departAt: schedule.departAt,
+    arriveAt: schedule.arriveAt,
+    departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
+    basePrice: Number(schedule.basePrice || 0),
+    currency: schedule.currency,
+    status: schedule.status,
+    stops,
+    journey: {
+      originStopId: origin.id || originStopId,
+      originBranchId: origin.branchId || '',
+      originName: origin.name || route.origin || '',
+      destinationStopId: destination.id || destinationStopId,
+      destinationBranchId: destination.branchId || '',
+      destinationName: destination.name || route.destination || '',
+    },
+  };
+}
+
 async function publicListingContext(identifier, serviceType = '') {
-  const data = await catalogService.snapshot();
+  // Listing details and checkout need one listing, not the entire marketplace.
+  // The scoped snapshot removes the global 5k-listing/50k-inventory cold load
+  // from current-fare and payment-page requests.
+  const data = await catalogService.snapshotForListing(identifier, serviceType)
+    || await catalogService.snapshot();
   const raw = catalogService.listingFor(data, identifier, serviceType);
   if (!raw || !catalogService.isPublicListing(raw, data)) return { data, raw: null, listing: null };
   return { data, raw, listing: catalogService.catalogItem(data, raw) };
 }
 
 async function catalogContext(identifier, serviceType = '', selection = {}, prefetched = {}) {
-  const data = prefetched.data || await catalogService.snapshot();
+  const data = prefetched.data || await catalogService.snapshotForListing(identifier, serviceType) || await catalogService.snapshot();
   const raw = prefetched.raw || catalogService.listingFor(data, identifier, serviceType);
   if (!raw || !catalogService.isPublicListing(raw, data)) return { data, raw: null };
   const listing = catalogService.catalogItem(data, raw);
@@ -49,20 +96,9 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
         originStopId: selection.originStopId,
         destinationStopId: selection.destinationStopId,
         holdId: selection.holdId,
+        seatNumbers: selection.compactAvailability ? (selection.selectedSeats || selection.selected || '') : [],
       });
-      const schedules = departures.map((schedule) => ({
-        id: catalogService.entityId(schedule),
-        listingId: schedule.listingId,
-        routeId: schedule.routeId,
-        vehicleId: schedule.vehicleId,
-        vehicleClass: scheduleVehicleClass(schedule),
-        departAt: schedule.departAt,
-        arriveAt: schedule.arriveAt,
-        departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
-        basePrice: Number(schedule.basePrice || 0),
-        currency: schedule.currency,
-        status: schedule.status,
-      }));
+      const schedules = departures.map((schedule) => scheduleCatalogPreview(data, schedule));
       const returnSchedules = selection.includeReturnSchedules === false ? [] : await busSearchService.findReturnDepartures({
         companyId: raw.companyId,
         originName: canonical.journey.destinationName,
@@ -76,19 +112,7 @@ async function catalogContext(identifier, serviceType = '', selection = {}, pref
       listing.from = canonical.journey.originName || listing.from;
       listing.to = canonical.journey.destinationName || listing.to;
     } else {
-      const schedules = departures.map((schedule) => ({
-        id: catalogService.entityId(schedule),
-        listingId: schedule.listingId,
-        routeId: schedule.routeId,
-        vehicleId: schedule.vehicleId,
-        vehicleClass: scheduleVehicleClass(schedule),
-        departAt: schedule.departAt,
-        arriveAt: schedule.arriveAt,
-        departureLabel: `${new Date(schedule.departAt).toLocaleString('en-GB', { timeZone: schedule.routeSnapshot?.timezone || 'Africa/Kampala', dateStyle: 'medium', timeStyle: 'short' })} · ${schedule.vehicleName || 'Bus'}`,
-        basePrice: Number(schedule.basePrice || 0),
-        currency: schedule.currency,
-        status: schedule.status,
-      }));
+      const schedules = departures.map((schedule) => scheduleCatalogPreview(data, schedule));
       availability = { ...availability, scheduleId: '', schedule: null, schedules, returnSchedules: [], seats: [], stops: [], journey: {}, fare: null };
     }
   } else if (normalize(listing.serviceType) === 'hotel') {
@@ -212,6 +236,7 @@ async function bookingForm(req, res, next) {
     let source = req.query || {};
     let bookingDraftId = '';
     let context;
+    let returnAvailability = null;
     if (normalizedServiceType === 'bus') {
       bookingDraftId = String(req.query.draft || '').trim();
       if (!bookingDraftId) return res.redirect(303, `/listings/bus/${encodeURIComponent(publicContext.listing.slug)}`);
@@ -232,7 +257,17 @@ async function bookingForm(req, res, next) {
         returnOriginStopId: draft.return?.originStopId || '',
         returnDestinationStopId: draft.return?.destinationStopId || '',
       };
-      context = await catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false }, publicContext);
+      const contextPromise = catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false, compactAvailability: true }, publicContext);
+      const returnAvailabilityPromise = source.returnScheduleId
+        ? busInventoryService.getAvailability({
+          scheduleId: source.returnScheduleId,
+          originStopId: source.returnOriginStopId,
+          destinationStopId: source.returnDestinationStopId,
+          holdId: source.returnHoldId,
+          seatNumbers: source.returnSeats || '',
+        })
+        : Promise.resolve(null);
+      [context, returnAvailability] = await Promise.all([contextPromise, returnAvailabilityPromise]);
       if (!context.listing) return next();
     } else {
       context = await catalogContext(req.params.slug, req.params.serviceType, source, publicContext);
@@ -241,15 +276,6 @@ async function bookingForm(req, res, next) {
 
     const rawAddons = source.addons || source.addon || [];
     const selectedAddonIds = (Array.isArray(rawAddons) ? rawAddons : [rawAddons]).flatMap((value) => String(value || '').split(',')).map((value) => value.trim()).filter(Boolean);
-    let returnAvailability = null;
-    if (normalize(context.listing.serviceType) === 'bus' && source.returnScheduleId) {
-      returnAvailability = await busInventoryService.getAvailability({
-        scheduleId: source.returnScheduleId,
-        originStopId: source.returnOriginStopId,
-        destinationStopId: source.returnDestinationStopId,
-        holdId: source.returnHoldId,
-      });
-    }
     return res.render('pages/booking-form', {
       seo: { title: `Book ${context.listing.title} | Classic Trip` },
       listing: context.listing,
@@ -295,7 +321,7 @@ function domainBookingUrl(booking = {}, lookupCode = '') {
   return '';
 }
 async function findBooking(bookingRef) { return bookingRef ? commerceRepository.bookings.findOne({ bookingRef }) : null; }
-async function findListingById(listingId) { const data = await catalogService.snapshot(); const raw = catalogService.listingFor(data, listingId); return raw ? catalogService.catalogItem(data, raw) : null; }
+async function findListingById(listingId) { const data = await catalogService.snapshotForListing(listingId) || await catalogService.snapshot(); const raw = catalogService.listingFor(data, listingId); return raw ? catalogService.catalogItem(data, raw) : null; }
 
 async function bookingFromPaymentCallback(req = {}) {
   const query = req.query || {};

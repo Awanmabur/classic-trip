@@ -560,7 +560,7 @@ function injectWorkflowGuideItem(menu) {
   if (menu.roleKey === 'company') return menu;
   const alreadyHas = (menu.groups || []).some((group) => (group.items || []).some((item) => item.page === 'workflow-guide'));
   if (alreadyHas) return menu;
-  const guideItem = { page: 'workflow-guide', label: 'How This Dashboard Works', icon: 'fa-circle-question', href: '#workflow-guide' };
+  const guideItem = { page: 'workflow-guide', label: 'How This Dashboard Works', icon: 'fa-circle-question' };
   const groups = (menu.groups || []).map((group, index) => {
     if (index !== 0) return group;
     const items = [...(group.items || [])];
@@ -572,7 +572,7 @@ function injectWorkflowGuideItem(menu) {
 }
 
 function injectNotificationsItem(menu) {
-  const notifItem = { page: 'notifications', label: 'Notifications', icon: 'fa-bell', href: '#notifications' };
+  const notifItem = { page: 'notifications', label: 'Notifications', icon: 'fa-bell' };
   const alreadyHas = (menu.groups || []).some(function(g) { return (g.items || []).some(function(i) { return i.page === 'notifications'; }); });
   if (alreadyHas) return menu;
   const groups = (menu.groups || []).map(function(group, index) {

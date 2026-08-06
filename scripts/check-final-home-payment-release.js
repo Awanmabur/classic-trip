@@ -15,6 +15,9 @@ const css = read('public/css/completion-fixes.css');
 const pkg = JSON.parse(read('package.json'));
 const controller = read('src/controllers/public/listingController.js');
 const inventory = read('src/modules/bus/services/busInventoryService.js');
+const booking = read('src/modules/bus/services/busBookingService.js');
+const materializer = read('src/jobs/materializeSchedules.js');
+const outboxHandlers = read('src/services/shared/outboxHandlers.js');
 const repository = read('src/modules/bus/repositories/busRepository.js');
 const listingCard = read('src/views/partials/listing-card.ejs');
 
@@ -24,13 +27,19 @@ function check(label, condition) {
   passed += 1;
 }
 
-check('release version is 1.6.1', pkg.version === '1.6.1');
+check('release version is 1.6.7', pkg.version === '1.6.7');
 check('checkout preparation avoids duplicate full availability loading', controller.includes('const context = await publicListingContext(req.params.slug, req.params.serviceType)') && controller.includes('holdSeats performs'));
-check('booking page reuses the prefetched marketplace snapshot', controller.includes('publicContext)') && controller.includes('includeReturnSchedules: false'));
+check('booking page reuses the prefetched marketplace snapshot', controller.includes('publicContext)') && controller.includes('includeReturnSchedules: false') && controller.includes('compactAvailability: true'));
 check('seat-hold item identifiers are allocated in one database call', repository.includes('nextIds') && inventory.includes("repository.nextIds('hold-item', inventoryRows.length)"));
-check('compatibility seats are recalculated in one batched read/write path', inventory.includes('async function recalculateCompatibilitySeats') && inventory.includes('repository.seats.saveMany(seats'));
+check('compatibility seats are recalculated in one batched deferred path', inventory.includes('async function recalculateCompatibilitySeats') && inventory.includes('queueCompatibilityRefresh') && inventory.includes('repository.seats.saveMany(seats'));
+check('checkout leg validation loads only held seats and overlaps the departure read', booking.includes('seatNumbers,') && booking.includes('const [availability, schedule] = await Promise.all(['));
+check('checkout identifiers are allocated in bounded batches', booking.includes("repository.nextIds('passenger', passengerInputs.length)") && booking.includes("repository.nextIds('bus-seat-assignment', passengers.length)") && booking.includes("repository.nextIds('bus-ticket', passengers.length)"));
+check('successful payment defers compatibility summaries until after canonical inventory commits', booking.includes('deferCompatibilityRefresh: true') && booking.includes('inventoryService.queueCompatibilityRefresh(reservation.scheduleId, seatNumbers)'));
+check('seat-hold transaction keeps same-session writes sequential', inventory.includes('Mongoose explicitly does not') && !inventory.slice(inventory.indexOf('await repository.withTransaction(async (session) => {'), inventory.indexOf('async function assertActiveHold')).includes('await Promise.all(['));
+check('rolling worker and outbox creation use bounded batches', materializer.includes('materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: BACKGROUND_BATCH_SIZE })') && outboxHandlers.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
+check('rolling queue avoids permanent-error hot loops', materializer.includes('queue paused until the next repair scan') && materializer.includes('const created = Number(result?.created || 0)') && materializer.includes('pending > 0 && created > 0') && materializer.includes('pending > 0 && skipped > 0'));
 check('checkout skips global stale-hold sweeps and releases only selected expired holds', !inventory.slice(inventory.indexOf('async function holdSeats'), inventory.indexOf('async function assertActiveHold')).includes('expireStaleHolds()') && inventory.includes('staleSelectedHoldIds'));
-check('desktop bars use wider images, one-line descriptions, and content-driven height', css.includes('grid-template-columns:148px minmax(0,1fr)') && css.includes('align-self:start;min-height:0;height:auto') && css.includes('min-height:0;max-height:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'));
+check('desktop bars use the approved compact image/body layout and one-line descriptions', css.includes('grid-template-columns:160px minmax(0,1fr)') && css.includes('min-height:150px;height:150px') && css.includes('max-height:none;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'));
 check('availability badge is outside the thumbnail and anchored to the bar corner', listingCard.indexOf('</a>') < listingCard.indexOf('cornerBadge') && css.includes('[data-view="bars"] .cornerBadge{position:absolute;top:10px;right:10px'));
 check('decorative section color overrides were removed', !css.includes('marketplaceSection--bus::before') && !css.includes('marketplaceSection--hotel .sectionViewToggle button.active{color:'));
 check('checkout prepares reusable drafts before taking another hold', draft.indexOf('await reusableDraft') < draft.indexOf('await validateLeg(outboundInput'));
@@ -47,6 +56,8 @@ check('featured buses expose about one-quarter of the next mobile column', css.i
 check('all desktop card sections keep three fixed columns', css.includes('.sectionListingCollection[data-view="cards"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important'));
 check('bar view is two columns on desktop', css.includes('.sectionListingCollection[data-view="bars"]{display:grid!important;grid-template-columns:repeat(2'));
 check('bar view is one column on phones', css.includes('.sectionListingCollection[data-view="bars"]{grid-template-columns:1fr!important'));
+check('phone selection badges remain attached to their layout switches', css.includes('justify-self:end;justify-content:flex-end') && css.includes('gap:6px;flex-wrap:nowrap'));
+check('boarding and drop-off options are rendered from the departure preview before the live request returns', listing.includes('applySchedulePreview(scheduleId)') && listing.includes('Loading live seats and confirming fare'));
 check('section view preference is persisted', homeJs.includes('classicTripSectionView:') && homeJs.includes('setSectionView'));
 check('more controls only remain visible when data remains', homeJs.includes("button.classList.toggle('hide', remaining <= 0)") && homeJs.includes('button.disabled = remaining <= 0'));
 for (const group of ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']) {

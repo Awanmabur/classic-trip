@@ -288,9 +288,18 @@ function buildSeatDefinitions({
   const normalizedLabelMode = ['automatic', 'numeric', 'row_letters', 'prefix_numeric', 'custom', 'preserve'].includes(requestedLabelMode)
     ? requestedLabelMode
     : 'automatic';
-  const resolvedColumns = columns == null || columns === ''
-    ? columnsForLayout(layoutName)
-    : numberValue(columns, { field: 'Seat columns', min: 1, max: 12, integer: true });
+  // Named layouts are the source of truth for their passenger columns. Older
+  // forms could leave a hidden/stale columns value behind after the operator
+  // changed from 2x3 to 2x2 (or vice versa), which made valid buses fail with a
+  // misleading capacity error. Explicit columns are honoured only for custom
+  // layouts that do not declare a left x right shape.
+  const normalizedLayoutName = normalize(layoutName);
+  const hasNamedColumnLayout = /^\d+x\d+$/.test(normalizedLayoutName);
+  const resolvedColumns = hasNamedColumnLayout
+    ? columnsForLayout(normalizedLayoutName)
+    : (columns == null || columns === ''
+      ? columnsForLayout(layoutName)
+      : numberValue(columns, { field: 'Seat columns', min: 1, max: 12, integer: true }));
   const requestedTotal = numberValue(
     totalSeats == null || totalSeats === '' ? rawLabels.length : totalSeats,
     { field: 'Total seats', min: 1, max: 300, integer: true },
@@ -307,17 +316,28 @@ function buildSeatDefinitions({
   const defaultRightSeats = layoutMatch ? Number(layoutMatch[2]) : Math.max(0, resolvedColumns - defaultLeftSeats);
   const normalSeatCount = Math.max(0, requestedTotal - normalizedFrontRowPassengerSeats);
   const highestOverrideRow = normalizedRowLayoutOverrides.reduce((max, entry) => Math.max(max, entry.row), 0);
-  const resolvedRows = rows == null || rows === ''
-    ? Math.max(1, highestOverrideRow, (normalizedFrontRowPassengerSeats ? 1 : 0) + Math.ceil(normalSeatCount / resolvedColumns))
+  const submittedRows = rows == null || rows === ''
+    ? 0
     : numberValue(rows, { field: 'Seat rows', min: 1, max: 100, integer: true });
-  if (highestOverrideRow > resolvedRows) throw validationError(`Row layout exception ${highestOverrideRow} is beyond the configured ${resolvedRows} rows`);
+  const calculatedRows = (normalizedFrontRowPassengerSeats ? 1 : 0) + Math.ceil(normalSeatCount / resolvedColumns);
   const rowLayoutByNumber = new Map(normalizedRowLayoutOverrides.map((entry) => [entry.row, entry]));
-  const availablePositions = Array.from({ length: resolvedRows }, (_, index) => index + 1).reduce((sum, row) => {
+  const capacityForRows = (rowCount) => Array.from({ length: rowCount }, (_, index) => index + 1).reduce((sum, row) => {
     if (normalizedFrontRowPassengerSeats && row === 1) return sum + 1;
     const layout = rowLayoutByNumber.get(row);
     return sum + (layout ? layout.leftSeats + layout.rightSeats : resolvedColumns);
   }, 0);
-  if (availablePositions < requestedTotal) throw validationError('Rows, front-row choice and columns do not have enough positions for the total passenger seats');
+
+  // Rows are derived data, not a reason to reject an otherwise valid vehicle.
+  // Preserve any larger operator-entered row count, include every override row,
+  // then extend the rear of the cabin until all passenger seats fit. This also
+  // repairs old records whose rows/columns were saved before the front-row or
+  // layout choice changed.
+  let resolvedRows = Math.max(1, submittedRows, highestOverrideRow, calculatedRows);
+  while (resolvedRows < 100 && capacityForRows(resolvedRows) < requestedTotal) resolvedRows += 1;
+  const availablePositions = capacityForRows(resolvedRows);
+  if (availablePositions < requestedTotal) {
+    throw validationError(`This seat layout supports ${availablePositions} passenger positions within 100 rows, but ${requestedTotal} seats were requested`);
+  }
 
   let customLabels = [];
   if (['custom', 'preserve'].includes(normalizedLabelMode)) {

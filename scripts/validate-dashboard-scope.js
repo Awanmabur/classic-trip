@@ -22,9 +22,9 @@ function sectionsFromDashboard() {
   const root = path.join(__dirname, '..');
   const { html: dashboardHtml, combined: combinedSource } = readComposedDashboardSource(root);
   const staticIds = new Set([...dashboardHtml.matchAll(/<section[^>]+id="([^"]+)"/g)].map((match) => match[1]).filter((id) => !id.includes('<%')));
-  const dynamicServiceIds = ['bus-dashboard','hotel-dashboard'];
+  const dynamicServiceIds = ['bus-dashboard','hotel-dashboard','flight-dashboard','taxi-dashboard','tour-dashboard','rental-dashboard','cargo-dashboard'];
   dynamicServiceIds.forEach((id) => staticIds.add(id));
-  const hasDynamicFallback = combinedSource.includes('dynamicDashboardItems.forEach');
+  const hasDynamicFallback = combinedSource.includes('dynamicDashboardItems') && combinedSource.includes("include('sections/dynamic-page'");
   return { ids: staticIds, html: combinedSource, hasDynamicFallback };
 }
 

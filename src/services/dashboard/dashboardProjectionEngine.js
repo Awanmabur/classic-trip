@@ -147,6 +147,55 @@ function createDashboardProjection(initialState = {}) {
   function normalize(value) {
     return String(value || '').toLowerCase().trim();
   }
+  function indexFirst(rows = [], valuesForRow = () => []) {
+    const index = new Map();
+    (rows || []).forEach((row) => {
+      valuesForRow(row).forEach((value) => {
+        const indexed = normalize(value);
+        if (indexed && !index.has(indexed)) index.set(indexed, row);
+      });
+    });
+    return index;
+  }
+  function groupByIdentity(rows = [], valueForRow = () => '') {
+    const groups = new Map();
+    (rows || []).forEach((row) => {
+      const value = String(valueForRow(row) ?? '').trim();
+      if (!value) return;
+      if (!groups.has(value)) groups.set(value, []);
+      groups.get(value).push(row);
+    });
+    return groups;
+  }
+  function bookingIdentityValues(booking = {}) {
+    return [
+      booking.id, booking._id, booking.bookingRef, booking.reference,
+      booking.guestLookupCode, booking.lookupCode, booking.qrCodeValue,
+      booking.paymentRef, booking.providerReference,
+    ].filter(Boolean);
+  }
+
+  // Build request-local read indexes once. The previous projection repeatedly
+  // scanned complete arrays from inside every row/detail builder; with even one
+  // real record that work multiplied across the many dashboard projections.
+  const listingByIdentity = indexFirst(state.listings, (row) => [row.id, row._id, row.slug]);
+  const listingByTitleAndType = indexFirst(state.listings, (row) => [`${row.title || ''}::${row.serviceType || ''}`]);
+  const listingByTitle = indexFirst(state.listings, (row) => [row.title]);
+  const companyByIdentity = indexFirst(state.companies, (row) => [row.id, row._id, row.slug]);
+  const bookingByIdentity = indexFirst(state.bookings, bookingIdentityValues);
+  const scheduleById = indexFirst(state.schedules, (row) => [row.id, row._id]);
+  const routeById = indexFirst(state.routes, (row) => [row.id, row._id]);
+  const vehicleById = indexFirst(state.vehicles, (row) => [row.id, row._id]);
+  const userById = indexFirst(state.users, (row) => [row.id, row._id]);
+  const listingsByCompany = groupByIdentity(state.listings, (row) => row.companyId);
+  const routesByListing = groupByIdentity(state.routes, (row) => row.listingId);
+  const schedulesByListing = groupByIdentity(state.schedules, (row) => row.listingId);
+  const roomsByListing = groupByIdentity(state.roomSummaries, (row) => row.listingId);
+  const seatsBySchedule = groupByIdentity(state.seats, (row) => row.scheduleId);
+  const bookingsBySchedule = groupByIdentity(state.bookings, (row) => row.scheduleId);
+  const bookingsByListing = groupByIdentity(state.bookings, (row) => row.listingId);
+  const paymentByBookingIdentity = indexFirst(state.payments, (row) => [row.bookingId, row.bookingRef]);
+
   function isActivePromoterLink(link = {}) {
     return !['archived', 'deleted', 'disabled'].includes(normalize(link.status));
   }
@@ -215,7 +264,7 @@ function createDashboardProjection(initialState = {}) {
     // rescans all seats for every schedule row), which is expensive to redo on every
     // request. A dashboard overview doesn't need millisecond freshness, so cache per
     // role+context for a few seconds instead of recomputing from scratch each time.
-    const cacheKey = `${role}:${context.companyId || ''}:${context.promoterId || ''}:${context.customerId || ''}:${context.hotelManifestDate || ''}:${context.hotelManifestListingId || ''}`;
+    const cacheKey = `${role}:${context.companyId || ''}:${context.promoterId || ''}:${context.customerId || ''}:${context.activePage || 'overview'}:${context.hotelManifestDate || ''}:${context.hotelManifestListingId || ''}`;
     const cached = dashboardDataCache.get(cacheKey);
     const now = Date.now();
     if (cached && now - cached.at < DASHBOARD_DATA_CACHE_MS) return cached.value;
@@ -1277,7 +1326,9 @@ function createDashboardProjection(initialState = {}) {
     const companyFinance = buildCompanyFinanceDrilldown(companyId, financialBookings);
     const busScheduleIds = new Set(busSchedules.map(busScopeRowId).filter(Boolean));
     const seats = busScope.seats.filter((seat) => busScheduleIds.has(String(seat.scheduleId || seat.departureId || seat.tripScheduleId || '')));
-    const bookedSeats = seats.filter(seat => seat.status === 'taken').length;
+    const bookedSeats = seats.length
+      ? seats.filter(seat => ['taken', 'booked', 'sold'].includes(normalize(seat.status))).length
+      : busSchedules.reduce((total, schedule) => total + Math.max(0, Number(schedule.totalSeats || 0) - Number(schedule.availableSeats || 0)), 0);
     const heldSeats = seats.filter(seat => seat.status === 'locked').length;
     const blockedSeats = seats.filter(seat => seat.status === 'blocked').length;
     const fillRate = seats.length ? Math.round(bookedSeats / seats.length * 100) : 0;
@@ -2928,9 +2979,9 @@ function createDashboardProjection(initialState = {}) {
     if (!schedule) return null;
     const listing = findListing(schedule.listingId) || {};
     const company = findCompany(schedule.companyId) || {};
-    const route = state.routes.find(item => item.id === schedule.routeId || item.listingId === schedule.listingId) || {};
-    const vehicle = state.vehicles.find(item => item.id === schedule.vehicleId) || {};
-    const scheduleBookings = state.bookings.filter(booking => booking.scheduleId === schedule.id || booking.listingId === schedule.listingId);
+    const route = routeById.get(normalize(schedule.routeId)) || routesForListing(schedule.listingId)[0] || {};
+    const vehicle = vehicleById.get(normalize(schedule.vehicleId)) || {};
+    const scheduleBookings = bookingsBySchedule.get(String(schedule.id || '').trim()) || bookingsByListing.get(String(schedule.listingId || '').trim()) || [];
     const seatRows = seatsForSchedule(schedule.id);
     const bookedSeats = seatRows.filter(seat => ['taken', 'booked'].includes(normalize(seat.status))).length || Number(schedule.bookedSeats || 0);
     const heldSeats = seatRows.filter(seat => ['locked', 'held', 'hold'].includes(normalize(seat.status))).length || Number(schedule.heldSeats || 0);
@@ -2991,7 +3042,7 @@ function createDashboardProjection(initialState = {}) {
   }
   function inventoryDetail(record = {}, companyId = '') {
     if (!record) return null;
-    const schedule = state.schedules.find(item => item.id === record.scheduleId) || {};
+    const schedule = scheduleById.get(normalize(record.scheduleId)) || {};
     const listing = findListing(record.listingId || schedule.listingId) || {};
     const booking = record.bookingRef ? findBooking(record.bookingRef) : null;
     const company = findCompany(companyId || record.companyId || listing.companyId || schedule.companyId) || {};
@@ -3659,40 +3710,42 @@ function createDashboardProjection(initialState = {}) {
   function findListing(identifier, serviceType) {
     const id = normalize(identifier);
     const type = normalize(serviceType || '');
-    return state.listings.find(item => normalize(recordIdentity(item)) === id || normalize(item.slug) === id || (normalize(item.title) === id && (!type || normalize(item.serviceType) === type)));
+    if (!id) return null;
+    return listingByIdentity.get(id)
+      || (type ? listingByTitleAndType.get(`${id}::${type}`) : null)
+      || listingByTitle.get(id)
+      || null;
   }
   function findCompany(slug) {
-    const key = normalize(slug);
-    return state.companies.find(company => normalize(company.slug) === key || normalize(company.id) === key);
+    return companyByIdentity.get(normalize(slug)) || null;
   }
   function listingsForCompany(companyId) {
-    return state.listings.filter(item => sameRecordId(item.companyId, companyId));
+    return listingsByCompany.get(String(companyId ?? '').trim()) || [];
   }
   function routesForListing(listingId) {
-    return state.routes.filter(route => sameRecordId(route.listingId, listingId));
+    return routesByListing.get(String(listingId ?? '').trim()) || [];
   }
   function schedulesForListing(listingId) {
-    return state.schedules.filter(schedule => sameRecordId(schedule.listingId, listingId));
+    return schedulesByListing.get(String(listingId ?? '').trim()) || [];
   }
   function roomsForListing(listingId) {
-    return state.roomSummaries.filter(room => sameRecordId(room.listingId, listingId));
+    return roomsByListing.get(String(listingId ?? '').trim()) || [];
   }
   function seatsForSchedule(scheduleId) {
-    return state.seats.filter(seat => seat.scheduleId === scheduleId);
+    return seatsBySchedule.get(String(scheduleId ?? '').trim()) || [];
   }
   function findBooking(ref) {
     const key = normalize(ref);
-    if (!key) return null;
-    return state.bookings.find(booking => bookingSearchValues(booking).some(value => normalize(value) === key)) || null;
+    return key ? (bookingByIdentity.get(key) || null) : null;
   }
   function bookingDetail(booking = {}) {
     if (!booking) return null;
     const listing = findListing(booking.listingId) || {};
     const company = findCompany(booking.companyId) || {};
-    const schedule = state.schedules.find(item => item.id === booking.scheduleId) || {};
-    const vehicle = state.vehicles.find(item => item.id === schedule.vehicleId || item.id === booking.vehicleId) || {};
-    const payment = state.payments.find(item => item.bookingRef === booking.bookingRef || item.bookingId === booking.id) || {};
-    const promoter = booking.promoterAttribution?.promoterId ? state.users.find(user => user.id === booking.promoterAttribution.promoterId) : null;
+    const schedule = scheduleById.get(normalize(booking.scheduleId)) || {};
+    const vehicle = vehicleById.get(normalize(schedule.vehicleId || booking.vehicleId)) || {};
+    const payment = paymentByBookingIdentity.get(normalize(booking.bookingRef)) || paymentByBookingIdentity.get(normalize(booking.id)) || {};
+    const promoter = booking.promoterAttribution?.promoterId ? userById.get(normalize(booking.promoterAttribution.promoterId)) : null;
     return {
       booking: {
         id: booking.id,

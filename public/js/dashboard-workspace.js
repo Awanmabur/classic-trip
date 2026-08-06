@@ -52,7 +52,10 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function validateActionForm(form) {
     if (!form || form.dataset.skipValidation === 'true') return true;
-    const required = $('[required]', form).filter((field) => !field.disabled && field.type !== 'hidden');
+    // querySelector returns one element, so calling .filter() on it stopped every
+    // dashboard form before the browser could submit it. Always collect all
+    // required controls as an array so validation works across every role.
+    const required = $$('[required]', form).filter((field) => !field.disabled && field.type !== 'hidden');
     let firstInvalid = null;
     required.forEach((field) => {
       clearFieldError(field);
@@ -1132,8 +1135,27 @@ window.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  const pendingTableRenders = new Map();
+
+  function tableSectionFor(selector) {
+    const node = $(selector);
+    return node?.closest('.section') || null;
+  }
+
+  function flushPendingTables(section) {
+    if (!section) return;
+    for (const [selector, pending] of Array.from(pendingTableRenders.entries())) {
+      if (tableSectionFor(selector) !== section) continue;
+      pendingTableRenders.delete(selector);
+      fillTable(selector, pending.rows, pending.type);
+    }
+    enhanceTables();
+  }
+
   function enhanceTables() {
     $$('.tableWrap').forEach((wrap, index) => {
+      const section = wrap.closest('.section');
+      if (section && !section.classList.contains('is-open')) return;
       if (wrap.dataset.enhanced === 'true') return;
       const table = wrap.querySelector('table');
       if (!table) return;
@@ -1239,7 +1261,14 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   function fillTable(selector, rows, type = 'booking') {
+    const target = $(selector);
+    if (!target) return;
     rows = Array.isArray(rows) ? rows : [];
+    const section = target.closest('.section');
+    if (section && !section.classList.contains('is-open')) {
+      pendingTableRenders.set(selector, { rows, type });
+      return;
+    }
     if (!rows.length) {
       setHtml(selector, '<tr class="emptyTableRow"><td colspan="99"><div class="emptyTableState"><div class="miniLogo"><i class="fa-solid fa-circle-info"></i></div><div><strong>No records found</strong><span>This tab has no matching records yet. Use the page action above to create the first connected record.</span></div></div></td></tr>');
       return;
@@ -1298,9 +1327,51 @@ window.addEventListener('DOMContentLoaded', function () {
       Array.from(tbody.querySelectorAll('tr')).forEach((row, idx) => {
         const map = maps[idx] || {};
         row.dataset.seatMapRow = String(map.scheduleId || map.id || `seat-map-${idx}`);
+        row.dataset.seatMapVehicle = String(map.vehicleId || map.vehicleName || '');
+        row.dataset.seatMapDate = String(map.departAt || map.travelDate || '').slice(0, 10);
+        row.dataset.seatMapStatus = normalizedFilterText(map.status || 'active');
       });
     }
+    applySeatMapFilters();
+  }
+
+  function seatMapFilterValue(name) {
+    return String(document.querySelector(`[data-seat-map-filter="${name}"]`)?.value || '').trim().toLowerCase();
+  }
+
+  function applySeatMapFilters() {
+    const select = document.querySelector('[data-seat-map-select]');
+    if (!select) return;
+    const vehicle = seatMapFilterValue('vehicle');
+    const date = seatMapFilterValue('date');
+    const status = normalizedFilterText(seatMapFilterValue('status'));
+    const matchingOptions = [];
+    Array.from(select.options || []).forEach((option) => {
+      const optionVehicle = String(option.dataset.vehicle || '').trim().toLowerCase();
+      const optionDate = String(option.dataset.date || '').trim().toLowerCase();
+      const optionStatus = normalizedFilterText(option.dataset.status || 'active');
+      const matches = (!vehicle || optionVehicle === vehicle)
+        && (!date || optionDate === date)
+        && (!status || optionStatus === status);
+      option.hidden = !matches;
+      option.disabled = !matches;
+      if (matches) matchingOptions.push(option);
+    });
+    const current = select.options[select.selectedIndex];
+    if (!current || current.disabled) {
+      if (matchingOptions.length) select.value = matchingOptions[0].value;
+      else select.selectedIndex = -1;
+    }
+    const summary = document.querySelector('[data-seat-map-filter-summary]');
+    if (summary) summary.textContent = `${matchingOptions.length} departure${matchingOptions.length === 1 ? '' : 's'}`;
+    const empty = document.querySelector('[data-seat-map-filter-empty]');
+    if (empty) empty.style.display = matchingOptions.length ? 'none' : 'block';
     syncSelectedSeatMap();
+  }
+
+  function resetSeatMapFilters() {
+    document.querySelectorAll('[data-seat-map-filter]').forEach((control) => { control.value = ''; });
+    applySeatMapFilters();
   }
 
   function syncSelectedSeatMap() {
@@ -1317,6 +1388,11 @@ window.addEventListener('DOMContentLoaded', function () {
       if (statBooked) statBooked.textContent = selectedOption.dataset.booked || '0';
       if (statHeld) statHeld.textContent = selectedOption.dataset.held || '0';
       if (statBlocked) statBlocked.textContent = selectedOption.dataset.blocked || '0';
+    } else {
+      if (statTotal) statTotal.textContent = '0';
+      if (statBooked) statBooked.textContent = '0';
+      if (statHeld) statHeld.textContent = '0';
+      if (statBlocked) statBlocked.textContent = '0';
     }
     document.querySelectorAll('[data-seat-map-panel]').forEach(panel => {
       panel.hidden = String(panel.getAttribute('data-seat-map-panel')) !== selected;
@@ -1325,8 +1401,21 @@ window.addEventListener('DOMContentLoaded', function () {
     rows.forEach(row => {
       row.style.display = String(row.dataset.seatMapRow || '') === selected ? '' : 'none';
     });
+    const activeFilters = document.querySelector('[data-filter-target="#companySeatMapsTable"]');
+    if (activeFilters) {
+      applyDashboardFilter(activeFilters);
+      return;
+    }
     const empty = document.querySelector('[data-empty-for="#companySeatMapsTable"]');
     if (empty) empty.style.display = Array.from(rows).some(row => row.style.display !== 'none') ? 'none' : 'block';
+  }
+
+  function normalizedFilterText(value) {
+    return String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  }
+
+  function escapeFilterPattern(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function applyDashboardFilter(filterBox) {
@@ -1334,13 +1423,13 @@ window.addEventListener('DOMContentLoaded', function () {
     const target = filterBox.getAttribute('data-filter-target');
     const tbody = target ? document.querySelector(target) : null;
     if (!tbody) return;
-    const query = String(filterBox.querySelector('[data-filter-search]')?.value || '').trim().toLowerCase();
-    const selectValues = Array.from(filterBox.querySelectorAll('[data-filter-select]')).map(sel => String(sel.value || '').trim().toLowerCase()).filter(Boolean);
+    const query = normalizedFilterText(filterBox.querySelector('[data-filter-search]')?.value || '');
+    const selectValues = Array.from(filterBox.querySelectorAll('[data-filter-select]')).map(sel => normalizedFilterText(sel.value)).filter(Boolean);
     let visible = 0;
     Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-      const hay = row.textContent.toLowerCase();
+      const hay = normalizedFilterText(row.textContent);
       const matchesSearch = !query || hay.includes(query);
-      const matchesSelects = selectValues.every(value => hay.includes(value));
+      const matchesSelects = selectValues.every((value) => new RegExp(`(^|[^a-z0-9])${escapeFilterPattern(value)}([^a-z0-9]|$)`, 'i').test(hay));
       let scopedMatch = true;
       if (target === '#companySeatMapsTable') {
         const seatMapSelect = document.querySelector('[data-seat-map-select]');
@@ -1448,7 +1537,10 @@ window.addEventListener('DOMContentLoaded', function () {
       target = $('#overview');
       if (!target) return;
     }
-    if (target) target.classList.add('is-open');
+    if (target) {
+      target.classList.add('is-open');
+      flushPendingTables(target);
+    }
     const navButtons = $$('.navBtn');
     const hasExactNav = navButtons.some(btn => btn.dataset.page === requestedPage);
     navButtons.forEach(btn => btn.classList.toggle('is-active', hasExactNav ? btn.dataset.page === requestedPage : canonicalPage(btn.dataset.page) === page));
@@ -1530,7 +1622,26 @@ window.addEventListener('DOMContentLoaded', function () {
     return ` data-depends-on="${escapeHtml(field.dependsOn)}" data-filter-key="${escapeHtml(field.filterKey || '')}" data-parent-meta-key="${escapeHtml(field.parentMetaKey || '')}"`;
   }
 
+  function normalizeAdminControlValue(field = {}) {
+    const raw = field.value;
+    if (raw === undefined || raw === null) return '';
+    if (field.type === 'date') {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+      return String(raw).slice(0, 10);
+    }
+    if (field.type === 'datetime-local') {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) return localDateTimeValue(parsed);
+      return String(raw).replace(/Z$/i, '').slice(0, 16);
+    }
+    if (field.type === 'time') return String(raw).slice(0, 5);
+    if (Array.isArray(raw)) return raw.join(', ');
+    return raw;
+  }
+
   function adminFieldHtml(field, readonly = false, disabled = false) {
+    const value = normalizeAdminControlValue(field);
     const ro = readonly || field.readonly ? 'readonly' : '';
     const dis = disabled || field.disabled ? 'disabled' : '';
     const required = field.required ? 'required' : '';
@@ -1542,18 +1653,18 @@ window.addEventListener('DOMContentLoaded', function () {
     const minLength = Number(field.minLength || 0) > 0 ? ` minlength="${Number(field.minLength)}"` : '';
     const maxLength = Number(field.maxLength || 0) > 0 ? ` maxlength="${Number(field.maxLength)}"` : '';
     const characterCount = Number(field.minLength || 0) > 0 ? `<small class="fieldCharacterCount" data-character-count-for="${escapeHtml(field.name)}">0 / ${Number(field.minLength)} minimum</small>` : '';
-    if (field.type === 'hidden') return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(field.value || '')}">`;
+    if (field.type === 'hidden') return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(value)}">`;
     if (field.type === 'smart-summary') {
       return `<div class="field full smartBusSummary" data-smart-summary="${escapeHtml(field.summary || 'bus')}"><div class="smartBusSummaryInner"><i class="fa-solid ${field.icon || 'fa-wand-magic-sparkles'}"></i><div><strong>${escapeHtml(field.label || 'Smart form')}</strong><span data-smart-summary-text>${escapeHtml(field.help || 'Select the related record and the form will fill verified details automatically.')}</span></div></div></div>`;
     }
     if (field.type === 'seat-labels') {
-      return `<div class="field full seatLabelEditor" data-seat-label-editor><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '1, 2, 3, 4...')}" ${ro} ${required}${requiredMeta}${smart}>${escapeHtml(field.value || '')}</textarea></div><div class="seatLabelTools"><span data-seat-label-count>0 labels</span><button class="tinyBtn" type="button" data-generate-seat-labels="numeric"><i class="fa-solid fa-arrow-down-1-9"></i> Numeric</button><button class="tinyBtn" type="button" data-generate-seat-labels="row_letters"><i class="fa-solid fa-table-cells"></i> Row letters</button></div>${help}</div>`;
+      return `<div class="field full seatLabelEditor" data-seat-label-editor><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '1, 2, 3, 4...')}" ${ro} ${required}${requiredMeta}${smart}>${escapeHtml(value)}</textarea></div><div class="seatLabelTools"><span data-seat-label-count>0 labels</span><button class="tinyBtn" type="button" data-generate-seat-labels="numeric"><i class="fa-solid fa-arrow-down-1-9"></i> Numeric</button><button class="tinyBtn" type="button" data-generate-seat-labels="row_letters"><i class="fa-solid fa-table-cells"></i> Row letters</button></div>${help}</div>`;
     }
     if (field.type === 'textarea') {
-      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}${minLength}${maxLength}>${escapeHtml(field.value || '')}</textarea></div>${characterCount}${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><textarea name="${escapeHtml(field.name)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}${minLength}${maxLength}>${escapeHtml(value)}</textarea></div>${characterCount}${help}</div>`;
     }
     if (field.type === 'select') {
-      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}${requiredMeta}${dependency}${smart}>${selectOptions(field.options, field.value || '')}</select></div>${help}</div>`;
+      return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-list'}"></i><select name="${escapeHtml(field.name)}" ${dis} ${required}${requiredMeta}${dependency}${smart}>${selectOptions(field.options, value)}</select></div>${help}</div>`;
     }
     if (field.type === 'multiselect') {
       const name = String(field.name).endsWith('[]') ? field.name : `${field.name}[]`;
@@ -1568,7 +1679,7 @@ window.addEventListener('DOMContentLoaded', function () {
       }).join('') || `<div class="notice">No options available yet. Add the related records first.</div>`;
       return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><details class="foldSelect" data-fold-select data-field-name="${escapeHtml(field.name)}"${dependency}><summary><span class="foldSelectTitle"><i class="fa-solid ${field.icon || 'fa-list-check'}"></i><span>${escapeHtml(field.placeholder || 'Select options')}</span></span><span class="foldSelectCount" data-fold-count>0 selected <i class="fa-solid fa-chevron-down"></i></span></summary><div class="foldSelectPanel">${options}</div></details>${help}</div>`;
     }
-    return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}></div>${help}</div>`;
+    return `<div class="field ${field.full ? 'full' : ''}"${showFor}><label>${escapeHtml(field.label)}${field.required ? ' *' : ''}</label><div class="control"><i class="fa-solid ${field.icon || 'fa-pen'}"></i><input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type || 'text')}" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || '')}" ${ro} ${required}${requiredMeta}${smart}></div>${help}</div>`;
   }
 
   function selectedOptionMeta(select, key) {
@@ -1759,6 +1870,61 @@ window.addEventListener('DOMContentLoaded', function () {
     return map[key] || 4;
   }
 
+  function parsedRowLayoutOverridesBrowser(value = '') {
+    const rows = [];
+    String(value || '').split(/[\n,;]+/).forEach((entry) => {
+      const match = entry.trim().match(/^(\d+)\s*:\s*(\d+)\s*(?:\+|x|\/)\s*(\d+)$/i);
+      if (!match) return;
+      rows.push({ row: Number(match[1]), leftSeats: Number(match[2]), rightSeats: Number(match[3]) });
+    });
+    return rows;
+  }
+
+  function syncSeatLayoutCapacity(form, names = {}) {
+    if (!form) return 0;
+    const layoutName = names.layout || 'layoutName';
+    const totalName = names.total || 'totalSeats';
+    const rowsName = names.rows || 'rows';
+    const columnsName = names.columns || 'columns';
+    const frontName = names.front || 'frontRowPassengerSeats';
+    const overridesName = names.overrides || 'rowLayoutOverrides';
+    const layoutControl = fieldControl(form, layoutName);
+    const totalControl = fieldControl(form, totalName);
+    const rowsControl = fieldControl(form, rowsName);
+    if (!layoutControl || !totalControl || !rowsControl) return 0;
+    const layout = String(layoutControl.value || '2x2').toLowerCase();
+    const columns = Math.max(1, layoutColumns(layout));
+    const columnsControl = fieldControl(form, columnsName) || fieldControl(form, names.cols || 'cols');
+    if (/^\d+x\d+$/.test(layout) && columnsControl && String(columnsControl.value || '') !== String(columns)) {
+      autoSetField(form, columnsName, columns, { force:true });
+      if (fieldControl(form, names.cols || 'cols') && !fieldControl(form, columnsName)) autoSetField(form, names.cols || 'cols', columns, { force:true });
+    }
+    const total = Math.max(0, Number(totalControl.value || 0));
+    if (!total) return 0;
+    const front = Number(fieldControl(form, frontName)?.value || 0) === 1 ? 1 : 0;
+    const overrides = parsedRowLayoutOverridesBrowser(fieldControl(form, overridesName)?.value || '');
+    const overrideByRow = new Map(overrides.map((entry) => [entry.row, entry]));
+    const highestOverrideRow = overrides.reduce((max, entry) => Math.max(max, entry.row), 0);
+    const capacity = (rowCount) => {
+      let positions = 0;
+      for (let row = 1; row <= rowCount; row += 1) {
+        if (front && row === 1) positions += 1;
+        else {
+          const override = overrideByRow.get(row);
+          positions += override ? override.leftSeats + override.rightSeats : columns;
+        }
+      }
+      return positions;
+    };
+    let minimumRows = Math.max(1, highestOverrideRow, (front ? 1 : 0) + Math.ceil(Math.max(0, total - front) / columns));
+    while (minimumRows < 100 && capacity(minimumRows) < total) minimumRows += 1;
+    const currentRows = Math.max(0, Number(rowsControl.value || 0));
+    if (!rowsControl.dataset.smartUserEdited || currentRows < minimumRows) {
+      autoSetField(form, rowsName, Math.max(currentRows, minimumRows), { force:true });
+    }
+    return minimumRows;
+  }
+
   function rowLetter(index) {
     let value = Math.max(1, Number(index) || 1);
     let result = '';
@@ -1861,6 +2027,7 @@ window.addEventListener('DOMContentLoaded', function () {
       setFoldSelectValues(form, 'disabledSeats', vehicle.disabledSeats || '');
       setFoldSelectValues(form, 'blockedSeats', vehicle.blockedSeats || '');
     }
+    syncSeatLayoutCapacity(form);
     refreshSeatLabelEditor(form);
     if (vehicle.value) {
       const version = vehicle.seatMapVersion ? `seat-map v${vehicle.seatMapVersion}` : 'published seat map';
@@ -1878,13 +2045,11 @@ window.addEventListener('DOMContentLoaded', function () {
     const selectedDriver = selectedMeta(driverSelect);
     const vehicleClass = fieldControl(form, 'vehicle[vehicleClass]')?.value || 'standard';
     if (vehicleClass === 'vip') autoSetField(form, 'fare[fareClass]', 'vip');
-    const layout = fieldControl(form, 'vehicle[layoutName]');
-    const total = fieldControl(form, 'vehicle[totalSeats]');
-    const rows = fieldControl(form, 'vehicle[rows]');
-    if (layout && total && rows && !rows.dataset.smartUserEdited && Number(total.value) > 0) {
-      const front = Number(fieldControl(form, 'vehicle[frontRowPassengerSeats]')?.value || 0) === 1 ? 1 : 0;
-      autoSetField(form, 'vehicle[rows]', (front ? 1 : 0) + Math.ceil(Math.max(0, Number(total.value) - front) / layoutColumns(layout.value || '2x2')), { force:true });
-    }
+    syncSeatLayoutCapacity(form, {
+      layout: 'vehicle[layoutName]', total: 'vehicle[totalSeats]', rows: 'vehicle[rows]',
+      columns: 'vehicle[columns]', cols: 'vehicle[cols]', front: 'vehicle[frontRowPassengerSeats]',
+      overrides: 'vehicle[rowLayoutOverrides]'
+    });
     if (origin.value && destination.value && origin.value !== destination.value) {
       const routeName = `${origin.title || origin.label} to ${destination.title || destination.label}`;
       autoSetField(form, 'route[routeName]', routeName);
@@ -1948,13 +2113,7 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   function syncVehicleCreateForm(form) {
-    const layout = fieldControl(form, 'layoutName');
-    const total = fieldControl(form, 'totalSeats');
-    const rows = fieldControl(form, 'rows');
-    if (layout && total && rows && !rows.dataset.smartUserEdited && Number(total.value) > 0) {
-      const front = Number(fieldControl(form, 'frontRowPassengerSeats')?.value || 0) === 1 ? 1 : 0;
-      autoSetField(form, 'rows', (front ? 1 : 0) + Math.ceil(Math.max(0, Number(total.value) - front) / layoutColumns(layout.value)), { force:true });
-    }
+    syncSeatLayoutCapacity(form);
     refreshSeatLabelEditor(form);
     const listing = selectedMeta(fieldControl(form, 'listingId'));
     if (listing.value) setSmartSummary(form, `${listing.label}: vehicle identity and compliance are entered once. A published seat-map version will be generated automatically from the layout, capacity and numbering method.`, 'ready');
@@ -2222,14 +2381,26 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
     const record = detail?.listing || detail?.route || detail?.routeStop || detail?.vehicle || detail?.scheduleRule || detail?.schedule || detail?.room || detail?.property || detail?.roomType || detail?.roomUnit || detail?.roomNight || detail?.serviceAddon || detail?.fareProduct || detail?.segmentFare || detail?.branch || detail?.policy || detail?.review || detail?.ticket || detail?.support || detail || {};
+    const deepValue = (source, path) => String(path || '').split('.').reduce((obj, part) => {
+      if (obj === undefined || obj === null) return undefined;
+      if (Array.isArray(obj) && /^\d+$/.test(part)) return obj[Number(part)];
+      return typeof obj === 'object' ? obj[part] : undefined;
+    }, source);
     const fieldValue = (...keys) => {
+      const sources = [detail, record];
       for (const key of keys) {
-        const value = key.split('.').reduce((obj, part) => (obj && typeof obj === 'object') ? obj[part] : undefined, detail);
-        if (value !== undefined && value !== null && value !== '') return Array.isArray(value) ? value.join(', ') : value;
-      }
-      for (const key of keys) {
-        const value = record?.[key];
-        if (value !== undefined && value !== null && value !== '') return Array.isArray(value) ? value.join(', ') : value;
+        for (const source of sources) {
+          const value = deepValue(source, key);
+          if (value !== undefined && value !== null && value !== '') return value;
+          // A key such as `listing.title` may be used after `record` has already
+          // been narrowed to the listing itself. Retrying without the alias keeps
+          // row edits hydrated across every dashboard projection shape.
+          const parts = String(key).split('.');
+          if (parts.length > 1) {
+            const aliasless = deepValue(source, parts.slice(1).join('.'));
+            if (aliasless !== undefined && aliasless !== null && aliasless !== '') return aliasless;
+          }
+        }
       }
       return '';
     };
@@ -2451,6 +2622,16 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'pricingUnit', label:'Pricing unit', type:'select', icon:'fa-scale-balanced', options:[{value:'per_shipment',label:'Per shipment'},{value:'per_kg',label:'Per kilogram'},{value:'per_package',label:'Per package'}], value:fieldValue('listing.pricingUnit','pricingUnit'), showFor:'cargo' },
         { name:'deliveryAreas', label:'Delivery areas', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.deliveryAreas','deliveryAreas'), showFor:'cargo' },
         { name:'cargoDescription', label:'Cargo handling details', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.cargoDescription','cargoDescription'), showFor:'cargo' },
+        { name:'contactPhone', label:'Customer contact phone', icon:'fa-phone', value:fieldValue('listing.contactPhone','contactPhone') },
+        { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:fieldValue('listing.checkInTime','checkInTime'), showFor:'hotel' },
+        { name:'checkOutTime', label:'Check-out time', type:'time', icon:'fa-clock', value:fieldValue('listing.checkOutTime','checkOutTime'), showFor:'hotel' },
+        { name:'amenities', label:'Amenities', type:'multiselect', icon:'fa-wifi', options:hotelAmenityOptions, value:fieldValue('listing.amenities','amenities'), showFor:'hotel' },
+        { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', value:fieldValue('listing.pickupInstructions','pickupInstructions'), showFor:'bus' },
+        { name:'dropoffInstructions', label:'Drop-off instructions', icon:'fa-location-dot', value:fieldValue('listing.dropoffInstructions','dropoffInstructions'), showFor:'bus' },
+        { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, value:fieldValue('listing.baggageRules','baggageRules'), showFor:'bus' },
+        { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, value:fieldValue('listing.cancellationRules','cancellationRules') },
+        { name:'policy', label:'Booking policy', type:'textarea', full:true, value:fieldValue('listing.policy','policy') },
+        { name:'serviceNotes', label:'Operating notes', type:'textarea', full:true, value:fieldValue('listing.serviceNotes','serviceNotes') },
         { name:'imageFile', label:'Add service image', type:'file', icon:'fa-image' },
         { name:'priceFrom', label:'Price from / unit price', type:'number', icon:'fa-coins', value: fieldValue('listing.priceFrom','priceFrom'), showFor:['hotel','tour','car_rental','cargo'] },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['draft','active','paused','archived'], value: fieldValue('listing.status','status') || 'draft' },
@@ -2520,9 +2701,11 @@ window.addEventListener('DOMContentLoaded', function () {
         { name:'arriveAt', label:'Arrival estimate', type:'datetime-local', icon:'fa-calendar-check', value: fieldValue('schedule.arriveAt','schedule.arrival','arriveAt') },
         { name:'fareProductId', label:'Fare plan', type:'select', icon:'fa-coins', options:fareProducts, required:true, value: fieldValue('schedule.fareProductId','fareProductId'), dependsOn:'routeId', filterKey:'routeId', help:'Changing a published departure creates a replacement so sold tickets retain their original snapshot.' },
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock', value: fieldValue('schedule.boardingStartAt','boardingStartAt') },
+        { name:'gate', label:'Gate / bay', icon:'fa-signs-post', value: fieldValue('schedule.gate','gate') },
+        { name:'platform', label:'Platform / terminal bay', icon:'fa-road', value: fieldValue('schedule.platform','platform') },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: fieldValue('schedule.status','status') || 'draft' },
-        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','driverEmployeeId'), help:'Driver assignment is optional. Any saved company driver can be selected; account, membership and compliance details remain visible as operational warnings.' },
-        { name:'blockedSeats', label:'Blocked seats for replacement', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', help:'Uses the selected bus’s published seat labels.' },
+        { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','schedule.driverIds.0','driverEmployeeId','driverIds.0','driverId'), help:'Driver assignment is optional. Any saved company driver can be selected; account, membership and compliance details remain visible as operational warnings.' },
+        { name:'blockedSeats', label:'Blocked seats for replacement', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', value:fieldValue('schedule.blockedSeats','blockedSeats'), help:'Uses the selected bus’s published seat labels.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, value: fieldValue('schedule.notes','notes') }
       ]
     };
@@ -3778,6 +3961,8 @@ window.addEventListener('DOMContentLoaded', function () {
       if (filterBox) applyDashboardFilter(filterBox);
       const seatMapSelect = e.target.closest('[data-seat-map-select]');
       if (seatMapSelect) syncSelectedSeatMap();
+      const seatMapFilter = e.target.closest('[data-seat-map-filter]');
+      if (seatMapFilter) applySeatMapFilters();
       if (e.target.matches('[name="serviceType"], select[name="listingId"]')) applyShowForFields(e.target.closest('form') || document);
       if (e.target.matches('select')) refreshDependentsFor(e.target);
       const smartForm = e.target.closest('#crudForm');
@@ -3814,6 +3999,11 @@ window.addEventListener('DOMContentLoaded', function () {
         if (labelsField) labelsField.dataset.smartUserEdited = 'true';
         refreshSeatLabelEditor(form);
         return;
+      }
+      const resetSeatMapFilter = e.target.closest('[data-seat-map-filter-reset]');
+      if (resetSeatMapFilter) {
+        e.preventDefault();
+        resetSeatMapFilters();
       }
       const focusSeatMapList = e.target.closest('[data-seat-map-focus-list]');
       if (focusSeatMapList) {
@@ -4263,6 +4453,11 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   function init() {
+    const initialPage = shell.activePage || new URLSearchParams(window.location.search).get('page') || String(window.location.hash || '').replace('#', '') || 'overview';
+    // Open the requested section before building any rows. fillTable then renders
+    // only the visible page and defers every other table until that section is
+    // actually opened, removing the former all-dashboard DOM construction cost.
+    showPage(initialPage);
     fillOverviewStats();
     fillRecent();
     fillTable('#bookingsTable', data.bookings);
@@ -4427,8 +4622,6 @@ window.addEventListener('DOMContentLoaded', function () {
     const crudBody = document.getElementById('crudBody');
     if (crudBody) new MutationObserver(() => enhanceFormLabels(crudBody)).observe(crudBody, { childList: true, subtree: true });
     bindEvents();
-    const initialPage = shell.activePage || new URLSearchParams(window.location.search).get('page') || String(window.location.hash || '').replace('#', '') || 'overview';
-    showPage(initialPage);
     window.addEventListener('popstate', function () {
       const fromPath = String(window.location.pathname || '').split('/').filter(Boolean).pop();
       const page = String(window.location.hash || '').replace('#', '') || (fromPath === 'dashboard' ? 'overview' : fromPath) || 'overview';

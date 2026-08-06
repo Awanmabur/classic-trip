@@ -27,6 +27,11 @@ function isPublicListing(row, data = {}) { return publicListingVisible(row, data
 let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
+const listingSnapshotCache = new Map();
+const listingSnapshotInflight = new Map();
+const LISTING_SNAPSHOT_TTL_MS = 30_000;
+const LISTING_SNAPSHOT_STALE_MS = 120_000;
+const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
@@ -105,6 +110,171 @@ async function loadSnapshotFresh() {
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
 }
 
+
+function listingSnapshotKey(identifier, serviceType = '') {
+  return `${canonicalPublicServiceType(serviceType)}:${normalize(identifier)}`;
+}
+
+function rememberListingSnapshot(key, value) {
+  if (listingSnapshotCache.size >= LISTING_SNAPSHOT_CACHE_LIMIT) {
+    const oldest = listingSnapshotCache.keys().next().value;
+    if (oldest) listingSnapshotCache.delete(oldest);
+  }
+  listingSnapshotCache.set(key, { value, createdAt: Date.now() });
+  return value;
+}
+
+async function loadListingSnapshotFresh(identifier, serviceType = '') {
+  const key = text(identifier);
+  const type = canonicalPublicServiceType(serviceType);
+  if (!key) return null;
+  const identity = [{ id: key }, { slug: key }];
+  const listing = await runMongoRead(() => commerceRepository.listings.findOne({
+    $and: [
+      { status: 'active', releaseStatus: 'published' },
+      type ? { serviceType: type } : {},
+      { $or: identity },
+    ],
+  }));
+  if (!listing) return null;
+  const listingId = entityId(listing);
+  const listingType = canonicalPublicServiceType(listing.serviceType || listing.type || '');
+  const isBus = listingType === 'bus';
+  const isHotel = listingType === 'hotel';
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const [company, routes, serviceAddons, schedules, roomTypes, platformConfig] = await runCatalogTasks([
+    () => commerceRepository.companies.findOne({ id: listing.companyId }),
+    () => isBus ? commerceRepository.routes.list({ listingId, status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 120 }) : [],
+    () => commerceRepository.serviceAddons.list({ listingId, status: 'active' }, { sort: { sortOrder: 1, createdAt: 1 }, limit: 120 }),
+    () => isBus ? commerceRepository.schedules.list({
+      listingId,
+      status: { $in: ['published', 'boarding', 'delayed'] },
+      $or: [
+        { departAt: { $gte: now } },
+        { status: 'boarding' },
+        { status: 'delayed', arriveAt: { $gte: now } },
+      ],
+    }, { sort: { departAt: 1 }, limit: 180 }) : [],
+    () => isHotel ? commerceRepository.roomTypes.list({ listingId, status: 'active' }, { sort: { createdAt: -1 }, limit: 120 }) : [],
+    () => getPlatformConfig(),
+  ]);
+  const routeIds = unique(routes.map(entityId));
+  const roomTypeIds = unique(roomTypes.map(entityId));
+
+  // New departures already carry immutable route, seat-map and compact fare
+  // snapshots. Reusing them removes the largest listing/payment cold reads:
+  // every compatibility Seat row plus the full fare tables for all 30 dates.
+  const snapshotStops = [];
+  const snapshotFareProducts = new Map();
+  const snapshotSegmentFares = new Map();
+  for (const schedule of schedules) {
+    const routeId = text(schedule.routeId || schedule.routeSnapshot?.routeId);
+    for (const stop of (schedule.routeSnapshot?.stops || [])) {
+      const stopId = entityId(stop);
+      if (!stopId) continue;
+      const keyValue = `${routeId}:${stopId}`;
+      if (!snapshotStops.some((row) => `${text(row.routeId)}:${entityId(row)}` === keyValue)) {
+        snapshotStops.push({ ...stop, id: stopId, routeId, status: stop.status || 'active' });
+      }
+    }
+    const fareSnapshot = schedule.fareSnapshot || {};
+    const fareProductId = text(fareSnapshot.fareProductId || schedule.fareProductId);
+    if (fareProductId && !snapshotFareProducts.has(fareProductId)) {
+      snapshotFareProducts.set(fareProductId, {
+        id: fareProductId,
+        listingId,
+        companyId: listing.companyId,
+        routeId,
+        name: fareSnapshot.name || schedule.fareClass || 'Standard fare',
+        fareClass: fareSnapshot.fareClass || schedule.fareClass || 'standard',
+        currency: fareSnapshot.currency || schedule.currency,
+        refundable: !!fareSnapshot.refundable,
+        changeable: !!fareSnapshot.changeable,
+        baggageAllowanceKg: number(fareSnapshot.baggageAllowanceKg),
+        status: 'active',
+      });
+    }
+    for (const fare of (fareSnapshot.fares || [])) {
+      const fareId = entityId(fare) || `${fareProductId}:${fare.fromStopId}:${fare.toStopId}`;
+      if (!fareId || snapshotSegmentFares.has(fareId)) continue;
+      snapshotSegmentFares.set(fareId, {
+        ...fare,
+        id: fareId,
+        listingId,
+        companyId: listing.companyId,
+        routeId,
+        fareProductId,
+        currency: fare.currency || fareSnapshot.currency || schedule.currency,
+        status: fare.status || 'active',
+      });
+    }
+  }
+  const snapshotStopRouteIds = new Set(snapshotStops.map((row) => text(row.routeId)).filter(Boolean));
+  const snapshotFareRouteIds = new Set([...snapshotFareProducts.values()].map((row) => text(row.routeId)).filter(Boolean));
+  const snapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotStopRouteIds.has(String(routeId)));
+  const fareSnapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotFareRouteIds.has(String(routeId)));
+  const [routeStops, fareProducts, segmentFares, roomUnits, roomNights] = await runCatalogTasks([
+    () => !isBus || !routeIds.length ? [] : (snapshotsCoverRoutes ? snapshotStops : commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 1000 })),
+    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes ? [...snapshotFareProducts.values()] : commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 500 })),
+    () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes && snapshotSegmentFares.size ? [...snapshotSegmentFares.values()] : commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 3000 })),
+    () => roomTypeIds.length ? commerceRepository.roomUnits.list({ listingId, roomTypeId: { $in: roomTypeIds }, status: { $nin: ['archived', 'maintenance'] } }, { limit: 1000 }) : [],
+    () => roomTypeIds.length ? commerceRepository.roomNights.list({ listingId, roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 5000 }) : [],
+  ]);
+  const seats = [];
+  const vehicles = [];
+  return {
+    categories: [],
+    listings: [listing],
+    companies: [company].filter(Boolean),
+    routes,
+    routeStops,
+    fareProducts,
+    segmentFares,
+    serviceAddons,
+    schedules,
+    seats,
+    vehicles,
+    roomTypes,
+    roomUnits,
+    roomNights,
+    links: [],
+    campaigns: [],
+    blogs: [],
+    platformConfig,
+  };
+}
+
+async function snapshotForListing(identifier, serviceType = '', options = {}) {
+  const key = listingSnapshotKey(identifier, serviceType);
+  const cached = listingSnapshotCache.get(key);
+  const age = cached ? Date.now() - cached.createdAt : Infinity;
+  if (!options.force && cached && age <= LISTING_SNAPSHOT_TTL_MS) return cached.value;
+  if (!options.force && cached && age <= LISTING_SNAPSHOT_STALE_MS) {
+    if (!listingSnapshotInflight.has(key)) {
+      const refresh = loadListingSnapshotFresh(identifier, serviceType)
+        .then((value) => value ? rememberListingSnapshot(key, value) : null)
+        .finally(() => listingSnapshotInflight.delete(key));
+      listingSnapshotInflight.set(key, refresh);
+      refresh.catch(() => {});
+    }
+    return cached.value;
+  }
+  let inflight = listingSnapshotInflight.get(key);
+  if (!inflight) {
+    inflight = loadListingSnapshotFresh(identifier, serviceType)
+      .then((value) => value ? rememberListingSnapshot(key, value) : null)
+      .finally(() => listingSnapshotInflight.delete(key));
+    listingSnapshotInflight.set(key, inflight);
+  }
+  try {
+    return await inflight;
+  } catch (error) {
+    if (cached) return cached.value;
+    throw error;
+  }
+}
+
 async function refreshSnapshot() {
   if (snapshotInflight) return snapshotInflight;
   snapshotInflight = loadSnapshotFresh()
@@ -135,9 +305,11 @@ async function snapshot(options = {}) {
 }
 
 function invalidateMarketplaceCache() {
-  // Keep the last known-good catalog as an emergency fallback while forcing
-  // the next request to refresh it from MongoDB.
+  // Keep the last known-good global catalog as an emergency fallback while
+  // forcing a refresh. Listing-scoped snapshots are small enough to clear and
+  // must not retain an unpublished schedule/listing after an operator change.
   snapshotCachedAt = 0;
+  listingSnapshotCache.clear();
 }
 
 async function prewarmHome() {
@@ -612,4 +784,4 @@ async function recordReferralClick(code, listingId, request = {}) {
   return click;
 }
 
-module.exports = { snapshot, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };
+module.exports = { snapshot, snapshotForListing, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };

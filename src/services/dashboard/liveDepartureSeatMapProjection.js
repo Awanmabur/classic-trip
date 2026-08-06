@@ -55,23 +55,51 @@ function isBusDepartureSchedule(schedule = {}, context = {}) {
   );
 }
 
-function bookingForSeat(bookings = [], scheduleId, seatNumber) {
-  return asArray(bookings).find((booking) => {
-    if (asArray(booking.ticketLegs).some((leg) => scheduleRef(leg) === scheduleId && seatNumberOf(leg) === seatNumber)) return true;
-    if (asArray(booking.bookingItems).some((item) => scheduleRef(item) === scheduleId && seatNumberOf(item) === seatNumber)) return true;
-    if (scheduleRef(booking) !== scheduleId) return false;
-    return asArray(booking.passengers).some((passenger) => seatNumberOf({ seatNumber: passenger.seatNumber || passenger.seatOrRoom || passenger.seatLabel }) === seatNumber);
-  }) || null;
+function scheduleSeatKey(scheduleId, seatNumber) {
+  return `${key(scheduleId)}:${key(seatNumber).toUpperCase()}`;
 }
 
-function normalizedSeat(seat = {}, index, schedule, bookings) {
+function buildBookingSeatIndex(bookings = []) {
+  const index = new Map();
+  asArray(bookings).forEach((booking) => {
+    const passengers = asArray(booking.passengers);
+    const add = (row = {}, rowType = 'ticket') => {
+      const scheduleId = scheduleRef(row) || scheduleRef(booking);
+      const seatNumber = seatNumberOf(row, -1);
+      if (!scheduleId || !seatNumber || seatNumber === '0') return;
+      const passengerIndex = Number(row.passengerIndex || 0);
+      const passenger = passengers[passengerIndex]
+        || passengers.find((candidate) => seatNumberOf({ seatNumber: candidate.seatNumber || candidate.seatOrRoom || candidate.seatLabel }, -1) === seatNumber)
+        || {};
+      const entryKey = scheduleSeatKey(scheduleId, seatNumber);
+      if (!index.has(entryKey)) index.set(entryKey, {
+        booking,
+        ticket: rowType === 'ticket' ? row : {},
+        passenger,
+      });
+    };
+    asArray(booking.ticketLegs).forEach((leg) => add(leg, 'ticket'));
+    asArray(booking.bookingLegs).forEach((leg) => add(leg, 'leg'));
+    asArray(booking.bookingItems).forEach((item) => add(item, 'item'));
+    const bookingScheduleId = scheduleRef(booking);
+    if (bookingScheduleId) {
+      passengers.forEach((passenger, passengerIndex) => add({
+        scheduleId: bookingScheduleId,
+        seatNumber: passenger.seatNumber || passenger.seatOrRoom || passenger.seatLabel,
+        passengerIndex,
+      }, 'passenger'));
+    }
+  });
+  return index;
+}
+
+function normalizedSeat(seat = {}, index, schedule, bookingSeatIndex) {
   const scheduleId = rowId(schedule);
   const seatNumber = seatNumberOf(seat, index);
-  const booking = bookingForSeat(bookings, scheduleId, seatNumber);
-  const ticket = asArray(booking?.ticketLegs).find((leg) => scheduleRef(leg) === scheduleId && seatNumberOf(leg) === seatNumber) || {};
-  const passenger = asArray(booking?.passengers)[Number(ticket.passengerIndex || 0)]
-    || asArray(booking?.passengers).find((row) => seatNumberOf({ seatNumber: row.seatNumber || row.seatOrRoom || row.seatLabel }) === seatNumber)
-    || {};
+  const match = bookingSeatIndex.get(scheduleSeatKey(scheduleId, seatNumber)) || {};
+  const booking = match.booking || null;
+  const ticket = match.ticket || {};
+  const passenger = match.passenger || {};
   const status = booking ? 'booked' : canonicalSeatStatus(seat.status);
   return {
     id: rowId(seat) || `seat-${scheduleId}-${seatNumber}`,
@@ -110,8 +138,14 @@ function buildLiveDepartureSeatMaps(input = {}) {
   const vehicleById = firstById(input.vehicles);
   const versionById = firstById(input.seatMapVersions);
   const context = { listingById, routeById, vehicleById };
-  const seats = asArray(input.seats);
-  const bookings = asArray(input.bookings);
+  const seatsBySchedule = new Map();
+  asArray(input.seats).forEach((seat) => {
+    const scheduleId = scheduleRef(seat);
+    if (!scheduleId) return;
+    if (!seatsBySchedule.has(scheduleId)) seatsBySchedule.set(scheduleId, []);
+    seatsBySchedule.get(scheduleId).push(seat);
+  });
+  const bookingSeatIndex = buildBookingSeatIndex(input.bookings);
 
   return sortSchedules(asArray(input.schedules).filter((schedule) => (
     schedule
@@ -123,9 +157,8 @@ function buildLiveDepartureSeatMaps(input = {}) {
     const route = routeById.get(key(schedule.routeId));
     const vehicle = vehicleById.get(key(schedule.vehicleId));
     const version = versionById.get(key(schedule.seatMapVersionId));
-    const scheduleSeats = seats
-      .filter((seat) => scheduleRef(seat) === scheduleId)
-      .map((seat, index) => normalizedSeat(seat, index, schedule, bookings));
+    const scheduleSeats = asArray(seatsBySchedule.get(scheduleId))
+      .map((seat, index) => normalizedSeat(seat, index, schedule, bookingSeatIndex));
     const bookedSeats = scheduleSeats.filter((seat) => seat.status === 'booked').length;
     const heldSeats = scheduleSeats.filter((seat) => seat.status === 'held').length;
     const blockedSeats = scheduleSeats.filter((seat) => seat.status === 'blocked').length;
@@ -172,4 +205,5 @@ module.exports = {
   isBusDepartureSchedule,
   canonicalSeatStatus,
   rowId,
+  buildBookingSeatIndex,
 };

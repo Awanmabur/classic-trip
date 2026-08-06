@@ -42,7 +42,7 @@ check(/support:\s*new Set\(\[[\s\S]*?'schedules'[\s\S]*?'rescheduleRequests'/.te
 check(snapshot.includes("if (entity === 'notifications')") && snapshot.includes("ownerType: 'company', ownerId: companyId"), 'Company notifications must use their real owner relation.');
 check(snapshot.includes("if (entity === 'bookings')") && snapshot.includes('{ agentCompanyId: companyId }') && snapshot.includes('{ providerCompanyId: companyId }'), 'Partner bookings must include agent and provider ownership relations.');
 check(snapshot.includes("['flightAgentQuotes', 'flightChangeRequests', 'flightRefundRequests']"), 'Flight-agent workflows must use agentCompanyId instead of an invalid generic company filter.');
-check(snapshot.includes('const [company, directUsers, platformSettings] = await Promise.all'), 'Dashboard shell reads must run concurrently.');
+check(snapshot.includes('const [company, platformSettings] = await Promise.all') && snapshot.includes("if (needsPeople) directTasks.push('__company_users__')") && snapshot.includes('await mapWithConcurrency(directTasks'), 'Dashboard shell must parallelize its required reads and skip user hydration on pages that do not need people.');
 check(snapshot.includes('dashboardReadConcurrency') && snapshot.includes('readSharedSnapshot') && snapshot.includes('writeSharedSnapshot'), 'Dashboard snapshots must use configurable parallel reads and shared Redis cache.');
 check(env.includes('DASHBOARD_DB_READ_CONCURRENCY'), 'Dashboard database concurrency must be deployment-configurable.');
 
@@ -52,7 +52,7 @@ check(departure.includes('publicationDeferred') && departure.includes('Departure
 check(scheduleController.includes('publicationDeferred') && scheduleController.includes("'warning',"), 'The departure controller must explain a publication deferral instead of presenting creation as a failure.');
 check(onboarding.includes("created.schedule.status === 'published'"), 'Complete setup must publish its listing only after the departure was truly published.');
 
-check(auth.includes('prewarmForUser(user)') && dashboardService.includes("activePage: 'overview'"), 'Login must prewarm the exact first dashboard page.');
+check(!auth.includes('prewarmForUser(user)') && dashboardService.includes("activePage: 'overview'"), 'Login must redirect without competing with a forced dashboard prewarm.');
 check(security.includes('localLoginFailures') && !section(security, 'async function recentFailedLoginCountLive', 'async function recordLoginAttempt').includes('loginAudits'), 'Login failure throttling must stay off the historical audit query path.');
 check(dashboardService.includes('hotelManifestDate') && dashboardService.includes('hotelManifestListingId'), 'Dashboard projection cache keys must include page filters.');
 

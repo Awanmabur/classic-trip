@@ -1,15 +1,41 @@
 const { platformCurrency } = require('../../utils/currency');
+
+const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 6000;
+
+function requestTimeoutMs(config = {}) {
+  const configured = Number(config.requestTimeoutMs || config.timeoutMs || 0);
+  return Math.max(2500, Math.min(configured > 0 ? configured : DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS, 20000));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error(`Payment provider did not respond within ${timeoutMs} ms`);
+      timeoutError.status = 504;
+      timeoutError.code = 'payment_provider_timeout';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 function configured(config = {}) {
   return Boolean(config.apiUrl && config.apiKey);
 }
 
-async function postJson(url, apiKey, payload, extraHeaders = {}) {
+async function postJson(url, apiKey, payload, extraHeaders = {}, timeoutMs = DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS) {
   if (typeof fetch !== 'function') {
     const error = new Error('Global fetch is unavailable in this Node runtime');
     error.status = 500;
     throw error;
   }
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -17,7 +43,7 @@ async function postJson(url, apiKey, payload, extraHeaders = {}) {
       ...extraHeaders,
     },
     body: JSON.stringify(payload),
-  });
+  }, timeoutMs);
   let body = null;
   try { body = await response.json(); } catch (error) { body = await response.text(); }
   if (!response.ok) {
@@ -141,7 +167,7 @@ function createProvider(provider, config = {}) {
           callbackUrl: payment.callbackUrl || config.callbackUrl,
           meta: payment.meta || {},
         };
-      const result = await postJson(config.apiUrl, config.apiKey, payload, payment.idempotencyKey ? { 'Idempotency-Key': payment.idempotencyKey } : {});
+      const result = await postJson(config.apiUrl, config.apiKey, payload, payment.idempotencyKey ? { 'Idempotency-Key': payment.idempotencyKey } : {}, requestTimeoutMs(config));
       const responseData = result?.data || {};
       return {
         provider,
@@ -186,7 +212,7 @@ function createProvider(provider, config = {}) {
       } else {
         payload = { provider, transactionReference: refund.providerReference, amount: Number(refund.amount), currency: refund.currency, reason: refund.reason, idempotencyKey, refundId: refund.refundId, bookingRef: refund.bookingRef };
       }
-      const result = await postJson(config.refundUrl, config.apiKey, payload, headers);
+      const result = await postJson(config.refundUrl, config.apiKey, payload, headers, requestTimeoutMs(config));
       if (result?.status === false) {
         const error = new Error(result.message || `${provider} rejected the refund request`);
         error.status = 409;

@@ -147,6 +147,7 @@ class MongoRepository {
     return runRetryableRead(async () => {
       let query = this.Model.find(this.normalizeFilter(filter));
       if (options.session) query = query.session(options.session);
+      if (options.select) query = query.select(options.select);
       if (options.sort) query = query.sort(options.sort);
       if (options.limit) query = query.limit(options.limit);
       if (options.skip) query = query.skip(options.skip);
@@ -159,6 +160,7 @@ class MongoRepository {
     return runRetryableRead(async () => {
       let query = this.Model.findOne(this.normalizeFilter(filter));
       if (options.session) query = query.session(options.session);
+      if (options.select) query = query.select(options.select);
       return clean(await query.lean());
     });
   }

@@ -40,7 +40,7 @@ check('Automatically generated departures request public status', /status:\s*'pu
 check('Automatic publication still preserves incomplete departures as Draft', departureService.includes('publicationDeferred')
   && materializer.includes("status: 'draft'"));
 check('Month creation uses the bounded batch path', materializer.includes('createScheduleBatch')
-  && departureService.includes('Math.min(2, proposed.length)'));
+  && departureService.includes('Math.min(4, proposed.length)'));
 check('New and resumed rules queue worker-side month creation', departureService.split('ScheduleRuleMaterializationRequested').length >= 5);
 check('Legacy active recurring departures are reconciled', materializer.includes('reconcileLegacyActiveSchedules')
   && materializer.includes('legacySchedulesReconciled'));
@@ -98,7 +98,8 @@ check('Unknown outbox topics still fail visibly', read('src/services/shared/outb
 check('Outbox work uses short pool-friendly batches', outboxJob.includes('limit: 25'));
 check('Cron jobs cannot overlap themselves', scheduler.includes('runningJobs.has(name)')
   && scheduler.includes("reason: 'previous_run_still_active'"));
-check('Worker owns repair and reconciles the rolling month immediately after deploy', worker.includes("runJob('materializeSchedules')")
+check('Worker owns the delayed rolling repair queue after deploy', worker.includes('scheduleMaterializer.startWebFallback')
+  && worker.includes('startupDelayMs: 10000')
   && worker.includes('restoreLegacyDemotedBusListings')
   && worker.includes('setImmediate')
   && !server.includes('restoreLegacyDemotedBusListings'));

@@ -1,3 +1,29 @@
+const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 6000;
+
+function requestTimeoutMs(config = {}) {
+  const configured = Number(config.requestTimeoutMs || config.timeoutMs || 0);
+  return Math.max(2500, Math.min(configured > 0 ? configured : DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS, 20000));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error(`Pesapal did not respond within ${timeoutMs} ms`);
+      timeoutError.status = 504;
+      timeoutError.code = 'payment_provider_timeout';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function trimTrailingSlash(value = '') {
   return String(value || '').replace(/\/+$/, '');
 }
@@ -29,7 +55,7 @@ async function requestJson(config, pathname, { method = 'POST', token = '', body
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && String(value).trim() !== '') url.searchParams.set(key, value);
   });
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method,
     headers: {
       Accept: 'application/json',
@@ -37,7 +63,7 @@ async function requestJson(config, pathname, { method = 'POST', token = '', body
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }, requestTimeoutMs(config));
   let payload = null;
   try { payload = await response.json(); } catch (error) { payload = await response.text(); }
   if (!response.ok) {
@@ -50,6 +76,7 @@ async function requestJson(config, pathname, { method = 'POST', token = '', body
 }
 
 let tokenCache = { key: '', token: '', expiresAt: 0 };
+let notificationCache = { key: '', ipnId: '', expiresAt: 0 };
 
 async function tokenFor(config = {}) {
   if (!configured(config)) {
@@ -81,6 +108,10 @@ async function notificationIdFor(config = {}, token = '') {
     error.status = 503;
     throw error;
   }
+  const key = `${config.apiUrl}:${config.ipnUrl}:${config.notificationType || 'POST'}`;
+  if (notificationCache.key === key && notificationCache.ipnId && notificationCache.expiresAt > Date.now()) {
+    return notificationCache.ipnId;
+  }
   const result = await requestJson(config, '/URLSetup/RegisterIPN', {
     token,
     body: {
@@ -95,6 +126,10 @@ async function notificationIdFor(config = {}, token = '') {
     error.providerResponse = result;
     throw error;
   }
+  // Registering the same IPN URL on every checkout adds two unnecessary network
+  // round trips. Cache the provider-issued ID for 24 hours; configured IPN IDs
+  // continue to bypass registration completely.
+  notificationCache = { key, ipnId, expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
   return ipnId;
 }
 

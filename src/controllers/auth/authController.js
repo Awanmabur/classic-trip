@@ -137,11 +137,10 @@ async function login(req, res, next) {
     // still recorded, but no longer hold the user on the login page for several
     // extra Atlas round trips.
     await saveSession(req);
-    // Begin the exact first dashboard snapshot before the browser follows the
-    // redirect. The dashboard request joins the same in-flight read instead of
-    // starting another set of MongoDB queries.
-    require('../../services/dashboard/mongoDashboardService').prewarmForUser(user)
-      .catch((prewarmError) => logger.warn('Dashboard prewarm could not complete', { error: prewarmError.message, userId: user.id }));
+    // Do not start a second, forced dashboard read during login. On larger
+    // tenants that prewarm competed with session persistence and the redirected
+    // dashboard request, which looked like the platform restarted after sign-in.
+    // The destination request now owns the single page-scoped snapshot load.
     const auditReq = securityRequestSnapshot(req);
     setImmediate(() => {
       securityService.recordLoginAttempt({

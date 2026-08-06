@@ -182,13 +182,21 @@ const handlers = {
   },
   BusBookingConfirmed: bookingNotification,
   ScheduleRuleMaterializationRequested: async (payload = {}, event = {}) => {
-    // Keep the expensive month of departure/inventory creation in the worker.
-    // The partner request only stores the rule and redirects immediately.
+    // Inline partner creation and the worker share a per-rule lease. If the
+    // request is still materializing, fail this attempt so the outbox retries
+    // instead of marking an unfinished event as processed.
     const materializer = require('../../jobs/materializeSchedules');
-    return materializer.materializeRuleById(
-      payload.companyId || event.companyId,
-      payload.ruleId || event.aggregateId,
+    const companyId = payload.companyId || event.companyId;
+    const ruleId = payload.ruleId || event.aggregateId;
+    const result = await materializer.materializeRuleById(
+      companyId,
+      ruleId,
+      new Date(),
+      { waitForLeaseMs: 5000, maxCreates: 1 },
     );
+    if (result?.busy) throw new Error('Schedule rule materialization is already in progress');
+    if (Number(result?.pending || 0) > 0) materializer.queueRuleMaterialization(companyId, ruleId);
+    return result;
   },
   BusListingPublished: acknowledgeDomainFact,
   BusDeparturePublished: acknowledgeDomainFact,

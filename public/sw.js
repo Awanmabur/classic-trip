@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'classic-trip-static-v1.6.1';
+const STATIC_CACHE = 'classic-trip-static-v1.6.7';
 const STATIC_ASSETS = [
   '/site.webmanifest',
   '/images/favicon-48.png',

@@ -40,7 +40,7 @@ router.get('/', publicReadLimiter, async (req, res, next) => {
 
 router.get('/:listingId/availability', publicReadLimiter, async (req, res, next) => {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.snapshotForListing(req.params.listingId) || await catalogService.snapshot();
     const found = publicListing(data, req.params.listingId);
     if (!found) return res.status(404).json({ error: 'Listing not found' });
     const { raw, listing } = found;
@@ -78,7 +78,7 @@ router.get('/:listingId/availability', publicReadLimiter, async (req, res, next)
 
 router.post('/:listingId/hold', publicWriteLimiter, async (req, res, next) => {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.snapshotForListing(req.params.listingId) || await catalogService.snapshot();
     const found = publicListing(data, req.params.listingId);
     if (!found) return res.status(404).json({ error: 'Listing not found' });
     const { raw, listing } = found;
@@ -127,7 +127,7 @@ router.post('/:listingId/hold', publicWriteLimiter, async (req, res, next) => {
 
 router.get('/:serviceType/:slug', publicReadLimiter, async (req, res, next) => {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.snapshotForListing(req.params.slug, req.params.serviceType) || await catalogService.snapshot();
     const raw = catalogService.listingFor(data, req.params.slug, req.params.serviceType);
     if (!raw) return res.status(404).json({ error: 'Listing not found' });
     const listing = catalogService.catalogItem(data, raw);
