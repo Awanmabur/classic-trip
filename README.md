@@ -5,23 +5,25 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.14
+## Current release — version 1.6.15
 
-- Phone listing bars remain unchanged.
-- Desktop bars now follow their content while keeping the image fixed at a compact 190 × 150 px Vision Coaches-style proportion, so wrapped routes never stretch the image or create hidden content.
-- `DRIVER - FRONT` has a visible divider and gap before the first row; equal left/right seat tracks keep the complete dashboard cabin and aisle centered.
-- Booking/ticket evidence is authoritative: taken, booked, sold, confirmed, occupied, checked-in and no-show seats are red; orange is reserved for blocked/maintenance seats.
-- Origin/destination routes use `Origin ⇄ Destination` across public pages, dashboards, manifests, archives and PDFs.
-- Rolling vehicle-conflict blocker fields are persisted by the canonical schema, an active blocker is not repeatedly extended, and scheduled materialization queues low-priority work instead of running until the 45-second deadline.
-- The v1.6.12/v1.6.13 fail-fast MongoDB, dedicated worker, page-scoped dashboard reads, deferred JavaScript, preview prefetch and bounded payment/listing reads remain preserved.
+- Added a labeled **Route & travel** container above Ticket class and Journey on the bus preview page.
+- Increased preview selector, group-label and ticket-choice font sizes while preserving all selector IDs and booking logic.
+- Replaced black preview flashes with scoped red rectangular notices with rounded edges.
+- Removed the desktop bar image baseline gap without increasing image height or changing the phone bar layout.
+- Fixed the eight-column Listings table projection and loaded bounded recent schedules so Inventory, Country route, Badge and Price from remain aligned.
+- Counted safely resolvable legacy schedule rows that lack `listingId` without weakening company ownership checks.
+- Scaled live-seat-map inventory reads by the number of dated departures to prevent false incomplete-inventory warnings caused by the former fixed 1,800-row cap.
+- Added a global MongoDB outage circuit breaker for the rolling queue, action-required vehicle-conflict blockers, 30-minute bounded repair scans and staggered scheduled-job launches.
+- Added `process=web` / `process=worker` to MongoDB startup logs so the expected two-process architecture is clear.
 
 Run the focused dependency-free release gate with:
 
 ```bash
-npm run check:v1614-bars-seats-routes-rolling
+npm run check:v1615-preview-worker-listing
 ```
 
-See `RELEASE_NOTES.md`, `BAR_SEAT_ROUTE_ROLLING_FIX_REPORT_v1.6.14.md`, and `FINAL_RELEASE_CHECKLIST.md`.
+See `PREVIEW_WORKER_LISTING_INVENTORY_REPORT_v1.6.15.md`, `RELEASE_NOTES.md`, and `FINAL_RELEASE_CHECKLIST.md`.
 
 ## Seven-service marketplace completion
 

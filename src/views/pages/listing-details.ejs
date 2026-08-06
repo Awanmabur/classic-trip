@@ -1,5 +1,5 @@
 <% const ctRoute = typeof routeDisplay === 'function' ? routeDisplay : function(origin, destination, fallback){ const from = String(origin || '').trim(); const to = String(destination || '').trim(); if(from && to) return from + ' ⇄ ' + to; return String(fallback || from || to || '').trim().replace(/\s+(?:to|→|->|↔|⇄)\s+/gi, ' ⇄ '); }; %>
-<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-head', { seo, bodyClass: 'listingPreviewBody' }) %>
 <%- include('../partials/site-header') %>
 <%
   const safeAvailability = availability || {};
@@ -76,24 +76,9 @@
                 </div>
               </div>
               <% if (previewSchedules.length) { %>
-                <div class="busTicketChooser" aria-label="Bus ticket options">
-                  <div class="busTicketChoiceGroup">
-                    <strong>Ticket class</strong>
-                    <div class="ticketChoiceGrid" role="group" aria-label="Ticket class">
-                      <button class="ticketChoice <%= initialTicketClass === 'standard' ? 'is-active' : '' %>" id="standardTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="standard" aria-pressed="<%= initialTicketClass === 'standard' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('standard') ? '' : 'disabled' %>><i class="fa-solid fa-ticket"></i><span><b>Standard Ticket</b><small id="standardTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'standard').length %> departure(s)</small></span></button>
-                      <button class="ticketChoice <%= initialTicketClass === 'vip' ? 'is-active' : '' %>" id="vipTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="vip" aria-pressed="<%= initialTicketClass === 'vip' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('vip') ? '' : 'disabled' %>><i class="fa-solid fa-crown"></i><span><b>VIP Ticket</b><small id="vipTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'vip').length %> departure(s)</small></span></button>
-                    </div>
-                  </div>
-                  <div class="busTicketChoiceGroup">
-                    <strong>Journey</strong>
-                    <div class="ticketChoiceGrid" role="group" aria-label="Journey type">
-                      <button class="ticketChoice is-active" id="oneWayTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="one_way" aria-pressed="true"><i class="fa-solid fa-arrow-right"></i><span><b>One-way Ticket</b><small>Outbound journey only</small></span></button>
-                      <button class="ticketChoice" id="returnTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="round_trip" aria-pressed="false"><i class="fa-solid fa-arrow-right-arrow-left"></i><span><b>Return Ticket</b><small>Outbound and return</small></span></button>
-                    </div>
-                    <input type="checkbox" id="returnTripToggle" hidden aria-hidden="true">
-                  </div>
-                </div>
-                <div class="bookingForm busJourneySelectionGrid" style="margin-top:10px">
+                <div class="busJourneyStepGroup" aria-labelledby="routeTravelLabel">
+                  <strong id="routeTravelLabel">Route &amp; travel</strong>
+                  <div class="bookingForm busJourneySelectionGrid">
                   <select class="journeyControl journeyRouteControl" id="outboundRouteSelect" aria-label="Select bus route" data-listing-action="outbound-route" required>
                     <option value="" <%= initialRouteId ? '' : 'selected' %> disabled>Select route</option>
                     <% busRoutes.forEach((route) => { const routeValue = route.routeId || route.id; const routeText = ctRoute(route.origin, route.destination, route.label || route.routeName); %>
@@ -118,7 +103,25 @@
                       <option value="<%= stop.id %>" data-stop-order="<%= stop.stopOrder %>" <%= stop.id === selectedJourney.destinationStopId ? 'selected' : '' %>>Drop at: <%= stop.name %></option>
                     <% }) %>
                   </select>
-                  <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.</div>
+                    <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.</div>
+                  </div>
+                </div>
+                <div class="busTicketChooser" aria-label="Bus ticket options">
+                  <div class="busTicketChoiceGroup">
+                    <strong>Ticket class</strong>
+                    <div class="ticketChoiceGrid" role="group" aria-label="Ticket class">
+                      <button class="ticketChoice <%= initialTicketClass === 'standard' ? 'is-active' : '' %>" id="standardTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="standard" aria-pressed="<%= initialTicketClass === 'standard' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('standard') ? '' : 'disabled' %>><i class="fa-solid fa-ticket"></i><span><b>Standard Ticket</b><small id="standardTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'standard').length %> departure(s)</small></span></button>
+                      <button class="ticketChoice <%= initialTicketClass === 'vip' ? 'is-active' : '' %>" id="vipTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="vip" aria-pressed="<%= initialTicketClass === 'vip' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('vip') ? '' : 'disabled' %>><i class="fa-solid fa-crown"></i><span><b>VIP Ticket</b><small id="vipTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'vip').length %> departure(s)</small></span></button>
+                    </div>
+                  </div>
+                  <div class="busTicketChoiceGroup">
+                    <strong>Journey</strong>
+                    <div class="ticketChoiceGrid" role="group" aria-label="Journey type">
+                      <button class="ticketChoice is-active" id="oneWayTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="one_way" aria-pressed="true"><i class="fa-solid fa-arrow-right"></i><span><b>One-way Ticket</b><small>Outbound journey only</small></span></button>
+                      <button class="ticketChoice" id="returnTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="round_trip" aria-pressed="false"><i class="fa-solid fa-arrow-right-arrow-left"></i><span><b>Return Ticket</b><small>Outbound and return</small></span></button>
+                    </div>
+                    <input type="checkbox" id="returnTripToggle" hidden aria-hidden="true">
+                  </div>
                 </div>
               <% } else { %>
                 <div class="notice">No upcoming trips are scheduled for this route yet.</div>

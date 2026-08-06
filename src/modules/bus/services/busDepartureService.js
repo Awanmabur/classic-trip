@@ -30,6 +30,7 @@ const MATERIALIZATION_BLOCKER_FIELDS = Object.freeze({
   materializationBlockerCode: '',
   materializationBlockerReason: '',
   materializationBlockerFailures: '',
+  materializationRequiresAction: '',
   materializationStateUpdatedAt: '',
 });
 

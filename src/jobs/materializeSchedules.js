@@ -1,4 +1,5 @@
 const busOperationsRepository = require('../repositories/domain/busOperationsRepository');
+const repositories = require('../repositories');
 const companyService = require('../services/company/companyService');
 const busDepartureService = require('../modules/bus/services/busDepartureService');
 const jobLeaseService = require('../services/shared/jobLeaseService');
@@ -11,7 +12,7 @@ const HORIZON_DAYS = ROLLING_WINDOW_DAYS - 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RULE_LEASE_TTL_MS = 20 * 60 * 1000;
 const BACKGROUND_BATCH_SIZE = 1;
-const BACKGROUND_REPAIR_INTERVAL_MS = 5 * 60 * 1000;
+const BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000;
 const BACKGROUND_BATCH_PAUSE_MS = 2000;
 const PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000;
 const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -24,6 +25,9 @@ let backgroundStartupTimer = null;
 let backgroundDrainTimer = null;
 let backgroundStopped = false;
 let backgroundQueueOwner = false;
+let mongoQueuePauseUntil = 0;
+let mongoQueuePauseAttempts = 0;
+let mongoQueuePauseLoggedUntil = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,11 +76,41 @@ function combineDateAndTime(date, timeString) {
   return combined;
 }
 
+function isMongoUnavailable(error = {}) {
+  const status = Number(error.status || 0);
+  const code = String(error.code || '').toLowerCase();
+  const message = String(error.message || error || '');
+  return code === 'mongodb_unavailable'
+    || status === 503
+    || /mongodb is unavailable|server selection|getaddrinfo|enotfound|connection pool|wait queue/i.test(message);
+}
+
 function isTransientFailure(error = {}) {
   const status = Number(error.status || 0);
   const message = String(error.message || error || '');
   return status >= 500
     || /connection|pool|wait queue|timed out|network|server selection|not primary|write conflict/i.test(message);
+}
+
+function pauseMongoQueue(error = {}) {
+  mongoQueuePauseAttempts = Math.min(8, mongoQueuePauseAttempts + 1);
+  const delayMs = Math.min(5 * 60 * 1000, 15_000 * (2 ** Math.max(0, mongoQueuePauseAttempts - 1)));
+  mongoQueuePauseUntil = Math.max(mongoQueuePauseUntil, Date.now() + delayMs);
+  if (mongoQueuePauseLoggedUntil < mongoQueuePauseUntil) {
+    mongoQueuePauseLoggedUntil = mongoQueuePauseUntil;
+    logger.warn('Rolling departure queue paused because MongoDB is unavailable', {
+      queuedRules: backgroundQueue.size,
+      retryAt: new Date(mongoQueuePauseUntil).toISOString(),
+      error: String(error.message || error || 'MongoDB unavailable'),
+    });
+  }
+  return delayMs;
+}
+
+function resetMongoQueuePause() {
+  mongoQueuePauseUntil = 0;
+  mongoQueuePauseAttempts = 0;
+  mongoQueuePauseLoggedUntil = 0;
 }
 
 function isInternalRuntimeFailure(error = {}) {
@@ -100,12 +134,16 @@ function vehicleConflictFailures(failures = []) {
 
 function activePersistentBlocker(rule = {}, now = new Date()) {
   const until = rule.materializationBlockedUntil ? new Date(rule.materializationBlockedUntil) : null;
-  if (!rule.materializationBlockerCode || !until || Number.isNaN(until.getTime()) || until <= now) return null;
+  const requiresAction = rule.materializationRequiresAction === true
+    || rule.materializationBlockerCode === 'vehicle_schedule_conflict';
+  if (!rule.materializationBlockerCode) return null;
+  if (!requiresAction && (!until || Number.isNaN(until.getTime()) || until <= now)) return null;
   return {
     code: rule.materializationBlockerCode,
-    reason: rule.materializationBlockerReason || 'Recurring departure materialization is temporarily blocked',
+    reason: rule.materializationBlockerReason || 'Recurring departure materialization is blocked until the rule is corrected',
     failures: Array.isArray(rule.materializationBlockerFailures) ? rule.materializationBlockerFailures : [],
-    until,
+    until: until && !Number.isNaN(until.getTime()) ? until : new Date(now.getTime() + VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS),
+    requiresAction,
   };
 }
 
@@ -141,6 +179,7 @@ async function persistVehicleConflictBlocker(rule, failures = []) {
       materializationBlockerCode: 'vehicle_schedule_conflict',
       materializationBlockerReason: conflicts[0],
       materializationBlockerFailures: conflicts.slice(0, 8),
+      materializationRequiresAction: true,
       materializationStateUpdatedAt: new Date().toISOString(),
     },
   });
@@ -166,6 +205,7 @@ async function clearExpiredOrResolvedBlocker(rule) {
       materializationBlockerCode: '',
       materializationBlockerReason: '',
       materializationBlockerFailures: '',
+      materializationRequiresAction: '',
     },
     $set: { materializationStateUpdatedAt: new Date().toISOString() },
   });
@@ -580,10 +620,11 @@ function queuedRuleKey(companyId, ruleId) {
 
 function scheduleBackgroundDrain(delayMs = 0) {
   if (backgroundStopped || backgroundQueueRunning || backgroundDrainTimer) return;
+  const mongoDelayMs = Math.max(0, mongoQueuePauseUntil - Date.now());
   backgroundDrainTimer = setTimeout(() => {
     backgroundDrainTimer = null;
     drainBackgroundQueue().catch((error) => logger.error('Rolling departure background queue failed', { error: error.message, stack: error.stack }));
-  }, Math.max(0, Number(delayMs || 0)));
+  }, Math.max(0, Number(delayMs || 0), mongoDelayMs));
   backgroundDrainTimer.unref?.();
 }
 
@@ -610,6 +651,7 @@ async function drainBackgroundQueue() {
   backgroundQueueRunning = true;
   try {
     while (!backgroundStopped && backgroundQueue.size) {
+      if (mongoQueuePauseUntil > Date.now()) break;
       const [key, job] = backgroundQueue.entries().next().value;
       backgroundQueue.delete(key);
       let result;
@@ -619,6 +661,14 @@ async function drainBackgroundQueue() {
           maxCreates: BACKGROUND_BATCH_SIZE,
         });
       } catch (error) {
+        if (isMongoUnavailable(error)) {
+          // One Atlas/DNS outage affects every rule. Put the current item back,
+          // pause the whole queue once, and never flood the log by retrying each
+          // schedule rule separately while the connection is down.
+          backgroundQueue.set(key, job);
+          pauseMongoQueue(error);
+          break;
+        }
         job.attempts += 1;
         logger.warn('Rolling departure batch failed and will retry', {
           companyId: job.companyId,
@@ -627,7 +677,6 @@ async function drainBackgroundQueue() {
           stage: error.rollingStage || 'materialize_rule',
           code: error.code || '',
           error: error.message,
-          stack: error.stack,
         });
         if (job.attempts < 8 && (
           isTransientFailure(error)
@@ -639,6 +688,7 @@ async function drainBackgroundQueue() {
         }
         continue;
       }
+      resetMongoQueuePause();
       if (result?.busy) {
         job.attempts += 1;
         if (job.attempts < 8) backgroundQueue.set(key, job);
@@ -656,7 +706,7 @@ async function drainBackgroundQueue() {
         }
         continue;
       }
-      logger.info('Rolling departure batch completed', {
+      const completedSummary = {
         companyId: job.companyId,
         ruleId: job.ruleId,
         created: Number(result?.created || 0),
@@ -665,7 +715,12 @@ async function drainBackgroundQueue() {
         existing: Number(result?.existing || 0),
         pending: Number(result?.pending || 0),
         skipped: Number(result?.skipped || 0),
-      });
+      };
+      if (completedSummary.created || completedSummary.published || completedSummary.draft || completedSummary.skipped || completedSummary.pending) {
+        logger.info('Rolling departure batch completed', completedSummary);
+      } else {
+        logger.debug('Rolling departure rule already current', completedSummary);
+      }
       const pending = Number(result?.pending || 0);
       const created = Number(result?.created || 0);
       const skipped = Number(result?.skipped || 0);
@@ -699,11 +754,16 @@ async function drainBackgroundQueue() {
     }
   } finally {
     backgroundQueueRunning = false;
-    if (backgroundQueue.size) scheduleBackgroundDrain(500);
+    if (backgroundQueue.size) scheduleBackgroundDrain(Math.max(500, mongoQueuePauseUntil - Date.now()));
   }
 }
 
 async function queueAllActiveRules() {
+  if (!repositories.mongoReady()) {
+    pauseMongoQueue(new Error('MongoDB connection is not ready'));
+    scheduleBackgroundDrain(mongoQueuePauseUntil - Date.now());
+    return 0;
+  }
   const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
   const now = new Date();
   const eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now));
@@ -740,6 +800,7 @@ function stopWebFallback() {
   for (const timer of rollingCacheInvalidationTimers.values()) clearTimeout(timer);
   rollingCacheInvalidationTimers.clear();
   publicationBlockerCooldown.clear();
+  resetMongoQueuePause();
 }
 
 module.exports = {

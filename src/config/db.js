@@ -66,7 +66,7 @@ async function connectDb() {
           throw new Error('MONGO_TRANSACTIONS=true requires a MongoDB replica set or mongos');
         }
       }
-      logger.startup('MongoDB connected', { host: conn.connection.host, db: conn.connection.name, transactions: env.mongoTransactions });
+      logger.startup('MongoDB connected', { process: process.env.CLASSIC_TRIP_PROCESS_ROLE || 'app', host: conn.connection.host, db: conn.connection.name, transactions: env.mongoTransactions });
       if (conn.connection.name === 'test') {
         logger.warn('MongoDB is connected to the test database. Set MONGO_DB_NAME=classic-trip or include /classic-trip in MONGO_URI before seeding production-like data.');
       }

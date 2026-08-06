@@ -24,7 +24,7 @@ async function start() {
   // as a release starts; do not leave public listings on "Coming soon" until
   // the next 03:00 materialization cron.
   // The worker is the single rolling-queue owner under `npm start`. It drains
-  // all remaining dates in bounded batches and keeps the five-minute repair
+  // all remaining dates in bounded batches and keeps the bounded thirty-minute recovery
   // scan, while the web process stays free to serve fares, checkout and dashboards.
   setImmediate(async () => {
     try {

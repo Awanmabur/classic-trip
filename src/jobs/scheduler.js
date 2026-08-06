@@ -9,62 +9,74 @@ const jobs = {
     schedule: () => env.jobs.processOutbox,
     module: () => require('./processOutbox'),
     leaseTtlMs: 2 * 60 * 1000,
+    staggerMs: 0,
   },
   cleanupExpiredLocks: {
     schedule: () => env.jobs.cleanupExpiredLocks,
     module: () => require('./cleanupExpiredLocks'),
     leaseTtlMs: 15 * 60 * 1000,
+    staggerMs: 600,
   },
   releaseCommission: {
     schedule: () => env.jobs.releaseCommission,
     module: () => require('./releaseCommission'),
     leaseTtlMs: 30 * 60 * 1000,
+    staggerMs: 1200,
   },
   expirePaymentIntents: {
     schedule: () => env.jobs.expirePaymentIntents,
     module: () => require('./expirePaymentIntents'),
     leaseTtlMs: 15 * 60 * 1000,
+    staggerMs: 1800,
   },
   bookingReminders: {
     schedule: () => env.jobs.bookingReminders,
     module: () => require('./bookingReminders'),
     leaseTtlMs: 15 * 60 * 1000,
+    staggerMs: 2400,
   },
   expirePromotions: {
     schedule: () => env.jobs.expirePromotions,
     module: () => require('./expirePromotions'),
     leaseTtlMs: 15 * 60 * 1000,
+    staggerMs: 3000,
   },
   payoutReports: {
     schedule: () => env.jobs.payoutReports,
     module: () => require('./payoutReports'),
     leaseTtlMs: 60 * 60 * 1000,
+    staggerMs: 3600,
   },
   materializeSchedules: {
     schedule: () => env.jobs.materializeSchedules,
     module: () => require('./materializeSchedules'),
     leaseTtlMs: 2 * 60 * 60 * 1000,
+    staggerMs: 4200,
   },
   dispatchTaxiRides: {
     schedule: () => env.jobs.dispatchTaxiRides,
     module: () => require('./dispatchTaxiRides'),
     leaseTtlMs: 3 * 60 * 1000,
+    staggerMs: 900,
   },
   expireFlightHolds: {
     schedule: () => env.jobs.expireFlightHolds,
     module: () => require('./expireFlightHolds'),
     leaseTtlMs: 10 * 60 * 1000,
+    staggerMs: 2100,
   },
   purgeArchivedRecords: {
     schedule: () => env.jobs.purgeArchivedRecords,
     module: () => require('./purgeArchivedRecords'),
     leaseTtlMs: 2 * 60 * 60 * 1000,
+    staggerMs: 4800,
   },
 };
 
 const scheduledTasks = new Map();
 const lastRuns = new Map();
 const runningJobs = new Map();
+const pendingLaunchTimers = new Set();
 
 function jobTimeoutMs(definition = {}) {
   return Math.max(5000, Math.min(Number(env.jobs.maxRunMs || 45000), Math.max(5000, Number(definition.leaseTtlMs || 60000) - 1000)));
@@ -169,9 +181,18 @@ function startScheduledJobs({ force = false, active = true } = {}) {
       logger.warn('Scheduled job skipped because cron expression is invalid', { name, expression });
       return;
     }
+    const launch = () => {
+      const delayMs = Math.max(0, Number(definition.staggerMs || 0));
+      const timer = setTimeout(() => {
+        pendingLaunchTimers.delete(timer);
+        runJob(name).catch((error) => logger.error('Scheduled job launch failed', { name, error: error.message }));
+      }, delayMs);
+      timer.unref?.();
+      pendingLaunchTimers.add(timer);
+    };
     const task = active
-      ? cron.schedule(expression, () => runJob(name))
-      : cron.createTask(expression, () => runJob(name));
+      ? cron.schedule(expression, launch)
+      : cron.createTask(expression, launch);
     scheduledTasks.set(name, { expression, task, active });
     logger.debug('Scheduled job registered', { name, expression, active });
   });
@@ -185,6 +206,8 @@ function stopScheduledJobs() {
     if (typeof task.destroy === 'function') task.destroy();
   });
   scheduledTasks.clear();
+  pendingLaunchTimers.forEach((timer) => clearTimeout(timer));
+  pendingLaunchTimers.clear();
 }
 
 function jobStatus() {

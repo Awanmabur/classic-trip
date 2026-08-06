@@ -1,6 +1,22 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.14.
+Use this checklist for version 1.6.15.
+
+
+## v1.6.15 focused validation
+
+```bash
+npm run check:v1615-preview-worker-listing
+```
+
+After deployment, confirm:
+
+- preview route/travel selectors appear above Ticket class and Journey;
+- preview flash messages are red rounded rectangles;
+- a company listing row shows Partner, Inventory, Country route, Badge and Price in separate aligned columns;
+- startup logs label MongoDB connections as `process=web` and `process=worker`;
+- a MongoDB outage produces one rolling-queue pause warning rather than one warning per rule; and
+- a vehicle overlap remains blocked until its recurring rule is corrected and resumed.
 
 ## 1. Clean installation
 

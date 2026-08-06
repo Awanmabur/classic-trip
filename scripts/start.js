@@ -60,7 +60,7 @@ function stopAll(signal) {
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => stopAll(signal));
 
 if (!watch) {
-  launch('web', [path.join(process.cwd(), 'src', 'server.js')], webRollingEnv);
+  launch('web', [path.join(process.cwd(), 'src', 'server.js')], { ...webRollingEnv, CLASSIC_TRIP_PROCESS_ROLE: 'web' });
 } else {
   // Node >=20 provides a supported cross-platform watcher, so development no
   // longer needs Nodemon or its transitive dependency tree.
@@ -68,10 +68,10 @@ if (!watch) {
     '--watch',
     '--watch-preserve-output',
     path.join(process.cwd(), 'src', 'server.js'),
-  ], webRollingEnv);
+  ], { ...webRollingEnv, CLASSIC_TRIP_PROCESS_ROLE: 'web' });
 }
 
 // Rolling departures, outbox notifications, payment expiry and other scheduled
 // work must run with the normal one-command startup. Set RUN_BACKGROUND_WORKER=false
 // only when the deployment already has a dedicated `npm run worker` process.
-if (runBackgroundWorker) launch('worker', [path.join(process.cwd(), 'src', 'worker.js')], { WEB_ROLLING_FALLBACK: 'false' });
+if (runBackgroundWorker) launch('worker', [path.join(process.cwd(), 'src', 'worker.js')], { WEB_ROLLING_FALLBACK: 'false', CLASSIC_TRIP_PROCESS_ROLE: 'worker' });

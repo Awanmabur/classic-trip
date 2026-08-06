@@ -22,7 +22,7 @@ const homeJs = read('public/js/home.js');
 const css = read('public/css/completion-fixes.css');
 const dashboard = read('src/services/dashboard/dashboardProjectionEngine.js');
 
-check('release is based on the safe 1.6.7 baseline and remains valid in the current release', pkg.version === '1.6.14');
+check('release is based on the safe 1.6.7 baseline and remains valid in the current release', pkg.version === '1.6.15');
 check('rolling route guard has a real routes repository', companyRepository.includes("routes: new MongoCollection('routes')"));
 check('route-stop guards also have a real repository', companyRepository.includes("routeStops: new MongoCollection('routeStops')"));
 check('bus route validation reads the defined routes repository', companyService.includes('companyRepository.routes.findOne'));

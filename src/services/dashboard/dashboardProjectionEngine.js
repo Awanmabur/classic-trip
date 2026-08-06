@@ -2424,16 +2424,34 @@ function createDashboardProjection(initialState = {}) {
       roomVisualMaps,
       bookedSeatGroups,
       bookedRoomGroups,
-      listings: listings.map(listing => [listing.title, listing.type, listing.serviceType === 'hotel' ? [listing.city, listing.country].filter(Boolean).join(', ') : formatRouteLabel(listing.from, listing.to), listing.serviceType === 'hotel' ? `${roomsForListing(listing.id).length} room types` : `${schedulesForListing(listing.id).length} schedules`, formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency), listing.status, {
-        entity: 'listing',
-        id: listing.id,
-        label: listing.title,
-        status: listing.status,
-        detail: {
-          listing,
-          company: companyDetail(company)
-        }
-      }]),
+      listings: listings.map((listing) => {
+        const isStayListing = listing.serviceType === 'hotel';
+        const inventoryLabel = isStayListing
+          ? `${roomsForListing(listing.id).length} room types`
+          : `${busSchedules.filter((schedule) => String(schedule.listingId || '') === String(listing.id || '')).length} schedules`;
+        const routeOrLocation = isStayListing
+          ? [listing.city, listing.country].filter(Boolean).join(', ')
+          : formatRouteLabel(listing.from, listing.to, listing.routeLabel);
+        return [
+          listing.title,
+          listing.type,
+          company?.name || listing.partner || '-',
+          inventoryLabel,
+          routeOrLocation,
+          listing.status,
+          formatMoney(listingFareFrom(listing).amount, listingFareFrom(listing).currency),
+          {
+            entity: 'listing',
+            id: listing.id,
+            label: listing.title,
+            status: listing.status,
+            detail: {
+              listing,
+              company: companyDetail(company)
+            }
+          }
+        ];
+      }),
       routes: visibleRoutes.map(route => [formatRouteLabel(route.origin, route.destination, route.routeName), bookingTitle({
         listingId: route.listingId
       }), `${route.boardingPoints?.length || 0} boarding`, `${route.dropoffPoints?.length || 0} dropoffs`, route.corridor || '', route.status, {

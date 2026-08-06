@@ -31,6 +31,7 @@ const scheduleRuleSchema = new Schema({
   materializationBlockerCode: { type: String, index: true },
   materializationBlockerReason: String,
   materializationBlockerFailures: [String],
+  materializationRequiresAction: { type: Boolean, default: false, index: true },
   materializationStateUpdatedAt: Date,
   createdBy: String,
   updatedBy: String,

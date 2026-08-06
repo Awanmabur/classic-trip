@@ -36,8 +36,16 @@ function buildCompanyBusScope(state = {}, companyId, companyListings = []) {
   const routeIds = new Set(routes.map(rowId).filter(Boolean));
   const vehicles = owned(state.vehicles).filter((row) => listingIds.has(key(row.listingId)));
   const vehicleIds = new Set(vehicles.map(rowId).filter(Boolean));
-  const schedules = owned(state.schedules).filter((row) => listingIds.has(key(row.listingId))
-    && routeIds.has(key(row.routeId)) && vehicleIds.has(key(row.vehicleId)));
+  const routeListingById = new Map(routes.map((row) => [rowId(row), key(row.listingId)]));
+  const vehicleListingById = new Map(vehicles.map((row) => [rowId(row), key(row.listingId)]));
+  const schedules = owned(state.schedules).map((row) => {
+    const explicitListingId = key(row.listingId);
+    const routeListingId = routeListingById.get(key(row.routeId)) || '';
+    const vehicleListingId = vehicleListingById.get(key(row.vehicleId)) || '';
+    const resolvedListingId = explicitListingId || (routeListingId && routeListingId === vehicleListingId ? routeListingId : '');
+    if (!listingIds.has(resolvedListingId) || routeListingId !== resolvedListingId || vehicleListingId !== resolvedListingId) return null;
+    return explicitListingId ? row : { ...row, listingId: resolvedListingId };
+  }).filter(Boolean);
   const scheduleIds = new Set(schedules.map(rowId).filter(Boolean));
 
   const seatMapVersions = owned(state.seatMapVersions).filter((row) => listingIds.has(key(row.listingId))

@@ -86,7 +86,7 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
   ]),
   listings: new Set([
     'categories', 'companyBranches', 'companyEmployees', 'invitations',
-    'verificationReviews', 'listings', 'routes', 'vehicles', 'hotelProperties',
+    'verificationReviews', 'listings', 'routes', 'vehicles', 'schedules', 'hotelProperties',
     'roomTypes', 'airlines', 'aircraft', 'flightRoutes', 'vehicleClasses',
     'taxiVehicles', 'taxiDriverProfiles', 'notifications',
   ]),
@@ -410,6 +410,13 @@ function companyEntityQuery(entity, companyId, context = {}) {
       }] };
       options.limit = 80;
       options.sort = { departAt: 1 };
+    } else if (page === 'listings') {
+      filter = { $and: [base, {
+        departAt: { $gte: recentCutoff },
+        status: { $ne: 'archived' },
+      }] };
+      options.limit = 160;
+      options.sort = { departAt: 1 };
     } else if (page === 'overview') {
       filter = { $and: [base, { status: { $ne: 'archived' } }] };
       options.limit = 80;
@@ -541,7 +548,9 @@ async function companySnapshot(companyId, context = {}) {
   const bookingIds = ids(snapshot.bookings);
   const serviceType = companyServiceType(snapshot.companies[0]);
 
-  const seatLimit = page === 'seat-maps' ? 1800 : page === 'bookings' ? 900 : 400;
+  const seatLimit = page === 'seat-maps'
+    ? Math.max(1800, Math.min(6000, Math.max(1, scheduleIds.length) * 120))
+    : page === 'bookings' ? 900 : 400;
   const relatedTasks = [
     ['categories', {}, 250],
     ['seats', scheduleIds.length ? { $or: [

@@ -1,3 +1,22 @@
+# Classic Trip 1.6.15 — Preview Hierarchy, Worker Circuit Breaker and Listing Inventory Repair
+
+Release date: 6 August 2026
+
+## Main repairs
+
+- Grouped route, travel time, boarding and drop-off controls inside a labeled container above Ticket class and Journey, with larger readable typography.
+- Scoped preview flashes to red rectangular rounded cards instead of black translucent notices.
+- Removed the desktop bar image baseline strip while preserving the approved compact image dimensions and unchanged phone bars.
+- Corrected the Listings table's eight-column projection and loaded bounded recent departures so schedule counts and price/status columns align correctly.
+- Prevented false seat-inventory warnings by scaling the seat-row read limit with the number of loaded departures.
+- Replaced per-rule MongoDB outage retries with one queue-level circuit breaker and exponential backoff.
+- Made vehicle overlap blockers action-required until the recurring rule is edited or resumed.
+- Staggered scheduled-job launches and labeled web/worker MongoDB connections in startup logs.
+
+See `PREVIEW_WORKER_LISTING_INVENTORY_REPORT_v1.6.15.md` for root-cause explanations and verification.
+
+---
+
 # Classic Trip 1.6.14 — Vision-Style Desktop Bars, Deterministic Red Seats and Rolling Queue Repair
 
 Release date: 6 August 2026

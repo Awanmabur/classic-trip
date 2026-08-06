@@ -137,8 +137,8 @@
                 <% } %>
                 <% if(!previewSeats.length){ %>
                   <div class="notice seatInventoryRepairNotice" style="margin:0 0 12px">
-                    <strong>This departure’s saved seat inventory is incomplete.</strong>
-                    Classic Trip can rebuild it safely from the immutable route and seat-map snapshots stored with this departure.
+                    <strong>This dated departure exists, but one or more persisted seat rows are missing.</strong>
+                    Classic Trip can rebuild only the missing inventory from the immutable route and seat-map snapshots already stored with this departure.
                     <% if(isCompanyDashboard && map.scheduleId){ %>
                       <form method="POST" action="/company/schedules/<%= map.scheduleId %>/repair-inventory" style="margin-top:10px">
                         <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">

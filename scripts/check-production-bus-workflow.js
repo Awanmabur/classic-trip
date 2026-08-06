@@ -47,7 +47,7 @@ check(!/SERVICE_ALIASES|coach|bus_company|publishedBusDeparture/.test(visibility
 check(/persisted_inventory/.test(liveMaps), 'Live seat maps must identify persisted inventory');
 check(!/capacity_fallback|schedule_inventory_snapshot|needsRepair|vehicle_seat_template/.test(liveMaps), 'Live seat maps must not fabricate or recover inventory');
 check(/inventoryMissing/.test(liveMaps), 'Incomplete departures must be reported explicitly');
-check(/saved seat inventory is incomplete/.test(seatMapView) && /Repair seat inventory/.test(seatMapView), 'The dashboard must explain and safely repair incomplete canonical departures');
+check(/persisted seat rows are missing/.test(seatMapView) && /Repair seat inventory/.test(seatMapView), 'The dashboard must explain and safely repair incomplete canonical departures');
 
 check(/function syncScheduleForm/.test(dashboard), 'Schedule form must auto-fill linked bus data');
 check(/function syncVehicleSeatTemplateForm/.test(dashboard), 'Seat-template form must synchronize the selected vehicle');
