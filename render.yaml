@@ -5,8 +5,8 @@ services:
     plan: starter
     region: oregon
     branch: master
-    buildCommand: npm ci && npm run verify && npm prune --omit=dev
-    preDeployCommand: npm run db:indexes
+    buildCommand: npm ci && npm run release:check && npm prune --omit=dev
+    preDeployCommand: npm run release:launch && npm run db:indexes
     startCommand: npm start
     healthCheckPath: /ready
     envVars:
@@ -131,8 +131,18 @@ services:
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false
+      - key: TAXI_ROUTING_API_URL
+        sync: false
+      - key: TAXI_REQUIRE_LIVE_ROUTING
+        value: "true"
       - key: PUSH_ENABLED
-        value: "false"
+        value: "true"
+      - key: PUSH_VAPID_PUBLIC_KEY
+        sync: false
+      - key: PUSH_VAPID_PRIVATE_KEY
+        sync: false
+      - key: PUSH_VAPID_SUBJECT
+        sync: false
       - key: ENABLE_JOBS
         value: "false"
       - key: RUN_BACKGROUND_WORKER
@@ -208,13 +218,37 @@ services:
         value: "true"
       - key: REDIS_PREFIX
         value: "classic-trip:"
+      - key: TAXI_ROUTING_API_URL
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: TAXI_ROUTING_API_URL
+      - key: TAXI_REQUIRE_LIVE_ROUTING
+        value: "true"
+      - key: PUSH_ENABLED
+        value: "true"
+      - key: PUSH_VAPID_PUBLIC_KEY
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: PUSH_VAPID_PUBLIC_KEY
+      - key: PUSH_VAPID_PRIVATE_KEY
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: PUSH_VAPID_PRIVATE_KEY
+      - key: PUSH_VAPID_SUBJECT
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: PUSH_VAPID_SUBJECT
       - key: ENABLE_JOBS
         value: "true"
       - key: JOB_PROCESS_OUTBOX
         value: "*/30 * * * * *"
       - key: JOB_MAX_RUN_MS
         value: "45000"
-      - key: JOB_OUTBOX_BATCH_SIZE
+      - key: OUTBOX_BATCH_SIZE
         value: "8"
       - key: JOB_MATERIALIZE_SCHEDULES
         value: "*/15 * * * *"

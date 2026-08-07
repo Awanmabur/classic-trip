@@ -1,19 +1,33 @@
-# Classic Trip 1.6.15 — Preview Hierarchy, Worker Circuit Breaker and Listing Inventory Repair
+# Classic Trip 1.6.29 — Ticket Class/Journey Active Border Match
 
-Release date: 6 August 2026
+- Standard/VIP now use the exact same inactive and active border treatment as One-way/Return.
+- Removed the old Ticket-class-only border exception instead of adding another conflicting override.
+- Preserved the existing ticket-first flow, black preview notifications, and production-clean v1.6.28 changes.
+
+# Classic Trip 1.6.28 — Final Production Clean Release
+
+- Removed obsolete one-off v1.6.x repair reports from the production source tree.
+- Removed the orphaned v1.6.23 preview check script and an empty vendor asset directory.
+- Consolidated the permanent release-consistency gate and added it to `npm run verify`.
+- Aligned package, lockfile, service-worker cache, README, and deployment checklist to 1.6.28.
+- Preserved all current ticket-class, journey, route, preview-toast, seat inventory, rolling departure, performance, security, payment, dashboard, and responsive UI fixes.
+- Updated all internal semantic asset cache keys to `1.6.28`, preventing stale v1.6.16 browser assets after deployment.
+- Hardened the Render blueprint to run `release:check`, run the production launch doctor before index reconciliation, require a live HTTPS taxi-routing endpoint, share VAPID push configuration with the worker, and use the correct `OUTBOX_BATCH_SIZE` key.
+
+# Classic Trip 1.6.16 — Ticket Class Order, Balanced Bars and Light-Mode Badge Repair
+
+Release date: 7 August 2026
 
 ## Main repairs
 
-- Grouped route, travel time, boarding and drop-off controls inside a labeled container above Ticket class and Journey, with larger readable typography.
-- Scoped preview flashes to red rectangular rounded cards instead of black translucent notices.
-- Removed the desktop bar image baseline strip while preserving the approved compact image dimensions and unchanged phone bars.
-- Corrected the Listings table's eight-column projection and loaded bounded recent departures so schedule counts and price/status columns align correctly.
-- Prevented false seat-inventory warnings by scaling the seat-row read limit with the number of loaded departures.
-- Replaced per-rule MongoDB outage retries with one queue-level circuit breaker and exponential backoff.
-- Made vehicle overlap blockers action-required until the recurring rule is edited or resumed.
-- Staggered scheduled-job launches and labeled web/worker MongoDB connections in startup logs.
+- Reordered the bus preview workflow as Route & travel → Ticket class → Journey.
+- Removed the ticket-class auto-fallback that could switch VIP back to Standard.
+- Returned desktop preview typography to compact sizing and kept only a modest phone-only increase.
+- Reduced the desktop bar image width to 176px while keeping the phone bar at its approved 148px × 154px layout.
+- Matched bar body spacing to the card rhythm and reduced the two overlay badges inside bar images.
+- Increased phone bar text slightly without changing phone bar dimensions.
+- Fixed the top-right green availability badge so its text and icon remain readable in light mode.
 
-See `PREVIEW_WORKER_LISTING_INVENTORY_REPORT_v1.6.15.md` for root-cause explanations and verification.
 
 ---
 
@@ -31,7 +45,6 @@ Release date: 6 August 2026
 - Added rolling-conflict fields to the strict `ScheduleRule` schema, prevented active blockers from being extended, and changed the scheduled materializer to queue work and return before the cron deadline.
 - Preserved the dedicated worker, fail-fast MongoDB, page-scoped dashboard, deferred JavaScript, preview-prefetch and bounded payment/listing speed architecture.
 
-See `BAR_SEAT_ROUTE_ROLLING_FIX_REPORT_v1.6.14.md` for implementation details and verification.
 
 ---
 
@@ -49,7 +62,6 @@ Release date: 6 August 2026
 - Disabled rolling work in direct web-server launches by default so user requests do not compete with background materialization.
 - Preserved the v1.6.12 fail-fast MongoDB, page-scoped dashboard, preview/payment and deferred-JavaScript speed architecture.
 
-See `PRECISION_SPEED_INVENTORY_REPAIR_REPORT_v1.6.13.md` for safety rules, performance details and verification results.
 
 ---
 
@@ -68,7 +80,6 @@ Release date: 6 August 2026
 - Increased bars to 198 px desktop and 190 px phone, with two visible wrapped route rows.
 - Added spacing to `DRIVER - FRONT` and centered the visual seat map.
 
-See `ULTRA_SPEED_END_TO_END_REPORT_v1.6.12.md` for the root-cause trace, exact limits and verification record.
 
 ---
 
@@ -99,7 +110,6 @@ Release date: 6 August 2026
 - Added `npm run check:v1611-speed-end-to-end`.
 - Passed syntax and EJS checks plus the focused performance, CSRF, marketing-mobile, rolling-worker, dashboard, fare, payment, and safe v1.6.7 route/preview/navigation audits.
 
-See `SPEED_150_END_TO_END_REPORT_v1.6.11.md` for the implementation record and performance-target note.
 
 ---
 
@@ -120,7 +130,6 @@ Release date: 6 August 2026
 - Restored dashboard **Price from** through a pre-indexed fare-product/segment fallback.
 - Advanced application, asset and service-worker versions to `1.6.10`.
 
-See `SAFE_V167_COMPANY_ROUTES_PREVIEW_NAV_ROLLING_FIX_REPORT_v1.6.10.md` for the complete implementation and verification record.
 
 ---
 
@@ -368,3 +377,35 @@ npm run check:final-home-payment
 npm run release:check
 npm start
 ```
+
+
+## v1.6.17
+- Restored desktop Ticket class and Journey to side-by-side layout above their controls.
+- Preserved stacked phone layout and all v1.6.16 behavior.
+
+
+## v1.6.19
+- Fixed bus preview order: Ticket class and Journey now appear above Route & travel and are selected first.
+
+
+## v1.6.20
+- Fixed bus preview flow so Ticket class and Journey can be selected first before the route section.
+
+
+## v1.6.21
+- Real ticket-first flow: Ticket class is step 1, Journey is step 2, and Route & travel unlocks as step 3.
+
+## v1.6.23
+- Standard and One-way selected by default in preview.
+- Removed extra dark preview selector styling.
+- Fixed preview phone toast/flash style to wide red rounded rectangles.
+
+
+## v1.6.24
+- Restored black preview flash background and removed the added border.
+
+## v1.6.25
+- Removed the extra dark border around the Ticket class preview group.
+
+## v1.6.27
+- Removed the remaining dark inner border from Ticket class and its Standard/VIP buttons.

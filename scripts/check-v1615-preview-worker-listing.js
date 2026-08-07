@@ -20,8 +20,8 @@ const scheduler = read('src/jobs/scheduler.js');
 const model = read('src/models/ScheduleRule.js');
 const departureService = read('src/modules/bus/services/busDepartureService.js');
 const seatMaps = read('src/views/dashboards/shared/sections/seat-maps.ejs');
-check('release version is v1.6.15', pkg.version === '1.6.15');
-check('route and travel group appears before ticket class', details.indexOf('busJourneyStepGroup') > -1 && details.indexOf('busJourneyStepGroup') < details.indexOf('busTicketChooser'));
+check('release version is v1.6.16', Number(String(pkg.version).split('.')[2] || 0) >= 16);
+check('ticket class and Journey appear before route and travel', details.indexOf('busTicketChooser') > -1 && details.indexOf('busTicketChooser') < details.indexOf('busJourneyStepGroup'));
 check('all four route/travel placeholders remain intact', details.includes('Select route</option>') && details.includes('Select route first') && details.split('Select travel time first').length >= 3);
 check('preview receives a scoped body class', details.includes("bodyClass: 'listingPreviewBody'") && siteHead.includes('typeof bodyClass'));
 check('preview flashes are red rectangular cards', css.includes('body.listingPreviewBody .siteFlash') && css.includes('background:#b91c1c!important') && css.includes('border-radius:14px!important'));
@@ -38,4 +38,4 @@ check('Mongo outage pauses one global rolling queue', materializer.includes('pau
 check('rolling repair scans are no longer five-minute hot scans', materializer.includes('BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000'));
 check('scheduled jobs are staggered instead of launching together', scheduler.includes('staggerMs: 4200') && scheduler.includes('pendingLaunchTimers') && scheduler.includes('const launch = () =>'));
 check('seat inventory warning explains missing persisted rows', seatMaps.includes('persisted seat rows are missing') && seatMaps.includes('rebuild only the missing inventory'));
-if (!process.exitCode) console.log(`v1.6.15 preview/worker/listing checks passed (${passed}/18).`);
+if (!process.exitCode) console.log(`v1.6.16 preview/worker/listing checks passed (${passed}/18).`);

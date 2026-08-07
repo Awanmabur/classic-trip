@@ -1,22 +1,24 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.15.
+Use this checklist for version 1.6.29.
 
 
-## v1.6.15 focused validation
+## v1.6.16 focused validation
 
 ```bash
+npm run check:v1616-ticket-bars-lightmode
 npm run check:v1615-preview-worker-listing
 ```
 
 After deployment, confirm:
 
-- preview route/travel selectors appear above Ticket class and Journey;
-- preview flash messages are red rounded rectangles;
-- a company listing row shows Partner, Inventory, Country route, Badge and Price in separate aligned columns;
-- startup logs label MongoDB connections as `process=web` and `process=worker`;
-- a MongoDB outage produces one rolling-queue pause warning rather than one warning per rule; and
-- a vehicle overlap remains blocked until its recurring rule is corrected and resumed.
+- preview order is Route & travel, then Ticket class, then Journey;
+- selecting VIP leaves only VIP active and does not silently reselect Standard;
+- desktop preview fonts remain compact while phone controls are readable but not oversized;
+- desktop bar images are narrower and align smoothly from top to bottom;
+- phone bar dimensions remain unchanged while bar copy is slightly larger;
+- the two badges inside bar images are smaller; and
+- the top-right green availability badge is readable in light mode.
 
 ## 1. Clean installation
 
@@ -173,3 +175,28 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - [ ] During a temporary Atlas interruption, cached dashboards/listings remain readable and requests fail within seconds rather than hanging for minutes.
 - [ ] Superseded by v1.6.14: verify phone remains approved and desktop uses natural height with a fixed 190 × 150 px image.
 - [ ] `DRIVER - FRONT` has visible spacing and the seat-map cabin is centered.
+
+## Final go-live sequence for v1.6.29
+
+1. Back up the production MongoDB database before migrations or index reconciliation.
+2. Confirm all production secrets and callback URLs are configured in the hosting environment; never upload a local `.env` file.
+3. Run `npm ci` on a clean checkout.
+4. Run `npm run release:check` and do not deploy if any check fails.
+5. Run all migration commands in dry-run mode first. Apply only migrations whose dry-run reports changes you expect.
+6. Run `npm run db:indexes` once against production before starting traffic after schema/index changes.
+7. Seed the super admin only if the production account does not already exist; do not reset an existing production password unintentionally.
+8. Start the web process and the dedicated worker as separate services. Keep web background jobs disabled when the worker is enabled.
+9. Verify `/ready` returns healthy before routing traffic.
+10. Perform one real Standard one-way booking and one VIP/return flow through payment, ticket issue, and persisted seat state.
+11. Verify payment callbacks/IPN/webhooks use the live HTTPS domain and the live provider credentials.
+12. Verify email/SMS/WhatsApp/push integrations that are enabled for production.
+13. Verify Cloudinary uploads, authentication, password reset, partner/admin dashboards, manifests, archive/restore, and mobile/PWA behavior.
+14. Watch web and worker logs for MongoDB disconnects, repeated rolling conflicts, cron missed executions, payment webhook errors, or 5xx responses before announcing the launch.
+15. After deployment, hard-refresh/service-worker refresh on phone and desktop so clients receive the v1.6.29 asset cache.
+
+### Production configuration blockers
+
+- `TAXI_ROUTING_API_URL` must be a real public HTTPS routing endpoint; production defaults to live-routing required.
+- `PUSH_ENABLED=true` requires valid `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY`, and a valid subject.
+- Render web and worker services must use the same routing and push configuration.
+- `OUTBOX_BATCH_SIZE` is the correct worker batch-size variable.

@@ -5,25 +5,23 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.15
+## Current release — version 1.6.29
 
-- Added a labeled **Route & travel** container above Ticket class and Journey on the bus preview page.
-- Increased preview selector, group-label and ticket-choice font sizes while preserving all selector IDs and booking logic.
-- Replaced black preview flashes with scoped red rectangular notices with rounded edges.
-- Removed the desktop bar image baseline gap without increasing image height or changing the phone bar layout.
-- Fixed the eight-column Listings table projection and loaded bounded recent schedules so Inventory, Country route, Badge and Price from remain aligned.
-- Counted safely resolvable legacy schedule rows that lack `listingId` without weakening company ownership checks.
-- Scaled live-seat-map inventory reads by the number of dated departures to prevent false incomplete-inventory warnings caused by the former fixed 1,800-row cap.
-- Added a global MongoDB outage circuit breaker for the rolling queue, action-required vehicle-conflict blockers, 30-minute bounded repair scans and staggered scheduled-job launches.
-- Added `process=web` / `process=worker` to MongoDB startup logs so the expected two-process architecture is clear.
+- Bus preview controls now follow the order **Route & travel → Ticket class → Journey**.
+- VIP and Standard are exclusive choices; route synchronisation no longer silently switches a VIP selection back to Standard.
+- Desktop preview controls use compact typography again; phone controls use a smaller phone-only readability increase.
+- Desktop listing-bar image width is reduced to 176px and follows content-driven height.
+- Phone listing-bar dimensions remain unchanged at the approved 148px image column / 154px bar height.
+- Bar content spacing now matches card spacing, image-overlay badges are smaller, and phone bar copy is slightly larger.
+- The top-right green availability badge has high-contrast dark-green text in light mode.
 
 Run the focused dependency-free release gate with:
 
 ```bash
-npm run check:v1615-preview-worker-listing
+npm run check:v1616-ticket-bars-lightmode
 ```
 
-See `PREVIEW_WORKER_LISTING_INVENTORY_REPORT_v1.6.15.md`, `RELEASE_NOTES.md`, and `FINAL_RELEASE_CHECKLIST.md`.
+See `TICKET_CLASS_BAR_LIGHTMODE_FIX_REPORT_v1.6.16.md`, `RELEASE_NOTES.md`, and `FINAL_RELEASE_CHECKLIST.md`.
 
 ## Seven-service marketplace completion
 

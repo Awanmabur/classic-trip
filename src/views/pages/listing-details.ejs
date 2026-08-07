@@ -26,6 +26,8 @@
   const initialRouteSchedules = initialRouteId ? previewSchedules.filter((schedule) => String(schedule.routeId || '') === initialRouteId) : previewSchedules;
   const ticketClassesAvailable = new Set(initialRouteSchedules.map(scheduleTicketClass));
   const initialTicketClass = scheduleTicketClass(safeAvailability.schedule || initialRouteSchedules.find((schedule) => scheduleTicketClass(schedule) === 'standard') || initialRouteSchedules[0] || {});
+  const defaultTicketClass = ticketClassesAvailable.has('standard') ? 'standard' : initialTicketClass;
+  const initialFlowConfirmed = true;
   const initialReturnSchedules = returnSchedules.filter((schedule) => scheduleTicketClass(schedule) === initialTicketClass);
   const routeStops = safeAvailability.stops || [];
   const selectedJourney = safeAvailability.journey || {};
@@ -71,11 +73,28 @@
             <div class="selector scheduleSelector">
               <div class="selectorTop">
                 <div>
-                  <b>Choose your route, travel date &amp; time</b>
-                  <div class="muted" style="font-size:13px;font-weight:800">Select the company route first, then choose its departure time, boarding stop and drop-off stop before selecting seats.</div>
+                  <b>Step 3: Route &amp; travel</b>
+                  <div class="muted" style="font-size:13px;font-weight:800">Start with Ticket class first, then Journey. After that, choose the route, departure time, boarding stop, and drop-off stop.</div>
                 </div>
               </div>
               <% if (previewSchedules.length) { %>
+                <div class="busTicketChooser" aria-label="Bus ticket options">
+                  <div class="busTicketChoiceGroup">
+                    <strong>Ticket class</strong>
+                    <div class="ticketChoiceGrid" role="radiogroup" aria-label="Ticket class">
+                      <button class="ticketChoice <%= defaultTicketClass === 'standard' ? 'is-active' : '' %>" id="standardTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="standard" role="radio" aria-checked="<%= defaultTicketClass === 'standard' ? 'true' : 'false' %>" aria-pressed="<%= defaultTicketClass === 'standard' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('standard') ? '' : 'disabled' %>><i class="fa-solid fa-ticket"></i><span><b>Standard Ticket</b><small id="standardTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'standard').length %> departure(s)</small></span></button>
+                      <button class="ticketChoice <%= defaultTicketClass === 'vip' ? 'is-active' : '' %>" id="vipTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="vip" role="radio" aria-checked="<%= defaultTicketClass === 'vip' ? 'true' : 'false' %>" aria-pressed="<%= defaultTicketClass === 'vip' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('vip') ? '' : 'disabled' %>><i class="fa-solid fa-crown"></i><span><b>VIP Ticket</b><small id="vipTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'vip').length %> departure(s)</small></span></button>
+                    </div>
+                  </div>
+                  <div class="busTicketChoiceGroup">
+                    <strong>Journey</strong>
+                    <div class="ticketChoiceGrid" role="group" aria-label="Journey type">
+                      <button class="ticketChoice is-active" id="oneWayTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="one_way" aria-pressed="true"><i class="fa-solid fa-arrow-right"></i><span><b>One-way Ticket</b><small>Outbound journey only</small></span></button>
+                      <button class="ticketChoice" id="returnTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="round_trip" aria-pressed="false"><i class="fa-solid fa-arrow-right-arrow-left"></i><span><b>Return Ticket</b><small>Outbound and return</small></span></button>
+                    </div>
+                    <input type="checkbox" id="returnTripToggle" hidden aria-hidden="true">
+                  </div>
+                </div>
                 <div class="busJourneyStepGroup" aria-labelledby="routeTravelLabel">
                   <strong id="routeTravelLabel">Route &amp; travel</strong>
                   <div class="bookingForm busJourneySelectionGrid">
@@ -104,23 +123,6 @@
                     <% }) %>
                   </select>
                     <div class="full journeyPriceHint"><i class="fa-solid fa-route"></i> Fare updates instantly for the selected boarding and drop-off stops.</div>
-                  </div>
-                </div>
-                <div class="busTicketChooser" aria-label="Bus ticket options">
-                  <div class="busTicketChoiceGroup">
-                    <strong>Ticket class</strong>
-                    <div class="ticketChoiceGrid" role="group" aria-label="Ticket class">
-                      <button class="ticketChoice <%= initialTicketClass === 'standard' ? 'is-active' : '' %>" id="standardTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="standard" aria-pressed="<%= initialTicketClass === 'standard' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('standard') ? '' : 'disabled' %>><i class="fa-solid fa-ticket"></i><span><b>Standard Ticket</b><small id="standardTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'standard').length %> departure(s)</small></span></button>
-                      <button class="ticketChoice <%= initialTicketClass === 'vip' ? 'is-active' : '' %>" id="vipTicketChoice" type="button" data-listing-action="ticket-class" data-ticket-class="vip" aria-pressed="<%= initialTicketClass === 'vip' ? 'true' : 'false' %>" <%= ticketClassesAvailable.has('vip') ? '' : 'disabled' %>><i class="fa-solid fa-crown"></i><span><b>VIP Ticket</b><small id="vipTicketCount"><%= previewSchedules.filter((schedule) => scheduleTicketClass(schedule) === 'vip').length %> departure(s)</small></span></button>
-                    </div>
-                  </div>
-                  <div class="busTicketChoiceGroup">
-                    <strong>Journey</strong>
-                    <div class="ticketChoiceGrid" role="group" aria-label="Journey type">
-                      <button class="ticketChoice is-active" id="oneWayTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="one_way" aria-pressed="true"><i class="fa-solid fa-arrow-right"></i><span><b>One-way Ticket</b><small>Outbound journey only</small></span></button>
-                      <button class="ticketChoice" id="returnTicketChoice" type="button" data-listing-action="trip-type" data-trip-type="round_trip" aria-pressed="false"><i class="fa-solid fa-arrow-right-arrow-left"></i><span><b>Return Ticket</b><small>Outbound and return</small></span></button>
-                    </div>
-                    <input type="checkbox" id="returnTripToggle" hidden aria-hidden="true">
                   </div>
                 </div>
               <% } else { %>
@@ -298,7 +300,9 @@
   const routeOptionsData = <%- toScriptJson(busRoutes.map((route) => ({ id: route.routeId || route.id, label: ctRoute(route.origin, route.destination, route.label || route.routeName), origin: route.origin || '', destination: route.destination || '' }))) %>;
   let activeRouteId = <%- toScriptJson(initialRouteId) %>;
   let returnSchedulesData = <%- toScriptJson(initialReturnSchedules.map((schedule) => ({ id: schedule.id, listingId: schedule.listingId, vehicleClass: scheduleTicketClass(schedule), originStopId: schedule.originStopId, destinationStopId: schedule.destinationStopId, label: schedule.departureLabel || schedule.id, departAt: schedule.departAt || '' }))) %>;
-  let activeTicketClass = <%- toScriptJson(initialTicketClass) %>;
+  let activeTicketClass = <%- toScriptJson(defaultTicketClass) %>;
+  let ticketClassConfirmed = <%- toScriptJson(initialFlowConfirmed) %>;
+  let journeyChoiceConfirmed = <%- toScriptJson(initialFlowConfirmed) %>;
   const previewAddonOptions = <%- toScriptJson(addons) %>;
   const initialPreviewSeats = <%- toScriptJson(previewSeats) %>;
   const previewRoomsData = <%- toScriptJson(previewRooms) %>;
@@ -348,29 +352,69 @@
   function normalizedTicketClass(value) { return String(value || '').toLowerCase() === 'vip' ? 'vip' : 'standard'; }
   function ticketClassLabel(value) { return normalizedTicketClass(value) === 'vip' ? 'VIP Ticket' : 'Standard Ticket'; }
   function syncTicketChoiceState() {
-    document.querySelectorAll('[data-ticket-class]').forEach((button) => {
-      if (button.tagName !== 'BUTTON') return;
-      const selected = button.dataset.ticketClass === activeTicketClass;
+    document.querySelectorAll('.ticketChoice[data-ticket-class]').forEach((button) => {
+      const selected = ticketClassConfirmed && button.dataset.ticketClass === activeTicketClass;
       button.classList.toggle('is-active', selected);
       button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
     });
     const hasReturn = Boolean(document.getElementById('returnTripToggle')?.checked);
     const outboundChoice = document.getElementById('oneWayTicketChoice');
     const returnChoice = document.getElementById('returnTicketChoice');
-    outboundChoice?.classList.toggle('is-active', !hasReturn);
-    returnChoice?.classList.toggle('is-active', hasReturn);
-    outboundChoice?.setAttribute('aria-pressed', hasReturn ? 'false' : 'true');
-    returnChoice?.setAttribute('aria-pressed', hasReturn ? 'true' : 'false');
+    outboundChoice?.classList.toggle('is-active', journeyChoiceConfirmed && !hasReturn);
+    returnChoice?.classList.toggle('is-active', journeyChoiceConfirmed && hasReturn);
+    outboundChoice?.setAttribute('aria-pressed', journeyChoiceConfirmed && !hasReturn ? 'true' : 'false');
+    returnChoice?.setAttribute('aria-pressed', journeyChoiceConfirmed && hasReturn ? 'true' : 'false');
+  }
+  function busSelectionReadyForRoute() {
+    return ticketClassConfirmed && journeyChoiceConfirmed;
+  }
+  function syncRouteStepAvailability() {
+    const routeSelect = document.getElementById('outboundRouteSelect');
+    const scheduleSelect = document.getElementById('outboundScheduleSelect');
+    const originSelect = document.getElementById('outboundOriginStopSelect');
+    const destinationSelect = document.getElementById('outboundDestinationStopSelect');
+    if (!routeSelect) return;
+    const ready = busSelectionReadyForRoute();
+    const firstRouteOption = routeSelect.options[0];
+    if (firstRouteOption && !activeRouteId) {
+      firstRouteOption.textContent = ready ? 'Select route' : (!ticketClassConfirmed && !journeyChoiceConfirmed ? 'Select Ticket class and Journey first' : (!ticketClassConfirmed ? 'Select Ticket class first' : 'Select Journey first'));
+    }
+    routeSelect.disabled = !ready;
+    if (!ready) {
+      activeRouteId = '';
+      routeSelect.value = '';
+      previewPricing.scheduleId = '';
+      previewPricing.originStopId = '';
+      previewPricing.destinationStopId = '';
+      if (scheduleSelect) {
+        scheduleSelect.innerHTML = '<option value="" selected disabled>Select route after the steps above</option>';
+        scheduleSelect.disabled = true;
+      }
+      [originSelect, destinationSelect].forEach((control) => {
+        if (!control) return;
+        control.innerHTML = '<option value="" selected disabled>Select travel time first</option>';
+        control.disabled = true;
+      });
+      renderOutboundSeats([]);
+      activeSelections = [];
+      activeSelectionLabels = [];
+      activeSelection = '';
+      activeSelectionLabel = '';
+      refreshPreviewTotals();
+      return;
+    }
+    renderOutboundScheduleOptions({ preserveSelection: true });
   }
   function schedulesForActiveRoute() {
     if (!activeRouteId) return [];
     return outboundSchedulesData.filter((schedule) => String(schedule.routeId || '') === String(activeRouteId));
   }
   function syncRouteTicketClasses() {
-    const routeSchedules = schedulesForActiveRoute();
+    const scopeSchedules = activeRouteId ? schedulesForActiveRoute() : outboundSchedulesData;
     const counts = {
-      standard: routeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'standard').length,
-      vip: routeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'vip').length,
+      standard: scopeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'standard').length,
+      vip: scopeSchedules.filter((schedule) => normalizedTicketClass(schedule.vehicleClass) === 'vip').length,
     };
     const standardButton = document.getElementById('standardTicketChoice');
     const vipButton = document.getElementById('vipTicketChoice');
@@ -380,7 +424,6 @@
     const vipCount = document.getElementById('vipTicketCount');
     if (standardCount) standardCount.textContent = `${counts.standard} departure(s)`;
     if (vipCount) vipCount.textContent = `${counts.vip} departure(s)`;
-    if (!counts[activeTicketClass]) activeTicketClass = counts.standard ? 'standard' : counts.vip ? 'vip' : 'standard';
     syncTicketChoiceState();
     return counts;
   }
@@ -410,6 +453,8 @@
     returnPricing.scheduleId = '';
     activeReturnSelections = [];
     syncRouteTicketClasses();
+    const selectedClassButton = document.querySelector(`.ticketChoice[data-ticket-class="${activeTicketClass}"]`) || document.querySelector('.ticketChoice[data-ticket-class]:not(:disabled)');
+    if (selectedClassButton) selectedClassButton.disabled = false;
     renderOutboundScheduleOptions({ preserveSelection: false });
     await onOutboundScheduleChange();
     const url = new URL(window.location.href);
@@ -421,30 +466,46 @@
   }
   async function setTicketClass(ticketClass) {
     const requested = normalizedTicketClass(ticketClass);
-    if (!activeRouteId) {
-      notify('Select the route first.');
-      document.getElementById('outboundRouteSelect')?.focus();
+    const availableGlobally = outboundSchedulesData.some((schedule) => normalizedTicketClass(schedule.vehicleClass) === requested);
+    if (!availableGlobally) {
+      notify(`${ticketClassLabel(requested)} is not currently scheduled for this company.`);
       return;
     }
-    if (!schedulesForActiveRoute().some((schedule) => normalizedTicketClass(schedule.vehicleClass) === requested)) {
-      notify(`${ticketClassLabel(requested)} is not scheduled for the selected route yet.`);
-      return;
-    }
-    if (requested === activeTicketClass) return;
     activeTicketClass = requested;
+    ticketClassConfirmed = true;
+    journeyChoiceConfirmed = false;
+    const toggle = document.getElementById('returnTripToggle');
+    if (toggle) toggle.checked = false;
     returnSchedulesData = [];
     returnPricing.scheduleId = '';
     activeReturnSelections = [];
-    renderOutboundScheduleOptions({ preserveSelection: false });
     syncTicketChoiceState();
-    await onOutboundScheduleChange();
-    notify(`${ticketClassLabel(activeTicketClass)} selected. Choose its travel date and time.`);
+    syncRouteStepAvailability();
+    const firstJourney = document.getElementById('oneWayTicketChoice');
+    firstJourney?.focus();
+    notify(`${ticketClassLabel(activeTicketClass)} selected. Now choose Journey.`);
   }
   async function setTripType(tripType) {
+    if (!ticketClassConfirmed) {
+      notify('Select Ticket class first.');
+      document.querySelector('.ticketChoice[data-ticket-class]:not(:disabled)')?.focus();
+      return;
+    }
     const toggle = document.getElementById('returnTripToggle');
     if (!toggle) return;
     toggle.checked = tripType === 'round_trip';
+    journeyChoiceConfirmed = true;
     syncTicketChoiceState();
+    syncRouteStepAvailability();
+    syncAddonAvailability();
+    const fields = document.getElementById('returnTripFields');
+    if (fields && !activeRouteId) fields.style.display = 'none';
+    refreshPreviewTotals();
+    if (!activeRouteId) {
+      document.getElementById('outboundRouteSelect')?.focus();
+      notify(`${tripType === 'round_trip' ? 'Return Ticket' : 'One-way Ticket'} selected. Now select Route & travel.`);
+      return;
+    }
     await toggleReturnTrip();
   }
   function copyPreviewLink(url) {
@@ -825,7 +886,8 @@
     previewPricing.currency = data.fare?.currency || previewPricing.currency;
     previewPricing.originStopId = data.journey?.originStopId || previewPricing.originStopId;
     previewPricing.destinationStopId = data.journey?.destinationStopId || previewPricing.destinationStopId;
-    activeTicketClass = normalizedTicketClass(data.schedule?.vehicleClass || activeTicketClass);
+    // Live availability may update seats and pricing, but it must never rewrite
+    // the ticket class explicitly selected by the traveller.
     syncTicketChoiceState();
     currentOutboundLayout = data.schedule?.layoutName || currentOutboundLayout;
     if (refreshJourneyOptions) renderJourneyOptions(data);
@@ -1232,10 +1294,15 @@
   Object.assign(window, { sharePreviewListing, togglePreviewAddon, selectPreviewOption, onOutboundRouteChange, onOutboundScheduleChange, onOutboundJourneyChange, onReturnScheduleChange, setTicketClass, setTripType, toggleReturnTrip, toggleReturnSeat, goPaymentPage });
   if (previewPricing.serviceType === 'bus') {
     syncRouteTicketClasses();
-    renderOutboundScheduleOptions({ preserveSelection: true });
     syncTicketChoiceState();
-    renderOutboundSeats(initialPreviewSeats, currentOutboundLayout);
-    syncActiveSelectionFromButtons();
+    syncRouteStepAvailability();
+    if (previewPricing.scheduleId) {
+      renderOutboundSeats(initialPreviewSeats, currentOutboundLayout);
+      syncActiveSelectionFromButtons();
+    } else {
+      renderOutboundSeats([]);
+      document.querySelector('.ticketChoice[data-ticket-class]:not(:disabled)')?.focus({ preventScroll: true });
+    }
   }
   syncAddonAvailability();
   refreshPreviewTotals();

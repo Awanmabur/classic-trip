@@ -23,7 +23,7 @@ const desktopBarStart = css.indexOf('/* v1.6.13');
 const desktopBarEnd = css.indexOf('@media(max-width:680px)', desktopBarStart);
 const desktopBlock = css.slice(desktopBarStart, desktopBarEnd > desktopBarStart ? desktopBarEnd : undefined);
 const phoneBlock = css.slice(css.lastIndexOf('@media(max-width:680px)'));
-check('release and browser cache use the current package version', pkg.version === '1.6.15' && sw.includes(`classic-trip-static-v${pkg.version}`));
+check('release and browser cache use the current package version', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('desktop bars size naturally to content', desktopBlock.includes('height:auto!important') && desktopBlock.includes('min-height:0!important'));
 check('desktop route chips wrap without clipping or scroll height limits', css.includes('flex-wrap:wrap!important') && css.includes('max-height:none!important') && css.includes('overflow:visible!important'));
 check('approved phone bar dimensions remain 154px', css.includes('height:154px!important') && !css.includes('height:190px!important'));

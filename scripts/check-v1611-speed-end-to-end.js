@@ -17,7 +17,7 @@ const catalog = read('src/services/marketplace/catalogService.js');
 const css = read('public/css/completion-fixes.css');
 const workspace = read('src/views/dashboards/shared/workspace.ejs');
 const sw = read('public/sw.js');
-check('v1.6.11 speed baseline remains in later releases', pkg.version === '1.6.15' && sw.includes(`classic-trip-static-v${pkg.version}`));
+check('v1.6.11 speed baseline remains in later releases', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('production EJS view cache is enabled', app.includes("app.set('view cache', env.isProduction)"));
 check('compression has an explicit practical threshold', app.includes('compression({ threshold: 1024, level: 6 })'));
 check('public market configuration is reused', app.includes('const PUBLIC_MARKETS = publicMarkets()') && app.includes('res.locals.countryMarkets = PUBLIC_MARKETS'));

@@ -23,7 +23,7 @@ const externalStyles = read('public/js/external-styles-idle.js');
 const css = read('public/css/completion-fixes.css');
 const seatMap = read('src/views/dashboards/shared/sections/seat-maps.ejs');
 const sw = read('public/sw.js');
-check('release and service worker use the current package version', pkg.version === '1.6.15' && sw.includes(`classic-trip-static-v${pkg.version}`));
+check('release and service worker use the current package version', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('Mongo connection and queue timeouts are fail-fast', env.includes("MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000") && env.includes("MONGO_WAIT_QUEUE_TIMEOUT_MS', 2500") && env.includes('queryMaxTimeMs'));
 check('repository applies maxTimeMS to reads and writes', repo.includes('applyReadDeadline') && repo.includes('aggregate.option({ maxTimeMS') && repo.includes('findOneAndUpdate') && repo.includes('maxTimeMS: queryMaxTime(options)'));
 check('bulk Mongo reads have a bounded admission queue', gate.includes('READ_QUEUE_TIMEOUT_MS') && gate.includes('mongodb_read_queue_busy'));
