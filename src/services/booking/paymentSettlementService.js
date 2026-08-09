@@ -45,7 +45,22 @@ async function settleBookingPayment(bookingOrRef, options = {}) {
     const settlementTarget = fulfillmentRequired
       ? (currentSettlement === 'settled' ? 'settled' : (fulfilled ? 'eligible' : 'pending_fulfillment'))
       : 'settled';
-    const split = booking.pricing?.split || calculateCommission(booking.pricing?.total || 0, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
+    let split = booking.pricing?.split;
+    if (!split) {
+      const commissionableAmount = Number(booking.pricing?.commissionableSubtotal ?? booking.pricing?.total ?? 0);
+      const coreSplit = calculateCommission(commissionableAmount, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
+      const customerServiceFee = Number(booking.pricing?.serviceFee || 0);
+      const customerTaxAmount = Number(booking.pricing?.taxAmount || 0);
+      split = {
+        ...coreSplit,
+        commissionableAmount,
+        customerServiceFee,
+        customerTaxAmount,
+        discountTotal: Number(booking.pricing?.discountTotal || 0),
+        platformCommissionFee: coreSplit.platformFee,
+        platformFee: Number(coreSplit.platformFee || 0) + customerServiceFee + customerTaxAmount,
+      };
+    }
     const currency = booking.pricing?.currency || platformCurrency();
     await commissionService.createCommission(booking, Boolean(booking.promoterAttribution), split, { session });
     await ensureMovement({ ownerType: 'platform', ownerId: 'platform', currency, amount: split.platformFee, transactionType: 'platform_fee', status: 'completed', pending: false, booking, session });

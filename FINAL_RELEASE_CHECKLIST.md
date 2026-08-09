@@ -193,7 +193,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 12. Verify email/SMS/WhatsApp/push integrations that are enabled for production.
 13. Verify Cloudinary uploads, authentication, password reset, partner/admin dashboards, manifests, archive/restore, and mobile/PWA behavior.
 14. Watch web and worker logs for MongoDB disconnects, repeated rolling conflicts, cron missed executions, payment webhook errors, or 5xx responses before announcing the launch.
-15. After deployment, hard-refresh/service-worker refresh on phone and desktop so clients receive the v1.6.33 asset cache.
+15. After deployment, hard-refresh/service-worker refresh on phone and desktop so clients receive the v1.6.38 asset cache.
 
 ### Production configuration blockers
 
@@ -202,12 +202,12 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - Render web and worker services must use the same routing and push configuration.
 - `OUTBOX_BATCH_SIZE` is the correct worker batch-size variable.
 
-## SEO and AI discovery launch steps — v1.6.33
+## SEO and AI discovery launch steps — v1.6.36
 
 1. Use `https://www.classictrip.org` as the canonical production origin. The application redirects production HTTP requests to this HTTPS origin.
 2. In Google Search Console, add `https://www.classictrip.org` as a URL-prefix property (or verify the whole domain by DNS). If using the HTML-tag method, copy only the `content` value from `<meta name="google-site-verification" content="...">` into `GOOGLE_SITE_VERIFICATION`.
 3. In Bing Webmaster Tools, add `https://www.classictrip.org`. If using Meta Tag verification, copy only the value inside `content="..."` from the `msvalidate.01` tag into `BING_SITE_VERIFICATION`.
-4. IndexNow does not issue a private console token. v1.6.33 uses this generated site key: `260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374`. Keep it as `INDEXNOW_KEY` and confirm `https://www.classictrip.org/260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374.txt` displays exactly that key after deployment.
+4. IndexNow does not issue a private console token. v1.6.36 uses this generated site key: `260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374`. Keep it as `INDEXNOW_KEY` and confirm `https://www.classictrip.org/260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374.txt` displays exactly that key after deployment.
 5. Keep `SEO_ALLOW_AI_SEARCH=true` so supported AI search/user crawlers can reach public pages. Keep `SEO_ALLOW_AI_TRAINING=false` unless you deliberately want training crawlers.
 6. After deployment, confirm these return HTTP 200: `https://www.classictrip.org/robots.txt`, `/sitemap.xml`, `/sitemaps/static.xml`, `/sitemaps/listings.xml`, `/sitemaps/companies.xml`, `/sitemaps/blogs.xml`, `/llms.txt`, `/llms-full.txt`, and `/ai-index.json`.
 7. Submit `https://www.classictrip.org/sitemap.xml` in Google Search Console and Bing Webmaster Tools.
@@ -216,14 +216,14 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 10. Confirm `/search?...`, login, dashboards, checkout, tickets, private tracking and API paths are not indexed.
 11. Run PageSpeed Insights/Core Web Vitals on the home page and a representative listing after production images and analytics are live.
 
-## Runtime stabilization checks — v1.6.33
+## Runtime stabilization checks — v1.6.36
 
 - Open Notifications from Company, Customer, Employee/Driver, Promoter and one platform-admin dashboard. Confirm the URL changes to the role-specific notification route and the live list loads.
 - From Home, choose a bus From/To pair that is not the first route of its company card, choose a date with a live departure, and confirm Search returns that route.
 - On `/search`, switch Service to Bus and confirm the destination selector only offers destinations valid for the selected origin.
-- For existing conflicted rules such as rule-8 / rule-11 / rule-14, fix the real vehicle/document conflict instead of forcing publication. v1.6.33 keeps other free rolling dates eligible.
+- For existing conflicted rules such as rule-8 / rule-11 / rule-14, fix the real vehicle/document conflict instead of forcing publication. v1.6.36 keeps other free rolling dates eligible.
 
-## Rolling-departure production check — v1.6.33
+## Rolling-departure production check — v1.6.36
 
 1. Confirm the `classic-trip-worker` service is running, has `ENABLE_JOBS=true`, and uses `JOB_MATERIALIZE_SCHEDULES=*/15 * * * *`. The web service should keep background jobs disabled when the dedicated worker is healthy.
 2. Create or inspect one active rolling rule with a 30-day window and a valid vehicle/template.
@@ -233,7 +233,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 6. A vehicle-overlap blocker now expires after a 15-minute cooldown and automatically retries. If the real overlap still exists, it will block again; correct the vehicle/time rather than creating duplicates.
 7. Restart the worker and verify the same dated departures remain persisted without duplicates.
 
-## DB-backed public search check — v1.6.33
+## DB-backed public search check — v1.6.36
 
 1. Home bus From/To, stays destination, flights, tours, rentals, cargo, and other public marketplace location selectors are populated from published database data.
 2. The general marketplace From/To selectors and public Routes directory selectors use the same published DB inventory.
@@ -242,7 +242,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 5. Taxi ride pickup/destination remains an autocomplete/current-location control because exact coordinates are required, but accepted suggestions come from the DB-backed Places service rather than accepting arbitrary route inventory values.
 
 
-## Return ticket, push notification, contact and domain launch checks — v1.6.33
+## Return ticket, push notification, contact and domain launch checks — v1.6.36
 
 1. Use `https://www.classictrip.org` as the public production origin. Add both `www.classictrip.org` and `classictrip.org` as custom domains in Render/DNS, and redirect the apex domain to `https://www.classictrip.org` so there is only one canonical host.
 2. Run `npm run push:generate-keys` locally once. Copy `PUSH_VAPID_PUBLIC_KEY` and `PUSH_VAPID_PRIVATE_KEY` into the Render web service secrets. Keep the private key out of Git. Set `PUSH_VAPID_SUBJECT=mailto:support@classictrip.org`.
@@ -262,3 +262,45 @@ npm run rolling:diagnose -- company-2 schedule-rule-11 schedule-rule-14
 ```
 
 The output identifies the conflicting schedule ID, recurring rule ID, route, departure and arrival times. Do not bypass a genuine overlap: assign another vehicle, move the rule time, or pause/remove the duplicate recurring rule.
+
+
+## v1.6.36 guest booking, pricing, monitoring and account launch checks
+
+1. **Guest booking must remain login-free.** Open a live bus listing in a fresh/incognito browser with no account session, choose ticket class/journey/route/departure/stops/seats, continue to payment, and confirm the booking can be completed without being redirected to login.
+2. **Verify guest contact capture.** Use a real reachable email address and WhatsApp-capable phone number. The booking must preserve the protected guest ticket access code/session so the same ticket can be opened later on Classic Trip without creating an account.
+3. **Verify confirmed-ticket delivery.** After a successful payment, confirm both channels receive the secure ticket information:
+   - Email receives the secure web ticket URL and PDF ticket URL.
+   - WhatsApp receives the secure web ticket URL and PDF ticket URL.
+   The ticket must also remain available through the Classic Trip ticket/success page.
+4. **Configure email before launch.** Set real production `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`. Send a real booking confirmation and confirm delivery rather than relying only on queued outbox records.
+5. **Configure WhatsApp before launch.** For Meta WhatsApp delivery, set the production provider/access-token/phone-number configuration required by the existing WhatsApp transport (including the access token and phone-number ID used by your Meta WhatsApp Business account). Send a real test to `+256781977217` and then to a separate customer number. If WhatsApp credentials are missing, the protected ticket still exists on-platform, but WhatsApp delivery cannot succeed.
+6. **Verify full-route discount exactly.** For a partner full-route fare of UGX 50,000, the customer ticket fare must become UGX 47,000. The service fee is then calculated from the discounted fare: UGX 2,000, producing UGX 49,000 before optional add-ons.
+7. **Verify intermediate-stop pricing is not discounted.** For an intermediate boarding/drop-off fare of UGX 50,000, customer fare remains UGX 50,000 and service fee is UGX 2,000. Do not apply the UGX 3,000 acquisition discount to partial legs.
+8. **Verify all UGX service-fee boundaries.** The customer ticket fare after any eligible full-route discount uses: UGX 1,000 for 1,000–30,000; UGX 2,000 for 30,001–100,000; UGX 3,000 for 100,001–150,000; UGX 5,000 above 150,000. Check at least the boundary values 30,000/30,001, 100,000/100,001 and 150,000/150,001.
+9. **Partner fare is not overwritten.** Confirm the partner dashboard still shows the configured partner fare and that booking pricing snapshots contain partner fare, customer discount, customer fare and service fee separately. No bulk fare migration is required for v1.6.36.
+10. **Run production index reconciliation after deploying the new monitoring model:** `npm run db:indexes`. This creates/reconciles the `PlatformActivity` indexes, including its 90-day TTL index.
+11. **Keep monitoring enabled on the web service:** `MONITORING_ENABLED=true`. Visitor Monitoring begins collecting after deployment; it does not reconstruct historical traffic.
+12. **Open Super Admin → Visitor Monitoring.** Generate traffic in another browser, then confirm unique visitors, page views, top pages, actions, device/referrer summaries, booking/payment signals and recent activity appear. Confirm no raw IP addresses, form bodies, passwords or card/payment details are shown/stored.
+13. **Verify the Archive UI.** Restore is icon-only, but the button still has an accessible title/ARIA label and successfully restores the item.
+14. **Verify one canonical account page.** `/login` must contain Login, Signup and Partner account entry. GET `/register` and `/signup` must redirect back to `/login` rather than rendering a second auth page. POST `/register` remains the account-creation endpoint.
+15. **Verify Google and WhatsApp actions on the account page.** Google must start the real `/auth/google` OAuth flow. WhatsApp help must open the Classic Trip WhatsApp conversation. Confirm the Tip block has visible spacing above it on desktop and phone.
+16. **Run the v1.6.36 focused regression before deployment:** `npm run check:v1636-final`, then `npm run release:check`. Do not deploy if either reports a failure.
+
+## v1.6.37 login and performance checks
+1. Open `/login` on desktop and phone. Confirm a clear 18px visual gap exists between the login form card and the Tip banner.
+2. Confirm both Google buttons show the four-color Google G and navigate to `/auth/google`; configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_CALLBACK_URL=https://www.classictrip.org/auth/google/callback` in production.
+3. Open Super Admin → Visitor Monitoring twice. The second load within 15 seconds should use the monitoring cache, and the page should no longer hydrate the normal Super Admin overview collections.
+4. Browse several public/dashboard pages, then wait roughly 1–2 seconds. Monitoring events are deliberately flushed in batches so analytics writes do not compete with booking/payment traffic.
+5. Review Monitoring → Slowest pages after each page has at least two views. Use the average/worst response times to identify any remaining page-specific bottleneck.
+6. Run `npm run check:v1637-auth-monitoring-speed` and then `npm run release:check` before deployment.
+
+## v1.6.38 all-dashboard performance and SMS verification
+
+1. Set `DASHBOARD_DB_READ_CONCURRENCY=10`, `MONGO_READ_CONCURRENCY=12`, `DASHBOARD_SNAPSHOT_TTL_MS=180000`, and keep `MONGO_MAX_POOL_SIZE=24`.
+2. Configure `SMS_API_URL`, `SMS_API_TOKEN`, `SMS_FROM=Classic Trip`, and `SMS_REQUEST_TIMEOUT_MS=8000` for both web/worker (Render worker inherits them from web).
+3. Run `npm run check:v1638-dashboard-speed-sms` and `npm run release:check`.
+4. Open at least one page in every role: Super Admin, Support, Finance, Operations, Content, Company Admin, Employee, Driver, Customer and Promoter. Revisit the page and verify navigation is near-instant from the page cache.
+5. Hover/focus a different dashboard sidebar item, then click it; the prefetched page should open faster. Prefetch visits must not appear as visitor page views in Monitoring.
+6. Complete one paid guest bus booking with a valid phone and email. Confirm one in-app record (if signed in), one email, one SMS and one WhatsApp delivery attempt, all carrying the secure ticket URL.
+7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
+8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.

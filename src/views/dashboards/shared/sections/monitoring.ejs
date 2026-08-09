@@ -1,0 +1,70 @@
+<%
+const monitoring = dashboardData?.monitoring || {};
+const ms = monitoring.stats || {};
+const monMoney = (v) => Number(v || 0).toLocaleString('en-GB');
+%>
+<section class="section" id="monitoring">
+  <div class="cardHead">
+    <div class="cardTitle">
+      <span class="eyebrow">Super Admin only</span>
+      <h2>Platform Monitoring</h2>
+      <p>Privacy-aware operational analytics for the last <%= monitoring.windowHours || 24 %> hours. Classic Trip stores a hashed visitor identifier, page/action name, device class and response status — never form contents, passwords, payment details, or raw IP addresses.</p>
+    </div>
+  </div>
+
+  <div class="statsGrid">
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-users-viewfinder"></i></div></div><div class="statNumber"><%= monMoney(ms.uniqueVisitors) %></div><div class="statLabel">Unique visitors</div><small>Approximate browser/session visitors</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-regular fa-eye"></i></div></div><div class="statNumber"><%= monMoney(ms.pageViews) %></div><div class="statLabel">Page views</div><small>Public + authenticated pages</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-gauge-high"></i></div></div><div class="statNumber"><%= monMoney(ms.avgPageMs) %> ms</div><div class="statLabel">Average page response</div><small>Server response time for tracked page views</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-bolt"></i></div></div><div class="statNumber"><%= monMoney(ms.actions) %></div><div class="statLabel">Meaningful actions</div><small>POST/PUT/PATCH/DELETE activity</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-user-check"></i></div></div><div class="statNumber"><%= monMoney(ms.signedInActivity) %></div><div class="statLabel">Signed-in activity</div><small>Activity tied to authenticated sessions</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-ticket"></i></div></div><div class="statNumber"><%= monMoney(ms.bookings) %></div><div class="statLabel">Booking actions</div><small>Booking-flow activity signals</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-credit-card"></i></div></div><div class="statNumber"><%= monMoney(ms.paymentActions) %></div><div class="statLabel">Payment actions</div><small>Payment-flow activity signals</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-triangle-exclamation"></i></div></div><div class="statNumber"><%= monMoney(ms.errors4xx) %></div><div class="statLabel">4xx responses</div><small>Customer/request errors to review</small></article>
+    <article class="statCard"><div class="statTop"><div class="statIcon"><i class="fa-solid fa-server"></i></div></div><div class="statNumber"><%= monMoney(ms.errors5xx) %></div><div class="statLabel">5xx responses</div><small>Server errors requiring attention</small></article>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Most visited pages</h3><p>Where visitors spend their time.</p></div></div>
+      <div class="tableWrap"><table><thead><tr><th>Page</th><th>Views</th><th>Visitors</th></tr></thead><tbody>
+      <% (monitoring.topPages || []).forEach((row) => { %><tr><td><code><%= row.label %></code></td><td><%= row.count %></td><td><%= row.uniqueVisitors %></td></tr><% }) %>
+      <% if (!(monitoring.topPages || []).length) { %><tr><td colspan="3">No activity captured yet. Data appears after people browse this release.</td></tr><% } %>
+      </tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><div class="cardTitle"><h3>Top actions</h3><p>What visitors and signed-in users are doing.</p></div></div>
+      <div class="tableWrap"><table><thead><tr><th>Action</th><th>Count</th><th>Visitors</th></tr></thead><tbody>
+      <% (monitoring.topActions || []).forEach((row) => { %><tr><td><%= row.label %></td><td><%= row.count %></td><td><%= row.uniqueVisitors %></td></tr><% }) %>
+      <% if (!(monitoring.topActions || []).length) { %><tr><td colspan="3">No meaningful actions captured yet.</td></tr><% } %>
+      </tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="cardHead"><div class="cardTitle"><h3>Slowest pages</h3><p>Pages with at least two tracked views, ranked by average server response time. Use this to find where optimization is needed next.</p></div></div>
+    <div class="tableWrap"><table><thead><tr><th>Page</th><th>Views</th><th>Average</th><th>Worst</th></tr></thead><tbody>
+      <% (monitoring.slowPages || []).forEach((row) => { %><tr><td><code><%= row.label %></code></td><td><%= row.views %></td><td><%= row.avgDurationMs %> ms</td><td><%= row.maxDurationMs %> ms</td></tr><% }) %>
+      <% if (!(monitoring.slowPages || []).length) { %><tr><td colspan="4">More page views are needed before slow-page ranking is meaningful.</td></tr><% } %>
+    </tbody></table></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Devices</h3><p>Useful for responsive-design and performance decisions.</p></div></div><div class="tableWrap"><table><thead><tr><th>Device</th><th>Activity</th></tr></thead><tbody><% (monitoring.devices || []).forEach((row) => { %><tr><td><%= row.label %></td><td><%= row.count %></td></tr><% }) %></tbody></table></div></div>
+    <div class="card"><div class="cardHead"><div class="cardTitle"><h3>Referrers</h3><p>Where visits originate without storing full referring URLs.</p></div></div><div class="tableWrap"><table><thead><tr><th>Host</th><th>Visits</th></tr></thead><tbody><% (monitoring.referrers || []).forEach((row) => { %><tr><td><%= row.label %></td><td><%= row.count %></td></tr><% }) %><% if (!(monitoring.referrers || []).length) { %><tr><td colspan="2">No external referrers yet.</td></tr><% } %></tbody></table></div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="cardHead"><div class="cardTitle"><h3>Recent activity</h3><p>Operational timeline for debugging journeys and finding broken pages. Visitor IDs are hashed.</p></div></div>
+    <div class="tableWrap"><table><thead><tr><th>Time</th><th>Visitor / role</th><th>Type</th><th>Page / action</th><th>Status</th><th>Device</th><th>Speed</th></tr></thead><tbody>
+    <% (monitoring.recent || []).forEach((row) => { %><tr>
+      <td><%= row.occurredAt ? new Date(row.occurredAt).toLocaleString('en-GB') : '—' %></td>
+      <td><code><%= String(row.visitorId || '').slice(0,8) %>…</code><br><small><%= row.userRole || 'guest' %></small></td>
+      <td><%= row.eventType === 'action' ? 'Action' : 'View' %></td>
+      <td><%= row.eventType === 'action' ? row.actionName : row.path %></td>
+      <td><%= row.statusCode || '—' %></td><td><%= row.deviceType || 'unknown' %></td><td><%= row.durationMs || 0 %> ms</td>
+    </tr><% }) %>
+    <% if (!(monitoring.recent || []).length) { %><tr><td colspan="7">Monitoring begins collecting after this release starts. Historical visits cannot be reconstructed.</td></tr><% } %>
+    </tbody></table></div>
+  </div>
+</section>

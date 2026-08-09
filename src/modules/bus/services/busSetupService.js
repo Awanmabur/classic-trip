@@ -1335,7 +1335,6 @@ const ADDON_TEMPLATES = Object.freeze({
   bus: Object.freeze({
     extra_luggage: { name: 'Extra luggage', description: 'Adds one extra checked-luggage allowance for each selected traveler.', category: 'baggage', icon: 'fa-suitcase-rolling', chargeBasis: 'per_passenger', availableFor: 'all' },
     priority_boarding: { name: 'Priority boarding', description: 'Board before general boarding and settle into your seat earlier.', category: 'boarding', icon: 'fa-person-walking-arrow-right', chargeBasis: 'per_passenger', availableFor: 'all' },
-    sms_whatsapp_ticket: { name: 'SMS and WhatsApp ticket', description: 'Receive the ticket and journey updates by both SMS and WhatsApp.', category: 'communication', icon: 'fa-message', chargeBasis: 'per_booking', availableFor: 'all' },
     travel_insurance: { name: 'Travel insurance', description: 'Optional trip protection for each traveler, subject to the partner policy.', category: 'insurance', icon: 'fa-shield-heart', chargeBasis: 'per_passenger', availableFor: 'all' },
     meal_pack: { name: 'Meal pack', description: 'A meal or refreshment pack provided on each selected trip leg.', category: 'meal', icon: 'fa-utensils', chargeBasis: 'per_passenger_per_leg', availableFor: 'all' },
     lounge_access: { name: 'Terminal lounge access', description: 'Access the partner lounge before departure.', category: 'comfort', icon: 'fa-couch', chargeBasis: 'per_passenger_per_leg', availableFor: 'all' },

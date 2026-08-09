@@ -3,7 +3,7 @@ const authService = require('../../services/auth/authService');
 
 function redirectToPartnerForm(res, errorCode = '') {
   const suffix = errorCode ? `?error=${encodeURIComponent(errorCode)}` : '?role=partner';
-  return res.redirect(`/register${suffix}#partner`);
+  return res.redirect(`/login${suffix}#partner`);
 }
 
 async function createOnboarding(req, res, next) {

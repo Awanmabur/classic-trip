@@ -25,7 +25,12 @@ const mediaSchema = new Schema({
 }, { _id: false });
 
 const moneySchema = new Schema({
+  partnerFareSubtotal: Number,
+  discountTotal: Number,
   subtotal: Number,
+  serviceFee: Number,
+  taxAmount: Number,
+  commissionableSubtotal: Number,
   fees: Number,
   addonTotal: Number,
   total: Number,

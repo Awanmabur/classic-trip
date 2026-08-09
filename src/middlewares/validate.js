@@ -11,7 +11,7 @@ function validateRequest(req, res, next) {
   if (authPath === '/partner/onboarding') {
     const message = details.map((item) => item.msg).join(', ') || 'Please check the partner onboarding form and try again.';
     if (req.flash) req.flash('error', message);
-    return res.redirect('/register?role=partner#partner');
+    return res.redirect('/login?role=partner#partner');
   }
   if (authPath.startsWith('/invite/')) {
     const message = details.map((item) => item.msg).join(', ') || 'Please check the invitation form and try again.';
@@ -27,7 +27,7 @@ function validateRequest(req, res, next) {
     const message = details.map((item) => item.msg).join(', ') || 'Please check the form and try again.';
     if (req.flash) req.flash('error', message);
     if (authPath === '/register' && ['partner', 'company', 'company_admin'].includes(String(req.body?.role || '').toLowerCase())) {
-      return res.redirect('/register?role=partner#partner');
+      return res.redirect('/login?role=partner#partner');
     }
     const panel = authPath === '/register' ? 'signup' : authPath === '/forgot-password' ? 'forgot' : 'login';
     return res.redirect(`/login?error=validation#${panel}`);

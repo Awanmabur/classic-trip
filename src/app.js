@@ -17,6 +17,7 @@ const { csrfToken } = require('./middlewares/csrf');
 const flashMiddleware = require('./middlewares/flash');
 const publicPerformance = require('./middlewares/publicPerformance');
 const searchIndexing = require('./middlewares/searchIndexing');
+const platformMonitoring = require('./middlewares/platformMonitoring');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -117,6 +118,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(attachUser);
 app.use(attachReferral);
+app.use(platformMonitoring);
 app.use(csrfToken);
 app.use(flashMiddleware);
 app.use(publicPerformance);

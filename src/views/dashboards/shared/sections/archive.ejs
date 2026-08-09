@@ -72,9 +72,8 @@
                   <% if (row.restoreAllowed && archiveRestoreBase) { %>
                     <form method="POST" action="<%= archiveRestoreBase %>/<%= encodeURIComponent(row.model) %>/<%= encodeURIComponent(row.id) %>/restore">
                       <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
-                      <button class="btn tinyBtn" type="submit">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        Restore as <%= row.restoreTarget || 'inactive' %>
+                      <button class="btn tinyBtn archiveRestoreIconBtn" type="submit" title="Restore as <%= row.restoreTarget || 'inactive' %>" aria-label="Restore archived item as <%= row.restoreTarget || 'inactive' %>">
+                        <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                       </button>
                     </form>
                   <% } else { %>

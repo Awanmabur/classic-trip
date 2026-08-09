@@ -61,13 +61,13 @@ services:
       - key: MONGO_AUTO_INDEX
         value: "false"
       - key: DASHBOARD_DB_READ_CONCURRENCY
-        value: "8"
-      - key: MONGO_READ_CONCURRENCY
         value: "10"
+      - key: MONGO_READ_CONCURRENCY
+        value: "12"
       - key: MONGO_READ_QUEUE_TIMEOUT_MS
         value: "1200"
       - key: DASHBOARD_SNAPSHOT_TTL_MS
-        value: "60000"
+        value: "180000"
       - key: DASHBOARD_SNAPSHOT_STALE_MS
         value: "1800000"
       - key: LISTING_SNAPSHOT_TTL_MS
@@ -137,6 +137,10 @@ services:
         sync: false
       - key: SMS_API_TOKEN
         sync: false
+      - key: SMS_FROM
+        value: "Classic Trip"
+      - key: SMS_REQUEST_TIMEOUT_MS
+        value: "8000"
       - key: WHATSAPP_ACCESS_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
@@ -153,6 +157,8 @@ services:
         value: "+256781977217"
       - key: WHATSAPP_GROUP_URL
         value: https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1
+      - key: MONITORING_ENABLED
+        value: "true"
       - key: PUSH_ENABLED
         value: "true"
       - key: PUSH_VAPID_PUBLIC_KEY
@@ -307,6 +313,16 @@ services:
           type: web
           name: classic-trip
           envVarKey: SMS_API_TOKEN
+      - key: SMS_FROM
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: SMS_FROM
+      - key: SMS_REQUEST_TIMEOUT_MS
+        fromService:
+          type: web
+          name: classic-trip
+          envVarKey: SMS_REQUEST_TIMEOUT_MS
       - key: WHATSAPP_ACCESS_TOKEN
         fromService:
           type: web

@@ -691,3 +691,42 @@ The public web layer exposes canonical search-engine and AI discovery surfaces:
 - `/ai-index.json` — machine-readable public service, listing, partner and guide catalog.
 
 Faceted `/search` URLs and private/transactional paths are intentionally excluded from indexing while clean service landing pages such as `/buses`, `/stays`, `/tours`, `/car-rentals` and `/cargo` are indexable.
+
+
+## v1.6.36 customer conversion and operations
+
+- Guests can complete supported bus bookings without creating an account. Paid guest tickets remain protected by the existing guest access/session flow and confirmed ticket links are queued to both email and WhatsApp.
+- UGX bus full-route customer pricing applies a Classic Trip-funded UGX 3,000 acquisition discount only to the published route origin→destination leg. Intermediate boarding/drop-off fares are not discounted. The partner's stored fare is preserved separately from the customer-facing discount and service fee.
+- UGX customer service fees are evaluated per ticket/seat/leg after any eligible full-route discount: UGX 1,000 up to 30,000; UGX 2,000 up to 100,000; UGX 3,000 up to 150,000; UGX 5,000 above 150,000.
+- Super Admin includes privacy-aware Visitor Monitoring with 90-day retention. Enable it with `MONITORING_ENABLED=true` and run `npm run db:indexes` after deployment so the `PlatformActivity` indexes/TTL are reconciled.
+- The customer-facing account experience is consolidated on `/login`; GET `/register` and `/signup` redirect to that page while POST `/register` remains the registration action.
+- Production email ticket delivery requires valid SMTP environment variables. Production WhatsApp ticket delivery requires the configured Meta WhatsApp Business transport credentials. Missing third-party credentials cannot be compensated for by application code, but the protected on-platform ticket remains available.
+
+## v1.6.37 login and monitoring performance stabilization
+- The login Tip area uses a structural 18px gap instead of a fragile margin override.
+- Google OAuth buttons use a local four-color Google G asset and still route through `/auth/google`.
+- Platform monitoring writes are buffered and inserted in batches so analytics do not compete with booking/payment requests.
+- Visitor Monitoring uses a single faceted Mongo aggregation, a 15-second cache, minimal dashboard hydration, and a slowest-pages report.
+
+## v1.6.38 dashboard performance and SMS tickets
+
+Dashboard reads are page-scoped across every role. Super Admin/Support/Finance/Operations/Content use exact page entity plans; Company/Employee/Driver/Customer/Promoter reuse shell data and page snapshots. Dashboard navigation also warms likely pages before click without polluting visitor analytics.
+
+Recommended production performance values are already reflected in `render.yaml`:
+
+```env
+MONGO_MAX_POOL_SIZE=24
+DASHBOARD_DB_READ_CONCURRENCY=10
+MONGO_READ_CONCURRENCY=12
+DASHBOARD_SNAPSHOT_TTL_MS=180000
+DASHBOARD_SNAPSHOT_STALE_MS=1800000
+```
+
+Confirmed tickets use SMS automatically when a phone number exists. Configure:
+
+```env
+SMS_API_URL=
+SMS_API_TOKEN=
+SMS_FROM=Classic Trip
+SMS_REQUEST_TIMEOUT_MS=8000
+```

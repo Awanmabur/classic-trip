@@ -85,6 +85,7 @@ async function queueNotification({
   ownerId = meta.ownerId || userId || '',
   audience = meta.audience || '',
   dedupeKey = '',
+  channelMessages = {},
 } = {}) {
   const cleanTitle = cleanText(title || 'Classic Trip update');
   const deliveryMessage = cleanText(message || '');
@@ -98,6 +99,7 @@ async function queueNotification({
   const dedupeBase = String(dedupeKey || '').trim().slice(0, 420);
 
   for (const channel of uniqueChannels) {
+    const channelMessage = cleanText(channelMessages?.[channel] || deliveryMessage);
     const channelDedupeKey = dedupeBase ? `${dedupeBase}:${channel}`.slice(0, 500) : '';
     const row = {
       id: channelDedupeKey ? notificationIdForDedupe(channelDedupeKey) : nextNotificationId(),
@@ -147,10 +149,10 @@ async function queueNotification({
     };
     attempts.push(attempt);
     if (channel === 'in_app') deliveryTasks.push({ row: claimed, attempt, promise: Promise.resolve({ status: 'sent', channel: 'in_app', provider: 'notification-center', response: 'Stored in notification center' }) });
-    if (channel === 'push') deliveryTasks.push({ row: claimed, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: deliveryMessage, recipient, referenceType, referenceId, meta }) });
-    if (channel === 'email') deliveryTasks.push({ row: claimed, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: deliveryMessage, meta }) });
-    if (channel === 'sms') deliveryTasks.push({ row: claimed, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
-    if (channel === 'whatsapp') deliveryTasks.push({ row: claimed, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: deliveryMessage, meta }) });
+    if (channel === 'push') deliveryTasks.push({ row: claimed, attempt, promise: pushService.sendPush({ userId, audience, title: cleanTitle, message: channelMessage, recipient, referenceType, referenceId, meta }) });
+    if (channel === 'email') deliveryTasks.push({ row: claimed, attempt, promise: sendEmail({ to: recipient.email, title: cleanTitle, message: channelMessage, meta }) });
+    if (channel === 'sms') deliveryTasks.push({ row: claimed, attempt, promise: sendSms({ to: recipient.phone, title: cleanTitle, message: channelMessage, meta }) });
+    if (channel === 'whatsapp') deliveryTasks.push({ row: claimed, attempt, promise: sendWhatsapp({ to: recipient.whatsapp || recipient.phone, title: cleanTitle, message: channelMessage, meta }) });
   }
 
   const deliveries = await Promise.allSettled(deliveryTasks.map((item) => item.promise));
@@ -205,19 +207,30 @@ function hasCommunicationTicketAddon(booking = {}) {
 }
 
 function bookingConfirmationChannels(booking = {}) {
-  const channels = ['in_app', 'push', 'email'];
-  if (hasCommunicationTicketAddon(booking)) channels.push('sms', 'whatsapp');
+  // A paid ticket must reach the traveller without requiring an account or an
+  // optional communication add-on. SMS is included whenever a phone exists.
+  const channels = ['in_app', 'push'];
+  const recipient = bookingRecipient(booking);
+  if (recipient.email) channels.push('email');
+  if (recipient.phone) channels.push('sms', 'whatsapp');
   return channels;
 }
 
-async function bookingConfirmed(booking) {
+function bookingConfirmationRequest(booking = {}) {
   const ticketPath = ticketAccessService.ticketUrl(booking);
+  const ticketPdfPath = ticketAccessService.ticketUrl(booking, '.pdf');
   const isHotel = String(booking.serviceType || '').toLowerCase() === 'hotel';
-  return queueNotification({
+  const artifactName = isHotel ? 'Voucher' : 'Ticket';
+  const webTicketUrl = `${env.appUrl}${ticketPath}`;
+  const pdfTicketUrl = `${env.appUrl}${ticketPdfPath}`;
+  return {
     userId: booking.customerUserId || null,
     channels: bookingConfirmationChannels(booking),
     title: `${isHotel ? 'Hotel booking' : 'Booking'} confirmed ${booking.bookingRef}`,
-    message: `Your Classic Trip ${isHotel ? 'hotel booking' : 'booking'} ${booking.bookingRef} is confirmed. ${isHotel ? 'Voucher' : 'Ticket'}: ${env.appUrl}${ticketPath}`,
+    message: `Your Classic Trip ${isHotel ? 'hotel booking' : 'booking'} ${booking.bookingRef} is confirmed. ${artifactName}: ${webTicketUrl} PDF: ${pdfTicketUrl}`,
+    channelMessages: {
+      sms: `Classic Trip ${artifactName.toLowerCase()} ${booking.bookingRef} confirmed. Open: ${webTicketUrl}`,
+    },
     recipient: bookingRecipient(booking),
     ownerType: booking.customerUserId ? 'customer' : 'guest',
     ownerId: booking.customerUserId || booking.guestSnapshot?.email || booking.guestSnapshot?.phone || '',
@@ -225,7 +238,21 @@ async function bookingConfirmed(booking) {
     referenceType: 'booking',
     referenceId: booking.id,
     dedupeKey: `booking-confirmed:${booking.id}`,
-    meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, ticketUrl: ticketPath, url: ticketPath },
+    meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, ticketUrl: ticketPath, ticketPdfUrl: ticketPdfPath, url: ticketPath },
+  };
+}
+
+async function bookingConfirmed(booking) {
+  return queueNotification(bookingConfirmationRequest(booking));
+}
+
+async function enqueueBookingConfirmed(booking) {
+  const request = bookingConfirmationRequest(booking);
+  return enqueueNotification(request, {
+    aggregateType: 'booking',
+    aggregateId: booking.id,
+    companyId: booking.companyId,
+    dedupeKey: `booking-confirmed-delivery:${booking.id}`,
   });
 }
 
@@ -364,6 +391,7 @@ module.exports = {
   queueNotification,
   enqueueNotification,
   bookingConfirmed,
+  enqueueBookingConfirmed,
   bookingConfirmationChannels,
   hasCommunicationTicketAddon,
   paymentUpdated,

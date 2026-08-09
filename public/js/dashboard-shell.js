@@ -39,3 +39,45 @@
     });
   });
 })();
+
+// v1.6.38 — warm dashboard page caches before navigation. This never stores
+// personalized HTML globally; it only lets the authenticated server build its
+// page-scoped snapshot/projection ahead of the click.
+(function dashboardNavigationWarmup() {
+  const nav = document.getElementById('sideNav');
+  if (!nav || navigator.connection?.saveData) return;
+  const warmed = new Set();
+  const inflight = new Set();
+  function eligible(link) {
+    if (!link || link.target === '_blank' || link.hasAttribute('download')) return '';
+    try {
+      const url = new URL(link.href, location.href);
+      if (url.origin !== location.origin || url.href === location.href) return '';
+      if (!/^\/(admin|company|account|employee|driver|promoter|support|finance|operations|content)(\/|$)/.test(url.pathname)) return '';
+      return url.href;
+    } catch (_) { return ''; }
+  }
+  function warm(link) {
+    const url = eligible(link);
+    if (!url || warmed.has(url) || inflight.has(url)) return;
+    inflight.add(url);
+    fetch(url, {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      priority: 'low',
+      headers: { 'X-Classic-Trip-Prefetch': '1' },
+    }).then((response) => {
+      if (response.ok) warmed.add(url);
+    }).catch(() => {}).finally(() => inflight.delete(url));
+  }
+  nav.addEventListener('pointerover', (event) => warm(event.target.closest('a.navBtn')), { passive: true });
+  nav.addEventListener('focusin', (event) => warm(event.target.closest('a.navBtn')));
+  nav.addEventListener('touchstart', (event) => warm(event.target.closest('a.navBtn')), { passive: true });
+  const idleWarm = () => {
+    const links = Array.from(nav.querySelectorAll('a.navBtn:not(.active)')).slice(0, 2);
+    links.forEach((link, index) => setTimeout(() => warm(link), index * 250));
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(idleWarm, { timeout: 1800 });
+  else setTimeout(idleWarm, 900);
+})();

@@ -11,7 +11,11 @@ const { validateRequest } = require('../../middlewares/validate');
 const router = express.Router();
 
 router.get('/login', authController.showLogin);
-router.get('/register', authController.showLogin);
+router.get('/register', (req, res) => {
+  const query = new URLSearchParams(req.query || {}).toString();
+  return res.redirect(303, `/login${query ? `?${query}` : ''}#signup`);
+});
+router.get('/signup', (req, res) => res.redirect(303, '/login#signup'));
 router.get('/onboarding/status', authController.showOnboardingStatus);
 router.get('/account/phone-verification', phoneVerificationController.show);
 router.post('/account/phone-verification/request', authLimiter, phoneVerificationController.requestCode);

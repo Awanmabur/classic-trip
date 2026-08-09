@@ -5,6 +5,7 @@ const { publicCatalogGroup } = require('./catalogGrouping');
 const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPublicListing: publicListingVisible } = require('./catalogVisibility');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const { formatRouteLabel } = require('../../utils/routeLabel');
+const { priceBusTicket } = require('../../utils/busCustomerPricing');
 const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
@@ -427,6 +428,7 @@ function fareCatalogForListing(data, listingId) {
       segments,
       segmentCount: segments.length,
       fullRouteAmount: number(fullRoute?.amount),
+      fullRouteCustomerAmount: priceBusTicket({ partnerFare: number(fullRoute?.amount), isMainRoute: true, currency: String(product.currency || fullRoute?.currency || '').toUpperCase() }).customerFare,
       priceFrom: amounts.length ? Math.min(...amounts) : 0,
     };
   });
@@ -499,8 +501,11 @@ function catalogItem(data, listing, preferredRoute = null) {
       .filter((schedule) => sameId(schedule.routeId || schedule.routeSnapshot?.routeId, routeId))
       .sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0));
     const routeProducts = fareCatalog.products.filter((product) => sameId(product.routeId, routeId));
+    const routeFullRouteCustomerAmounts = routeProducts
+      .map((product) => number(product.fullRouteCustomerAmount))
+      .filter((amount) => amount > 0);
     const routeAmounts = routeProducts
-      .flatMap((product) => [product.priceFrom, product.fullRouteAmount])
+      .flatMap((product) => [product.priceFrom, product.fullRouteCustomerAmount || product.fullRouteAmount])
       .map(number)
       .filter((amount) => amount > 0);
     const routeNext = routeSchedules[0] || null;
@@ -524,7 +529,7 @@ function catalogItem(data, listing, preferredRoute = null) {
         availableSeats: Math.max(0, number(schedule.availableSeats)),
         status: schedule.status || '',
       })),
-      priceFrom: routeAmounts.length ? Math.min(...routeAmounts) : number(routeNext?.basePrice || listing.priceFrom || listing.price),
+      priceFrom: routeFullRouteCustomerAmounts.length ? Math.min(...routeFullRouteCustomerAmounts) : (routeAmounts.length ? Math.min(...routeAmounts) : priceBusTicket({ partnerFare: number(routeNext?.basePrice || listing.priceFrom || listing.price), isMainRoute: true, currency: routeNext?.currency || listing.currency || '' }).customerFare),
       currency: String(routeProducts.find((product) => product.currency)?.currency || routeNext?.currency || listing.currency || '').toUpperCase(),
     };
   }).sort((a, b) => {
@@ -620,7 +625,7 @@ function catalogItem(data, listing, preferredRoute = null) {
     unitsLabel: serviceType === 'bus' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'hotel' ? `${remainingInventory} room${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'flight' ? `${remainingInventory} seat${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'tour' ? `${remainingInventory} place${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'car_rental' ? `${remainingInventory} vehicle${remainingInventory === 1 ? '' : 's'} available` : serviceType === 'cargo' ? 'Pickup and delivery capacity available' : 'On-demand and scheduled rides',
     priceFrom,
     price: priceFrom,
-    fullRoutePrice: number(fareCatalog.fullRoutePrice || priceFrom),
+    fullRoutePrice: serviceType === 'bus' ? priceBusTicket({ partnerFare: number(fareCatalog.fullRoutePrice || priceFrom), isMainRoute: true, currency: String(fareCatalog.currency || listing.currency || nextSchedule?.currency || '').toUpperCase() }).customerFare : number(fareCatalog.fullRoutePrice || priceFrom),
     fareProducts: fareCatalog.products,
     fareProductName: fareCatalog.products[0]?.name || '',
     fareClass: fareCatalog.products[0]?.fareClass || '',

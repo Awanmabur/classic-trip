@@ -27,7 +27,7 @@ function check(label, ok) {
   if (!ok) { console.error(`✗ ${label}`); process.exitCode = 1; }
   else { passed += 1; console.log(`✓ ${label}`); }
 }
-check('release version is 1.6.35', pkg.version === '1.6.35');
+check('release version is 1.6.38', pkg.version === '1.6.38');
 check('return discovery compares flexible location identity', busDomain.includes('function locationMatches') && search.includes('locationMatches(stop?.name, wantedName)'));
 check('return preview no longer waits for outbound arrival', preview.includes('outboundDepartureTime') && !preview.includes('outboundFloor = new Date(outboundSchedule.arriveAt'));
 check('return preview requires only a later future reverse departure', preview.includes('returnTime > Date.now()') && preview.includes('returnTime > outboundDepartureTime'));
@@ -49,4 +49,4 @@ check('canonical production origin uses www', render.includes('https://www.class
 check('apex domain redirects to www', app.includes("requestHost !== 'classictrip.org'") && app.includes('https://www.classictrip.org${req.originalUrl}'));
 check('contact hub also covers home and auth surfaces', home.includes("include('../partials/contact-hub')") && login.includes("include('../../partials/contact-hub')"));
 check('VAPID key generator is included', pkg.scripts['push:generate-keys'] === 'node scripts/generate-vapid-keys.js' && fs.existsSync(path.join(root, 'scripts/generate-vapid-keys.js')));
-if (!process.exitCode) console.log(`v1.6.35 return/notification/contact checks passed (${passed}/${passed}).`);
+if (!process.exitCode) console.log(`v1.6.38 return/notification/contact checks passed (${passed}/${passed}).`);

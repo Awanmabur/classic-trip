@@ -2441,7 +2441,7 @@ body.listingPreviewBody .toast.show{
 body.listingPreviewBody .toast,
 body.listingPreviewBody .siteFlashStack{z-index:10050!important;}
 
-/* v1.6.35 — compact, opaque, circular and draggable Classic Trip contact hub. */
+/* v1.6.36 — compact, opaque, circular and draggable Classic Trip contact hub. */
 .ctContactHub{
   width:58px!important;
   height:58px!important;
@@ -2548,3 +2548,8 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .ctContactHubToggle i{font-size:21px!important;}
 }
 @media print{.ctContactHub{display:none!important;}}
+
+
+/* v1.6.36 — archive restore is an accessible icon-only action. */
+.archiveRestoreIconBtn{width:36px!important;height:36px!important;min-width:36px!important;padding:0!important;border-radius:999px!important;display:inline-grid!important;place-items:center!important;}
+.archiveRestoreIconBtn i{margin:0!important;}

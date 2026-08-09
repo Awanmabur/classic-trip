@@ -433,7 +433,7 @@ async function createGuestBooking(payload, req) {
   await persistBooking(booking, payload, 0, { skipHoldConsume: true });
   const notificationService = require('../notification/notificationService');
   if (booking.bookingStatus === 'confirmed') {
-    await notificationService.bookingConfirmed(booking);
+    await notificationService.enqueueBookingConfirmed(booking);
   } else {
     await notificationService.queueNotification({
       userId: booking.customerUserId || null,

@@ -18,7 +18,11 @@ const DB_READ_CONCURRENCY = Math.max(
 const snapshotCache = new Map();
 const snapshotInflight = new Map();
 const dashboardHeadCache = new Map();
-const DASHBOARD_HEAD_TTL_MS = 60_000;
+const dashboardAuxCache = new Map();
+const dashboardAuxInflight = new Map();
+const DASHBOARD_HEAD_TTL_MS = 120_000;
+const DASHBOARD_AUX_TTL_MS = 30_000;
+const DASHBOARD_AUX_STALE_MS = 5 * 60_000;
 const ALL_ENTITIES = [...new Set(Object.keys(repositories.entityModelMap))]
   .filter((key) => !['notificationTemplates', 'serviceCategories', 'tripSchedules', 'holds', 'inventoryHolds', 'walletLedgerEntries', 'campaigns', 'refunds', 'blogPosts'].includes(key));
 
@@ -68,6 +72,7 @@ const COMPANY_SERVICE_ENTITIES = Object.freeze({
 });
 const COMPANY_PAGE_ENTITIES = Object.freeze({
   archive: new Set(['notifications']),
+  notifications: new Set(['notifications']),
   overview: new Set([
     'companyEmployees', 'companyBranches', 'invitations', 'verificationReviews',
     'listings', 'routes', 'vehicles', 'fareProducts', 'schedules',
@@ -183,7 +188,7 @@ const COMPANY_PAGE_ALIASES = Object.freeze({
 // even when the open page only needed bookings or support records. Keep the small
 // shell data available everywhere, then add only the domain used by the active page.
 const ADMIN_SHELL_ENTITIES = new Set([
-  'companies', 'notifications', 'platformSettings',
+  'notifications', 'platformSettings',
 ]);
 const ADMIN_OVERVIEW_ENTITIES = new Set([
   'users', 'listings', 'routes', 'schedules', 'bookings', 'walletTransactions',
@@ -191,6 +196,8 @@ const ADMIN_OVERVIEW_ENTITIES = new Set([
 ]);
 const ADMIN_ENTITY_GROUPS = Object.freeze({
   archive: new Set([]),
+  monitoring: new Set([]),
+  notifications: new Set(['users', 'notificationDeliveryAttempts']),
   identity: new Set([
     'users', 'companies', 'companyEmployees', 'companyBranches', 'companyPolicies',
     'invitations', 'verificationReviews', 'partnerLeads', 'discoverySessions',
@@ -254,6 +261,8 @@ const ADMIN_ENTITY_GROUPS = Object.freeze({
 });
 const ADMIN_PAGE_GROUP = Object.freeze({
   archive: 'archive',
+  monitoring: 'monitoring',
+  notifications: 'notifications',
   partners: 'identity', admins: 'identity', kyc: 'identity',
   bookings: 'booking', customers: 'booking', refunds: 'booking',
   support: 'support', notifications: 'support', handover: 'support',
@@ -277,11 +286,62 @@ const ADMIN_PAGE_GROUP = Object.freeze({
   'driver-incidents': 'inventory', checkin: 'booking',
 });
 
+// Exact page plans keep cold dashboard reads small. Broad groups remain as a
+// conservative fallback for legacy/dynamic pages, but normal navigation uses these.
+const ADMIN_PAGE_ENTITIES = Object.freeze({
+  overview: new Set(['users','companies','listings','routes','schedules','bookings','walletTransactions','supportTickets','auditLogs']),
+  analytics: new Set(['users','companies','listings','routes','schedules','bookings','walletTransactions','supportTickets']),
+  archive: new Set([]),
+  monitoring: new Set([]),
+  notifications: new Set(['users','notificationDeliveryAttempts']),
+  partners: new Set(['users','companies','companyEmployees','companyBranches','companyPolicies','invitations','verificationReviews','partnerLeads','agreements']),
+  admins: new Set(['users','securityEvents','loginAudits','deviceSessions']),
+  kyc: new Set(['users','companies','invitations','verificationReviews']),
+  bookings: new Set(['users','companies','listings','bookings','bookingGroups','bookingItems','passengers','payments','ticketScans','busReservations','busSeatAssignments','busTickets']),
+  customers: new Set(['users','companies','listings','bookings','payments']),
+  refunds: new Set(['users','companies','bookings','payments','refundRequests','rescheduleRequests']),
+  support: new Set(['users','companies','bookings','payments','supportTickets','refundRequests','rescheduleRequests','correspondenceMessages','bookingTimelineEvents','notificationDeliveryAttempts']),
+  handover: new Set(['users','companies','shiftHandovers','supportTickets']),
+  listings: new Set(['companies','categories','listings']),
+  routes: new Set(['companies','listings','routes','routeStops','routeSegments']),
+  vehicles: new Set(['companies','listings','vehicles','seatMapTemplates','seatMapVersions']),
+  schedules: new Set(['companies','listings','routes','vehicles','schedules','scheduleRules','driverAssignments']),
+  schedule: new Set(['companies','listings','routes','vehicles','schedules','scheduleRules','driverAssignments']),
+  inventory: new Set(['companies','listings','routes','vehicles','schedules','seats','busSeatSegmentInventories']),
+  'seat-maps': new Set(['companies','listings','routes','vehicles','schedules','seats','busSeatSegmentInventories','bookings']),
+  'hotel-rooms': new Set(['companies','listings','hotelProperties','roomTypes','roomUnits','roomNightInventories','ratePlans','maintenanceBlocks']),
+  payments: new Set(['companies','bookings','payments','paymentWebhookEvents','wallets','walletTransactions','paymentIntents','receiptInvoices']),
+  audit: new Set(['users','auditLogs']),
+  reports: new Set(['companies','bookings','payments','wallets','walletTransactions','commissions','financeStatements','settlementBatches','reconciliationReports']),
+  revenue: new Set(['companies','bookings','payments','walletTransactions','commissions','taxFeeRecords']),
+  settlement: new Set(['companies','bookings','payments','wallets','walletTransactions','commissions','settlementBatches','reconciliationReports']),
+  payouts: new Set(['companies','wallets','walletTransactions','payoutRequests','payoutBatches','settlementBatches']),
+  promoters: new Set(['users','companies','listings','bookings','promoterLinks','referralClicks','attributionSessions','campaignConversions','commissions','wallets','walletTransactions','payoutRequests']),
+  ads: new Set(['companies','listings','promotionCampaigns']),
+  blogs: new Set(['users','blogs']),
+  reviews: new Set(['companies','listings','reviews']),
+  system: new Set(['users','companies','bookings','payments','supportTickets','auditLogs','securityEvents','loginAudits','deviceSessions','idempotencyKeyRecords','outboxEvents','rateLimitCounters']),
+  settings: new Set(['users','securityEvents']),
+  'driver-ops': new Set(['companies','companyEmployees','listings','routes','vehicles','schedules','driverAssignments','tripStatusUpdates']),
+  'driver-manifest': new Set(['companies','companyEmployees','listings','routes','routeStops','vehicles','schedules','bookings','passengers','ticketScans','busTickets']),
+  'driver-incidents': new Set(['companies','companyEmployees','vehicles','schedules','driverIncidents']),
+  checkin: new Set(['companies','listings','routes','routeStops','schedules','bookings','passengers','ticketScans','busTickets']),
+});
+
 function adminEntitiesFor(context = {}) {
   const page = String(context.activePage || 'overview').trim().toLowerCase();
-  const pageEntities = ['overview', 'analytics'].includes(page)
-    ? ADMIN_OVERVIEW_ENTITIES
-    : (ADMIN_ENTITY_GROUPS[ADMIN_PAGE_GROUP[page]] || ADMIN_OVERVIEW_ENTITIES);
+  // Monitoring is intentionally independent from marketplace/admin tables. It
+  // needs only the notification badge and platform settings; loading companies,
+  // users, bookings, routes and schedules behind an analytics page made it one
+  // of the slowest Super Admin routes.
+  if (page === 'monitoring') {
+    return ['notifications', 'platformSettings']
+      .filter((entity) => ALL_ENTITIES.includes(entity) && repositories[entity]);
+  }
+  const pageEntities = ADMIN_PAGE_ENTITIES[page]
+    || (['overview', 'analytics'].includes(page)
+      ? ADMIN_OVERVIEW_ENTITIES
+      : (ADMIN_ENTITY_GROUPS[ADMIN_PAGE_GROUP[page]] || ADMIN_OVERVIEW_ENTITIES));
   return [...new Set([...ADMIN_SHELL_ENTITIES, ...pageEntities])]
     .filter((entity) => ALL_ENTITIES.includes(entity) && repositories[entity]);
 }
@@ -291,6 +351,15 @@ function companyServiceType(company = {}) {
   return COMPANY_SERVICE_ENTITIES[type] ? type : '';
 }
 
+const EMPLOYEE_OVERVIEW_ENTITIES = new Set([
+  'companyEmployees','listings','schedules','bookings','payments','supportTickets',
+  'shiftHandovers','notifications',
+]);
+const DRIVER_OVERVIEW_ENTITIES = new Set([
+  'companyEmployees','listings','routes','routeStops','vehicles','schedules',
+  'driverAssignments','driverIncidents','tripStatusUpdates','bookings','ticketScans','notifications',
+]);
+
 function desiredCompanyEntities(company = {}, context = {}) {
   const type = companyServiceType(company);
   const available = type
@@ -299,9 +368,18 @@ function desiredCompanyEntities(company = {}, context = {}) {
   if (!context.activePage) return new Set(available);
   const page = String(context.activePage || 'overview').trim().toLowerCase();
   const pageKey = COMPANY_PAGE_ALIASES[page] || page;
-  const requested = new Set(COMPANY_PAGE_ENTITIES[pageKey] || COMPANY_PAGE_ENTITIES.overview);
+  const roleOverview = pageKey === 'overview' && context.dashboardRole === 'employee'
+    ? EMPLOYEE_OVERVIEW_ENTITIES
+    : pageKey === 'overview' && context.dashboardRole === 'driver'
+      ? DRIVER_OVERVIEW_ENTITIES
+      : null;
+  const requested = new Set(roleOverview || COMPANY_PAGE_ENTITIES[pageKey] || COMPANY_PAGE_ENTITIES.overview);
   if (['employee', 'driver'].includes(context.dashboardRole)) {
-    COMPANY_PAGE_ENTITIES.employee.forEach((entity) => requested.add(entity));
+    // Employee/driver pages used to hydrate bookings, payments, support, refunds
+    // and handovers on *every* page. Keep only tenant membership in the shell;
+    // the active page map above adds operational collections only when needed.
+    requested.add('companyEmployees');
+    requested.add('notifications');
   }
   return new Set([...requested].filter((entity) => available.has(entity) || !COMPANY_SCOPED.has(entity)));
 }
@@ -357,6 +435,35 @@ async function cachedHeadOne(cacheKeyValue, entity, filter = {}) {
   return value;
 }
 
+async function cachedAuxList(cacheKeyValue, entity, filter = {}, options = {}) {
+  const now = Date.now();
+  const cached = dashboardAuxCache.get(cacheKeyValue);
+  if (cached && now - cached.createdAt <= DASHBOARD_AUX_TTL_MS) return cached.value;
+  if (cached && now - cached.createdAt <= DASHBOARD_AUX_STALE_MS) {
+    if (!dashboardAuxInflight.has(cacheKeyValue)) {
+      const refresh = list(entity, filter, options)
+        .then((value) => {
+          dashboardAuxCache.set(cacheKeyValue, { value, createdAt: Date.now() });
+          return value;
+        })
+        .finally(() => dashboardAuxInflight.delete(cacheKeyValue));
+      dashboardAuxInflight.set(cacheKeyValue, refresh);
+      refresh.catch(() => {});
+    }
+    return cached.value;
+  }
+  if (dashboardAuxInflight.has(cacheKeyValue)) return dashboardAuxInflight.get(cacheKeyValue);
+  const promise = list(entity, filter, options)
+    .then((value) => {
+      dashboardAuxCache.set(cacheKeyValue, { value, createdAt: Date.now() });
+      while (dashboardAuxCache.size > 240) dashboardAuxCache.delete(dashboardAuxCache.keys().next().value);
+      return value;
+    })
+    .finally(() => dashboardAuxInflight.delete(cacheKeyValue));
+  dashboardAuxInflight.set(cacheKeyValue, promise);
+  return promise;
+}
+
 function companyEntityFilter(entity, companyId) {
   if (entity === 'bookings') {
     return { $or: [
@@ -391,7 +498,7 @@ function companyEntityQuery(entity, companyId, context = {}) {
   const page = normalizedCompanyPage(context);
   const now = new Date();
   const recentCutoff = new Date(now.getTime() - (45 * 24 * 60 * 60 * 1000));
-  const activePageLimit = context.activePage ? 80 : 300;
+  const activePageLimit = context.activePage ? (page === 'overview' ? 40 : 60) : 180;
   const options = { limit: activePageLimit, sort: { createdAt: -1 } };
   let filter = base;
 
@@ -408,7 +515,7 @@ function companyEntityQuery(entity, companyId, context = {}) {
         departAt: { $gte: recentCutoff },
         status: { $ne: 'archived' },
       }] };
-      options.limit = 80;
+      options.limit = 60;
       options.sort = { departAt: 1 };
     } else if (page === 'listings') {
       filter = { $and: [base, {
@@ -463,18 +570,18 @@ async function adminSnapshot(context = {}) {
   const overview = ['overview', 'analytics'].includes(page);
   await mapWithConcurrency(adminEntitiesFor(context), async (entity) => {
     if (entity === 'platformSettings') {
-      snapshot.platformSettings = await one('platformSettings', {}) || {};
+      snapshot.platformSettings = await cachedHeadOne('platform-settings', 'platformSettings', {}) || {};
       return;
     }
     if (!repositories[entity]) return;
-    const options = { limit: overview ? 60 : 120, sort: { createdAt: -1 } };
+    const options = { limit: overview ? 32 : 80, sort: { createdAt: -1 } };
     let filter = {};
-    if (entity === 'notifications') options.limit = 40;
-    if (entity === 'companies') options.limit = overview ? 80 : 160;
-    if (entity === 'users') options.limit = ['partners', 'admins', 'kyc', 'customers', 'promoters'].includes(page) ? 160 : 80;
-    if (entity === 'bookings') options.limit = overview ? 70 : 160;
-    if (entity === 'payments') options.limit = page === 'payments' ? 160 : 80;
-    if (entity === 'auditLogs') options.limit = page === 'audit' ? 160 : 60;
+    if (entity === 'notifications') options.limit = 30;
+    if (entity === 'companies') options.limit = overview ? 50 : 100;
+    if (entity === 'users') options.limit = ['partners', 'admins', 'kyc', 'customers', 'promoters'].includes(page) ? 100 : 50;
+    if (entity === 'bookings') options.limit = overview ? 40 : 100;
+    if (entity === 'payments') options.limit = page === 'payments' ? 100 : 50;
+    if (entity === 'auditLogs') options.limit = page === 'audit' ? 100 : 40;
     if (entity === 'schedules') {
       filter = {
         status: { $ne: 'archived' },
@@ -484,7 +591,13 @@ async function adminSnapshot(context = {}) {
       options.sort = { departAt: 1 };
     }
     if (entity === 'seats') options.limit = ['seat-maps', 'inventory'].includes(page) ? 1800 : 400;
-    snapshot[entity] = await list(entity, filter, options);
+    if (entity === 'notifications') {
+      snapshot[entity] = await cachedAuxList('admin:notifications', entity, filter, options);
+    } else if (entity === 'companies' && !['partners', 'kyc'].includes(page)) {
+      snapshot[entity] = await cachedAuxList('admin:companies', entity, filter, options);
+    } else {
+      snapshot[entity] = await list(entity, filter, options);
+    }
   });
   return snapshot;
 }
@@ -518,7 +631,9 @@ async function companySnapshot(companyId, context = {}) {
     // largest causes of multi-minute page renders.
     if (normalizedCompanyPage(context) === 'seat-maps' && entity === 'bookings') return;
     const query = companyEntityQuery(entity, companyId, context);
-    snapshot[entity] = await list(entity, query.filter, query.options);
+    snapshot[entity] = entity === 'notifications'
+      ? await cachedAuxList(`company:${companyId}:notifications`, entity, query.filter, query.options)
+      : await list(entity, query.filter, query.options);
   });
 
   // Membership is the authoritative tenant link. Include linked accounts even
@@ -592,19 +707,19 @@ async function customerSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const page = String(context.activePage || 'overview').trim().toLowerCase();
   const customerId = context.customerId;
-  const user = await one('users', { id: customerId });
+  const user = await cachedHeadOne(`user:${customerId}`, 'users', { id: customerId });
   snapshot.users = [user].filter(Boolean);
 
-  snapshot.notifications = await list('notifications', {
+  snapshot.notifications = await cachedAuxList(`customer:${customerId}:notifications`, 'notifications', {
     $or: [{ customerId }, { userId: customerId }, { audience: 'customer' }],
-  }, { limit: 40, sort: { createdAt: -1 } });
+  }, { limit: 30, sort: { createdAt: -1 } });
 
   const bookingPages = new Set(['overview', 'bookings', 'ticket', 'passengers', 'receipts', 'refunds', 'support', 'reviews', 'wallet']);
   const ownership = [{ customerUserId: customerId }];
   if (user?.email) ownership.push({ 'guestSnapshot.email': String(user.email).toLowerCase() });
   if (user?.phone) ownership.push({ 'guestSnapshot.phone': user.phone });
   snapshot.bookings = bookingPages.has(page)
-    ? await list('bookings', { $or: ownership }, { limit: page === 'overview' ? 80 : 160, sort: { createdAt: -1 } })
+    ? await list('bookings', { $or: ownership }, { limit: page === 'overview' ? 40 : 100, sort: { createdAt: -1 } })
     : [];
 
   const bookingRefs = ids(snapshot.bookings, 'bookingRef');
@@ -669,32 +784,32 @@ async function promoterSnapshot(context = {}) {
   const snapshot = emptySnapshot();
   const promoterId = context.promoterId;
   const page = String(context.activePage || 'overview').trim().toLowerCase();
-  snapshot.users = [await one('users', { id: promoterId })].filter(Boolean);
-  snapshot.notifications = await list('notifications', {
+  snapshot.users = [await cachedHeadOne(`user:${promoterId}`, 'users', { id: promoterId })].filter(Boolean);
+  snapshot.notifications = await cachedAuxList(`promoter:${promoterId}:notifications`, 'notifications', {
     $or: [{ promoterId }, { userId: promoterId }, { audience: 'promoter' }],
-  }, { limit: 40, sort: { createdAt: -1 } });
+  }, { limit: 30, sort: { createdAt: -1 } });
 
   const campaignPages = new Set(['overview', 'links', 'share', 'campaigns', 'bus-dashboard', 'hotel-dashboard', 'tour-dashboard', 'rental-dashboard', 'cargo-dashboard', 'offline-sales']);
   const performancePages = new Set(['overview', 'performance', 'fraud']);
   const moneyPages = new Set(['overview', 'commissions', 'withdrawals', 'payouts']);
   const tasks = [];
-  if (campaignPages.has(page)) tasks.push(['promoterLinks', { promoterId }, page === 'overview' ? 120 : 300]);
+  if (campaignPages.has(page)) tasks.push(['promoterLinks', { promoterId }, page === 'overview' ? 60 : 180]);
   if (performancePages.has(page)) {
     tasks.push(
-      ['referralClicks', { promoterId }, page === 'overview' ? 160 : 400],
-      ['attributionSessions', { promoterId }, page === 'overview' ? 160 : 400],
-      ['campaignConversions', { promoterId }, page === 'overview' ? 160 : 400],
+      ['referralClicks', { promoterId }, page === 'overview' ? 80 : 220],
+      ['attributionSessions', { promoterId }, page === 'overview' ? 80 : 220],
+      ['campaignConversions', { promoterId }, page === 'overview' ? 80 : 220],
     );
   }
   if (['overview', 'offline-sales'].includes(page)) tasks.push(['agentProfiles', { $or: [{ userId: promoterId }, { promoterId }] }, 20]);
-  if (page === 'offline-sales') tasks.push(['offlineSales', { $or: [{ promoterId }, { agentId: promoterId }] }, 300]);
-  if (page === 'fraud') tasks.push(['fraudSignals', { $or: [{ promoterId }, { agentId: promoterId }] }, 300]);
+  if (page === 'offline-sales') tasks.push(['offlineSales', { $or: [{ promoterId }, { agentId: promoterId }] }, 180]);
+  if (page === 'fraud') tasks.push(['fraudSignals', { $or: [{ promoterId }, { agentId: promoterId }] }, 180]);
   if (moneyPages.has(page)) {
     tasks.push(
-      ['commissions', { promoterId }, page === 'overview' ? 160 : 360],
+      ['commissions', { promoterId }, page === 'overview' ? 80 : 220],
       ['wallets', { ownerType: 'promoter', ownerId: promoterId }, 20],
-      ['walletTransactions', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 120 : 300],
-      ['payoutRequests', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 80 : 240],
+      ['walletTransactions', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 60 : 180],
+      ['payoutRequests', { ownerType: 'promoter', ownerId: promoterId }, page === 'overview' ? 50 : 160],
     );
   }
   if (page === 'support') tasks.push(['supportTickets', { $or: [{ ownerId: promoterId }, { promoterId }] }, 120]);
@@ -710,7 +825,7 @@ async function promoterSnapshot(context = {}) {
         status: 'active',
         releaseStatus: 'published',
         $or: [{ serviceType: 'bus' }, { bookable: { $ne: false } }],
-      }, page === 'overview' ? 120 : 300)
+      }, page === 'overview' ? 60 : 180)
       : [];
     snapshot.companies = snapshot.listings.length
       ? await list('companies', { id: { $in: ids(snapshot.listings, 'companyId') } }, 160)
@@ -724,8 +839,8 @@ async function promoterSnapshot(context = {}) {
   if (['overview', 'bookings'].includes(page)) {
     const bookingRefs = ids(snapshot.campaignConversions, 'bookingRef');
     snapshot.bookings = bookingRefs.length
-      ? await list('bookings', { bookingRef: { $in: bookingRefs } }, page === 'overview' ? 120 : 300)
-      : await list('bookings', { 'promoterAttribution.promoterId': promoterId }, page === 'overview' ? 120 : 300);
+      ? await list('bookings', { bookingRef: { $in: bookingRefs } }, page === 'overview' ? 60 : 180)
+      : await list('bookings', { 'promoterAttribution.promoterId': promoterId }, page === 'overview' ? 60 : 180);
   }
 
   // Offline sale creation alone needs live operational inventory. Other promoter
@@ -868,6 +983,7 @@ function invalidate(role = '', context = {}) {
   if (!role) {
     snapshotCache.clear();
     dashboardHeadCache.clear();
+    dashboardAuxCache.clear();
     invalidateSharedSnapshots(`${sharedCacheKey('')}*`);
     return;
   }
@@ -876,6 +992,9 @@ function invalidate(role = '', context = {}) {
     // Those documents change only on profile/onboarding actions and otherwise
     // add two needless Atlas reads to every cold dashboard navigation.
     if (context.invalidateHead === true && context.companyId) dashboardHeadCache.delete(`company:${context.companyId}`);
+    if (context.companyId) dashboardAuxCache.delete(`company:${context.companyId}:notifications`);
+    if (context.customerId) dashboardAuxCache.delete(`customer:${context.customerId}:notifications`);
+    if (context.promoterId) dashboardAuxCache.delete(`promoter:${context.promoterId}:notifications`);
     const exactKey = cacheKey(role, context);
     snapshotCache.delete(exactKey);
     invalidateSharedSnapshots(sharedCacheKey(exactKey));

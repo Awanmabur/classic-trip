@@ -65,14 +65,14 @@
   <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.35" />
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.35">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.38" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.38">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.35">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.38">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.35" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.38" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -341,7 +341,7 @@
           <% var tourListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'tour' || item.group === 'tour'); }); var initialTourListings = tourListings.slice(0, 4); %>
           <div class="gridCards sectionListingCollection sectionListingCollection--tour" id="tourCards" data-section-group="tour" data-view="cards">
             <% if (initialTourListings.length) { initialTourListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="tour"><strong>No published tours yet</strong><p class="muted">Verified activities with published capacity will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a tour partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="tour"><strong>No published tours yet</strong><p class="muted">Verified activities with published capacity will appear here.</p><a class="btn btnGhost" href="/login?role=partner#partner">Become a tour partner</a></div>
             <% } %>
           </div>
           <div class="moreRow"><button id="more-tour" class="btn btnGhost moreBtn <%= tourListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="tour"><i class="fa-solid fa-plus"></i> More experiences</button></div>
@@ -352,7 +352,7 @@
           <% var rentalListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'car_rental' || item.group === 'car_rental'); }); var initialRentalListings = rentalListings.slice(0, 4); %>
           <div class="gridCards sectionListingCollection sectionListingCollection--rental" id="rentalCards" data-section-group="car_rental" data-view="cards">
             <% if (initialRentalListings.length) { initialRentalListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="car_rental"><strong>No published rental vehicles yet</strong><p class="muted">Verified vehicles with daily prices will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a rental partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="car_rental"><strong>No published rental vehicles yet</strong><p class="muted">Verified vehicles with daily prices will appear here.</p><a class="btn btnGhost" href="/login?role=partner#partner">Become a rental partner</a></div>
             <% } %>
           </div>
           <div class="moreRow"><button id="more-car-rental" class="btn btnGhost moreBtn <%= rentalListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="car_rental"><i class="fa-solid fa-plus"></i> More vehicles</button></div>
@@ -363,7 +363,7 @@
           <% var cargoListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'cargo' || item.group === 'cargo'); }); var initialCargoListings = cargoListings.slice(0, 4); %>
           <div class="gridCards sectionListingCollection sectionListingCollection--cargo" id="cargoCards" data-section-group="cargo" data-view="cards">
             <% if (initialCargoListings.length) { initialCargoListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
-              <div class="card marketplaceEmptyCard" data-home-empty="cargo"><strong>No published cargo services yet</strong><p class="muted">Verified service lanes and shipment pricing will appear here.</p><a class="btn btnGhost" href="/register?role=partner#partner">Become a cargo partner</a></div>
+              <div class="card marketplaceEmptyCard" data-home-empty="cargo"><strong>No published cargo services yet</strong><p class="muted">Verified service lanes and shipment pricing will appear here.</p><a class="btn btnGhost" href="/login?role=partner#partner">Become a cargo partner</a></div>
             <% } %>
           </div>
           <div class="moreRow"><button id="more-cargo" class="btn btnGhost moreBtn <%= cargoListings.length > 4 ? '' : 'hide' %>" data-home-action="show-more" data-group="cargo"><i class="fa-solid fa-plus"></i> More cargo services</button></div>
@@ -392,7 +392,7 @@
               <h3>Promotion center</h3>
               <p>Approved campaigns linked to published services appear here from the database.</p>
             </div>
-            <% if (currentUser?.role === 'company_admin') { %><a class="btn btnPrimary" href="/company/promotions"><i class="fa-solid fa-plus"></i> Promote listing</a><% } else { %><a class="btn btnGhost" href="/register?role=partner#partner"><i class="fa-solid fa-building"></i> Become a partner</a><% } %>
+            <% if (currentUser?.role === 'company_admin') { %><a class="btn btnPrimary" href="/company/promotions"><i class="fa-solid fa-plus"></i> Promote listing</a><% } else { %><a class="btn btnGhost" href="/login?role=partner#partner"><i class="fa-solid fa-building"></i> Become a partner</a><% } %>
           </div>
           <div class="gridCards" id="adsCards">
 <% var sponsored = (bootstrap.listings || []).filter(function(l) { return l.isSponsored; }).slice(0, 4); %>
@@ -480,7 +480,7 @@
 
       <div class="footerCol">
         <h3>Partners & promoters</h3>
-        <a href="/register?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
+        <a href="/login?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
         <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
         <a href="/companies"><i class="fa-solid fa-building"></i> Browse partners</a>
         <a href="/company/dashboard"><i class="fa-solid fa-chart-line"></i> Partner dashboard</a>
@@ -508,11 +508,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.35" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.35" defer></script>
-  <script src="/js/route-pair-select.js?v=1.6.35" defer></script>
-<script src="/js/home-service-search.js?v=1.6.35" defer></script>
-  <script src="/js/home.js?v=1.6.35" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.38" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.38" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.38" defer></script>
+<script src="/js/home-service-search.js?v=1.6.38" defer></script>
+  <script src="/js/home.js?v=1.6.38" defer></script>
   <%- include('../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.35" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.38" defer></script>
 </body>
 </html>

@@ -6,6 +6,14 @@
   const safeAvailability = availability || {};
   const safeReturnAvailability = (typeof returnAvailability !== 'undefined' && returnAvailability) ? returnAvailability : {};
   const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency || platformConfig.defaultCurrency;
+  const busTicketPrice = (partnerFare, seatDelta, isMainRoute) => {
+    const partner = Math.max(0, Math.round(Number(partnerFare || 0) + Number(seatDelta || 0)));
+    const ugx = String(currency || '').toUpperCase() === 'UGX';
+    const discount = ugx && isMainRoute ? Math.min(3000, Math.max(0, partner - 1000)) : 0;
+    const fare = Math.max(0, partner - discount);
+    const fee = ugx && fare >= 1000 ? (fare <= 30000 ? 1000 : fare <= 100000 ? 2000 : fare <= 150000 ? 3000 : 5000) : 0;
+    return { partner, fare, discount, fee };
+  };
   const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 48);
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 16);
   const previewSchedules = safeAvailability.schedules || [];
@@ -66,6 +74,8 @@
   let selectedLabel = previewData.selectedPreview || requestedOption || 'Selected inventory';
   let selectedSchedule = null;
   let basePrice = Number(listing.priceFrom || 0);
+  let discountTotal = 0;
+  let busServiceFee = 0;
 
   if (listing.serviceType === 'bus') {
     const schedules = safeAvailability.schedules || [];
@@ -83,15 +93,18 @@
     selectedFieldName = 'selected';
     selectedFieldValue = (selectedBusSeats.length ? selectedBusSeats : [selectedSeat?.seatNumber || requestedOption || '']).filter(Boolean).join(',');
     selectedLabel = selectedFieldValue ? formatBusSeats(selectedFieldValue) : 'Seat pending';
-    const outboundFare = Number(safeAvailability.fare?.baseAmountPerSeat || listing.priceFrom || 0);
-    const outboundSubtotal = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).reduce((sum, seat) => sum + outboundFare + Number(seat?.priceDelta || 0), 0);
+    const outboundPartnerFare = Number(safeAvailability.fare?.partnerBaseAmountPerSeat ?? safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0);
+    const outboundRows = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).map((seat) => busTicketPrice(outboundPartnerFare, Number(seat?.priceDelta || 0), Boolean(safeAvailability.fare?.isMainRoute)));
     const returnSeatsAvailable = safeReturnAvailability.seats || [];
-    const returnFare = Number(safeReturnAvailability.fare?.baseAmountPerSeat || 0);
-    const returnSubtotal = requestedReturnSeatList.reduce((sum, seatNumber) => {
+    const returnPartnerFare = Number(safeReturnAvailability.fare?.partnerBaseAmountPerSeat ?? safeReturnAvailability.fare?.baseAmountPerSeat ?? 0);
+    const returnRows = requestedReturnSeatList.map((seatNumber) => {
       const seat = returnSeatsAvailable.find(item => String(item.seatNumber) === String(seatNumber)) || {};
-      return sum + returnFare + Number(seat.priceDelta || 0);
-    }, 0);
-    basePrice = outboundSubtotal + returnSubtotal;
+      return busTicketPrice(returnPartnerFare, Number(seat.priceDelta || 0), Boolean(safeReturnAvailability.fare?.isMainRoute));
+    });
+    const allBusRows = outboundRows.concat(returnRows);
+    basePrice = allBusRows.reduce((sum, row) => sum + row.fare, 0);
+    discountTotal = allBusRows.reduce((sum, row) => sum + row.discount, 0);
+    busServiceFee = allBusRows.reduce((sum, row) => sum + row.fee, 0);
   }
 
   if (listing.serviceType === 'hotel') {
@@ -121,7 +134,7 @@
   const selectedSeatSet = new Set(selectedSeatListForForm.map(item => String(item || '').trim()).filter(Boolean));
   const returnSeatSet = new Set(requestedReturnSeatList.map(item => String(item || '').trim()).filter(Boolean));
 
-  const serviceFee = Math.round((Number(basePrice || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(basePrice || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
+  const serviceFee = listing.serviceType === 'bus' ? busServiceFee : Math.round((Number(basePrice || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(basePrice || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
   const totalEstimate = basePrice + serviceFee + selectedAddonTotal;
 %>
 <main class="container paymentPage" style="padding:16px 0 30px">
@@ -318,7 +331,8 @@
                 <div><span>Check-out</span><b><%= requestedCheckOut %></b></div>
                 <div><span>Nights</span><b><%= requestedHotelNights %></b></div>
               <% } %>
-              <div><span>Base price</span><b><%= money(basePrice, currency) %></b></div>
+              <div><span>Ticket fare</span><b><%= money(basePrice, currency) %></b></div>
+              <% if (listing.serviceType === 'bus' && discountTotal > 0) { %><div class="discountSummaryRow"><span>Classic Trip full-route discount</span><b>-<%= money(discountTotal, currency) %></b></div><% } %>
               <div><span>Service fee</span><b data-service-fee-summary><%= money(serviceFee, currency) %></b></div>
               <div><span>Add-ons</span><b><%= selectedAddons.length ? selectedAddons.map(addon => `${addon.name}${addon.quantity > 1 ? ` × ${addon.quantity}` : ''}`).join(', ') : 'None' %></b></div>
               <% if (selectedAddons.length) { %><div><span>Add-ons total</span><b data-addon-total-summary><%= money(selectedAddonTotal, currency) %></b></div><% } %>
@@ -328,7 +342,7 @@
 
           <div class="summaryCard directPaymentOptions">
             <h3>Payment options</h3>
-            <div class="checkoutNotice">You'll be redirected to Pesapal to complete a secure payment. Your ticket is issued only once payment succeeds.</div>
+            <div class="checkoutNotice"><strong>No login required.</strong> Complete secure payment with Pesapal. After confirmation, your protected ticket stays available on Classic Trip and is sent to the email and WhatsApp number entered for this booking.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
               <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> <%= listing.serviceType === 'hotel' ? 'Change room or dates' : listing.serviceType === 'tour' ? 'View tour' : listing.serviceType === 'car_rental' ? 'View rental' : listing.serviceType === 'cargo' ? 'View cargo service' : 'Change selection' %></a>
               <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay with Pesapal</button>

@@ -11,7 +11,7 @@ async function main() {
   validateEnv();
   await connectDb();
 
-  const modelNames = [...new Set(Object.values(repositories.entityModelMap))];
+  const modelNames = [...new Set([...Object.values(repositories.entityModelMap), 'PlatformActivity'])];
   const failures = [];
   const totals = { verified: 0, created: 0, dropped: 0, models: 0 };
 

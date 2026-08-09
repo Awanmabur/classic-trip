@@ -153,6 +153,7 @@ const env = {
     apiUrl: process.env.SMS_API_URL || '',
     apiToken: process.env.SMS_API_TOKEN || '',
     from: process.env.SMS_FROM || process.env.APP_NAME || 'Classic Trip',
+    timeoutMs: number('SMS_REQUEST_TIMEOUT_MS', 8000),
   },
   whatsapp: {
     provider: process.env.WHATSAPP_PROVIDER || 'meta',
@@ -205,13 +206,13 @@ const env = {
     homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 1800000),
     homeViewCacheTtlMs: number('HOME_VIEW_CACHE_TTL_MS', 60000),
     homeViewCacheStaleMs: number('HOME_VIEW_CACHE_STALE_MS', 600000),
-    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 60000),
+    dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
-    dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 8),
+    dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 10),
     // Global admission limit for heavy Mongo reads across *all* concurrent
     // dashboard/catalog requests. This is intentionally separate from each
     // snapshot's local worker count so page navigation cannot exhaust the pool.
-    mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 10)),
+    mongoReadConcurrency: Math.max(2, number('MONGO_READ_CONCURRENCY', 12)),
     mongoReadQueueTimeoutMs: Math.max(250, number('MONGO_READ_QUEUE_TIMEOUT_MS', 1200)),
     listingCacheTtlMs: Math.max(30000, number('LISTING_SNAPSHOT_TTL_MS', 300000)),
     listingCacheStaleMs: Math.max(120000, number('LISTING_SNAPSHOT_STALE_MS', 1800000)),

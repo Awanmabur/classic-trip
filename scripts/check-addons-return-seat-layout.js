@@ -20,7 +20,7 @@ expect('Partner add-on update route exists', has('src/routes/web/company.js', /p
 expect('Partner add-on archive route exists', has('src/routes/web/company.js', /post\('\/company\/addons\/:id\/archive'/));
 expect('Extra luggage starter exists', has('src/modules/bus/services/busSetupService.js', /Extra luggage/));
 expect('Priority boarding starter exists', has('src/modules/bus/services/busSetupService.js', /Priority boarding/));
-expect('SMS and WhatsApp starter exists', has('src/modules/bus/services/busSetupService.js', /SMS and WhatsApp ticket/));
+expect('SMS and WhatsApp ticket delivery is standard, not a paid starter add-on', !has('src/modules/bus/services/busSetupService.js', /SMS and WhatsApp ticket/));
 expect('Server prices selected add-ons', has('src/modules/bus/services/busBookingService.js', /selectedAddonPricing/));
 expect('Server supports per traveler per leg', has('src/modules/bus/services/busBookingService.js', /per_passenger_per_leg/));
 expect('Booking stores add-on snapshots', has('src/modules/bus/services/busBookingService.js', /addons:\s*addonPricing\.addons/));
@@ -29,7 +29,7 @@ expect('Checkout shows add-ons total', has('src/views/pages/booking-form.ejs', /
 expect('Ticket shows optional extras', has('src/views/pages/ticket.ejs', /Optional extras/));
 expect('Success page shows optional extras', has('src/views/pages/booking-success.ejs', /Optional extras/));
 expect('PDF ticket shows optional extras', has('src/services/pdf/ticketPdfService.js', /Optional extras/));
-expect('Communication add-on controls SMS and WhatsApp', has('src/services/notification/notificationService.js', /hasCommunicationTicketAddon/) && has('src/services/notification/notificationService.js', /channels\.push\('sms', 'whatsapp'\)/));
+expect('Email, SMS and WhatsApp are standard confirmed-ticket channels when contact data exists', has('src/services/notification/notificationService.js', /recipient\.email/) && has('src/services/notification/notificationService.js', /channels\.push\('sms', 'whatsapp'\)/));
 expect('Bus confirmation outbox handler exists', has('src/services/shared/outboxHandlers.js', /BusBookingConfirmed:/));
 expect('Return departure remains independently bookable regardless of outbound chronology',
   has('src/modules/bus/services/busBookingService.js', /selected return departure is no longer bookable/)

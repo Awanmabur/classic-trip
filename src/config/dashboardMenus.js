@@ -16,6 +16,7 @@ const ROLE_DASHBOARDS = {
       { label: 'Command Center', items: [
         { page: 'overview', label: 'Overview', icon: 'fa-chart-line' },
         { page: 'analytics', label: 'Analytics', icon: 'fa-chart-pie' },
+        { page: 'monitoring', label: 'Visitor Monitoring', icon: 'fa-eye' },
         { page: 'system', label: 'System Health', icon: 'fa-server' },
       ] },
       { label: 'Marketplace', items: [

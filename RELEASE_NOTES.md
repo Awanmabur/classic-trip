@@ -464,5 +464,28 @@ npm start
 - Rolling materializer now scans past the first 10 conflicted dates to find later free dates, preloads vehicle conflicts once, reports the conflicting schedule/rule IDs, and suppresses duplicate conflict warnings.
 
 
-## v1.6.35
+## v1.6.36
 - Refined the global contact hub with opaque dark-mode surfaces, icon-only circular launcher, slimmer action bars, larger icons, and draggable saved positioning.
+
+## v1.6.36
+- Guest paid tickets now queue secure web/PDF ticket links to email and WhatsApp without requiring login.
+- Added UGX per-ticket service-fee tiers and a UGX 3,000 full-route customer discount; intermediate stop fares are not discounted.
+- Added privacy-aware Super Admin Visitor Monitoring.
+- Consolidated public login/signup into one canonical account page and made WhatsApp support actions functional.
+- Archive restore action is now icon-only and accessible.
+
+## v1.6.37
+- Fixed the login Tip spacing structurally with a guaranteed 18px layout gap.
+- Replaced the Font Awesome Google glyph with a local four-color Google G mark while preserving the real `/auth/google` OAuth integration.
+- Reworked visitor monitoring to batch MongoDB writes, use one faceted analytics query, cache the overview briefly, and rank slow pages.
+- Made the Super Admin Monitoring page load a minimal dashboard snapshot and load analytics concurrently.
+- Reduced notification-page dashboard hydration for Admin and Company roles to avoid unnecessary Atlas reads.
+
+## v1.6.38
+- Applied page-scoped cold-read plans across all dashboard roles instead of broad domain snapshots on routine navigation.
+- Added shared shell-data stale-while-revalidate caching and compact Employee/Driver overview scopes.
+- Added authenticated dashboard link prefetch/warmup while excluding prefetch traffic from visitor monitoring.
+- Raised production dashboard read concurrency safely for the configured Mongo pool and increased the fresh dashboard snapshot window to three minutes.
+- Confirmed paid tickets now send SMS automatically when the customer supplied a phone number, alongside email/WhatsApp where available.
+- SMS ticket delivery uses a short secure ticket URL and generic booking delivery now leaves the request path through the encrypted outbox.
+- Removed the obsolete paid SMS/WhatsApp ticket starter add-on because digital ticket delivery is now standard.

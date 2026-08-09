@@ -1,5 +1,5 @@
 'use strict';
-const { calculateCustomerFees } = require('../../../utils/calculateCustomerFees');
+const { priceBusTicket } = require('../../../utils/busCustomerPricing');
 
 const crypto = require('crypto');
 const generateCode = require('../../../utils/generateCode');
@@ -234,14 +234,26 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
     repository.nextId('booking-item'),
     repository.nextId('bus-reservation'),
   ]);
-  const subtotal = selectedSeatRows.reduce((sum, seat) => sum + Number(availability.fare.baseAmountPerSeat || 0) + Number(seat.priceDelta || 0), 0);
-  const total = subtotal;
+  const ticketPrices = selectedSeatRows.map((seat) => priceBusTicket({
+    partnerFare: Number(availability.fare.partnerBaseAmountPerSeat ?? availability.fare.baseAmountPerSeat ?? 0),
+    seatDelta: Number(seat.priceDelta || 0),
+    isMainRoute: Boolean(availability.fare.isMainRoute),
+    currency: availability.fare.currency,
+  }));
+  const partnerFareSubtotal = ticketPrices.reduce((sum, row) => sum + row.partnerTicketAmount, 0);
+  const discountTotal = ticketPrices.reduce((sum, row) => sum + row.discount, 0);
+  const subtotal = ticketPrices.reduce((sum, row) => sum + row.customerFare, 0);
+  const serviceFee = ticketPrices.reduce((sum, row) => sum + row.serviceFee, 0);
+  const total = subtotal + serviceFee;
   if (total <= 0) throw validationError('Server pricing produced an invalid booking total');
-  const pricing = { subtotal, fees: 0, addonTotal: 0, total, currency: availability.fare.currency, addons: [], split: null };
+  const pricing = { partnerFareSubtotal, discountTotal, subtotal, serviceFee, taxAmount: 0, fees: serviceFee, addonTotal: 0, commissionableSubtotal: subtotal, total, currency: availability.fare.currency, addons: [], split: null };
   const priceSnapshot = immutableSnapshot({
     ...availability.fare,
-    selectedSeats: selectedSeatRows.map((seat) => ({ seatNumber: seat.seatNumber, seatClass: seat.seatClass, priceDelta: seat.priceDelta })),
+    selectedSeats: selectedSeatRows.map((seat, index) => ({ seatNumber: seat.seatNumber, seatClass: seat.seatClass, priceDelta: seat.priceDelta, pricing: ticketPrices[index] })),
+    partnerFareSubtotal,
+    discountTotal,
     subtotal,
+    serviceFee,
     total,
   });
   const item = {
@@ -454,7 +466,10 @@ async function buildCanonicalRows(payload = {}, req = null) {
   })));
   const currencies = unique(legs.map((leg) => leg.pricing.currency));
   if (currencies.length !== 1) throw validationError('All bus legs in one booking must use the same currency');
+  const partnerFareSubtotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.partnerFareSubtotal || leg.pricing.subtotal || 0), 0);
+  const discountTotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.discountTotal || 0), 0);
   const subtotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.subtotal || 0), 0);
+  const serviceFee = legs.reduce((sum, leg) => sum + Number(leg.pricing.serviceFee || leg.pricing.fees || 0), 0);
   const addonPricing = await selectedAddonPricing({
     companyId: outboundHold.companyId,
     listingId: outboundHold.listingId,
@@ -463,12 +478,16 @@ async function buildCanonicalRows(payload = {}, req = null) {
     legCount: legs.length,
     currency: currencies[0],
   });
-  const customerFees = calculateCustomerFees(subtotal);
   const pricing = {
+    partnerFareSubtotal,
+    discountTotal,
     subtotal,
-    fees: customerFees.totalFees,
+    serviceFee,
+    taxAmount: 0,
+    fees: serviceFee,
     addonTotal: addonPricing.addonTotal,
-    total: customerFees.total + addonPricing.addonTotal,
+    commissionableSubtotal: subtotal + addonPricing.addonTotal,
+    total: subtotal + serviceFee + addonPricing.addonTotal,
     currency: currencies[0],
     addons: addonPricing.addons,
     split: null,

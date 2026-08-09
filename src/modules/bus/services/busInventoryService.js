@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { formatRouteLabel } = require('../../../utils/routeLabel');
+const { priceBusTicket } = require('../../../utils/busCustomerPricing');
 const repository = require('../repositories/busRepository');
 const {
   cleanText,
@@ -260,6 +261,12 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
     }
   }
   const fare = calculateFare({ fares: fareRows, originStopId: range.origin.id, destinationStopId: range.destination.id, segments: context.segments, range, fallbackAmount: context.schedule.basePrice });
+  const customerBasePricing = priceBusTicket({
+    partnerFare: fare.amount,
+    seatDelta: 0,
+    isMainRoute: fullPublishedJourney,
+    currency: context.fareProduct.currency,
+  });
   return {
     schedule: {
       id: context.schedule.id,
@@ -286,7 +293,7 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
     stops: context.stops.map((stop) => ({ id: stop.id, branchId: stop.branchId || '', name: stop.name, stopType: stop.stopType, stopOrder: stop.stopOrder, pickupAllowed: stop.pickupAllowed, dropoffAllowed: stop.dropoffAllowed, publicInstructions: stop.publicInstructions })),
     seats,
     availableSeats: seats.filter((seat) => seat.available).length,
-    fare: { baseAmountPerSeat: fare.amount, currency: context.fareProduct.currency, fareProductId: context.fareProduct.id, fareProductName: context.fareProduct.name, fareClass: context.fareProduct.fareClass, refundable: !!context.fareProduct.refundable, changeable: !!context.fareProduct.changeable, baggageAllowanceKg: Number(context.fareProduct.baggageAllowanceKg || 0), source: fare.source },
+    fare: { baseAmountPerSeat: customerBasePricing.customerFare, partnerBaseAmountPerSeat: fare.amount, discountAmountPerSeat: customerBasePricing.discount, serviceFeePerSeat: customerBasePricing.serviceFee, isMainRoute: fullPublishedJourney, currency: context.fareProduct.currency, fareProductId: context.fareProduct.id, fareProductName: context.fareProduct.name, fareClass: context.fareProduct.fareClass, refundable: !!context.fareProduct.refundable, changeable: !!context.fareProduct.changeable, baggageAllowanceKg: Number(context.fareProduct.baggageAllowanceKg || 0), source: fare.source },
   };
 }
 

@@ -1,0 +1,32 @@
+'use strict';
+const fs = require('fs');
+const path = require('path');
+let passed = 0;
+function read(file){ return fs.readFileSync(path.join(__dirname, '..', file), 'utf8'); }
+function check(label, ok){ if(!ok){ console.error(`FAIL ${label}`); process.exitCode = 1; return; } passed += 1; console.log(`PASS ${label}`); }
+const pkg = require('../package.json');
+const snap = read('src/services/dashboard/dashboardSnapshotService.js');
+const shell = read('public/js/dashboard-shell.js');
+const monitoring = read('src/middlewares/platformMonitoring.js');
+const notifications = read('src/services/notification/notificationService.js');
+const sms = read('src/services/notification/smsService.js');
+const env = read('src/config/env.js');
+const render = read('render.yaml');
+const sw = read('public/sw.js');
+check('release version is v1.6.38', pkg.version === '1.6.38');
+check('service worker cache is v1.6.38', sw.includes('classic-trip-static-v1.6.38'));
+check('admin dashboards use exact page entity plans', snap.includes('const ADMIN_PAGE_ENTITIES') && snap.includes("bookings: new Set(['users','companies','listings','bookings'"));
+check('employee and driver overviews are independently scoped', snap.includes('EMPLOYEE_OVERVIEW_ENTITIES') && snap.includes('DRIVER_OVERVIEW_ENTITIES'));
+check('employee pages no longer add the broad employee collection plan everywhere', !snap.includes('COMPANY_PAGE_ENTITIES.employee.forEach'));
+check('shared auxiliary dashboard data uses stale-while-revalidate cache', snap.includes('cachedAuxList') && snap.includes('DASHBOARD_AUX_STALE_MS'));
+check('customer and promoter notification shell reads are reused across pages', snap.includes('customer:${customerId}:notifications') && snap.includes('promoter:${promoterId}:notifications'));
+check('dashboard navigation prefetch warms authenticated page caches', shell.includes('X-Classic-Trip-Prefetch') && shell.includes('requestIdleCallback'));
+check('prefetch traffic is excluded from visitor monitoring', monitoring.includes("X-Classic-Trip-Prefetch") && monitoring.includes("=== '1'"));
+check('confirmed tickets include SMS automatically when phone exists', notifications.includes("if (recipient.phone) channels.push('sms', 'whatsapp')"));
+check('SMS ticket message uses the secure Classic Trip ticket URL', notifications.includes("sms: `Classic Trip ${artifactName.toLowerCase()} ${booking.bookingRef} confirmed. Open: ${webTicketUrl}`"));
+check('notification delivery supports channel-specific message bodies', notifications.includes('channelMessages = {}') && notifications.includes('channelMessage'));
+check('SMS transport has a bounded request timeout', sms.includes('AbortController') && env.includes('SMS_REQUEST_TIMEOUT_MS'));
+check('generic confirmed-ticket delivery leaves the request path through the outbox', notifications.includes('enqueueBookingConfirmed') && read('src/services/booking/bookingService.js').includes('enqueueBookingConfirmed(booking)'));
+check('production dashboard concurrency and cache are raised safely', render.includes('DASHBOARD_DB_READ_CONCURRENCY\n        value: "10"') && render.includes('MONGO_READ_CONCURRENCY\n        value: "12"') && render.includes('DASHBOARD_SNAPSHOT_TTL_MS\n        value: "180000"'));
+check('web and worker share SMS sender/timeout configuration', (render.match(/SMS_FROM/g)||[]).length >= 3 && (render.match(/SMS_REQUEST_TIMEOUT_MS/g)||[]).length >= 3);
+if (!process.exitCode) console.log(`v1.6.38 dashboard speed + SMS checks passed (${passed}/${passed}).`);

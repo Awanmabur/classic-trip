@@ -134,6 +134,11 @@
         <% } %>
 
         <div><span>Payment</span><b><%= booking.paymentStatus %></b></div>
+        <% if (isBusTicket && Number(pricing.subtotal || 0) > 0) { %>
+          <div><span>Ticket fare</span><b><%= money(pricing.subtotal || 0, pricing.currency || platformConfig.defaultCurrency) %></b></div>
+          <% if (Number(pricing.discountTotal || 0) > 0) { %><div><span>Classic Trip discount saved</span><b>-<%= money(pricing.discountTotal || 0, pricing.currency || platformConfig.defaultCurrency) %></b></div><% } %>
+          <div><span>Service fee</span><b><%= money(pricing.serviceFee || pricing.fees || 0, pricing.currency || platformConfig.defaultCurrency) %></b></div>
+        <% } %>
         <% if (bookingAddons.length) { %>
           <div><span>Optional extras</span><b><%= bookingAddons.map(addon => `${addon.name || 'Add-on'}${Number(addon.quantity || 1) > 1 ? ` × ${addon.quantity}` : ''}`).join(', ') %></b></div>
           <div><span>Add-ons total</span><b><%= money(addonTotal, pricing.currency || platformConfig.defaultCurrency) %></b></div>

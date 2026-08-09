@@ -73,7 +73,7 @@ router.get('/companies', listingController.companiesPage);
 router.get('/promoters', listingController.promotersPage);
 router.get('/promoter-program', listingController.promotersPage);
 router.get('/partner-commission', partnerController.commissionInfo);
-router.get('/partner/onboarding', (req, res) => res.redirect(303, '/register?role=partner#partner'));
+router.get('/partner/onboarding', (req, res) => res.redirect(303, '/login?role=partner#partner'));
 router.post('/partner/onboarding', authLimiter, partnerOnboardingRules, validateRequest, partnerController.createOnboarding);
 router.get('/invite/:token', invitationController.show);
 router.post('/invite/:token', authLimiter, invitationPasswordRules, validateRequest, invitationController.accept);

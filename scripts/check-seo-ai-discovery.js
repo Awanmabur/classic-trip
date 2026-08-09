@@ -20,7 +20,7 @@ const listingController = read('src/controllers/public/listingController.js');
 const blogController = read('src/controllers/public/blogController.js');
 const render = read('render.yaml');
 
-check('release version is v1.6.35', pkg.version === '1.6.35');
+check('release version is v1.6.38', pkg.version === '1.6.38');
 check('clean service landing routes exist', ['/buses','/stays','/airbnb','/tours','/car-rentals','/cargo'].every((route) => routes.includes(`router.get('${route}'`)));
 check('service landing routes render instead of redirecting to faceted search', !/router\.get\('\/stays'[\s\S]{0,240}res\.redirect/.test(routes) && /serviceLanding/.test(routes));
 check('faceted search is noindex follow', /robots: 'noindex,follow/.test(search) && /req\.path === '\/search'/.test(indexing));

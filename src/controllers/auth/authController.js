@@ -169,7 +169,7 @@ async function register(req, res, next) {
     const requestedRole = String(req.body.role || req.body.accountType || 'customer').toLowerCase().trim();
     if (['partner', 'company', 'company_admin'].includes(requestedRole)) {
       if (req.flash) req.flash('info', 'Complete the partner company form on this same account page. No registration payment is required.');
-      return res.redirect('/register?role=partner#partner');
+      return res.redirect('/login?role=partner#partner');
     }
     const user = await authService.registerUser({
       fullName: req.body.fullName || req.body.name || [req.body.firstName, req.body.lastName].filter(Boolean).join(' '),
