@@ -70,7 +70,10 @@
         <span class="supportEyebrow">Contact options</span>
         <h3>Support that follows your trip</h3>
         <div class="supportContactList">
-          <div class="supportContactItem"><i class="fa-solid fa-envelope" aria-hidden="true"></i><div><strong>Email</strong><br><a href="mailto:support@classictrip.com">support@classictrip.com</a></div></div>
+          <div class="supportContactItem"><i class="fa-solid fa-envelope" aria-hidden="true"></i><div><strong>Email</strong><br><a href="mailto:support@classictrip.org">support@classictrip.org</a></div></div>
+          <div class="supportContactItem"><i class="fa-solid fa-phone" aria-hidden="true"></i><div><strong>Call</strong><br><a href="tel:<%= supportContacts.phone %>"><%= supportContacts.phone %></a></div></div>
+          <div class="supportContactItem"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><div><strong>WhatsApp</strong><br><a href="https://wa.me/<%= String(supportContacts.whatsapp || supportContacts.phone).replace(/[^0-9]/g, '') %>?text=Hello%20Classic%20Trip%2C%20I%20need%20help%20with%20a%20booking." target="_blank" rel="noopener noreferrer"><%= supportContacts.whatsapp || supportContacts.phone %></a></div></div>
+          <div class="supportContactItem"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><div><strong>WhatsApp group</strong><br><a href="<%= supportContacts.whatsappGroupUrl %>" target="_blank" rel="noopener noreferrer">Join Classic Trip community</a></div></div>
           <div class="supportContactItem"><i class="fa-solid fa-clock" aria-hidden="true"></i><div><strong>Service hours</strong><br>Monday–Saturday, 7:00–21:00 EAT</div></div>
           <div class="supportContactItem"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i><div><strong>Standard response</strong><br>Within 24 hours; safety reports are prioritised.</div></div>
           <div class="supportContactItem"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><div><strong>Urgent ride safety</strong><br>Use the Safety Help action on the protected ride-tracking page.</div></div>

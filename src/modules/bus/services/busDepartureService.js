@@ -137,6 +137,58 @@ async function scheduleCreationContext(companyId, payload = {}) {
   return { company, ...routeBundle, ...vehicleBundle, ...fareBundle, driver };
 }
 
+function recurringRuleDays(days = []) {
+  const normalized = [...allowedWeekdaySet(days)];
+  return normalized.length ? normalized : [0, 1, 2, 3, 4, 5, 6];
+}
+
+function recurringRuleDateRange(rule = {}) {
+  const start = new Date(rule.startDate || 0);
+  const end = rule.endDate ? new Date(rule.endDate) : new Date('9999-12-31T23:59:59.999Z');
+  return { start, end };
+}
+
+function recurringRuleTimeIntervals(rule = {}) {
+  const [hours, minutes] = String(rule.departureTime || '00:00').split(':').map(Number);
+  const minuteOfDay = Math.max(0, (Number(hours) || 0) * 60 + (Number(minutes) || 0));
+  const duration = Math.max(1, Number(rule.durationMinutes || 24 * 60));
+  const week = 7 * 24 * 60;
+  return recurringRuleDays(rule.daysOfWeek).map((day) => {
+    const start = day * 1440 + minuteOfDay;
+    return { start, end: start + duration };
+  }).flatMap((interval) => [interval, { start: interval.start - week, end: interval.end - week }, { start: interval.start + week, end: interval.end + week }]);
+}
+
+function recurringRulesOverlap(a = {}, b = {}) {
+  const aRange = recurringRuleDateRange(a);
+  const bRange = recurringRuleDateRange(b);
+  if (aRange.end < bRange.start || bRange.end < aRange.start) return false;
+  const aIntervals = recurringRuleTimeIntervals(a);
+  const bIntervals = recurringRuleTimeIntervals(b);
+  return aIntervals.some((left) => bIntervals.some((right) => left.start < right.end && right.start < left.end));
+}
+
+async function findRecurringVehicleRuleConflicts(companyId, candidate = {}, excludeRuleId = '') {
+  if (normalize(candidate.status) !== 'active' || !candidate.vehicleId) return [];
+  const rows = await repository.scheduleRules.list({
+    companyId,
+    vehicleId: candidate.vehicleId,
+    status: 'active',
+    ...(excludeRuleId ? { id: { $ne: excludeRuleId } } : {}),
+  }, { sort: { createdAt: 1 }, limit: 250 });
+  return rows.filter((rule) => recurringRulesOverlap(candidate, rule));
+}
+
+async function assertNoRecurringVehicleRuleConflict(companyId, candidate = {}, excludeRuleId = '') {
+  const conflicts = await findRecurringVehicleRuleConflicts(companyId, candidate, excludeRuleId);
+  if (!conflicts.length) return;
+  const conflict = conflicts[0];
+  throw conflictError(
+    `This vehicle already has an overlapping active recurring rule (${conflict.id || 'existing rule'} at ${conflict.departureTime || 'another time'}). Choose another vehicle/time or pause the conflicting rule first.`,
+    'vehicle_schedule_rule_conflict',
+  );
+}
+
 async function findVehicleConflicts(companyId, vehicleId, departAt, arriveAt, excludeId = '') {
   const start = new Date(departAt);
   const end = arriveAt || new Date(start.getTime() + 24 * 60 * 60 * 1000);
@@ -906,6 +958,7 @@ async function createScheduleRule(companyId, payload = {}, actor = 'company-admi
     createdAt: timestamp,
     updatedAt: timestamp,
   };
+  if (requestedStatus === 'active') await assertNoRecurringVehicleRuleConflict(companyId, rule);
   await repository.scheduleRules.save(rule, { id: rule.id });
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.created', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id } });
   if (requestedStatus === 'active') {
@@ -978,6 +1031,7 @@ async function updateScheduleRule(companyId, ruleId, payload = {}, actor = 'comp
   rule.status = requestedStatus;
   rule.updatedBy = actorId(actor);
   rule.updatedAt = nowIso();
+  if (requestedStatus === 'active') await assertNoRecurringVehicleRuleConflict(companyId, rule, rule.id);
   await repository.scheduleRules.save(rule, { id: rule.id });
   await clearScheduleRuleMaterializationBlocker(companyId, rule.id);
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id, status: requestedStatus } });
@@ -1001,6 +1055,7 @@ async function setScheduleRuleStatus(companyId, ruleId, status, actor = 'company
   if (next === 'active') {
     const driverIds = parseList(rule.driverIds);
     if (driverIds.length) await resolveDriver(companyId, driverIds[0]);
+    await assertNoRecurringVehicleRuleConflict(companyId, { ...rule, status: 'active' }, rule.id);
   }
   rule.status = next;
   rule.updatedBy = actorId(actor);

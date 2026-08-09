@@ -9,8 +9,92 @@ const busSearchService = require('../../modules/bus/services/busSearchService');
 const busBookingDraftService = require('../../modules/bus/services/busBookingDraftService');
 const { SERVICE_REGISTRY, COMING_SOON_SERVICE_TYPES } = require('../../config/serviceRegistry');
 const hotelInventoryService = require('../../services/hotel/hotelInventoryService');
+const seoService = require('../../services/seo/seoService');
 
 function normalize(value) { return String(value || '').toLowerCase().trim(); }
+function seoText(value, max = 160) {
+  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+function listingSeo(context = {}) {
+  const listing = context.listing || {};
+  const company = context.company || {};
+  const publicPath = listing.url || seoService.publicListingPath(listing);
+  const canonicalUrl = seoService.absoluteUrl(publicPath);
+  const title = `${listing.title || listing.name || 'Travel service'} | Classic Trip`;
+  const description = seoText(listing.shortDescription || listing.description || listing.sub || `${listing.typeLabel || 'Travel service'} from ${company.name || listing.companyName || 'a verified Classic Trip partner'}${listing.routeLabel ? ` on ${listing.routeLabel}` : ''}. Check live availability and book securely.`, 165);
+  const image = listing.img || listing.image || listing.media?.[0]?.url || company.coverImage?.url || company.logo?.url || '';
+  const price = Number(listing.priceFrom || listing.price || 0);
+  const currency = String(listing.currency || '').toUpperCase();
+  const provider = { '@type': 'Organization', name: company.name || listing.companyName || listing.partner || 'Classic Trip partner' };
+  const schema = {
+    '@type': 'Service',
+    name: listing.title || listing.name || 'Classic Trip travel service',
+    description,
+    url: canonicalUrl,
+    image: image || undefined,
+    serviceType: listing.typeLabel || listing.serviceType || listing.type || 'Travel service',
+    provider,
+    areaServed: [listing.city, listing.country].filter(Boolean),
+    offers: price > 0 ? {
+      '@type': 'Offer',
+      url: canonicalUrl,
+      price,
+      priceCurrency: currency || undefined,
+      availability: listing.bookable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+    } : undefined,
+    aggregateRating: Number(listing.ratingAverage || 0) > 0 && Number(listing.reviewCount || 0) > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: Number(listing.ratingAverage),
+      reviewCount: Number(listing.reviewCount),
+    } : undefined,
+  };
+  return {
+    title,
+    description,
+    canonicalPath: publicPath,
+    image,
+    imageAlt: listing.title || listing.name || 'Classic Trip travel service',
+    schema,
+    breadcrumbs: [
+      { name: 'Home', url: '/' },
+      { name: 'Services', url: '/services' },
+      { name: listing.title || listing.name || 'Travel service', url: publicPath },
+    ],
+  };
+}
+function companySeo(company = {}) {
+  const path = `/companies/${company.slug || company.id}`;
+  const image = company.coverImage?.url || company.logo?.url || '';
+  const description = seoText(company.description || `Explore verified travel services, routes and booking options from ${company.name || 'this Classic Trip partner'} on Classic Trip.`, 165);
+  return {
+    title: `${company.name || 'Verified travel partner'} | Classic Trip`,
+    description,
+    canonicalPath: path,
+    image,
+    imageAlt: `${company.name || 'Classic Trip partner'} profile`,
+    schema: {
+      '@type': 'TravelAgency',
+      name: company.name || 'Classic Trip partner',
+      url: seoService.absoluteUrl(path),
+      description,
+      image: image || undefined,
+      logo: company.logo?.url || undefined,
+      telephone: company.supportContacts?.phone || undefined,
+      email: company.supportContacts?.email || undefined,
+      areaServed: [company.city, company.country].filter(Boolean),
+      aggregateRating: Number(company.ratingAverage || 0) > 0 && Number(company.reviewCount || 0) > 0 ? {
+        '@type': 'AggregateRating',
+        ratingValue: Number(company.ratingAverage),
+        reviewCount: Number(company.reviewCount),
+      } : undefined,
+    },
+    breadcrumbs: [
+      { name: 'Home', url: '/' },
+      { name: 'Verified partners', url: '/companies' },
+      { name: company.name || 'Partner', url: path },
+    ],
+  };
+}
 function scheduleVehicleClass(schedule = {}) {
   if (normalize(schedule.vehicleClass) === 'vip') return 'vip';
   if (normalize(schedule.seatMapSnapshot?.vehicleClass) === 'vip') return 'vip';
@@ -150,7 +234,7 @@ async function servicesPage(req, res, next) {
       return { ...category, stats: { ...category, count: rows.length, available: rows.reduce((sum, row) => sum + Number(row.remainingInventory || 0), 0) }, listings: rows.slice(0, 12) };
     });
     const comingSoon = COMING_SOON_SERVICE_TYPES.map((key) => SERVICE_REGISTRY[key]);
-    res.render('pages/services', { seo: { title: 'All services | Classic Trip' }, grouped, stats: grouped.map((row) => row.stats), comingSoon });
+    res.render('pages/services', { seo: { title: 'Travel Services Across East Africa | Classic Trip', description: 'Explore buses, stays, flights, local rides, tours, car rentals and cargo services from verified Classic Trip partners.', canonicalPath: '/services', schema: { '@type': 'CollectionPage', name: 'Classic Trip travel services' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Services', url: '/services' }] }, grouped, stats: grouped.map((row) => row.stats), comingSoon });
   } catch (error) { next(error); }
 }
 
@@ -165,7 +249,8 @@ async function routesPage(req, res, next) {
     if (origin) routes = routes.filter((route) => normalize(route.origin).includes(origin));
     if (destination) routes = routes.filter((route) => normalize(route.destination).includes(destination));
     const listings = data.listings.filter((row) => catalogService.isPublicListing(row, data)).map((row) => catalogService.catalogItem(data, row));
-    res.render('pages/routes', { seo: { title: 'All routes | Classic Trip' }, routes, query: req.query, corridorStats: catalogService.routeHighlights(listings) });
+    const routeSearchOptions = catalogService.searchOptions(data, listings).bus;
+    res.render('pages/routes', { seo: { title: 'Bus & Travel Routes Across East Africa | Classic Trip', description: 'Browse active Classic Trip routes and corridors across East Africa, with upcoming departures, partner services and live availability.', canonicalPath: '/routes', schema: { '@type': 'CollectionPage', name: 'Classic Trip routes' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Routes', url: '/routes' }] }, routes, query: req.query, corridorStats: catalogService.routeHighlights(listings), routeSearchOptions });
   } catch (error) { next(error); }
 }
 
@@ -192,7 +277,7 @@ async function companyProfile(req, res, next) {
     const campaigns = data.campaigns
       .filter((campaign) => normalize(campaign.status) === 'active' && catalogService.sameId(campaign.companyId, company.id) && listings.some((listing) => catalogService.sameId(listing.id, campaign.listingId)))
       .map((campaign) => ({ id: catalogService.entityId(campaign), name: campaign.name || '', placement: campaign.placement || '', listingId: campaign.listingId || '' }));
-    return res.render('pages/company-profile', { seo: { title: `${company.name} profile | Classic Trip` }, company, listings, routes, campaigns });
+    return res.render('pages/company-profile', { seo: companySeo(company), company, listings, routes, campaigns });
   } catch (error) { return next(error); }
 }
 
@@ -204,7 +289,7 @@ async function promotersPage(req, res, next) {
     const campaigns = data.campaigns
       .filter((campaign) => normalize(campaign.status) === 'active' && listings.some((listing) => catalogService.sameId(listing.id, campaign.listingId)))
       .map((campaign) => ({ id: catalogService.entityId(campaign), name: campaign.name || '', placement: campaign.placement || '', listing: listings.find((listing) => catalogService.sameId(listing.id, campaign.listingId)) || null }));
-    res.render('pages/promoters', { seo: { title: 'Promoters | Classic Trip' }, topListings, campaigns, stats: { promotableListings: topListings.length, activeCampaigns: campaigns.length } });
+    res.render('pages/promoters', { seo: { title: 'Classic Trip Promoters & Travel Deals', description: 'Discover promotable Classic Trip travel services, active campaigns and verified booking opportunities across East Africa.', canonicalPath: '/promoters', schema: { '@type': 'CollectionPage', name: 'Classic Trip promoters and campaigns' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Promoters', url: '/promoters' }] }, topListings, campaigns, stats: { promotableListings: topListings.length, activeCampaigns: campaigns.length } });
   } catch (error) { next(error); }
 }
 
@@ -212,7 +297,7 @@ async function listingDetails(req, res, next) {
   try {
     const context = await catalogContext(req.params.slug, req.params.serviceType, req.query); if (!context.listing) return next();
     if (req.query.ref) await catalogService.recordReferralClick(req.query.ref, context.listing.id, req);
-    return res.render('pages/listing-details', { seo: { title: `${context.listing.title} | Classic Trip` }, listing: context.listing, company: context.company, availability: context.availability, preview: context.preview, referralCode: req.query.ref || req.cookies?.ct_ref || '' });
+    return res.render('pages/listing-details', { seo: listingSeo(context), listing: context.listing, company: context.company, availability: context.availability, preview: context.preview, referralCode: req.query.ref || req.cookies?.ct_ref || '' });
   } catch (error) { return next(error); }
 }
 

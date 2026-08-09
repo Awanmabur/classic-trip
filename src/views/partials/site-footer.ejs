@@ -10,7 +10,7 @@
 
     <div class="footerCol">
       <h3>Book &amp; manage</h3>
-      <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
+      <a href="/buses"><i class="fa-solid fa-bus"></i> Buses</a>
       <a href="/stays"><i class="fa-solid fa-hotel"></i> Stays</a>
       <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
       <a href="/taxi"><i class="fa-solid fa-taxi"></i> Local taxi</a>
@@ -38,6 +38,8 @@
       <a href="/terms#refunds"><i class="fa-solid fa-rotate-left"></i> Refund policy</a>
       <a href="/terms#cancellation"><i class="fa-solid fa-triangle-exclamation"></i> Cancellation rules</a>
       <a href="/support"><i class="fa-solid fa-envelope"></i> Contact support</a>
+      <a href="tel:<%= supportContacts.phone %>"><i class="fa-solid fa-phone"></i> <%= supportContacts.phone %></a>
+      <a href="<%= supportContacts.whatsappGroupUrl %>" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> Join WhatsApp group</a>
     </div>
   </div>
   <div class="footerBottom">
@@ -45,10 +47,12 @@
     <span>Secure payments &bull; Transparent pricing &bull; Partner payouts &bull; Ticket delivery</span>
   </div>
 </footer>
+<%- include('contact-hub') %>
 <div class="toast" id="toast">Ready</div>
-<script src="/js/main.js?v=1.6.29" defer></script>
-<script src="/js/navigation-prefetch.js?v=1.6.29" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.29" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.29" defer></script>
+<script src="/js/main.js?v=1.6.33" defer></script>
+<script src="/js/contact-hub.js?v=1.6.33" defer></script>
+<script src="/js/navigation-prefetch.js?v=1.6.33" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.33" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.33" defer></script>
 </body>
 </html>
 

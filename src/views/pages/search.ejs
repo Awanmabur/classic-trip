@@ -1,14 +1,15 @@
 <%- include('../partials/site-head', { seo }) %>
 <%- include('../partials/site-header') %>
+<% const searchLandingUrl = { bus: '/buses', hotel: '/stays', flight: '/flights', local_transport: '/taxi', tour: '/tours', car_rental: '/car-rentals', cargo: '/cargo' }; %>
 <main class="container searchHero">
   <section class="card heroCard">
     <div class="heroTop">
       <div>
-        <div class="badge badgeInfo"><i class="fa-solid fa-magnifying-glass"></i> Backend search</div>
-        <h1 class="heroTitle">Search routes, stays, partners and services.</h1>
-        <p class="heroSub">Results now use the live catalog logic: availability, next departures, partner data, route corridors, pricing and booking readiness are calculated from backend inventory.</p>
+        <div class="badge badgeInfo"><i class="fa-solid fa-magnifying-glass"></i> <%= searchLanding?.label || 'Live marketplace search' %></div>
+        <h1 class="heroTitle"><%= searchLanding ? `Explore ${searchLanding.label} across East Africa.` : 'Search routes, stays, partners and services.' %></h1>
+        <p class="heroSub"><%= searchLanding?.seo?.description || 'Search live availability, next departures, partner services, route corridors, pricing and booking readiness from the Classic Trip marketplace.' %></p>
       </div>
-      <%- include('../partials/home/hero-search', { query, categories }) %>
+      <%- include('../partials/home/hero-search', { query, categories, searchOptions }) %>
     </div>
     <div class="stats">
       <div class="stat"><b><%= searchMeta?.marketplace?.stats?.liveListings || results.length %></b><span>Matched listings</span></div>
@@ -39,14 +40,15 @@
     <% if ((searchMeta?.typeStats || []).some(item => item.count)) { %>
       <div class="chips" style="margin:0 0 12px">
         <% searchMeta.typeStats.filter(item => item.count).forEach(item => { %>
-          <a class="chip" href="/search?serviceType=<%= item.type %>"><i class="fa-solid fa-ticket"></i> <%= item.label %>: <%= item.count %> listings, <%= item.remainingSeats %> open</a>
+          <a class="chip" href="<%= searchLandingUrl[item.type] || `/search?serviceType=${encodeURIComponent(item.type)}` %>"><i class="fa-solid fa-ticket"></i> <%= item.label %>: <%= item.count %> listings, <%= item.remainingSeats %> open</a>
         <% }) %>
       </div>
     <% } %>
     <div class="gridCards searchResultsGrid">
       <% results.forEach(listing => { %><%- include('../partials/listing-card', { listing }) %><% }) %>
     </div>
-    <% if (!results.length) { %><div class="empty">No results matched. Try another route, service or city.</div><% } %>
+    <% if (!results.length) { %><div class="empty">No live inventory matches that selection right now. For buses, choose a From/To pair offered by the database and a date that has a published departure.</div><% } %>
   </section>
 </main>
+<script src="/js/marketplace-db-search.js?v=1.6.33" defer></script>
 <%- include('../partials/site-footer') %>

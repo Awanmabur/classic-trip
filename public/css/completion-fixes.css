@@ -2360,3 +2360,83 @@ body.listingPreviewBody .toast.show{
   border-color:var(--accent)!important;
   box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)!important;
 }
+
+/* v1.6.32 — global Classic Trip contact hub. */
+.ctContactHub{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:9999;
+  display:grid;
+  justify-items:end;
+  gap:10px;
+  font-family:inherit;
+}
+.ctContactHubMenu{
+  display:grid;
+  gap:8px;
+  justify-items:end;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(10px) scale(.98);
+  pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease,visibility .18s ease;
+}
+.ctContactHub.is-open .ctContactHubMenu{
+  opacity:1;
+  visibility:visible;
+  transform:none;
+  pointer-events:auto;
+}
+.ctContactHubAction{
+  width:min(280px,calc(100vw - 32px));
+  min-height:54px;
+  padding:9px 12px;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  border:1px solid var(--line,rgba(255,255,255,.14));
+  border-radius:18px;
+  background:var(--cardA,#111827);
+  color:var(--text,#fff);
+  text-decoration:none;
+  box-shadow:0 15px 38px rgba(0,0,0,.28);
+}
+.ctContactHubAction:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent,#3b82f6) 55%,var(--line));}
+.ctContactHubAction>i{width:34px;height:34px;flex:0 0 34px;border-radius:12px;display:grid;place-items:center;font-size:17px;background:var(--field,rgba(255,255,255,.07));}
+.ctContactHubAction--group>i,.ctContactHubAction--whatsapp>i{color:#25d366;}
+.ctContactHubAction--call>i{color:var(--accent,#60a5fa);}
+.ctContactHubAction span{min-width:0;display:grid;gap:2px;line-height:1.18;}
+.ctContactHubAction b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ctContactHubAction small{font-size:10.5px;color:var(--muted,#94a3b8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ctContactHubToggle{
+  min-width:54px;
+  height:54px;
+  padding:0 15px;
+  border:0;
+  border-radius:18px;
+  background:#25d366;
+  color:#06110c;
+  font:inherit;
+  font-weight:950;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  box-shadow:0 16px 38px rgba(0,0,0,.28);
+}
+.ctContactHubToggle i{font-size:18px;}
+.ctContactHub.is-open .ctContactHubToggle{background:var(--cardA,#111827);color:var(--text,#fff);border:1px solid var(--line,rgba(255,255,255,.14));}
+@media(max-width:680px){
+  .ctContactHub{right:14px;bottom:86px;}
+  .ctContactHubAction{width:min(260px,calc(100vw - 28px));min-height:52px;border-radius:17px;}
+  .ctContactHubToggle{width:52px;min-width:52px;height:52px;padding:0;border-radius:17px;}
+  .ctContactHubToggle span{display:none;}
+}
+
+@media print{.ctContactHub{display:none!important;}}
+
+/* v1.6.32 — preview notices must remain above floating support controls. */
+body.listingPreviewBody .toast,
+body.listingPreviewBody .siteFlashStack{z-index:10050!important;}

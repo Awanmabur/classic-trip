@@ -1,0 +1,24 @@
+<%
+  const ctSupport = (typeof supportContacts !== 'undefined' && supportContacts) ? supportContacts : {};
+  const ctSupportPhone = String(ctSupport.phone || '+256781977217').trim();
+  const ctWhatsappPhone = String(ctSupport.whatsapp || ctSupportPhone).trim();
+  const ctWhatsappDigits = ctWhatsappPhone.replace(/[^0-9]/g, '');
+  const ctWhatsappGroup = String(ctSupport.whatsappGroupUrl || 'https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1').trim();
+  const ctWhatsappText = encodeURIComponent('Hello Classic Trip, I need help with travel or booking.');
+%>
+<div class="ctContactHub" data-ct-contact-hub>
+  <div class="ctContactHubMenu" id="ctContactHubMenu" data-ct-contact-menu aria-hidden="true">
+    <a class="ctContactHubAction ctContactHubAction--group" href="<%= ctWhatsappGroup %>" target="_blank" rel="noopener noreferrer" aria-label="Join the Classic Trip WhatsApp group">
+      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i><span><b>Join WhatsApp group</b><small>Community &amp; travel updates</small></span>
+    </a>
+    <a class="ctContactHubAction ctContactHubAction--whatsapp" href="https://wa.me/<%= ctWhatsappDigits %>?text=<%= ctWhatsappText %>" target="_blank" rel="noopener noreferrer" aria-label="Chat with Classic Trip on WhatsApp">
+      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i><span><b>WhatsApp chat / call</b><small><%= ctSupportPhone %></small></span>
+    </a>
+    <a class="ctContactHubAction ctContactHubAction--call" href="tel:<%= ctSupportPhone %>" aria-label="Call Classic Trip at <%= ctSupportPhone %>">
+      <i class="fa-solid fa-phone" aria-hidden="true"></i><span><b>Call Classic Trip</b><small><%= ctSupportPhone %></small></span>
+    </a>
+  </div>
+  <button class="ctContactHubToggle" type="button" data-ct-contact-toggle aria-controls="ctContactHubMenu" aria-expanded="false" aria-label="Open Classic Trip contact options">
+    <i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact</span>
+  </button>
+</div>

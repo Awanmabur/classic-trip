@@ -46,6 +46,7 @@ router.get('/company/promotions', dashboardController.index);
 router.get('/company/payouts', dashboardController.index);
 router.get('/company/analytics', dashboardController.index);
 router.get('/company/support', dashboardController.index);
+router.get('/company/notifications', dashboardController.index);
 router.get('/company/staff', dashboardController.index);
 router.get('/company/driver-requests', dashboardController.index);
 router.get('/company/bus-listings', dashboardController.index);

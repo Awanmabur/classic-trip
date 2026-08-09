@@ -31,17 +31,38 @@ const router = express.Router();
 
 router.get('/robots.txt', seoController.robots);
 router.get('/sitemap.xml', seoController.sitemap);
+router.get('/sitemaps/:section.xml', seoController.sitemapSection);
 router.get('/llms.txt', seoController.llms);
 router.get('/llms-full.txt', seoController.llmsFull);
+router.get('/ai-index.json', seoController.aiIndex);
 router.get('/:key.txt', seoController.indexNowKey);
+
+function serviceLanding({ serviceType, canonicalPath, title, description, label, query = {}, schemaName = '' }) {
+  return (req, res, next) => {
+    req.searchLanding = {
+      serviceType,
+      label,
+      query,
+      seo: {
+        title,
+        description,
+        canonicalPath,
+        robots: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1',
+        schema: { '@type': 'CollectionPage', name: schemaName || label || title, description },
+      },
+    };
+    return searchController.searchPage(req, res, next);
+  };
+}
 
 router.get('/', homeController.renderHome);
 router.get('/search', searchController.searchPage);
-router.get('/stays', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'hotel' }).toString(); return res.redirect(302, `/search?${query}`); });
-router.get('/airbnb', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'hotel', stayType: 'airbnb' }).toString(); return res.redirect(302, `/search?${query}`); });
-router.get('/tours', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'tour' }).toString(); return res.redirect(302, `/search?${query}`); });
-router.get('/car-rentals', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'car_rental' }).toString(); return res.redirect(302, `/search?${query}`); });
-router.get('/cargo', (req, res) => { const query = new URLSearchParams({ ...req.query, serviceType: 'cargo' }).toString(); return res.redirect(302, `/search?${query}`); });
+router.get('/buses', serviceLanding({ serviceType: 'bus', canonicalPath: '/buses', label: 'Buses', title: 'Bus Tickets & Routes Across East Africa | Classic Trip', description: 'Find bus routes, live departures, stop-based fares and seat availability from verified operators across East Africa.' }));
+router.get('/stays', serviceLanding({ serviceType: 'hotel', canonicalPath: '/stays', label: 'Stays', title: 'Hotels, Apartments & Stays in East Africa | Classic Trip', description: 'Find verified hotels, apartments, villas, private rooms and other stays with dated availability and secure booking across East Africa.' }));
+router.get('/airbnb', serviceLanding({ serviceType: 'hotel', canonicalPath: '/airbnb', label: 'Airbnb-style homes', query: { stayType: 'airbnb' }, title: 'Homes, Apartments & Private Stays in East Africa | Classic Trip', description: 'Discover entire homes, apartments, villas and private-room stays across East Africa with secure Classic Trip booking.' }));
+router.get('/tours', serviceLanding({ serviceType: 'tour', canonicalPath: '/tours', label: 'Tours', title: 'Tours, Safaris & Experiences in East Africa | Classic Trip', description: 'Find safaris, guided tours, cultural experiences, nature trips and activities from verified partners across East Africa.' }));
+router.get('/car-rentals', serviceLanding({ serviceType: 'car_rental', canonicalPath: '/car-rentals', label: 'Car rentals', title: 'Car Rentals Across East Africa | Classic Trip', description: 'Compare verified car rentals with dated availability, self-drive and driver options across East Africa.' }));
+router.get('/cargo', serviceLanding({ serviceType: 'cargo', canonicalPath: '/cargo', label: 'Cargo', title: 'Cargo, Parcel & Freight Services in East Africa | Classic Trip', description: 'Find verified parcel, document and freight pickup and delivery services across East Africa.' }));
 router.get('/flights', travelController.flightPage);
 router.get('/flights/orders/:reference', travelController.flightOrderPage);
 router.get('/taxi', travelController.taxiPage);
@@ -101,17 +122,17 @@ router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
 router.get('/support', (req, res) => res.render('pages/support', {
   submitted: req.query.submitted === '1',
-  seo: { title: 'Contact Support | Classic Trip', description: 'Get help with bus, stay, flight-agent, local-mobility, tour, car-rental and cargo bookings, payments, tickets, refunds and partner services.' },
+  seo: { title: 'Classic Trip Support | Booking, Payment & Travel Help', description: 'Get help with Classic Trip bookings, payments, tickets, refunds, buses, stays, flights, local rides, tours, car rentals and cargo.', canonicalPath: '/support', schema: { '@type': 'ContactPage', name: 'Classic Trip Support' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Support', url: '/support' }] },
 }));
 router.post('/support', publicWriteLimiter, supportRules, validateRequest, supportController.create);
 router.get('/how-it-works', (req, res) => res.render('pages/how-it-works', {
-  seo: { title: 'How Classic Trip Works | Travel Marketplace East Africa', description: 'Learn how to search, book, pay, and receive tickets on Classic Trip. For passengers, partners, and promoters.' },
+  seo: { title: 'How Classic Trip Works | Search, Book & Travel', description: 'Learn how to search live travel inventory, choose routes or stays, pay securely and receive booking documents on Classic Trip.', canonicalPath: '/how-it-works', schema: { '@type': 'WebPage', name: 'How Classic Trip works' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'How it works', url: '/how-it-works' }] },
 }));
 router.get('/terms', (req, res) => res.render('pages/terms', {
-  seo: { title: 'Terms & Conditions | Classic Trip', description: 'Classic Trip terms of service covering bookings, payments, refunds, cancellations, and partner obligations.' },
+  seo: { title: 'Terms & Conditions | Classic Trip', description: 'Classic Trip terms covering bookings, payments, refunds, cancellations, marketplace use and partner obligations.', canonicalPath: '/terms', schema: { '@type': 'WebPage', name: 'Classic Trip Terms & Conditions' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Terms', url: '/terms' }] },
 }));
 router.get('/privacy', (req, res) => res.render('pages/privacy', {
-  seo: { title: 'Privacy Policy | Classic Trip', description: 'How Classic Trip collects, uses, and protects your personal data. Your rights and our data practices.' },
+  seo: { title: 'Privacy Policy | Classic Trip', description: 'Learn how Classic Trip collects, uses, secures and manages personal data, booking information and account information.', canonicalPath: '/privacy', schema: { '@type': 'WebPage', name: 'Classic Trip Privacy Policy' }, breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Privacy', url: '/privacy' }] },
 }));
 
 router.get('/health', (req, res) => {

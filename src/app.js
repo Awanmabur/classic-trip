@@ -16,6 +16,7 @@ const { attachReferral } = require('./middlewares/referral');
 const { csrfToken } = require('./middlewares/csrf');
 const flashMiddleware = require('./middlewares/flash');
 const publicPerformance = require('./middlewares/publicPerformance');
+const searchIndexing = require('./middlewares/searchIndexing');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -83,6 +84,12 @@ app.use((req, res, next) => {
   const publicOrigin = new URL(env.appUrl).origin;
   return res.redirect(308, `${publicOrigin}${req.originalUrl}`);
 });
+app.use((req, res, next) => {
+  if (!env.isProduction) return next();
+  const requestHost = String(req.get('host') || '').split(':')[0].trim().toLowerCase();
+  if (requestHost !== 'classictrip.org') return next();
+  return res.redirect(308, `https://www.classictrip.org${req.originalUrl}`);
+});
 app.get('/site.webmanifest', (req, res) => {
   res.type('application/manifest+json');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -113,11 +120,13 @@ app.use(attachReferral);
 app.use(csrfToken);
 app.use(flashMiddleware);
 app.use(publicPerformance);
+app.use(searchIndexing);
 app.use((req, res, next) => {
   res.locals.appName = env.appName;
   res.locals.currentPath = req.path;
   res.locals.query = req.query;
   res.locals.seoConfig = env.seo;
+  res.locals.supportContacts = env.support;
   res.locals.siteUrl = env.seo.siteUrl;
   res.locals.platformMfaEnabled = env.platformMfaEnabled;
   const platformConfig = getCachedPlatformConfig();

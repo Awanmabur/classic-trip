@@ -15,9 +15,19 @@ services:
       - key: APP_NAME
         value: Classic Trip
       - key: APP_URL
-        sync: false
+        value: https://www.classictrip.org
       - key: SITE_URL
+        value: https://www.classictrip.org
+      - key: SEO_ALLOW_AI_SEARCH
+        value: "true"
+      - key: SEO_ALLOW_AI_TRAINING
+        value: "false"
+      - key: GOOGLE_SITE_VERIFICATION
         sync: false
+      - key: BING_SITE_VERIFICATION
+        sync: false
+      - key: INDEXNOW_KEY
+        value: 260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374
       - key: MONGO_URI
         sync: false
       - key: MONGO_DB_NAME
@@ -106,9 +116,9 @@ services:
       - key: PESAPAL_CONSUMER_SECRET
         sync: false
       - key: PESAPAL_CALLBACK_URL
-        sync: false
+        value: https://www.classictrip.org/booking/payment/callback
       - key: PESAPAL_IPN_URL
-        sync: false
+        value: https://www.classictrip.org/api/webhooks/payments
       - key: PESAPAL_IPN_ID
         sync: false
       - key: PESAPAL_WEBHOOK_SECRET
@@ -135,6 +145,14 @@ services:
         sync: false
       - key: TAXI_REQUIRE_LIVE_ROUTING
         value: "true"
+      - key: SUPPORT_EMAIL
+        value: support@classictrip.org
+      - key: SUPPORT_PHONE
+        value: "+256781977217"
+      - key: SUPPORT_WHATSAPP
+        value: "+256781977217"
+      - key: WHATSAPP_GROUP_URL
+        value: https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1
       - key: PUSH_ENABLED
         value: "true"
       - key: PUSH_VAPID_PUBLIC_KEY
@@ -142,7 +160,7 @@ services:
       - key: PUSH_VAPID_PRIVATE_KEY
         sync: false
       - key: PUSH_VAPID_SUBJECT
-        sync: false
+        value: mailto:support@classictrip.org
       - key: ENABLE_JOBS
         value: "false"
       - key: RUN_BACKGROUND_WORKER

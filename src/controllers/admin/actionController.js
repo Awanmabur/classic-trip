@@ -19,7 +19,7 @@ const ADMIN_ROLES = new Set(['admin', 'finance_admin', 'support_admin', 'operati
 const CAMPAIGN_PLACEMENTS = new Set(['marketplace_top', 'route_card', 'hotel_card', 'banner', 'promoter_share', 'route_boost', 'homepage_feature']);
 const CAMPAIGN_STATUSES = new Set(['draft', 'active', 'expired']);
 const TICKET_PRIORITIES = new Set(['low', 'medium', 'normal', 'high', 'urgent']);
-const CHANNELS = new Set(['email', 'sms', 'whatsapp', 'push']);
+const CHANNELS = new Set(['in_app', 'email', 'sms', 'whatsapp', 'push']);
 
 function cleanText(value, max = 3000) {
   return String(value || '').replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ').slice(0, max);
@@ -133,7 +133,8 @@ async function createNotice(req, res, next) {
 
 async function sendNotification(req, res, next) {
   try {
-    const channels = [...new Set(String(req.body.channels || req.body.channel || 'email').split(',').map(normalize).filter((item) => CHANNELS.has(item)))];
+    const requestedChannels = String(req.body.channels || req.body.channel || 'push,email').split(',').map(normalize).filter((item) => CHANNELS.has(item));
+    const channels = [...new Set(['in_app', ...requestedChannels])];
     if (!channels.length) throw error('At least one supported notification channel is required', 422);
     const audience = normalize(req.body.audience || 'customers');
     const roleFilter = audience.startsWith('promoter') ? ['promoter']

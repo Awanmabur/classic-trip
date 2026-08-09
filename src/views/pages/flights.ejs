@@ -27,9 +27,8 @@
           </div>
           <input type="hidden" name="tripType" id="flightTripType" value="one_way">
           <div class="travelFormGrid">
-            <div class="travelField"><label for="flightOrigin">From airport</label><div class="travelControl"><i class="fa-solid fa-plane-departure"></i><input id="flightOrigin" name="origin" list="airportOptions" placeholder="EBB or Entebbe" required></div></div>
-            <div class="travelField"><label for="flightDestination">To airport</label><div class="travelControl"><i class="fa-solid fa-plane-arrival"></i><input id="flightDestination" name="destination" list="airportOptions" placeholder="JUB or Juba" required></div></div>
-            <datalist id="airportOptions"></datalist>
+            <div class="travelField"><label for="flightOrigin">From airport</label><div class="travelControl"><i class="fa-solid fa-plane-departure"></i><select id="flightOrigin" name="origin" required><option value="">Loading active airports…</option></select></div></div>
+            <div class="travelField"><label for="flightDestination">To airport</label><div class="travelControl"><i class="fa-solid fa-plane-arrival"></i><select id="flightDestination" name="destination" required><option value="">Loading active airports…</option></select></div></div>
             <div class="travelField"><label for="flightDepartureDate">Departure</label><div class="travelControl"><i class="fa-regular fa-calendar"></i><input id="flightDepartureDate" type="date" name="departureDate" required></div></div>
             <div class="travelField hidden" id="returnDateField"><label for="flightReturnDate">Return</label><div class="travelControl"><i class="fa-regular fa-calendar-check"></i><input id="flightReturnDate" type="date" name="returnDate"></div></div>
             <div class="travelField"><label for="flightCabin">Cabin</label><div class="travelControl"><i class="fa-solid fa-couch"></i><select id="flightCabin" name="cabinClass"><option value="economy">Economy</option><option value="premium_economy">Premium economy</option><option value="business">Business</option><option value="first">First</option></select></div></div>
@@ -85,5 +84,5 @@
   </div>
 </main>
 <script nonce="<%= cspNonce %>" id="flightPageBootstrap" type="application/json"><%- toScriptJson({ query: initialQuery }) %></script>
-<script src="/js/flights.js?v=1.6.29" defer></script>
+<script src="/js/flights.js?v=1.6.33" defer></script>
 <%- include('../partials/site-footer') %>

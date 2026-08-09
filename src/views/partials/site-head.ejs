@@ -18,14 +18,17 @@
     const canonicalPath = pageSeo.canonicalPath || requestPath || '/';
     const canonicalUrl = pageSeo.canonicalUrl || (rootUrl ? `${rootUrl}${canonicalPath === '/' ? '/' : canonicalPath}` : canonicalPath);
     const title = pageSeo.title || cfg.defaultTitle || appLabel;
-    const description = pageSeo.description || cfg.defaultDescription || 'Classic Trip multi-tenant travel marketplace.';
-    const imageUrl = pageSeo.image || cfg.defaultImage || '';
+    const description = pageSeo.description || cfg.defaultDescription || 'Classic Trip multi-service travel marketplace across East Africa.';
+    const defaultImage = rootUrl ? `${rootUrl}/images/launch-lockup-512.png` : '/images/launch-lockup-512.png';
+    const imageUrl = pageSeo.image || cfg.defaultImage || defaultImage;
+    const imageAlt = pageSeo.imageAlt || `${appLabel} travel marketplace`;
     const organizationSchema = {
       '@type': 'TravelAgency',
       '@id': `${rootUrl || canonicalUrl}#organization`,
       name: appLabel,
       url: rootUrl || canonicalUrl,
-      logo: imageUrl || undefined,
+      logo: defaultImage,
+      image: imageUrl,
       areaServed: ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','Burundi','Somalia','Democratic Republic of the Congo'],
     };
     const websiteSchema = {
@@ -40,9 +43,23 @@
         'query-input': 'required name=search_term_string',
       },
     };
-    const suppliedSchema = pageSeo.schema || { '@type': 'WebPage', name: title, description, url: canonicalUrl };
-    const pageSchema = suppliedSchema['@context'] ? Object.fromEntries(Object.entries(suppliedSchema).filter(([key]) => key !== '@context')) : suppliedSchema;
-    const schema = { '@context': 'https://schema.org', '@graph': [organizationSchema, websiteSchema, pageSchema] };
+    const suppliedSchemas = Array.isArray(pageSeo.schema) ? pageSeo.schema : [pageSeo.schema || { '@type': 'WebPage', name: title, description, url: canonicalUrl }];
+    const normalizedSchemas = suppliedSchemas.filter(Boolean).map((item) => {
+      const clean = item['@context'] ? Object.fromEntries(Object.entries(item).filter(([key]) => key !== '@context')) : { ...item };
+      if (!clean.url && ['WebPage','CollectionPage','Service','TravelAgency','BlogPosting'].includes(String(clean['@type'] || ''))) clean.url = canonicalUrl;
+      return clean;
+    });
+    const breadcrumbItems = Array.isArray(pageSeo.breadcrumbs) ? pageSeo.breadcrumbs.filter((item) => item && item.name) : [];
+    const breadcrumbSchema = breadcrumbItems.length > 1 ? {
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbItems.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.name,
+        item: /^https?:\/\//i.test(String(item.url || '')) ? item.url : `${rootUrl || ''}${String(item.url || canonicalPath).startsWith('/') ? String(item.url || canonicalPath) : `/${item.url || canonicalPath}`}`,
+      })),
+    } : null;
+    const schema = { '@context': 'https://schema.org', '@graph': [organizationSchema, websiteSchema, ...normalizedSchemas, ...(breadcrumbSchema ? [breadcrumbSchema] : [])] };
     const schemaJson = toScriptJson(schema);
   %>
   <title><%= title %></title>
@@ -50,28 +67,33 @@
   <meta name="author" content="Classic Technologies" />
   <meta name="application-name" content="<%= appLabel %>" />
   <link rel="canonical" href="<%= canonicalUrl %>" />
-  <meta name="robots" content="<%= pageSeo.robots || 'index,follow,max-image-preview:large' %>" />
+  <meta name="robots" content="<%= pageSeo.robots || 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' %>" />
   <% if (cfg.googleSiteVerification) { %><meta name="google-site-verification" content="<%= cfg.googleSiteVerification %>" /><% } %>
   <% if (cfg.bingSiteVerification) { %><meta name="msvalidate.01" content="<%= cfg.bingSiteVerification %>" /><% } %>
   <meta property="og:site_name" content="<%= appLabel %>" />
+  <meta property="og:locale" content="en_UG" />
   <meta property="og:type" content="<%= pageSeo.type || 'website' %>" />
   <meta property="og:title" content="<%= title %>" />
   <meta property="og:description" content="<%= description %>" />
   <meta property="og:url" content="<%= canonicalUrl %>" />
-  <% if (imageUrl) { %><meta property="og:image" content="<%= imageUrl %>" /><% } %>
-  <meta name="twitter:card" content="<%= imageUrl ? 'summary_large_image' : 'summary' %>" />
+  <meta property="og:image" content="<%= imageUrl %>" />
+  <meta property="og:image:alt" content="<%= imageAlt %>" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="<%= title %>" />
   <meta name="twitter:description" content="<%= description %>" />
-  <% if (imageUrl) { %><meta name="twitter:image" content="<%= imageUrl %>" /><% } %>
+  <meta name="twitter:image" content="<%= imageUrl %>" />
+  <meta name="twitter:image:alt" content="<%= imageAlt %>" />
   <meta name="theme-color" content="#070a12" />
   <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.29" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
+  <link rel="alternate" type="application/json" href="/ai-index.json" title="AI-readable public catalog JSON" />
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.29">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.33" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.33">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/pages/search.css">
@@ -82,10 +104,10 @@
   <script src="/js/page-actions.js" defer></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
   <script src="/js/pwa.js?v=20260727-final-speed-1" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.29">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.33">
   <link rel="stylesheet" href="/css/marketing-responsive.css?v=20260727-1">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.29" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.33" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="sitePage<%= (typeof bodyClass !== 'undefined' && bodyClass) ? ` ${String(bodyClass).replace(/[^a-zA-Z0-9_-]/g, '')}` : '' %>">
 <%- include('site-flash') %>

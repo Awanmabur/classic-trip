@@ -10,51 +10,76 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <%
-    const homeTitle = seo?.title || 'Classic Trip | Buses, Stays, Airbnb, Flights, Taxi, Tours, Car Rentals and Cargo';
-    const homeDescription = seo?.description || 'Plan and book verified buses, stays and Airbnb-style homes, agent-supported flights, local rides, tours, car rentals and cargo services across East Africa from one secure platform.';
-    const homeCanonical = `${String(siteUrl || '').replace(/\/+$/, '') || ''}/`;
+    const homeCfg = (typeof seoConfig !== 'undefined' && seoConfig) ? seoConfig : {};
+    const homeTitle = seo?.title || 'Classic Trip | Book Buses, Stays, Flights & Travel in East Africa';
+    const homeDescription = seo?.description || 'Search and book verified buses, stays, flights, local rides, tours, car rentals and cargo across East Africa with live availability and secure payments.';
+    const homeRoot = String(siteUrl || homeCfg.siteUrl || '').replace(/\/+$/, '');
+    const homeCanonical = `${homeRoot}/`;
+    const homeImage = seo?.image || homeCfg.defaultImage || `${homeRoot}/images/launch-lockup-512.png`;
     const homeSchema = {
       '@context': 'https://schema.org',
       '@graph': [
-        { '@type': 'TravelAgency', name: 'Classic Trip', url: homeCanonical, areaServed: ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','Burundi','Somalia','Democratic Republic of the Congo'] },
-        { '@type': 'WebSite', name: 'Classic Trip', url: homeCanonical, potentialAction: { '@type': 'SearchAction', target: `${String(siteUrl || '').replace(/\/+$/, '')}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
-        { '@type': 'WebPage', name: homeTitle, description: homeDescription, url: homeCanonical },
+        { '@type': 'TravelAgency', '@id': `${homeRoot}#organization`, name: 'Classic Trip', url: homeCanonical, logo: `${homeRoot}/images/launch-lockup-512.png`, image: homeImage, areaServed: ['Uganda','Kenya','Rwanda','Tanzania','South Sudan','Burundi','Somalia','Democratic Republic of the Congo'] },
+        { '@type': 'WebSite', '@id': `${homeRoot}#website`, name: 'Classic Trip', url: homeCanonical, publisher: { '@id': `${homeRoot}#organization` }, potentialAction: { '@type': 'SearchAction', target: `${homeRoot}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
+        { '@type': 'WebPage', name: homeTitle, description: homeDescription, url: homeCanonical, isPartOf: { '@id': `${homeRoot}#website` } },
+        { '@type': 'ItemList', name: 'Classic Trip travel services', itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Buses', url: `${homeRoot}/buses` },
+          { '@type': 'ListItem', position: 2, name: 'Stays', url: `${homeRoot}/stays` },
+          { '@type': 'ListItem', position: 3, name: 'Flights', url: `${homeRoot}/flights` },
+          { '@type': 'ListItem', position: 4, name: 'Local taxi and boda', url: `${homeRoot}/taxi` },
+          { '@type': 'ListItem', position: 5, name: 'Tours', url: `${homeRoot}/tours` },
+          { '@type': 'ListItem', position: 6, name: 'Car rentals', url: `${homeRoot}/car-rentals` },
+          { '@type': 'ListItem', position: 7, name: 'Cargo', url: `${homeRoot}/cargo` },
+        ] },
       ],
     };
   %>
   <title><%= homeTitle %></title>
   <meta name="description" content="<%= homeDescription %>" />
+  <meta name="author" content="Classic Technologies" />
+  <meta name="application-name" content="Classic Trip" />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
   <meta name="theme-color" content="#070a12" />
   <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
-  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
   <link rel="canonical" href="<%= homeCanonical %>" />
+  <% if (homeCfg.googleSiteVerification) { %><meta name="google-site-verification" content="<%= homeCfg.googleSiteVerification %>" /><% } %>
+  <% if (homeCfg.bingSiteVerification) { %><meta name="msvalidate.01" content="<%= homeCfg.bingSiteVerification %>" /><% } %>
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.29" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable public summary" />
   <link rel="alternate" type="text/plain" href="/llms-full.txt" title="AI-readable public catalog" />
+  <link rel="alternate" type="application/json" href="/ai-index.json" title="AI-readable public catalog JSON" />
+  <meta property="og:site_name" content="Classic Trip" />
+  <meta property="og:locale" content="en_UG" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="<%= homeTitle %>" />
   <meta property="og:description" content="<%= homeDescription %>" />
   <meta property="og:url" content="<%= homeCanonical %>" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:image" content="<%= homeImage %>" />
+  <meta property="og:image:alt" content="Classic Trip travel marketplace" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<%= homeTitle %>" />
+  <meta name="twitter:description" content="<%= homeDescription %>" />
+  <meta name="twitter:image" content="<%= homeImage %>" />
+  <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.29">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.33" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.33">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
-    <script src="/js/csrf.js?v=20260722-3" defer></script>
+  <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.29">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.33">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.29" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.33" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
     <div class="navIn">
       <a class="brand" href="/"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></a>
       <nav class="navLinks" id="navLinks">
-        <a href="/" class="active">Home</a><a href="/search?serviceType=bus">Buses</a><a href="/stays">Stays</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/booking">My bookings</a>
+        <a href="/" class="active">Home</a><a href="/buses">Buses</a><a href="/stays">Stays</a><a href="/flights">Flights</a><a href="/taxi">Local taxi</a><a href="#ads">Promotions</a><a href="/blogs">Blogs</a><a href="/booking">My bookings</a>
       </nav>
       <div class="navActions">
         <button class="iconbtn" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
@@ -117,6 +142,7 @@
             <p class="heroSub">Compare verified transport, stays, Airbnb-style homes, tours, rentals and cargo options, book with transparent pricing, and manage every reservation from one trusted East African travel platform.</p>
           </div>
 
+          <% const dbSearch = bootstrap.searchOptions || {}; %>
           <div class="card searchBox">
             <div class="tabs" id="searchTabs" role="tablist" aria-label="Choose a service to search">
               <button type="button" class="tab active" data-type="bus" data-service-tab="bus" role="tab" aria-controls="busSearchPanel" aria-selected="true"><i class="fa-solid fa-bus"></i> Bus</button>
@@ -128,15 +154,16 @@
               <button type="button" class="tab" data-type="cargo" data-service-tab="cargo" role="tab" aria-controls="cargoSearchPanel" aria-selected="false"><i class="fa-solid fa-box"></i> Cargo</button>
             </div>
             <div class="serviceSearchPanels" id="serviceSearchPanels" aria-live="polite">
-              <div id="busSearchPanel" class="formGrid serviceSearchPanel active" data-search-panel="bus" role="tabpanel" aria-label="Bus search fields">
-                <div class="field"><label for="busFromInput">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="busFromInput" data-search-param="origin" placeholder="Departure city or terminal" autocomplete="off"></div></div>
-                <div class="field"><label for="busToInput">To</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="busToInput" data-search-param="destination" placeholder="Arrival city or terminal" autocomplete="off"></div></div>
+              <div id="busSearchPanel" class="formGrid serviceSearchPanel active" data-search-panel="bus" data-route-pair-container role="tabpanel" aria-label="Bus search fields">
+                <div class="field"><label for="busFromInput">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="busFromInput" data-search-param="origin" data-route-origin-select><option value="">Select departure</option><% (dbSearch.bus?.origins || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
+                <div class="field"><label for="busToInput">To</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="busToInput" data-search-param="destination" data-route-destination-select><option value="">Select destination</option><% (dbSearch.bus?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="busDateInput">Departure date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="busDateInput" data-search-param="date"></div></div>
                 <div class="field"><label for="busPassengersInput">Passengers / seats</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="busPassengersInput" data-search-param="passengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div></div>
+                <script type="application/json" data-route-pairs-json><%- toScriptJson(dbSearch.bus?.pairs || []) %></script>
               </div>
 
               <div id="staySearchPanel" class="formGrid serviceSearchPanel" data-search-panel="hotel" role="tabpanel" aria-label="Stay search fields" hidden>
-                <div class="field"><label for="stayCityInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="stayCityInput" data-search-param="city" placeholder="City, area or property" autocomplete="off"></div></div>
+                <div class="field"><label for="stayCityInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="stayCityInput" data-search-param="city"><option value="">Select destination</option><% (dbSearch.hotel?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="stayTypeInput">Stay type</label><div class="control"><i class="fa-solid fa-house"></i><select id="stayTypeInput" data-search-param="stayType"><option value="">All stays</option><option value="hotel">Hotel</option><option value="apartment">Apartment</option><option value="entire_home">Entire home</option><option value="private_room">Private room</option><option value="villa">Villa</option></select></div></div>
                 <div class="field"><label for="stayCheckInInput">Check-in</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="stayCheckInInput" data-search-param="checkIn"></div></div>
                 <div class="field"><label for="stayCheckOutInput">Check-out</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="stayCheckOutInput" data-search-param="checkOut"></div></div>
@@ -145,8 +172,8 @@
               </div>
 
               <div id="flightSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="flight" role="tabpanel" aria-label="Flight search fields" hidden>
-                <div class="field"><label for="flightFromInput">From airport</label><div class="control"><i class="fa-solid fa-plane-departure"></i><input id="flightFromInput" data-search-param="origin" placeholder="Airport code or city" autocomplete="off"></div></div>
-                <div class="field"><label for="flightToInput">To airport</label><div class="control"><i class="fa-solid fa-plane-arrival"></i><input id="flightToInput" data-search-param="destination" placeholder="Airport code or city" autocomplete="off"></div></div>
+                <div class="field"><label for="flightFromInput">From airport</label><div class="control"><i class="fa-solid fa-plane-departure"></i><select id="flightFromInput" data-search-param="origin"><option value="">Select departure airport</option><% (dbSearch.flight?.airports || []).forEach((airport) => { %><option value="<%= airport.value %>"><%= airport.label %></option><% }) %></select></div></div>
+                <div class="field"><label for="flightToInput">To airport</label><div class="control"><i class="fa-solid fa-plane-arrival"></i><select id="flightToInput" data-search-param="destination"><option value="">Select destination airport</option><% (dbSearch.flight?.airports || []).forEach((airport) => { %><option value="<%= airport.value %>"><%= airport.label %></option><% }) %></select></div></div>
                 <div class="field"><label for="flightDepartInput">Departure</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="flightDepartInput" data-search-param="departureDate"></div></div>
                 <div class="field"><label for="flightReturnInput">Return (optional)</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="flightReturnInput" data-search-param="returnDate"></div></div>
                 <div class="field"><label for="flightTravelersInput">Travelers</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="flightTravelersInput" data-search-param="adults"><option value="1">1 traveler</option><option value="2">2 travelers</option><option value="3">3 travelers</option><option value="4">4 travelers</option><option value="5">5 travelers</option><option value="6">6 travelers</option></select></div></div>
@@ -154,8 +181,8 @@
               </div>
 
               <div id="taxiSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="local_transport" role="tabpanel" aria-label="Local taxi search fields" hidden>
-                <div class="field"><label for="taxiPickupInput">Pickup</label><div class="control"><i class="fa-solid fa-location-crosshairs"></i><input id="taxiPickupInput" data-search-param="origin" placeholder="Pickup address" autocomplete="street-address"></div></div>
-                <div class="field"><label for="taxiDestinationInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="taxiDestinationInput" data-search-param="destination" placeholder="Destination address" autocomplete="off"></div></div>
+                <div class="field"><label for="taxiPickupInput">Pickup</label><div class="control"><i class="fa-solid fa-location-crosshairs"></i><select id="taxiPickupInput" data-search-param="origin"><option value="">Select pickup area</option><% (dbSearch.local_transport?.origins || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
+                <div class="field"><label for="taxiDestinationInput">Destination</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="taxiDestinationInput" data-search-param="destination"><option value="">Select destination area</option><% (dbSearch.local_transport?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="taxiDateInput">Pickup date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="taxiDateInput" data-search-param="pickupDate"></div></div>
                 <div class="field"><label for="taxiTimeInput">Pickup time</label><div class="control"><i class="fa-regular fa-clock"></i><input type="time" id="taxiTimeInput" data-search-param="pickupTime"></div></div>
                 <div class="field"><label for="taxiPassengersInput">Passengers</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="taxiPassengersInput" data-search-param="passengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div></div>
@@ -163,15 +190,15 @@
               </div>
 
               <div id="tourSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="tour" role="tabpanel" aria-label="Tour search fields" hidden>
-                <div class="field"><label for="tourCityInput">Destination</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><input id="tourCityInput" data-search-param="city" placeholder="City, park or attraction" autocomplete="off"></div></div>
+                <div class="field"><label for="tourCityInput">Destination</label><div class="control"><i class="fa-solid fa-map-location-dot"></i><select id="tourCityInput" data-search-param="city"><option value="">Select destination</option><% (dbSearch.tour?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="tourCategoryInput">Tour type</label><div class="control"><i class="fa-solid fa-compass"></i><select id="tourCategoryInput" data-search-param="category"><option value="">All tours</option><option value="safari">Safari</option><option value="city">City tour</option><option value="culture">Culture</option><option value="adventure">Adventure</option><option value="nature">Nature</option></select></div></div>
                 <div class="field"><label for="tourDateInput">Activity date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="tourDateInput" data-search-param="date"></div></div>
                 <div class="field"><label for="tourParticipantsInput">Participants</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="tourParticipantsInput" data-search-param="participants"><option value="1">1 participant</option><option value="2">2 participants</option><option value="3">3 participants</option><option value="4">4 participants</option><option value="5">5 participants</option><option value="6">6 participants</option></select></div></div>
               </div>
 
               <div id="rentalSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="car_rental" role="tabpanel" aria-label="Car rental search fields" hidden>
-                <div class="field"><label for="rentalPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="rentalPickupInput" data-search-param="origin" placeholder="City, airport or branch" autocomplete="off"></div></div>
-                <div class="field"><label for="rentalReturnLocationInput">Return location</label><div class="control"><i class="fa-solid fa-flag-checkered"></i><input id="rentalReturnLocationInput" data-search-param="destination" placeholder="Same or different location" autocomplete="off"></div></div>
+                <div class="field"><label for="rentalPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="rentalPickupInput" data-search-param="origin"><option value="">Select pickup location</option><% (dbSearch.car_rental?.origins || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
+                <div class="field"><label for="rentalReturnLocationInput">Return location</label><div class="control"><i class="fa-solid fa-flag-checkered"></i><select id="rentalReturnLocationInput" data-search-param="destination"><option value="">Select return location</option><% (dbSearch.car_rental?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="rentalPickupDateInput">Pickup date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="rentalPickupDateInput" data-search-param="pickupDate"></div></div>
                 <div class="field"><label for="rentalReturnDateInput">Return date</label><div class="control"><i class="fa-regular fa-calendar-check"></i><input type="date" id="rentalReturnDateInput" data-search-param="returnDate"></div></div>
                 <div class="field"><label for="rentalVehicleInput">Vehicle type</label><div class="control"><i class="fa-solid fa-car-side"></i><select id="rentalVehicleInput" data-search-param="vehicleType"><option value="">Any vehicle</option><option value="economy">Economy</option><option value="suv">SUV</option><option value="van">Van</option><option value="luxury">Luxury</option><option value="pickup">Pickup</option></select></div></div>
@@ -179,8 +206,8 @@
               </div>
 
               <div id="cargoSearchPanel" class="formGrid serviceSearchPanel" data-search-panel="cargo" role="tabpanel" aria-label="Cargo search fields" hidden>
-                <div class="field"><label for="cargoPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-box"></i><input id="cargoPickupInput" data-search-param="origin" placeholder="Pickup city or address" autocomplete="off"></div></div>
-                <div class="field"><label for="cargoDeliveryInput">Delivery location</label><div class="control"><i class="fa-solid fa-truck-fast"></i><input id="cargoDeliveryInput" data-search-param="destination" placeholder="Delivery city or address" autocomplete="off"></div></div>
+                <div class="field"><label for="cargoPickupInput">Pickup location</label><div class="control"><i class="fa-solid fa-box"></i><select id="cargoPickupInput" data-search-param="origin"><option value="">Select pickup location</option><% (dbSearch.cargo?.origins || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
+                <div class="field"><label for="cargoDeliveryInput">Delivery location</label><div class="control"><i class="fa-solid fa-truck-fast"></i><select id="cargoDeliveryInput" data-search-param="destination"><option value="">Select delivery location</option><% (dbSearch.cargo?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="cargoDateInput">Shipping date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="cargoDateInput" data-search-param="date"></div></div>
                 <div class="field"><label for="cargoTypeInput">Cargo type</label><div class="control"><i class="fa-solid fa-boxes-stacked"></i><select id="cargoTypeInput" data-search-param="cargoType"><option value="parcel">Parcel</option><option value="documents">Documents</option><option value="general_goods">General goods</option><option value="fragile">Fragile goods</option><option value="bulk">Bulk cargo</option></select></div></div>
                 <div class="field"><label for="cargoWeightInput">Approx. weight</label><div class="control"><i class="fa-solid fa-weight-hanging"></i><input type="number" id="cargoWeightInput" data-search-param="weightKg" min="0.1" step="0.1" placeholder="Weight in kg"></div></div>
@@ -277,7 +304,7 @@
         </section>
 
         <section class="section marketplaceSection marketplaceSection--hotel" id="hotel" data-marketplace-section="hotel">
-          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, apartments, <br> villas, private rooms and shared rooms with dated availability.</p></div><div class="sectionHeadTools"><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span><div class="sectionViewToggle" role="group" aria-label="Stays view"><button class="active" type="button" data-home-action="set-section-view" data-group="hotel" data-view="cards"><i class="fa-solid fa-images"></i><span>Gallery</span></button><button type="button" data-home-action="set-section-view" data-group="hotel" data-view="bars"><i class="fa-solid fa-list"></i><span>List</span></button></div></div></div>
+          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, apartments, villas, private rooms and shared rooms with dated availability.</p></div><div class="sectionHeadTools"><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span><div class="sectionViewToggle" role="group" aria-label="Stays view"><button class="active" type="button" data-home-action="set-section-view" data-group="hotel" data-view="cards"><i class="fa-solid fa-images"></i><span>Gallery</span></button><button type="button" data-home-action="set-section-view" data-group="hotel" data-view="bars"><i class="fa-solid fa-list"></i><span>List</span></button></div></div></div>
           <% var hotelListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'hotel' || item.group === 'hotel'); }); var initialHotelListings = hotelListings.slice(0, 4); %>
           <div class="gridCards sectionListingCollection sectionListingCollection--hotel" id="hotelCards" data-section-group="hotel" data-view="cards">
             <% if (initialHotelListings.length) { initialHotelListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
@@ -438,7 +465,7 @@
 
       <div class="footerCol">
         <h3>Book & manage</h3>
-        <a href="/search?serviceType=bus"><i class="fa-solid fa-bus"></i> Buses</a>
+        <a href="/buses"><i class="fa-solid fa-bus"></i> Buses</a>
         <a href="/stays"><i class="fa-solid fa-house"></i> Stays</a>
         <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
         <a href="/taxi"><i class="fa-solid fa-motorcycle"></i> Boda & car rides</a>
@@ -481,8 +508,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.29" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.29" defer></script>
-  <script src="/js/home-service-search.js?v=1.6.29" defer></script>
-  <script src="/js/home.js?v=1.6.29" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.33" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.33" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.33" defer></script>
+<script src="/js/home-service-search.js?v=1.6.33" defer></script>
+  <script src="/js/home.js?v=1.6.33" defer></script>
+  <%- include('../partials/contact-hub') %>
+  <script src="/js/contact-hub.js?v=1.6.33" defer></script>
 </body>
 </html>

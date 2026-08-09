@@ -1,1 +1,16 @@
-<section class="section" id="customer-notifications"><div class="card"><div class="cardHead"><div class="cardTitle"><h3><i class="fa-solid fa-bell"></i> Notifications</h3><p>Booking updates, receipts, refund messages, and account notices.</p></div></div><div class="tableWrap"><table><thead><tr><th>Message</th><th>Type</th><th>Body</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody id="customerNotificationsTable"></tbody></table></div></div></section>
+<section class="section" id="customer-notifications">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3><i class="fa-solid fa-bell"></i> Notifications</h3>
+        <p>Your booking confirmations, payment updates, refunds, support messages, account notices, and browser push alerts appear here.</p>
+      </div>
+      <div class="rowActions">
+        <button class="btn" type="button" data-ct-enable-push><i class="fa-solid fa-bell"></i> Enable push</button>
+        <button class="btn" type="button" data-ct-test-push><i class="fa-solid fa-paper-plane"></i> Test push</button>
+        <button class="btn" type="button" data-ct-mark-all-read><i class="fa-solid fa-check-double"></i> Mark all read</button>
+      </div>
+    </div>
+    <div class="notificationPageList" data-ct-notification-page-list aria-live="polite"></div>
+  </div>
+</section>

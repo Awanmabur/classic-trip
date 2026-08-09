@@ -6,13 +6,14 @@
     <span class="badge badgeOk"><i class="fa-solid fa-route"></i> Route directory</span>
     <h1 class="heroTitle">Every available bus route and partner corridor.</h1>
     <p class="heroSub">Customers can browse routes, compare partners, open the listing, select a seat, pay through the configured payment provider, and receive a QR ticket.</p>
-    <form class="card searchBox" action="/routes" method="get" style="margin-top:14px">
+    <form class="card searchBox" action="/routes" method="get" style="margin-top:14px" data-route-pair-container>
       <div class="formGrid">
         <div class="field"><label for="routeSearchQuery">Search</label><div class="control"><i class="fa-solid fa-magnifying-glass"></i><input id="routeSearchQuery" name="q" value="<%= query.q || '' %>" placeholder="Kampala, Nairobi, partner"></div></div>
-        <div class="field"><label for="routeSearchOrigin">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><input id="routeSearchOrigin" name="origin" value="<%= query.origin || '' %>" placeholder="Origin"></div></div>
-        <div class="field"><label for="routeSearchDestination">To</label><div class="control"><i class="fa-solid fa-route"></i><input id="routeSearchDestination" name="destination" value="<%= query.destination || '' %>" placeholder="Destination"></div></div>
+        <div class="field"><label for="routeSearchOrigin">From</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="routeSearchOrigin" name="origin" data-route-origin-select><option value="">All origins</option><% (routeSearchOptions?.origins || []).forEach((value) => { %><option value="<%= value %>" <%= query.origin === value ? 'selected' : '' %>><%= value %></option><% }) %></select></div></div>
+        <div class="field"><label for="routeSearchDestination">To</label><div class="control"><i class="fa-solid fa-route"></i><select id="routeSearchDestination" name="destination" data-route-destination-select><option value="">All destinations</option><% (routeSearchOptions?.destinations || []).forEach((value) => { %><option value="<%= value %>" <%= query.destination === value ? 'selected' : '' %>><%= value %></option><% }) %></select></div></div>
         <div class="field"><label for="routeSearchCorridor">Corridor</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select id="routeSearchCorridor" name="corridor" class="selectLike"><option value="">All</option><% corridorStats.forEach(stat => { %><option value="<%= stat.corridor %>" <%= query.corridor === stat.corridor ? 'selected' : '' %>><%= stat.corridor %></option><% }) %></select></div></div>
       </div>
+      <script type="application/json" data-route-pairs-json><%- toScriptJson(routeSearchOptions?.pairs || []) %></script>
       <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Find routes</button>
     </form>
   </section>
@@ -52,8 +53,9 @@
           </div>
         </article>
       <% }) %>
-      <% if (!routes.length) { %><div class="empty">No route matched those filters. Try another origin, destination, or corridor.</div><% } %>
+      <% if (!routes.length) { %><div class="empty">No live route matches that selection right now. Choose another valid From/To pair, or clear the filters to see all published routes.</div><% } %>
     </div>
   </section>
 </main>
+<script src="/js/route-pair-select.js?v=1.6.33" defer></script>
 <%- include('../partials/site-footer') %>

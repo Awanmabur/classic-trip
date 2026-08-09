@@ -3300,7 +3300,7 @@ function createDashboardProjection(initialState = {}) {
       wallet: item,
       owner: customerDetail(customerUser)
     }, ['view', 'export'])]);
-    const notificationRows = (state.notifications || []).filter(note => !note.ownerType || note.ownerType === 'customer' || note.audience === 'customers').slice(0, 12).map(note => [note.title || note.subject || note.id, note.type || note.channel || (Array.isArray(note.channels) ? note.channels.join(', ') : 'Notification'), note.message || note.body || '', dateValue(note.createdAt || note.updatedAt || new Date()), note.status || note.deliveryStatus || 'Unread', dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'mark_read', 'export'])]);
+    const notificationRows = (state.notifications || []).filter(note => !note.ownerType || note.ownerType === 'customer' || note.audience === 'customers').slice(0, 12).map(note => [note.title || note.subject || note.id, note.type || note.channel || (Array.isArray(note.channels) ? note.channels.join(', ') : 'Notification'), note.message || note.body || '', dateValue(note.createdAt || note.updatedAt || new Date()), note.readAt ? 'Read' : 'Unread', dashboardMeta('notification', note.id, note.title || note.subject, note.status, notificationDetail(note), ['view', 'mark_read', 'export'])]);
     const currentTicket = activeBookings[0] || bookings[0] || {};
     const totalSpend = bookings.reduce((total, booking) => total + Number(booking.pricing?.total || 0), 0);
     const refundsTotal = refundRows.reduce((total, row) => total + Number(String(row[3]).replace(/[^0-9.-]/g, '') || 0), 0);

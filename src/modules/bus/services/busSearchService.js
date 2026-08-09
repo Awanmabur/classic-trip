@@ -1,7 +1,7 @@
 'use strict';
 
 const repository = require('../repositories/busRepository');
-const { cleanText, normalize } = require('../domain/busDomain');
+const { cleanText, normalize, locationMatches } = require('../domain/busDomain');
 
 function scheduleVehicleClass(schedule = {}) {
   if (normalize(schedule.vehicleClass) === 'vip') return 'vip';
@@ -13,7 +13,7 @@ function stopMatches(stop, wantedBranchId, wantedName) {
   const wantedBranch = cleanText(wantedBranchId, 180);
   const candidateBranch = cleanText(stop?.branchId, 180);
   const branchMatches = wantedBranch && candidateBranch && candidateBranch === wantedBranch;
-  const nameMatches = wantedName && normalize(stop?.name) === normalize(wantedName);
+  const nameMatches = wantedName && locationMatches(stop?.name, wantedName);
   // Branch identity is authoritative when available. Name matching keeps older
   // manually-created routes usable when their stops pre-date branch linkage.
   return Boolean(branchMatches || nameMatches);

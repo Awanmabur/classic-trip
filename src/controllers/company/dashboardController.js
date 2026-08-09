@@ -40,6 +40,7 @@ function requestedPageFromRequest(req) {
     '/company/analytics': 'reports',
     '/company/reports': 'reports',
     '/company/support': 'support',
+    '/company/notifications': 'notifications',
     '/company/promotions': 'ads',
     '/company/seat-maps': 'seat-maps',
     '/company/manifests-dashboard': 'manifests',
@@ -74,7 +75,7 @@ function requestedSubviewFromRequest(req) {
 }
 
 function allowedCompanyPage(page, serviceProfile = {}) {
-  if (page === 'archive') return 'archive';
+  if (page === 'archive' || page === 'notifications') return page;
   const serviceDashboardPages = new Set(SERVICE_DASHBOARDS.map((service) => service.key));
   if (serviceDashboardPages.has(page)) return page;
   const visiblePages = new Set(serviceProfile.visiblePages || []);

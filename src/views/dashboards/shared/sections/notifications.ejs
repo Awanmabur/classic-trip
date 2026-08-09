@@ -1,1 +1,36 @@
-<section class="section" id="notifications"><div class="card"><div class="cardHead"><div class="cardTitle"><h3>Notifications</h3><p>Manage email, SMS, WhatsApp, push, booking receipts, payout alerts, and partner notices.</p></div><button class="btn btnBlue" data-modal="create" data-type="notification"><i class="fa-solid fa-paper-plane"></i> Send notification</button></div><div class="innerTabs" data-tab-group="notify-tabs"><button type="button" class="tabBtn is-on" data-tab-target="notify-campaigns"><i class="fa-solid fa-bullhorn"></i> Campaigns</button><button type="button" class="tabBtn" data-tab-target="notify-templates"><i class="fa-solid fa-envelope-open-text"></i> Templates</button></div><div class="tabPane is-open" id="notify-campaigns"><div class="tableWrap"><table><thead><tr><th>Message</th><th>Channel</th><th>Audience</th><th>Sent</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody id="notificationsTable"></tbody></table></div></div><div class="tabPane" id="notify-templates"><div class="reportGrid"><article class="reportCard"><span class="badge ok">Active</span><h4>Booking receipt</h4><p>Email/SMS template after successful payment.</p><button class="btn" data-modal="edit" data-type="template" data-label="Booking receipt">Edit</button></article><article class="reportCard"><span class="badge ok">Active</span><h4>Payout approved</h4><p>Notice to partners and promoters when funds are released.</p><button class="btn" data-modal="edit" data-type="template" data-label="Payout approved">Edit</button></article><article class="reportCard"><span class="badge warn">Review</span><h4>Refund update</h4><p>Customer message for refund progress and cancellation rules.</p><button class="btn" data-modal="edit" data-type="template" data-label="Refund update">Edit</button></article></div></div></div></section>
+<% const canManageNotificationCampaigns = ['admin', 'content'].includes(String(dashboardRoleKey || '')); %>
+<section class="section" id="notifications">
+  <div class="card">
+    <div class="cardHead">
+      <div class="cardTitle">
+        <h3><i class="fa-solid fa-bell"></i> <%= canManageNotificationCampaigns ? 'Notification center' : 'Notifications' %></h3>
+        <p><%= canManageNotificationCampaigns
+          ? 'Send platform announcements and review in-app, push, email, SMS, and WhatsApp delivery.'
+          : 'Review operational updates for this account and connect browser push notifications on this device.' %></p>
+      </div>
+      <div class="rowActions">
+        <button class="btn" type="button" data-ct-enable-push><i class="fa-solid fa-bell"></i> Enable push</button>
+        <button class="btn" type="button" data-ct-test-push><i class="fa-solid fa-paper-plane"></i> Test push</button>
+        <button class="btn" type="button" data-ct-mark-all-read><i class="fa-solid fa-check-double"></i> Mark all read</button>
+        <% if (canManageNotificationCampaigns) { %><button class="btn btnBlue" data-modal="create" data-type="notification"><i class="fa-solid fa-paper-plane"></i> Send announcement</button><% } %>
+      </div>
+    </div>
+    <div class="notificationPageList" data-ct-notification-page-list aria-live="polite"></div>
+    <% if (canManageNotificationCampaigns) { %>
+      <div class="innerTabs" data-tab-group="notify-tabs" style="margin-top:14px">
+        <button type="button" class="tabBtn is-on" data-tab-target="notify-campaigns"><i class="fa-solid fa-bullhorn"></i> Campaign history</button>
+        <button type="button" class="tabBtn" data-tab-target="notify-templates"><i class="fa-solid fa-envelope-open-text"></i> Templates</button>
+      </div>
+      <div class="tabPane is-open" id="notify-campaigns">
+        <div class="tableWrap"><table><thead><tr><th>Message</th><th>Channel</th><th>Audience</th><th>Sent</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody id="notificationsTable"></tbody></table></div>
+      </div>
+      <div class="tabPane" id="notify-templates">
+        <div class="reportGrid">
+          <article class="reportCard"><span class="badge ok">Active</span><h4>Booking receipt</h4><p>Confirmation sent after successful payment.</p><button class="btn" data-modal="edit" data-type="template" data-label="Booking receipt">Edit</button></article>
+          <article class="reportCard"><span class="badge ok">Active</span><h4>Payout approved</h4><p>Partner or promoter notice when a payout is released.</p><button class="btn" data-modal="edit" data-type="template" data-label="Payout approved">Edit</button></article>
+          <article class="reportCard"><span class="badge warn">Review</span><h4>Refund update</h4><p>Customer update for refund progress and cancellation handling.</p><button class="btn" data-modal="edit" data-type="template" data-label="Refund update">Edit</button></article>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>

@@ -28,7 +28,7 @@
   const initialTicketClass = scheduleTicketClass(safeAvailability.schedule || initialRouteSchedules.find((schedule) => scheduleTicketClass(schedule) === 'standard') || initialRouteSchedules[0] || {});
   const defaultTicketClass = ticketClassesAvailable.has('standard') ? 'standard' : initialTicketClass;
   const initialFlowConfirmed = true;
-  const initialReturnSchedules = returnSchedules.filter((schedule) => scheduleTicketClass(schedule) === initialTicketClass);
+  const initialReturnSchedules = returnSchedules;
   const routeStops = safeAvailability.stops || [];
   const selectedJourney = safeAvailability.journey || {};
   const partnerName = previewData.partnerName || listing.partner || company?.name || '';
@@ -250,7 +250,7 @@
                 <h3>Return ticket details</h3>
                 <span class="badge badgeInfo" id="ticketCountBadge">1 outbound ticket</span>
               </div>
-              <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Choose any available reverse departure, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
+              <p class="returnTripHelp">A return ticket books the outbound and reverse journeys in one checkout. Classic Trip shows every available published reverse departure for the selected journey; it does not require an exact matching time or the same vehicle class. Choose the return departure, select the same number of return seats, and receive a separate ticket/QR for every traveler on each leg.</p>
               <div class="bookingForm" id="returnTripFields" style="display:none">
                 <select class="full" id="returnScheduleSelect" aria-label="Return schedule" data-listing-action="return-schedule">
                   <option value="" selected disabled>Select return date and time</option>
@@ -839,22 +839,27 @@
       returnScheduleCache.set(cacheKey, { data: result, expiresAt: Date.now() + 30000 });
     }
     const outboundSchedule = outboundSchedulesData.find((item) => String(item.id) === String(previewPricing.scheduleId)) || {};
-    const outboundFloor = new Date(outboundSchedule.arriveAt || outboundSchedule.departAt || 0).getTime();
+    const outboundDepartureTime = new Date(outboundSchedule.departAt || 0).getTime();
     returnSchedulesData = (result.departures || []).filter((item) => {
       const returnTime = new Date(item.departAt || 0).getTime();
-      return normalizedTicketClass(item.vehicleClass) === activeTicketClass
-        && Number.isFinite(returnTime)
-        && (!Number.isFinite(outboundFloor) || returnTime > outboundFloor);
+      // A return departure is an independent reverse service. It does NOT need
+      // to match the outbound clock time, estimated arrival time, route-stop
+      // ids, or vehicle class. If the company has a live reverse service for
+      // this journey, show it. The only chronology rule is that a traveler
+      // cannot return before the selected outbound service has started.
+      return Number.isFinite(returnTime)
+        && returnTime > Date.now()
+        && (!Number.isFinite(outboundDepartureTime) || returnTime > outboundDepartureTime);
     });
     const select = document.getElementById('returnScheduleSelect');
     const notice = document.getElementById('returnTripNotice');
     if (select) {
       select.innerHTML = returnSchedulesData.length
-        ? `<option value="" selected disabled>Select ${escapeHtml(ticketClassLabel(activeTicketClass))} return date and time</option>${returnSchedulesData.map((item) => `<option value="${escapeHtml(item.id)}" data-ticket-class="${escapeHtml(activeTicketClass)}" data-origin-stop-id="${escapeHtml(item.originStopId)}" data-destination-stop-id="${escapeHtml(item.destinationStopId)}">${escapeHtml(ticketClassLabel(activeTicketClass))} · ${escapeHtml(item.departureLabel || item.label || item.id)}</option>`).join('')}`
-        : `<option value="" selected disabled>No ${escapeHtml(ticketClassLabel(activeTicketClass))} reverse trips available</option>`;
+        ? `<option value="" selected disabled>Select return date and time</option>${returnSchedulesData.map((item) => { const returnClass = normalizedTicketClass(item.vehicleClass); return `<option value="${escapeHtml(item.id)}" data-ticket-class="${escapeHtml(returnClass)}" data-origin-stop-id="${escapeHtml(item.originStopId)}" data-destination-stop-id="${escapeHtml(item.destinationStopId)}">${escapeHtml(ticketClassLabel(returnClass))} · ${escapeHtml(item.departureLabel || item.label || item.id)}</option>`; }).join('')}`
+        : `<option value="" selected disabled>No future reverse trips available</option>`;
     }
     if (notice) {
-      notice.textContent = returnSchedulesData.length ? '' : `No bookable ${ticketClassLabel(activeTicketClass)} reverse trips are currently scheduled for this route.`;
+      notice.textContent = returnSchedulesData.length ? '' : 'No future reverse departure is currently published for this journey.';
       notice.style.display = returnSchedulesData.length ? 'none' : 'block';
     }
     return returnSchedulesData;
@@ -1123,7 +1128,7 @@
       if (!returnSchedulesData.length) {
         syncAddonAvailability();
         renderReturnSeats([]);
-        notify(`No bookable ${ticketClassLabel(activeTicketClass)} reverse trips are currently scheduled for this route.`);
+        notify('No future reverse departure is currently published for this journey.');
         return;
       }
       await onReturnScheduleChange();

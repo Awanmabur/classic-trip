@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const inventoryService = require('./busInventoryService');
 const { env } = require('../../../config/env');
-const { cleanText, validationError, conflictError } = require('../domain/busDomain');
+const { cleanText, locationMatches, validationError, conflictError } = require('../domain/busDomain');
 
 const SESSION_KEY = 'busBookingDrafts';
 const MAX_SESSION_DRAFTS = 8;
@@ -57,6 +57,31 @@ function sameValues(left = [], right = []) {
   const a = sorted(left);
   const b = sorted(right);
   return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+
+function holdsReverseJourney(outboundHold = {}, returnHold = {}) {
+  const stopIdsReverse = String(outboundHold.originStopId || '') === String(returnHold.destinationStopId || '')
+    && String(outboundHold.destinationStopId || '') === String(returnHold.originStopId || '');
+  const outboundJourney = outboundHold.meta?.journey || {};
+  const returnJourney = returnHold.meta?.journey || {};
+  const branchIdsReverse = Boolean(
+    outboundJourney.originBranchId
+    && outboundJourney.destinationBranchId
+    && returnJourney.originBranchId
+    && returnJourney.destinationBranchId
+    && String(outboundJourney.originBranchId) === String(returnJourney.destinationBranchId)
+    && String(outboundJourney.destinationBranchId) === String(returnJourney.originBranchId)
+  );
+  const namesReverse = Boolean(
+    outboundJourney.originName
+    && outboundJourney.destinationName
+    && returnJourney.originName
+    && returnJourney.destinationName
+    && locationMatches(outboundJourney.originName, returnJourney.destinationName)
+    && locationMatches(outboundJourney.destinationName, returnJourney.originName)
+  );
+  return stopIdsReverse || branchIdsReverse || namesReverse;
 }
 
 function draftMatchesInput(draft, listing, outboundInput, returnInput) {
@@ -183,7 +208,7 @@ async function validateLeg(input, { listing, outboundHold = null, req = null } =
   if (!outboundHold && String(hold.listingId) !== String(listing.id)) throw validationError('Seat hold belongs to another listing', 403);
   if (outboundHold) {
     if (String(hold.companyId) !== String(outboundHold.companyId)) throw validationError('Round-trip legs must belong to the same bus company', 403);
-    if (String(hold.originStopId) !== String(outboundHold.destinationStopId) || String(hold.destinationStopId) !== String(outboundHold.originStopId)) {
+    if (!holdsReverseJourney(outboundHold, hold)) {
       throw validationError('Return journey must reverse the outbound origin and destination', 403);
     }
     if (!sameValues(hold.seatNumbers || hold.seatNumber, outboundHold.seatNumbers || outboundHold.seatNumber)) {
@@ -259,8 +284,7 @@ async function resolveOrReacquireLeg(req, draft, key, listing, outboundHold = nu
     }
     if (outboundHold) {
       const sameCompany = String(hold.companyId) === String(outboundHold.companyId);
-      const reverseJourney = String(hold.originStopId) === String(outboundHold.destinationStopId)
-        && String(hold.destinationStopId) === String(outboundHold.originStopId);
+      const reverseJourney = holdsReverseJourney(outboundHold, hold);
       const samePassengerCount = listCsv(hold.seatNumbers || hold.seatNumber).length
         === listCsv(outboundHold.seatNumbers || outboundHold.seatNumber).length;
       if (!sameCompany || !reverseJourney || !samePassengerCount) {

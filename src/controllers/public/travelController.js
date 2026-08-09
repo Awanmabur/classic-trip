@@ -9,6 +9,7 @@ function flightPage(req, res) {
       description: 'Compare verified flight offers, baggage, fare conditions and available seats, then book securely with support from accredited flight agents.',
       canonicalPath: '/flights',
       schema: { '@type': 'Service', name: 'East Africa flight booking', serviceType: 'Flight search and agent-supported booking', areaServed: 'East Africa' },
+      breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Flights', url: '/flights' }],
     },
     initialQuery: req.query || {},
   });
@@ -33,6 +34,7 @@ function taxiPage(req, res) {
       description: 'Request verified boda and car rides with upfront pricing for everyday journeys, airports, offices, districts and intercity travel.',
       canonicalPath: '/taxi',
       schema: { '@type': 'Service', name: 'Safe local mobility', serviceType: 'Boda, car, airport and intercity rides', areaServed: 'East Africa' },
+      breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Local taxi and boda', url: '/taxi' }],
     },
     initialQuery: req.query || {},
     mapConfig: roadRoutingService.publicMapConfig(),

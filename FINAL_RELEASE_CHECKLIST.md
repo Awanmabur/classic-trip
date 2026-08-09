@@ -1,18 +1,19 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.29.
+Use this checklist for version 1.6.33.
 
 
-## v1.6.16 focused validation
+## Current focused validation
 
 ```bash
-npm run check:v1616-ticket-bars-lightmode
-npm run check:v1615-preview-worker-listing
+npm run check:v1633-final-stability
+npm run check:v1632-return-notifications-contact
+npm run check:v1632-domain-rolling-db-search
 ```
 
 After deployment, confirm:
 
-- preview order is Route & travel, then Ticket class, then Journey;
+- preview order is Ticket class and Journey first, then Route & travel;
 - selecting VIP leaves only VIP active and does not silently reselect Standard;
 - desktop preview fonts remain compact while phone controls are readable but not oversized;
 - desktop bar images are narrower and align smoothly from top to bottom;
@@ -152,7 +153,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - [ ] Standard Ticket and VIP Ticket appear side by side and filter to matching departure classes.
 - [ ] Return Ticket remains selected and visible when a route has no matching reverse departure.
 - [ ] The normal partner departure form defaults to a rolling 30-day window.
-- [ ] A new far-end date is materialized on the next daily worker run.
+- [ ] After a departure time passes, a replacement far-end date is materialized on the next rolling worker pass (normally within 15 minutes when the worker is healthy).
 - [ ] Bus setup starts with terminal creation and hotel setup starts with stay-listing creation.
 - [ ] Tour, car-rental and cargo partners see only company-scoped quick actions.
 - [ ] Public stay choices use room cards and partner room operations use the room-unit grid on desktop, tablet and phone widths.
@@ -176,7 +177,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - [ ] Superseded by v1.6.14: verify phone remains approved and desktop uses natural height with a fixed 190 × 150 px image.
 - [ ] `DRIVER - FRONT` has visible spacing and the seat-map cabin is centered.
 
-## Final go-live sequence for v1.6.29
+## Final go-live sequence for v1.6.33
 
 1. Back up the production MongoDB database before migrations or index reconciliation.
 2. Confirm all production secrets and callback URLs are configured in the hosting environment; never upload a local `.env` file.
@@ -192,7 +193,7 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 12. Verify email/SMS/WhatsApp/push integrations that are enabled for production.
 13. Verify Cloudinary uploads, authentication, password reset, partner/admin dashboards, manifests, archive/restore, and mobile/PWA behavior.
 14. Watch web and worker logs for MongoDB disconnects, repeated rolling conflicts, cron missed executions, payment webhook errors, or 5xx responses before announcing the launch.
-15. After deployment, hard-refresh/service-worker refresh on phone and desktop so clients receive the v1.6.29 asset cache.
+15. After deployment, hard-refresh/service-worker refresh on phone and desktop so clients receive the v1.6.33 asset cache.
 
 ### Production configuration blockers
 
@@ -200,3 +201,55 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 - `PUSH_ENABLED=true` requires valid `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY`, and a valid subject.
 - Render web and worker services must use the same routing and push configuration.
 - `OUTBOX_BATCH_SIZE` is the correct worker batch-size variable.
+
+## SEO and AI discovery launch steps — v1.6.33
+
+1. Use `https://www.classictrip.org` as the canonical production origin. The application redirects production HTTP requests to this HTTPS origin.
+2. In Google Search Console, add `https://www.classictrip.org` as a URL-prefix property (or verify the whole domain by DNS). If using the HTML-tag method, copy only the `content` value from `<meta name="google-site-verification" content="...">` into `GOOGLE_SITE_VERIFICATION`.
+3. In Bing Webmaster Tools, add `https://www.classictrip.org`. If using Meta Tag verification, copy only the value inside `content="..."` from the `msvalidate.01` tag into `BING_SITE_VERIFICATION`.
+4. IndexNow does not issue a private console token. v1.6.33 uses this generated site key: `260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374`. Keep it as `INDEXNOW_KEY` and confirm `https://www.classictrip.org/260abf506c26c3c6742128f6978addf9c0e49c04d3245fa3784263f66f7fd374.txt` displays exactly that key after deployment.
+5. Keep `SEO_ALLOW_AI_SEARCH=true` so supported AI search/user crawlers can reach public pages. Keep `SEO_ALLOW_AI_TRAINING=false` unless you deliberately want training crawlers.
+6. After deployment, confirm these return HTTP 200: `https://www.classictrip.org/robots.txt`, `/sitemap.xml`, `/sitemaps/static.xml`, `/sitemaps/listings.xml`, `/sitemaps/companies.xml`, `/sitemaps/blogs.xml`, `/llms.txt`, `/llms-full.txt`, and `/ai-index.json`.
+7. Submit `https://www.classictrip.org/sitemap.xml` in Google Search Console and Bing Webmaster Tools.
+8. Run `npm run seo:submit-indexnow` once after the production domain and IndexNow key endpoint are live.
+9. Test the home page, one service landing page, one listing, one verified company and one blog post with Google URL Inspection / Rich Results testing.
+10. Confirm `/search?...`, login, dashboards, checkout, tickets, private tracking and API paths are not indexed.
+11. Run PageSpeed Insights/Core Web Vitals on the home page and a representative listing after production images and analytics are live.
+
+## Runtime stabilization checks — v1.6.33
+
+- Open Notifications from Company, Customer, Employee/Driver, Promoter and one platform-admin dashboard. Confirm the URL changes to the role-specific notification route and the live list loads.
+- From Home, choose a bus From/To pair that is not the first route of its company card, choose a date with a live departure, and confirm Search returns that route.
+- On `/search`, switch Service to Bus and confirm the destination selector only offers destinations valid for the selected origin.
+- For existing conflicted rules such as rule-8 / rule-11 / rule-14, fix the real vehicle/document conflict instead of forcing publication. v1.6.33 keeps other free rolling dates eligible.
+
+## Rolling-departure production check — v1.6.33
+
+1. Confirm the `classic-trip-worker` service is running, has `ENABLE_JOBS=true`, and uses `JOB_MATERIALIZE_SCHEDULES=*/15 * * * *`. The web service should keep background jobs disabled when the dedicated worker is healthy.
+2. Create or inspect one active rolling rule with a 30-day window and a valid vehicle/template.
+3. Count its future dated departures before today’s departure time passes.
+4. After that departure time passes, the next materializer pass shifts the window forward immediately and creates the missing far-end date instead of waiting for the next calendar day.
+5. With the 15-minute schedule, the replacement should normally appear within 15 minutes of the departed time, provided MongoDB is available and there is no current vehicle overlap/publication blocker.
+6. A vehicle-overlap blocker now expires after a 15-minute cooldown and automatically retries. If the real overlap still exists, it will block again; correct the vehicle/time rather than creating duplicates.
+7. Restart the worker and verify the same dated departures remain persisted without duplicates.
+
+## DB-backed public search check — v1.6.33
+
+1. Home bus From/To, stays destination, flights, tours, rentals, cargo, and other public marketplace location selectors are populated from published database data.
+2. The general marketplace From/To selectors and public Routes directory selectors use the same published DB inventory.
+3. Flight origin/destination selectors are populated from active airport records returned by the flight airport API.
+4. If a selector is empty, publish/seed the corresponding route, airport, location, stay/listing or service data; do not hard-code the missing city into the template.
+5. Taxi ride pickup/destination remains an autocomplete/current-location control because exact coordinates are required, but accepted suggestions come from the DB-backed Places service rather than accepting arbitrary route inventory values.
+
+
+## Return ticket, push notification, contact and domain launch checks — v1.6.33
+
+1. Use `https://www.classictrip.org` as the public production origin. Add both `www.classictrip.org` and `classictrip.org` as custom domains in Render/DNS, and redirect the apex domain to `https://www.classictrip.org` so there is only one canonical host.
+2. Run `npm run push:generate-keys` locally once. Copy `PUSH_VAPID_PUBLIC_KEY` and `PUSH_VAPID_PRIVATE_KEY` into the Render web service secrets. Keep the private key out of Git. Set `PUSH_VAPID_SUBJECT=mailto:support@classictrip.org`.
+3. Confirm the worker receives the same VAPID keys from the web service and that `PUSH_ENABLED=true` on both web and worker.
+4. Sign in as a customer, open Notifications, click **Enable push**, allow browser notifications, then click **Test push**. The test must appear in the device notification tray before launch.
+5. Send an admin campaign using `in_app,push,email`. Confirm it appears in the recipient notification center even if that recipient has not enabled browser push.
+6. Mark one notification read, reload, and confirm it remains read. Then use **Mark all read** and confirm the unread badge becomes zero.
+7. Test a bus Return Ticket on a route with an independently-created reverse route. The return list must show every valid future reverse departure even when its time does not match the outbound arrival estimate, its reverse route has different stop IDs, or the reverse service uses a different Standard/VIP vehicle class. Select a return departure, select the same passenger count of return seats, continue through checkout, pay, and confirm both booking legs are persisted.
+8. Verify the global floating Contact button on desktop and phone. It must open vertically to: Join WhatsApp group, WhatsApp chat/call entry for `+256781977217`, and direct call to `+256781977217`.
+9. Confirm these environment values on Render: `SUPPORT_PHONE=+256781977217`, `SUPPORT_WHATSAPP=+256781977217`, and `WHATSAPP_GROUP_URL=https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1`.

@@ -30,12 +30,27 @@
   }
 
   async function loadAirports() {
+    const originSelect = $('#flightOrigin');
+    const destinationSelect = $('#flightDestination');
     try {
       const data = await api('/api/v1/flights/airports');
       state.airports = Array.isArray(data.airports) ? data.airports : [];
-      $('#airportOptions').innerHTML = state.airports.map((airport) => `<option value="${esc(airport.iataCode || airport.id)}">${esc(airport.city || '')} · ${esc(airport.name || '')} · ${esc(airport.country || '')}</option>`).join('');
-      $('#flightSearchStatus').textContent = `${state.airports.length} active airports available.`;
-    } catch (error) { $('#flightSearchStatus').textContent = error.message; }
+      const rows = state.airports.map((airport) => {
+        const value = airport.iataCode || airport.id;
+        const label = [airport.iataCode, airport.city, airport.name, airport.country].filter(Boolean).join(' · ');
+        return `<option value="${esc(value)}">${esc(label)}</option>`;
+      }).join('');
+      originSelect.innerHTML = `<option value="">Select departure airport</option>${rows}`;
+      destinationSelect.innerHTML = `<option value="">Select destination airport</option>${rows}`;
+      const query = bootstrap.query || {};
+      if (query.origin && state.airports.some((airport) => String(airport.iataCode || airport.id) === String(query.origin))) originSelect.value = query.origin;
+      if (query.destination && state.airports.some((airport) => String(airport.iataCode || airport.id) === String(query.destination))) destinationSelect.value = query.destination;
+      $('#flightSearchStatus').textContent = `${state.airports.length} active airports available from the platform database.`;
+    } catch (error) {
+      originSelect.innerHTML = '<option value="">Airports unavailable</option>';
+      destinationSelect.innerHTML = '<option value="">Airports unavailable</option>';
+      $('#flightSearchStatus').textContent = error.message;
+    }
   }
 
   function updateTravelers() {
@@ -177,8 +192,6 @@
 
   const today = new Date().toISOString().slice(0, 10); $('#flightDepartureDate').min = today; $('#flightReturnDate').min = today;
   const query = bootstrap.query || {};
-  if (query.origin) $('#flightOrigin').value = query.origin;
-  if (query.destination) $('#flightDestination').value = query.destination;
   if (query.date || query.departureDate) $('#flightDepartureDate').value = query.date || query.departureDate;
   if (query.returnDate) { $('[data-trip-type="round_trip"]').click(); $('#flightReturnDate').value = query.returnDate; }
   if (['economy', 'premium_economy', 'business', 'first'].includes(String(query.cabinClass || ''))) $('#flightCabin').value = query.cabinClass;

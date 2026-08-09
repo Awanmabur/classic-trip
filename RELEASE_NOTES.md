@@ -1,3 +1,49 @@
+# Classic Trip 1.6.33 — Final Runtime Stability
+
+- Fixed bus From/To/date search so a valid second, third, or later route in the same company listing is matched correctly.
+- Bus date search now validates against the selected route's live published departures and carries the matched route/schedule into the listing URL.
+- General marketplace search dynamically constrains Bus From/To to valid database-backed pairs when the user switches the Service selector to Bus.
+- Fixed Company Notifications routing and made notification pages render the live notification API across dashboard roles.
+- Added Content Admin to the notification API authorization set and cleaned notification-page wording.
+- Vehicle conflicts are now date-specific during rolling materialization: one bad date is deferred while later free dates remain eligible.
+- Initial rolling materialization cannot range-batch through a date that was deliberately skipped by conflict preflight.
+- New/edited/resumed active recurring rules reject obvious same-vehicle recurring overlaps before they are saved.
+- Missing permits, inspections, insurance and genuine vehicle overlaps remain safety blockers for the affected departure rather than being bypassed.
+
+# Classic Trip 1.6.32 — Return Trips, Notifications, Global Contact & WWW Domain
+
+- Return-trip discovery now treats the return as an independent reverse service instead of requiring a matching outbound arrival time. A valid future reverse departure only needs to be published, reverse the selected journey, remain future/bookable, and depart after the outbound service starts. The reverse leg may use a different Standard/VIP vehicle class.
+- Reverse journey identity now accepts route-specific stop IDs, canonical branch IDs, or normalized location names, fixing return checkout on independently-created reverse routes.
+- Recovered/reacquired return seat holds now use the same flexible reverse-journey validation instead of falling back to exact stop-ID equality.
+- Notification read state is persisted end to end, including mark-one and mark-all-read actions.
+- Admin notification campaigns always create an in-app notification and can also deliver push, email, SMS, or WhatsApp.
+- Browser push now re-syncs an existing subscription after login/redeploy, reports connection status, and includes a real Test push action.
+- In-app notification loading no longer depends on Service Worker availability, so the notification center still works on browsers/devices where Web Push is unavailable.
+- Added `npm run push:generate-keys` to generate VAPID keys locally without exposing the private key in source control.
+- Added a global floating Classic Trip contact hub on public pages and dashboards with WhatsApp group, WhatsApp chat/call entry, and direct phone call using +256781977217.
+- Canonical production origin, SEO URLs, payment callbacks and deployment guidance now use `https://www.classictrip.org`.
+
+# Classic Trip 1.6.31 — Real Domain, Rolling Replacement & DB Search
+
+- Canonical production origin is `https://www.classictrip.org`; production HTTP redirects to HTTPS.
+- Rolling windows now replace a departed same-day occurrence at the far edge on the next materializer pass instead of waiting for the following calendar day.
+- The dedicated worker runs the materializer every 15 minutes, so a healthy production worker normally creates the replacement within the next 15-minute rolling worker pass.
+- Expired vehicle-conflict blockers automatically retry after a 15-minute cooldown instead of freezing a recurring rule indefinitely.
+- Public From/To/location searches now use published database inventory (routes, listings, airports and service locations) instead of arbitrary typed route values.
+- Home, marketplace search, public route directory and flight search use DB-backed selectors. Taxi exact-location search remains DB-backed autocomplete/current GPS because ride dispatch requires coordinates.
+- Render is wired to `www.classictrip.org`, and the generated IndexNow key is included in production configuration.
+
+# Classic Trip 1.6.30 — Strong SEO & AI Discovery
+
+- Added clean, indexable service landing pages for buses, stays, Airbnb-style homes, tours, car rentals and cargo.
+- Faceted `/search` pages are now `noindex,follow` to avoid duplicate/query-index bloat.
+- Added split XML sitemap index for static pages, listings, verified companies and blog posts with accurate `lastmod` behavior.
+- Added `X-Robots-Tag` protection for private, dashboard, checkout, ticket, API and tracking pages.
+- Separated AI search/user crawlers from training crawlers in `robots.txt`; AI search is enabled while AI training remains opt-in.
+- Expanded `llms.txt`, `llms-full.txt` and added `/ai-index.json` for machine-readable public catalog discovery.
+- Strengthened canonical, Open Graph, Twitter, breadcrumb and JSON-LD metadata for public pages, listings, companies and blogs.
+- Added production SEO verification/IndexNow environment hooks and a release SEO validation gate.
+
 # Classic Trip 1.6.29 — Ticket Class/Journey Active Border Match
 
 - Standard/VIP now use the exact same inactive and active border treatment as One-way/Return.
@@ -409,3 +455,6 @@ npm start
 
 ## v1.6.27
 - Removed the remaining dark inner border from Ticket class and its Standard/VIP buttons.
+
+## v1.6.33
+- Final stability: fixed DB route/date search across all listing routes, dashboard notification routing/live notification center, and rolling conflict isolation/prevention.

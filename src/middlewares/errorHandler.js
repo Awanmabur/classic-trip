@@ -108,7 +108,7 @@ function errorHandler(error, req, res, next) {
   }
 
   return res.status(status).render('pages/error', {
-    seo: { title: 'Classic Trip error' },
+    seo: { title: 'Classic Trip error', robots: 'noindex,nofollow' },
     status,
     message,
   });

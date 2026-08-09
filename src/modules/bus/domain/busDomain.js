@@ -657,6 +657,27 @@ function calculateFare({ fares = [], originStopId, destinationStopId, segments =
   throw validationError('This departure has no usable fare configured');
 }
 
+function locationKey(value = '') {
+  return normalize(value)
+    .replace(/(main|central|new|old|bus|coach|terminal|station|stage|park|office|branch|town|city|road|rd)/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function locationMatches(left, right) {
+  const a = locationKey(left);
+  const b = locationKey(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const aWords = a.split(' ').filter(Boolean);
+  const bWords = b.split(' ').filter(Boolean);
+  if (!aWords.length || !bWords.length) return false;
+  const shorter = aWords.length <= bWords.length ? aWords : bWords;
+  const longer = new Set(aWords.length <= bWords.length ? bWords : aWords);
+  return shorter.length <= 2 && shorter.every((word) => word.length >= 3 && longer.has(word));
+}
+
 function assertTransition(current, next, map, label) {
   const from = normalize(current);
   const to = normalize(next);
@@ -700,6 +721,8 @@ module.exports = {
   BUS_LISTING_STATUSES,
   cleanText,
   normalize,
+  locationKey,
+  locationMatches,
   boolValue,
   numberValue,
   moneyValue,

@@ -521,6 +521,7 @@ function menuHref(roleKey, page) {
       manifests: '/company/dashboard/manifests',
       checkins: '/company/checkins',
       support: '/company/support',
+      notifications: '/company/notifications',
       reviews: '/company/dashboard/reviews',
       revenue: '/company/revenue',
       settlement: '/company/settlement',

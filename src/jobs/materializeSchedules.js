@@ -15,7 +15,7 @@ const BACKGROUND_BATCH_SIZE = 1;
 const BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000;
 const BACKGROUND_BATCH_PAUSE_MS = 2000;
 const PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000;
-const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 15 * 60 * 1000;
 const backgroundQueue = new Map();
 const rollingCacheInvalidationTimers = new Map();
 const publicationBlockerCooldown = new Map();
@@ -134,10 +134,20 @@ function vehicleConflictFailures(failures = []) {
 
 function activePersistentBlocker(rule = {}, now = new Date()) {
   const until = rule.materializationBlockedUntil ? new Date(rule.materializationBlockedUntil) : null;
-  const requiresAction = rule.materializationRequiresAction === true
-    || rule.materializationBlockerCode === 'vehicle_schedule_conflict';
+  // Vehicle conflicts are date-specific. One conflicting date must never freeze
+  // the whole 30-day rolling window; the materializer rechecks each date and
+  // continues to later dates that are free. Older persisted vehicle blockers
+  // from v1.6.32 are therefore treated as advisory only.
+  if (rule.materializationBlockerCode === 'vehicle_schedule_conflict') return null;
+  const requiresAction = rule.materializationRequiresAction === true;
   if (!rule.materializationBlockerCode) return null;
-  if (!requiresAction && (!until || Number.isNaN(until.getTime()) || until <= now)) return null;
+  // Every persisted rolling blocker is time-bounded. A vehicle overlap may be
+  // real when discovered, but the conflicting dated departure can later pass,
+  // be reassigned, or be edited. Once the cooldown expires the worker must
+  // automatically recheck the rule instead of freezing the rolling month until
+  // an operator manually resumes it.
+  if (until && !Number.isNaN(until.getTime()) && until <= now) return null;
+  if (!requiresAction && (!until || Number.isNaN(until.getTime()))) return null;
   return {
     code: rule.materializationBlockerCode,
     reason: rule.materializationBlockerReason || 'Recurring departure materialization is blocked until the rule is corrected',
@@ -223,6 +233,28 @@ function matchingFutureDates(rule, cursor, windowEnd, now) {
     day = new Date(day.getTime() + DAY_MS);
   }
   return dates;
+}
+
+function rollingWindowBounds(rule, horizonEnd, now) {
+  const ruleStart = startOfDay(rule.startDate);
+  const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
+  const today = startOfDay(now);
+  let cursor = ruleStart > today ? new Date(ruleStart) : today;
+  let effectiveHorizonEnd = startOfDay(horizonEnd);
+  let replacedDepartedDate = false;
+  const todayMatchesRule = ruleStart <= today
+    && (!ruleEnd || ruleEnd >= today)
+    && (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(today.getDay()));
+  if (cursor.getTime() === today.getTime() && todayMatchesRule) {
+    const todayDeparture = combineDateAndTime(today, rule.departureTime);
+    if (todayDeparture.getTime() <= now.getTime()) {
+      cursor = new Date(today.getTime() + DAY_MS);
+      effectiveHorizonEnd = new Date(effectiveHorizonEnd.getTime() + DAY_MS);
+      replacedDepartedDate = true;
+    }
+  }
+  const windowEnd = ruleEnd && ruleEnd < effectiveHorizonEnd ? ruleEnd : effectiveHorizonEnd;
+  return { cursor, windowEnd, replacedDepartedDate };
 }
 
 function schedulePayload(rule, departAt) {
@@ -323,15 +355,27 @@ async function reconcileDraftSchedules(rule, windowEnd, now) {
   return { published, failures: [...failures] };
 }
 
+function sameRollingDeparture(schedule = {}, rule = {}, departAt) {
+  const sameRoute = String(schedule.routeId || schedule.routeSnapshot?.routeId || '') === String(rule.routeId || '');
+  const sameVehicle = String(schedule.vehicleId || '') === String(rule.vehicleId || '');
+  const existingTime = new Date(schedule.departAt || 0).getTime();
+  return sameRoute && sameVehicle && Number.isFinite(existingTime) && existingTime === departAt.getTime();
+}
+
 async function materializeRule(rule, horizonEnd, now, options = {}) {
-  const ruleStart = startOfDay(rule.startDate);
-  const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
-  const today = startOfDay(now);
   // Re-evaluate the complete live window on every run. A watermark-only cursor
   // cannot repair a date that was deleted, cancelled, or skipped after a
-  // transient setup conflict.
-  const cursor = ruleStart > today ? new Date(ruleStart) : today;
-  const windowEnd = ruleEnd && ruleEnd < horizonEnd ? ruleEnd : horizonEnd;
+  // transient setup conflict. If today's matching departure already left, the
+  // far edge also advances one day immediately.
+  const { cursor, windowEnd } = rollingWindowBounds(rule, horizonEnd, now);
+  if (rule.materializationBlockerCode === 'vehicle_schedule_conflict') {
+    await clearExpiredOrResolvedBlocker(rule);
+    rule.materializationBlockerCode = '';
+    rule.materializationBlockerReason = '';
+    rule.materializationBlockerFailures = [];
+    rule.materializationBlockedUntil = null;
+    rule.materializationRequiresAction = false;
+  }
   const persistedBlocker = activePersistentBlocker(rule, now);
   if (persistedBlocker) {
     return {
@@ -388,15 +432,40 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     .filter(Number.isFinite));
   const missingDates = expectedDates.filter((date) => !existingTimes.has(date.getTime()));
   const maxCreates = Math.max(0, Number(options.maxCreates || 0));
-  const dates = maxCreates > 0 ? missingDates.slice(0, maxCreates) : missingDates;
-  const pending = Math.max(0, missingDates.length - dates.length);
+  const failures = new Set(draftReconciliation.failures || []);
+  const dates = [];
+  let coveredByExistingDeparture = 0;
+  let skipped = 0;
+  const scanLimit = maxCreates > 0 ? Math.min(missingDates.length, 10) : missingDates.length;
+  for (const departAt of missingDates.slice(0, scanLimit)) {
+    const arriveAt = rule.durationMinutes ? new Date(departAt.getTime() + rule.durationMinutes * 60000) : undefined;
+    // eslint-disable-next-line no-await-in-loop
+    const conflicts = await busDepartureService.findVehicleConflicts(rule.companyId, rule.vehicleId, departAt, arriveAt);
+    const exactExistingDeparture = conflicts.find((schedule) => sameRollingDeparture(schedule, rule, departAt));
+    if (exactExistingDeparture) {
+      coveredByExistingDeparture += 1;
+      continue;
+    }
+    if (conflicts.length) {
+      skipped += 1;
+      failures.add(`vehicle_time_conflict:${departAt.toISOString()}`);
+      continue;
+    }
+    dates.push(departAt);
+    if (maxCreates > 0 && dates.length >= maxCreates) break;
+  }
+  const pending = Math.max(0, missingDates.length - coveredByExistingDeparture - dates.length);
   let created = 0;
   let published = reconciled.published + draftReconciliation.published;
   let draft = reconciled.draft;
-  let skipped = 0;
-  const failures = new Set(draftReconciliation.failures || []);
 
-  if (dates.length && existingSchedules.length === 0) {
+  const canUseInitialContiguousBatch = dates.length
+    && existingSchedules.length === 0
+    && skipped === 0
+    && coveredByExistingDeparture === 0
+    && dates.length === missingDates.length;
+
+  if (canUseInitialContiguousBatch) {
     try {
       // One batch resolves the company, route, vehicle, seat map and fare once,
       // then writes one departure at a time. This avoids a burst of
@@ -436,6 +505,10 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
       }
     }
   } else if (dates.length) {
+    // Create/repair only the preflight-approved dates. This branch is also used
+    // for a brand-new window when one or more dates were skipped because of a
+    // vehicle overlap, so a range batch can never recreate a deliberately
+    // skipped conflict date between two valid dates.
     // Repair an existing rolling window through the same single-date batch path
     // that creates the first departure. The former createScheduleSeries path
     // reused a context across the repair transaction and, with real Atlas data,
@@ -483,10 +556,11 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
   } else if (!finalFailures.length && published > 0) {
     publicationBlockerCooldown.delete(ruleKey);
   }
-  const blockerResult = unresolvedPending > 0 && skipped > 0
-    ? await persistVehicleConflictBlocker(rule, finalFailures)
-    : { blocked: false, persisted: false };
-  if (!blockerResult.blocked && rule.materializationBlockerCode) await clearExpiredOrResolvedBlocker(rule);
+  // A real overlap blocks only that calendar date. Keep the rest of the
+  // rolling window moving and recheck the conflicted date on a later worker pass.
+  // Never bypass the safety conflict and never freeze the entire recurring rule.
+  const blockerResult = { blocked: false, persisted: false };
+  if (rule.materializationBlockerCode) await clearExpiredOrResolvedBlocker(rule);
   await companyService.recordScheduleRuleMaterialization(rule.companyId, rule.id, windowEnd.toISOString());
   return {
     created,
@@ -697,7 +771,7 @@ async function drainBackgroundQueue() {
       }
       if (result?.blocked) {
         if (result.blockerPersisted) {
-          logger.warn('Rolling departure rule blocked by a vehicle schedule conflict', {
+          logger.warn('Rolling departure rule temporarily paused by a rule-wide blocker', {
             companyId: job.companyId,
             ruleId: job.ruleId,
             blockedUntil: result.blockedUntil || '',
@@ -716,7 +790,13 @@ async function drainBackgroundQueue() {
         pending: Number(result?.pending || 0),
         skipped: Number(result?.skipped || 0),
       };
-      if (completedSummary.created || completedSummary.published || completedSummary.draft || completedSummary.skipped || completedSummary.pending) {
+      if (completedSummary.skipped && Array.isArray(result?.failures) && result.failures.length) {
+        logger.warn('Rolling departure date deferred; other dates remain eligible', {
+          ...completedSummary,
+          failures: result.failures,
+          action: 'Resolve vehicle overlap or vehicle compliance; the worker will retry automatically.',
+        });
+      } else if (completedSummary.created || completedSummary.published || completedSummary.draft || completedSummary.pending) {
         logger.info('Rolling departure batch completed', completedSummary);
       } else {
         logger.debug('Rolling departure rule already current', completedSummary);
@@ -812,6 +892,7 @@ module.exports = {
   HORIZON_DAYS,
   startOfDay,
   matchingFutureDates,
+  rollingWindowBounds,
   queueRuleMaterialization,
   queueAllActiveRules,
   startWebFallback,

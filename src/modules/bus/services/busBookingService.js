@@ -11,6 +11,7 @@ const inventoryService = require('./busInventoryService');
 const {
   cleanText,
   normalize,
+  locationMatches,
   unique,
   validationError,
   conflictError,
@@ -412,8 +413,8 @@ async function buildCanonicalRows(payload = {}, req = null) {
       && outboundJourney.destinationName
       && returnJourney.originName
       && returnJourney.destinationName
-      && normalize(outboundJourney.originName) === normalize(returnJourney.destinationName)
-      && normalize(outboundJourney.destinationName) === normalize(returnJourney.originName)
+      && locationMatches(outboundJourney.originName, returnJourney.destinationName)
+      && locationMatches(outboundJourney.destinationName, returnJourney.originName)
     );
     if (!stopIdsReverse && !branchIdsReverse && !namesReverse) {
       // RouteStop ids are route-specific, so a legitimate reverse route normally

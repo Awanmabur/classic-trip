@@ -28,6 +28,8 @@ const notificationSchema = new Schema({
   deliveredCount: { type: Number, default: 0 },
   failedCount: { type: Number, default: 0 },
   sentAt: Date,
+  readAt: { type: Date, index: true },
+  dismissedAt: Date,
   dispatchOwner: String,
   dispatchLeaseUntil: Date,
   dispatchAttempts: { type: Number, default: 0 },

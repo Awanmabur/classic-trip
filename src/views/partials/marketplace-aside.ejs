@@ -1,3 +1,4 @@
+<% const cleanServiceLanding = { bus: '/buses', hotel: '/stays', flight: '/flights', local_transport: '/taxi', tour: '/tours', car_rental: '/car-rentals', cargo: '/cargo' }; %>
 <aside class="card side marketplaceAside">
   <div>
     <div class="sideTitle">Categories</div>
@@ -6,7 +7,7 @@
   <div class="sideNav">
     <a class="btn btnGhost <%= !query?.serviceType && !query?.bookable ? 'active' : '' %>" href="/search"><i class="fa-solid fa-border-all"></i> All</a>
     <% (categories || []).forEach(category => { %>
-      <a class="btn btnGhost <%= query?.serviceType === category.key ? 'active' : '' %>" href="/search?serviceType=<%= encodeURIComponent(category.key) %>"><i class="fa-solid <%= category.icon %>"></i> <%= category.label %></a>
+      <a class="btn btnGhost <%= query?.serviceType === category.key ? 'active' : '' %>" href="<%= cleanServiceLanding[category.key] || (`/search?serviceType=${encodeURIComponent(category.key)}`) %>"><i class="fa-solid <%= category.icon %>"></i> <%= category.label %></a>
     <% }) %>
     <a class="btn btnGhost <%= query?.bookable ? 'active' : '' %>" href="/search?bookable=true"><i class="fa-solid fa-ticket"></i> Bookable</a>
     <a class="btn btnGhost <%= query?.available ? 'active' : '' %>" href="/search?available=true&sort=availability"><i class="fa-solid fa-circle-check"></i> Open inventory</a>
@@ -20,7 +21,7 @@
     <div class="sideTitle">Country routes</div>
     <div class="muted" style="font-size:12px;font-weight:760;margin:2px 0 8px">Browse by corridor, then open the listing or ticket page.</div>
     <div class="routeFilters">
-      <a class="btn btnGhost <%= !query?.route && !query?.corridor ? 'active' : '' %>" href="/search?serviceType=bus"><i class="fa-solid fa-earth-africa"></i> All East Africa</a>
+      <a class="btn btnGhost <%= !query?.route && !query?.corridor ? 'active' : '' %>" href="/buses"><i class="fa-solid fa-earth-africa"></i> All East Africa</a>
       <% (corridorStats || []).slice(0, 18).forEach(stat => { %>
         <a class="btn btnGhost <%= query?.route === stat.corridor || query?.corridor === stat.corridor ? 'active' : '' %>" href="/search?serviceType=bus&corridor=<%= encodeURIComponent(stat.corridor) %>"><%= stat.label || stat.corridor %> - <%= stat.seats || 0 %> open</a>
       <% }) %>

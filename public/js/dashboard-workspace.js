@@ -282,7 +282,7 @@
     admins: ['Admins & Roles', 'Manage staff access, roles, permissions, 2FA, and restricted controls.'],
     kyc: ['KYC / Verification', 'Review companies, flight-agent accreditation, rider and driver identity, vehicle compliance, payout accounts, licences and expiring documents.'],
     refunds: ['Refunds', 'Manage cancellations, reversals, chargebacks, refund approval, and partner responsibility.'],
-    notifications: ['Notifications', 'Send and manage email, SMS, WhatsApp, push messages, receipts, and templates.'],
+    notifications: ['Notifications', 'Review live account updates, mark notices read, and manage browser push notifications.'],
     system: ['System Health', 'Monitor platform uptime, queues, payment webhooks, ticket delivery, and database status.'],
     settings: ['Settings', 'Control platform fee rules, hold timer, currency, security, and admin configuration.'],
     'company-profile': ['Company Profile', 'Manage company profile, branches, policies, support contacts, payout identity, and verification state.'],
@@ -491,6 +491,10 @@
     const rawId = meta?.id || dashboardRecordId(meta?.detail || {});
     const id = rawId ? encodeURIComponent(rawId) : '';
     let scopedActions = '';
+    if (entity === 'notification' && id) {
+      const alreadyRead = Boolean(meta?.detail?.notification?.readAt || meta?.readAt);
+      if (!alreadyRead) scopedActions += `<button class="tinyBtn" type="button" data-notification-read="${id}" title="Mark notification as read"><i class="fa-solid fa-check"></i></button>`;
+    }
     const modeActions = addModeButtons(entity, safeLabel, safeType, detailAttr, idAttr, rawId);
     if (role === 'company' && id) {
       if (entity === 'listing') {
@@ -3791,7 +3795,7 @@
       submit: key === 'notice' ? 'Create notice' : 'Send notification',
       fields: [
         { name:'audience', label:'Audience', type:'select', icon:'fa-users', options:['customers','partners','promoters','admins'] },
-        { name:'channels', label:'Channels', type:'select', icon:'fa-paper-plane', options:['email','sms','whatsapp','email,sms'] },
+        { name:'channels', label:'Channels', type:'select', icon:'fa-paper-plane', options:['in_app,push,email','in_app,push','in_app,email','push','email','whatsapp','sms','email,whatsapp','email,sms,whatsapp'] },
         { name:'subject', label:'Subject', icon:'fa-heading', required:true, placeholder:'Service update' },
         { name:'priority', label:'Priority', type:'select', icon:'fa-flag', options:['normal','high','urgent'] },
         { name:'message', label:'Message', type:'textarea', full:true, required:true, placeholder:'Write the notice message' }
@@ -4097,6 +4101,22 @@
         if (row) row.querySelectorAll('.chip').forEach(c => c.classList.remove('is-on'));
         chip.classList.add('is-on');
         toast('Filter applied: ' + chip.textContent.trim());
+      }
+
+      const notificationReadBtn = e.target.closest('[data-notification-read]');
+      if (notificationReadBtn) {
+        e.preventDefault();
+        fetch(`/api/notifications/${encodeURIComponent(notificationReadBtn.dataset.notificationRead || '')}/read`, {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type':'application/json', 'x-csrf-token': csrfToken }, body: '{}'
+        }).then((response) => response.json().catch(() => null)).then((result) => {
+          if (!result?.ok) { toast('Unable to mark notification as read'); return; }
+          notificationReadBtn.remove();
+          const row = notificationReadBtn.closest('tr');
+          if (row) row.style.opacity = '.66';
+          if (window.ClassicTripNotifications?.refresh) window.ClassicTripNotifications.refresh();
+          toast('Notification marked as read');
+        }).catch(() => toast('Unable to mark notification as read'));
+        return;
       }
 
       const copyBtn = e.target.closest('[data-copy-value]');

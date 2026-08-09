@@ -10,6 +10,7 @@ const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
 const redisRuntime = require('../../config/redis');
+const flightSearchService = require('../../modules/flight/services/flightSearchService');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
@@ -516,6 +517,13 @@ function catalogItem(data, listing, preferredRoute = null) {
       scheduleCount: routeSchedules.length,
       availableSeats: routeSchedules.reduce((sum, schedule) => sum + Math.max(0, number(schedule.availableSeats)), 0),
       nextDepartAt: routeNext?.departAt || null,
+      departures: routeSchedules.slice(0, 90).map((schedule) => ({
+        id: entityId(schedule),
+        departAt: schedule.departAt || null,
+        arriveAt: schedule.arriveAt || null,
+        availableSeats: Math.max(0, number(schedule.availableSeats)),
+        status: schedule.status || '',
+      })),
       priceFrom: routeAmounts.length ? Math.min(...routeAmounts) : number(routeNext?.basePrice || listing.priceFrom || listing.price),
       currency: String(routeProducts.find((product) => product.currency)?.currency || routeNext?.currency || listing.currency || '').toUpperCase(),
     };
@@ -640,6 +648,60 @@ function score(item) {
     + Math.min(number(item.remainingInventory), 60) / 6;
 }
 
+function isoDateInTimeZone(value, timeZone = 'Africa/Kampala') {
+  const date = asDate(value);
+  if (!date) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return map.year && map.month && map.day ? `${map.year}-${map.month}-${map.day}` : '';
+  } catch (_) { return date.toISOString().slice(0, 10); }
+}
+
+function matchingBusRoute(item = {}, query = {}) {
+  if (normalize(item.serviceType) !== 'bus') return null;
+  const origin = normalize(query.origin || query.from);
+  const destination = normalize(query.destination || query.to);
+  const requestedDate = String(query.date || query.departureDate || '').trim().slice(0, 10);
+  const routes = Array.isArray(item.routes) ? item.routes : [];
+  return routes.find((route) => {
+    if (origin && normalize(route.origin) !== origin) return false;
+    if (destination && normalize(route.destination) !== destination) return false;
+    if (!requestedDate) return true;
+    return (route.departures || []).some((departure) => isoDateInTimeZone(departure.departAt, route.timezone || 'Africa/Kampala') === requestedDate);
+  }) || null;
+}
+
+function withMatchedBusRoute(item = {}, query = {}) {
+  const wantsRouteMatch = normalize(item.serviceType) === 'bus' && (query.origin || query.from || query.destination || query.to || query.date || query.departureDate);
+  if (!wantsRouteMatch) return item;
+  const route = matchingBusRoute(item, query);
+  if (!route) return item;
+  const requestedDate = String(query.date || query.departureDate || '').trim().slice(0, 10);
+  const departure = requestedDate
+    ? (route.departures || []).find((row) => isoDateInTimeZone(row.departAt, route.timezone || 'Africa/Kampala') === requestedDate)
+    : (route.departures || [])[0];
+  const params = new URLSearchParams();
+  if (route.id) params.set('routeId', route.id);
+  if (departure?.id) params.set('scheduleId', departure.id);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return {
+    ...item,
+    from: route.origin || item.from,
+    to: route.destination || item.to,
+    routeLabel: route.label || item.routeLabel,
+    corridor: route.corridor || item.corridor,
+    nextDepartAt: departure?.departAt || route.nextDepartAt || item.nextDepartAt,
+    nextDepartLabel: departure?.departAt ? new Date(departure.departAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: route.timezone || 'Africa/Kampala' }) : item.nextDepartLabel,
+    remainingInventory: departure ? Math.max(0, number(departure.availableSeats)) : Math.max(0, number(route.availableSeats || item.remainingInventory)),
+    availableSeats: departure ? Math.max(0, number(departure.availableSeats)) : Math.max(0, number(route.availableSeats || item.availableSeats)),
+    priceFrom: number(route.priceFrom || item.priceFrom),
+    price: number(route.priceFrom || item.price),
+    url: `${String(item.url || '').split('?')[0]}${suffix}`,
+    bookingUrl: item.bookingUrl ? `${String(item.bookingUrl).split('?')[0]}${suffix}` : '',
+  };
+}
+
 function applySearch(items, query = {}) {
   const q = normalize(query.q || query.search);
   const serviceType = canonicalPublicServiceType(query.serviceType || query.type || '');
@@ -661,8 +723,12 @@ function applySearch(items, query = {}) {
     if (serviceType && serviceType !== 'all' && normalize(item.serviceType) !== serviceType && normalize(item.group) !== serviceType) return false;
     if (city && !normalize(`${item.city} ${item.from} ${item.to}`).includes(city)) return false;
     if (country && !normalize(item.country).includes(country)) return false;
-    if (origin && !normalize(item.from).includes(origin)) return false;
-    if (destination && !normalize(item.to).includes(destination)) return false;
+    if (normalize(item.serviceType) === 'bus' && (origin || destination || query.date || query.departureDate)) {
+      if (!matchingBusRoute(item, query)) return false;
+    } else {
+      if (origin && !normalize(item.from).includes(origin)) return false;
+      if (destination && !normalize(item.to).includes(destination)) return false;
+    }
     if (partner && !normalize(`${item.partner} ${item.companyName}`).includes(partner)) return false;
     if (stayType) {
       const itemStayType = normalize(item.stayType);
@@ -693,6 +759,7 @@ function applySearch(items, query = {}) {
     if ((query.available === 'true' || query.availableOnly === 'true' || query.availableOnly === true) && item.remainingInventory <= 0) return false;
     return true;
   });
+  rows = rows.map((item) => withMatchedBusRoute(item, query));
   const sort = normalize(query.sort || 'recommended');
   rows = rows.sort((a, b) => {
     if (sort === 'cheapest') return a.priceFrom - b.priceFrom;
@@ -840,7 +907,71 @@ async function searchWithMeta(query = {}) {
   return { data, results, meta: { total: results.length, marketplace, typeStats: marketplace.typeStats, routeHighlights: marketplace.routeHighlights, query } };
 }
 
-function buildHomeBootstrap(data) {
+function searchOptionValues(values = []) {
+  return unique(values.map(text)).sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+}
+
+function searchOptions(data, prebuiltListings = null, airports = []) {
+  const listings = Array.isArray(prebuiltListings)
+    ? prebuiltListings
+    : data.listings.filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
+  const publicListingIds = new Set(listings.map((row) => String(row.id || '')));
+  const now = new Date();
+  const liveBusRouteIds = new Set((data.schedules || []).filter((schedule) => {
+    const status = normalize(schedule.status);
+    if (!['published', 'boarding', 'delayed'].includes(status)) return false;
+    const liveUntil = asDate(schedule.arriveAt || schedule.departAt);
+    return liveUntil && liveUntil >= now;
+  }).map((schedule) => String(schedule.routeId || schedule.routeSnapshot?.routeId || '')).filter(Boolean));
+  const busRoutes = (data.routes || []).filter((row) => (!row.status || ['active', 'published'].includes(normalize(row.status)))
+    && publicListingIds.has(String(row.listingId || ''))
+    && liveBusRouteIds.has(String(entityId(row) || row.id || '')));
+  const byType = (type) => listings.filter((item) => item.serviceType === type);
+  const locations = (items, fields) => searchOptionValues(items.flatMap((item) => fields.map((field) => item[field]).filter(Boolean)));
+  const busOrigins = searchOptionValues(busRoutes.map((row) => row.origin || row.from));
+  const busDestinations = searchOptionValues(busRoutes.map((row) => row.destination || row.to));
+  const hotelItems = byType('hotel');
+  const taxiItems = byType('local_transport');
+  const tourItems = byType('tour');
+  const rentalItems = byType('car_rental');
+  const cargoItems = byType('cargo');
+  const hotelDestinations = locations(hotelItems, ['city', 'location', 'address']);
+  const taxiOrigins = locations(taxiItems, ['from', 'city']);
+  const taxiDestinations = locations(taxiItems, ['to', 'city', 'location']);
+  const tourDestinations = locations(tourItems, ['city', 'to', 'location']);
+  const rentalOrigins = locations(rentalItems, ['from', 'city', 'location', 'branchName']);
+  const rentalDestinations = locations(rentalItems, ['to', 'city', 'location', 'branchName']);
+  const cargoOrigins = locations(cargoItems, ['from', 'city', 'location']);
+  const cargoDestinations = locations(cargoItems, ['to', 'city', 'location']);
+  const airportOptions = (airports || []).map((airport) => ({
+    value: text(airport.iataCode || airport.id),
+    label: [airport.iataCode, airport.city, airport.name, airport.country].map(text).filter(Boolean).join(' · '),
+  })).filter((row) => row.value && row.label);
+  const generalOrigins = searchOptionValues([
+    ...busOrigins,
+    ...listings.map((item) => item.from || item.city || ''),
+  ]);
+  const generalDestinations = searchOptionValues([
+    ...busDestinations,
+    ...listings.map((item) => item.to || item.city || item.location || ''),
+  ]);
+  return {
+    all: { origins: generalOrigins, destinations: generalDestinations },
+    bus: {
+      origins: busOrigins,
+      destinations: busDestinations,
+      pairs: busRoutes.map((row) => ({ origin: text(row.origin || row.from), destination: text(row.destination || row.to), routeId: entityId(row) })).filter((row) => row.origin && row.destination),
+    },
+    hotel: { destinations: hotelDestinations },
+    flight: { airports: airportOptions },
+    local_transport: { origins: taxiOrigins, destinations: taxiDestinations },
+    tour: { destinations: tourDestinations },
+    car_rental: { origins: rentalOrigins, destinations: rentalDestinations.length ? rentalDestinations : rentalOrigins },
+    cargo: { origins: cargoOrigins, destinations: cargoDestinations },
+  };
+}
+
+function buildHomeBootstrap(data, airports = []) {
   const listings = data.listings.filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
   const marketplace = marketplaceInfo(listings);
   const campaigns = data.campaigns
@@ -858,13 +989,17 @@ function buildHomeBootstrap(data) {
     corridorStats: routeHighlights(listings),
     marketplace,
     heroStats: { liveRoutes: marketplace.routeHighlights.length, verifiedPartners: marketplace.stats.partners, bookableInventory: listings.filter((row) => row.bookable).length, totalServices: marketplace.stats.liveListings, availableNow: marketplace.stats.availableNow, departuresNext24h: marketplace.stats.departuresNext24h },
+    searchOptions: searchOptions(data, listings, airports),
   };
 }
 
 async function refreshHomeBootstrap() {
   if (homeBootstrapInflight) return homeBootstrapInflight;
-  homeBootstrapInflight = snapshot()
-    .then((data) => buildHomeBootstrap(data))
+  homeBootstrapInflight = Promise.all([
+    snapshot(),
+    flightSearchService.listAirports().catch(() => []),
+  ])
+    .then(([data, airports]) => buildHomeBootstrap(data, airports))
     .then((value) => {
       homeBootstrapCache = value;
       homeBootstrapCachedAt = Date.now();
@@ -898,4 +1033,4 @@ async function recordReferralClick(code, listingId, request = {}) {
   return click;
 }
 
-module.exports = { snapshot, snapshotForListing, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };
+module.exports = { snapshot, snapshotForListing, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, searchOptions, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };

@@ -346,10 +346,18 @@ async function markRead(notificationId, user = {}) {
   if (!note) return null;
   const visible = (await notificationsForUserLive(user, { limit: 500 })).some((item) => item.id === notificationId);
   if (!visible && user.role !== 'super_admin') return null;
-  note.readAt = new Date().toISOString();
-  note.status = note.status === 'queued' ? 'read' : note.status;
+  note.readAt = new Date();
   await notificationRepository.notifications.save(note, { id: note.id });
   return note;
+}
+
+async function markAllRead(user = {}) {
+  const visible = await notificationsForUserLive(user, { limit: 500 });
+  const unreadIds = visible.filter((item) => !item.readAt).map((item) => item.id).filter(Boolean);
+  if (!unreadIds.length) return { updated: 0 };
+  const now = new Date();
+  await notificationRepository.notifications.updateMany({ id: { $in: unreadIds } }, { $set: { readAt: now } });
+  return { updated: unreadIds.length };
 }
 
 module.exports = {
@@ -365,4 +373,5 @@ module.exports = {
   unreadCountLive,
   notificationsForUserLive,
   markRead,
+  markAllRead,
 };

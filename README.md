@@ -5,23 +5,23 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.29
+## Current release — version 1.6.33
 
-- Bus preview controls now follow the order **Route & travel → Ticket class → Journey**.
-- VIP and Standard are exclusive choices; route synchronisation no longer silently switches a VIP selection back to Standard.
-- Desktop preview controls use compact typography again; phone controls use a smaller phone-only readability increase.
-- Desktop listing-bar image width is reduced to 176px and follows content-driven height.
-- Phone listing-bar dimensions remain unchanged at the approved 148px image column / 154px bar height.
-- Bar content spacing now matches card spacing, image-overlay badges are smaller, and phone bar copy is slightly larger.
-- The top-right green availability badge has high-contrast dark-green text in light mode.
+- **Bus search:** From/To/date matching now checks every live route attached to a listing, not only the first route shown on the card. Valid bus pairs come from published database routes with live departures.
+- **Search-page pair safety:** switching the general marketplace search to Bus dynamically limits From/To to real database pairs, preventing invalid combinations that can only return “No match.”
+- **Dashboard notifications:** notification pages use real role routes and the live `/api/notifications` feed. Company, customer, employee, driver, promoter, support, finance, operations, content and admin dashboards are covered.
+- **Push/read state:** read state persists; Mark read, Mark all read, Enable push and Test push remain wired through the notification API. Content Admin is included in the API authorization set.
+- **Rolling departures:** a vehicle conflict on one date no longer freezes the whole recurring rule. The worker defers the affected date, scans for later free dates, and never batches across a date that preflight deliberately skipped.
+- **Recurring-rule safety:** new, edited or resumed active rules reject obvious same-vehicle recurring overlaps before save. Genuine vehicle conflicts and missing permit/inspection/insurance remain safety blockers for the affected departure.
+- **Return tickets, SEO, contact and domain:** the v1.6.32 return-trip fixes, push/contact hub, and canonical `https://www.classictrip.org` behavior remain intact.
 
-Run the focused dependency-free release gate with:
+Run the focused dependency-free v1.6.33 gate with:
 
 ```bash
-npm run check:v1616-ticket-bars-lightmode
+npm run check:v1633-final-stability
 ```
 
-See `TICKET_CLASS_BAR_LIGHTMODE_FIX_REPORT_v1.6.16.md`, `RELEASE_NOTES.md`, and `FINAL_RELEASE_CHECKLIST.md`.
+Before production deployment, also run `npm run release:check` after a clean `npm ci` and follow `FINAL_RELEASE_CHECKLIST.md`.
 
 ## Seven-service marketplace completion
 
@@ -676,3 +676,18 @@ npm run check:mobile-pwa
 ## Installed-app orientation
 
 The installed PWA is locked to portrait-primary on supported browsers so it does not rotate unexpectedly during launch or use. Browsers that do not expose the Screen Orientation API fall back to the manifest and the phone's system rotation setting.
+
+### SEO and AI discovery endpoints (v1.6.32)
+
+The public web layer exposes canonical search-engine and AI discovery surfaces:
+
+- `/robots.txt` — separates public search/user-directed AI crawling from optional AI-training crawling.
+- `/sitemap.xml` — sitemap index.
+- `/sitemaps/static.xml` — canonical public service and marketing pages.
+- `/sitemaps/listings.xml` — published public listings.
+- `/sitemaps/companies.xml` — verified public partners.
+- `/sitemaps/blogs.xml` — published travel guides.
+- `/llms.txt` and `/llms-full.txt` — AI-readable public summaries/catalog reference.
+- `/ai-index.json` — machine-readable public service, listing, partner and guide catalog.
+
+Faceted `/search` URLs and private/transactional paths are intentionally excluded from indexing while clean service landing pages such as `/buses`, `/stays`, `/tours`, `/car-rentals` and `/cargo` are indexable.

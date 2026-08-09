@@ -66,6 +66,14 @@ async function subscriptionsFor(message = {}) {
     return false;
   });
 }
+
+async function activeSubscriptionCount(user = {}) {
+  const userId = String(user.id || '');
+  if (!userId) return 0;
+  const rows = await notificationRepository.pushSubscriptions.list({ userId, status: 'active' }, { limit: 50 });
+  return rows.length;
+}
+
 async function markExpired(subscription) {
   Object.assign(subscription, { status: 'expired', expiredAt: new Date().toISOString() });
   await persistSubscription(subscription).catch(() => {});
@@ -88,4 +96,4 @@ async function sendPush(message = {}) {
   return { status: sent ? 'sent' : 'failed', channel: 'push', provider: 'web-push', sentCount: sent, failedCount: failed, response: { attempted: recipients.length, sent, failed } };
 }
 
-module.exports = { configured, publicKey: () => env.push.vapidPublicKey || '', saveSubscription, removeSubscription, sendPush };
+module.exports = { configured, publicKey: () => env.push.vapidPublicKey || '', saveSubscription, removeSubscription, activeSubscriptionCount, sendPush };
