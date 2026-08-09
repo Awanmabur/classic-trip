@@ -16,9 +16,11 @@ const BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000;
 const BACKGROUND_BATCH_PAUSE_MS = 2000;
 const PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000;
 const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 15 * 60 * 1000;
+const ROLLING_CONFLICT_LOG_COOLDOWN_MS = 30 * 60 * 1000;
 const backgroundQueue = new Map();
 const rollingCacheInvalidationTimers = new Map();
 const publicationBlockerCooldown = new Map();
+const rollingConflictLogCooldown = new Map();
 let backgroundQueueRunning = false;
 let backgroundRepairTimer = null;
 let backgroundStartupTimer = null;
@@ -362,6 +364,38 @@ function sameRollingDeparture(schedule = {}, rule = {}, departAt) {
   return sameRoute && sameVehicle && Number.isFinite(existingTime) && existingTime === departAt.getTime();
 }
 
+function vehicleConflictsFromRows(rows = [], departAt, arriveAt) {
+  const startMs = new Date(departAt).getTime();
+  const endMs = new Date(arriveAt || new Date(startMs + DAY_MS)).getTime();
+  return (rows || []).filter((row) => {
+    const rowStart = new Date(row.departAt || 0).getTime();
+    const rowEnd = row.arriveAt ? new Date(row.arriveAt).getTime() : rowStart + DAY_MS;
+    return Number.isFinite(rowStart) && Number.isFinite(rowEnd) && startMs < rowEnd && rowStart < endMs;
+  });
+}
+
+function rollingConflictSignature(result = {}) {
+  const details = Array.isArray(result.conflictDetails) ? result.conflictDetails : [];
+  return JSON.stringify({
+    pending: Number(result.pending || 0),
+    skipped: Number(result.skipped || 0),
+    noFreeDateFound: result.noFreeDateFound === true,
+    conflicts: details.slice(0, 8).map((item) => [item.requestedDepartAt, item.conflictingScheduleId, item.conflictingRuleId]),
+  });
+}
+
+function shouldLogRollingConflict(ruleKey, result = {}) {
+  const signature = rollingConflictSignature(result);
+  const previous = rollingConflictLogCooldown.get(ruleKey);
+  const nowMs = Date.now();
+  if (previous && previous.signature === signature && previous.expiresAt > nowMs) return false;
+  rollingConflictLogCooldown.set(ruleKey, {
+    signature,
+    expiresAt: nowMs + ROLLING_CONFLICT_LOG_COOLDOWN_MS,
+  });
+  return true;
+}
+
 async function materializeRule(rule, horizonEnd, now, options = {}) {
   // Re-evaluate the complete live window on every run. A watermark-only cursor
   // cannot repair a date that was deleted, cancelled, or skipped after a
@@ -434,13 +468,32 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
   const maxCreates = Math.max(0, Number(options.maxCreates || 0));
   const failures = new Set(draftReconciliation.failures || []);
   const dates = [];
+  const conflictDetails = [];
   let coveredByExistingDeparture = 0;
   let skipped = 0;
-  const scanLimit = maxCreates > 0 ? Math.min(missingDates.length, 10) : missingDates.length;
-  for (const departAt of missingDates.slice(0, scanLimit)) {
+  let scannedMissingDates = 0;
+  // Preload the vehicle's relevant dated departures once. The old worker issued
+  // one overlap query per candidate date and, with maxCreates=1, stopped after
+  // the first 10 conflicts. That could permanently starve dates 11-30 even when
+  // a later day was free. Scan the complete missing window but still create only
+  // the configured small batch size.
+  const earliestMissing = missingDates[0] || null;
+  const latestMissing = missingDates[missingDates.length - 1] || null;
+  const conflictRows = earliestMissing && latestMissing
+    ? await busOperationsRepository.schedules.list({
+      companyId: rule.companyId,
+      vehicleId: rule.vehicleId,
+      status: { $in: ['draft', 'active', 'published', 'boarding', 'delayed', 'departed'] },
+      departAt: {
+        $gt: new Date(earliestMissing.getTime() - (7 * DAY_MS)),
+        $lt: new Date(latestMissing.getTime() + DAY_MS),
+      },
+    }, { sort: { departAt: 1 }, limit: ROLLING_WINDOW_DAYS * 20 })
+    : [];
+  for (const departAt of missingDates) {
+    scannedMissingDates += 1;
     const arriveAt = rule.durationMinutes ? new Date(departAt.getTime() + rule.durationMinutes * 60000) : undefined;
-    // eslint-disable-next-line no-await-in-loop
-    const conflicts = await busDepartureService.findVehicleConflicts(rule.companyId, rule.vehicleId, departAt, arriveAt);
+    const conflicts = vehicleConflictsFromRows(conflictRows, departAt, arriveAt);
     const exactExistingDeparture = conflicts.find((schedule) => sameRollingDeparture(schedule, rule, departAt));
     if (exactExistingDeparture) {
       coveredByExistingDeparture += 1;
@@ -449,6 +502,17 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     if (conflicts.length) {
       skipped += 1;
       failures.add(`vehicle_time_conflict:${departAt.toISOString()}`);
+      if (conflictDetails.length < 8) {
+        const conflict = conflicts[0];
+        conflictDetails.push({
+          requestedDepartAt: departAt.toISOString(),
+          conflictingScheduleId: String(conflict.id || ''),
+          conflictingRuleId: String(conflict.scheduleRuleId || ''),
+          conflictingRouteId: String(conflict.routeId || conflict.routeSnapshot?.routeId || ''),
+          conflictingDepartAt: conflict.departAt ? new Date(conflict.departAt).toISOString() : '',
+          conflictingArriveAt: conflict.arriveAt ? new Date(conflict.arriveAt).toISOString() : '',
+        });
+      }
       continue;
     }
     dates.push(departAt);
@@ -576,6 +640,9 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     blockerPersisted: blockerResult.persisted,
     blockedUntil: blockerResult.blockedUntil || '',
     blockerCode: blockerResult.blocked ? 'vehicle_schedule_conflict' : '',
+    conflictDetails,
+    scannedMissingDates,
+    noFreeDateFound: missingDates.length > 0 && dates.length === 0 && skipped > 0 && scannedMissingDates >= missingDates.length,
   };
 }
 
@@ -791,11 +858,27 @@ async function drainBackgroundQueue() {
         skipped: Number(result?.skipped || 0),
       };
       if (completedSummary.skipped && Array.isArray(result?.failures) && result.failures.length) {
-        logger.warn('Rolling departure date deferred; other dates remain eligible', {
-          ...completedSummary,
-          failures: result.failures,
-          action: 'Resolve vehicle overlap or vehicle compliance; the worker will retry automatically.',
-        });
+        if (shouldLogRollingConflict(key, result)) {
+          logger.warn(
+            result.noFreeDateFound
+              ? 'Rolling window has no free missing date for this vehicle'
+              : 'Rolling departure date deferred; later free dates continue materializing',
+            {
+              ...completedSummary,
+              scannedMissingDates: Number(result?.scannedMissingDates || 0),
+              conflicts: Array.isArray(result?.conflictDetails) ? result.conflictDetails : [],
+              failures: result.failures,
+              action: result.noFreeDateFound
+                ? 'Assign another vehicle, change the recurring time, or pause the conflicting recurring rule.'
+                : 'Conflicting dates stay deferred; the worker continues to the next free missing date.',
+            },
+          );
+        } else {
+          logger.debug('Repeated rolling vehicle-conflict warning suppressed during cooldown', {
+            ...completedSummary,
+            scannedMissingDates: Number(result?.scannedMissingDates || 0),
+          });
+        }
       } else if (completedSummary.created || completedSummary.published || completedSummary.draft || completedSummary.pending) {
         logger.info('Rolling departure batch completed', completedSummary);
       } else {

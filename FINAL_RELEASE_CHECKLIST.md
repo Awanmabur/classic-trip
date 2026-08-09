@@ -253,3 +253,12 @@ Before launch, record the previous deployed commit/archive, preserve a verified 
 7. Test a bus Return Ticket on a route with an independently-created reverse route. The return list must show every valid future reverse departure even when its time does not match the outbound arrival estimate, its reverse route has different stop IDs, or the reverse service uses a different Standard/VIP vehicle class. Select a return departure, select the same passenger count of return seats, continue through checkout, pay, and confirm both booking legs are persisted.
 8. Verify the global floating Contact button on desktop and phone. It must open vertically to: Join WhatsApp group, WhatsApp chat/call entry for `+256781977217`, and direct call to `+256781977217`.
 9. Confirm these environment values on Render: `SUPPORT_PHONE=+256781977217`, `SUPPORT_WHATSAPP=+256781977217`, and `WHATSAPP_GROUP_URL=https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1`.
+
+## v1.6.34 rolling conflict diagnosis
+If the worker reports repeated vehicle conflicts for company-2 rules 11/14, run:
+
+```bash
+npm run rolling:diagnose -- company-2 schedule-rule-11 schedule-rule-14
+```
+
+The output identifies the conflicting schedule ID, recurring rule ID, route, departure and arrival times. Do not bypass a genuine overlap: assign another vehicle, move the rule time, or pause/remove the duplicate recurring rule.

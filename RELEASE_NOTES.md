@@ -458,3 +458,11 @@ npm start
 
 ## v1.6.33
 - Final stability: fixed DB route/date search across all listing routes, dashboard notification routing/live notification center, and rolling conflict isolation/prevention.
+
+
+## v1.6.34
+- Rolling materializer now scans past the first 10 conflicted dates to find later free dates, preloads vehicle conflicts once, reports the conflicting schedule/rule IDs, and suppresses duplicate conflict warnings.
+
+
+## v1.6.35
+- Refined the global contact hub with opaque dark-mode surfaces, icon-only circular launcher, slimmer action bars, larger icons, and draggable saved positioning.

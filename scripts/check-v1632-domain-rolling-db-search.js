@@ -19,7 +19,7 @@ function check(label, ok) {
   if (!ok) { console.error(`✗ ${label}`); process.exitCode = 1; }
   else { passed += 1; console.log(`✓ ${label}`); }
 }
-check('release version is 1.6.33', pkg.version === '1.6.33');
+check('release version is 1.6.35', pkg.version === '1.6.35');
 check('Render uses the real HTTPS domain', render.includes('value: https://www.classictrip.org') && !render.includes('value: http://www.classictrip.org'));
 check('public/fallback Classic Trip domain uses .org', !legal.includes('classictrip.com') && legal.includes('classictrip.org'));
 check('IndexNow key is wired in production', /key: INDEXNOW_KEY\s+value: [A-Za-z0-9-]{8,128}/m.test(render) && /INDEXNOW_KEY=[A-Za-z0-9-]{8,128}/.test(envExample));
@@ -31,4 +31,4 @@ check('home service locations are DB selects', ['stayCityInput','flightFromInput
 check('general marketplace From/To are selects', heroSearch.includes('<select id="marketplaceOrigin"') && heroSearch.includes('<select id="marketplaceDestination"'));
 check('route directory From/To are selects', routes.includes('<select id="routeSearchOrigin"') && routes.includes('<select id="routeSearchDestination"'));
 check('flight page uses database-backed airport selects', flights.includes('<select id="flightOrigin"') && flights.includes('<select id="flightDestination"') && flightJs.includes("api('/api/v1/flights/airports')"));
-if (!process.exitCode) console.log(`v1.6.33 domain/rolling/DB-search checks passed (${passed}/${passed}).`);
+if (!process.exitCode) console.log(`v1.6.35 domain/rolling/DB-search checks passed (${passed}/${passed}).`);

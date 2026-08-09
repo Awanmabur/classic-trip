@@ -2440,3 +2440,111 @@ body.listingPreviewBody .toast.show{
 /* v1.6.32 — preview notices must remain above floating support controls. */
 body.listingPreviewBody .toast,
 body.listingPreviewBody .siteFlashStack{z-index:10050!important;}
+
+/* v1.6.35 — compact, opaque, circular and draggable Classic Trip contact hub. */
+.ctContactHub{
+  width:58px!important;
+  height:58px!important;
+  right:12px!important;
+  bottom:18px!important;
+  gap:0!important;
+  display:block!important;
+  justify-items:unset!important;
+  touch-action:none;
+}
+.ctContactHub.is-positioned{bottom:auto!important;}
+.ctContactHubMenu{
+  position:absolute!important;
+  right:0!important;
+  left:auto!important;
+  bottom:calc(100% + 9px)!important;
+  width:218px!important;
+  gap:6px!important;
+  justify-items:stretch!important;
+  transform:translateY(8px) scale(.98)!important;
+}
+.ctContactHub[data-side="left"] .ctContactHubMenu{
+  left:0!important;
+  right:auto!important;
+}
+.ctContactHub.is-open .ctContactHubMenu{transform:none!important;}
+.ctContactHubAction{
+  width:218px!important;
+  min-height:46px!important;
+  padding:7px 9px!important;
+  gap:8px!important;
+  border-radius:15px!important;
+  background:#ffffff!important;
+  color:#0f172a!important;
+  border:1px solid #dbe2ea!important;
+  box-shadow:0 12px 28px rgba(15,23,42,.16)!important;
+  box-sizing:border-box!important;
+}
+.ctContactHubAction>i{
+  width:32px!important;
+  height:32px!important;
+  flex:0 0 32px!important;
+  border-radius:50%!important;
+  font-size:19px!important;
+  background:#f1f5f9!important;
+}
+.ctContactHubAction b{font-size:12px!important;}
+.ctContactHubAction small{font-size:10px!important;color:#64748b!important;}
+.ctContactHubToggle{
+  width:58px!important;
+  min-width:58px!important;
+  height:58px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  border:0!important;
+  background:#25d366!important;
+  color:#06110c!important;
+  gap:0!important;
+  touch-action:none;
+  cursor:grab!important;
+  box-shadow:0 12px 30px rgba(0,0,0,.24)!important;
+}
+.ctContactHubToggle span{display:none!important;}
+.ctContactHubToggle i{font-size:22px!important;}
+.ctContactHub.is-open .ctContactHubToggle{
+  border:0!important;
+  border-radius:50%!important;
+  background:#111827!important;
+  color:#fff!important;
+}
+.ctContactHub.is-dragging .ctContactHubToggle{
+  cursor:grabbing!important;
+  transform:scale(1.04);
+  box-shadow:0 16px 34px rgba(0,0,0,.32)!important;
+}
+html[data-theme="dark"] .ctContactHubAction{
+  background:#111827!important;
+  color:#f8fafc!important;
+  border-color:#334155!important;
+  box-shadow:0 14px 32px rgba(0,0,0,.42)!important;
+}
+html[data-theme="dark"] .ctContactHubAction>i{background:#0b1220!important;}
+html[data-theme="dark"] .ctContactHubAction small{color:#cbd5e1!important;}
+html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
+  background:#111827!important;
+  color:#fff!important;
+}
+@media(max-width:680px){
+  .ctContactHub{
+    width:56px!important;
+    height:56px!important;
+    right:12px!important;
+    bottom:84px!important;
+  }
+  .ctContactHubMenu{width:205px!important;bottom:calc(100% + 8px)!important;}
+  .ctContactHubAction{
+    width:205px!important;
+    min-height:44px!important;
+    padding:6px 8px!important;
+    border-radius:14px!important;
+  }
+  .ctContactHubAction>i{width:31px!important;height:31px!important;flex-basis:31px!important;font-size:18px!important;}
+  .ctContactHubToggle{width:56px!important;min-width:56px!important;height:56px!important;border-radius:50%!important;}
+  .ctContactHubToggle i{font-size:21px!important;}
+}
+@media print{.ctContactHub{display:none!important;}}
