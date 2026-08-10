@@ -1,3 +1,13 @@
+# Classic Trip 1.6.40 — Clean Mongo Index & Actionable Rolling Conflicts
+
+- Removed the duplicate `PlatformActivity.expiresAt` schema index declaration; the field now uses only the intended TTL index, eliminating the Mongoose duplicate-index startup warning.
+- Full-window vehicle conflicts are now distinguished from ordinary date-specific conflicts. A partial conflict still skips only the affected date and continues scanning later dates.
+- When every missing rolling date is blocked by departures generated from recurring rule(s), Classic Trip persists a `vehicle_schedule_conflict_window` action state instead of re-scanning the same 30-day window every repair cycle.
+- Full-window conflict blockers expire after six hours as a safety re-check, but editing/pausing a referenced blocking recurring rule clears dependent blockers immediately and queues them for re-materialization.
+- Partner Admin recurring-rule rows now show `action needed` plus the blocking recurring-rule IDs and preserve the detailed reason in the record drawer.
+- Worker logging for deterministic full-window conflicts is concise: it records the blocking rule IDs/reason once instead of repeatedly dumping dozens of identical date conflicts.
+- Preserved v1.6.39 partner signup stabilization, v1.6.38 dashboard performance/SMS delivery, return-ticket logic, notification repairs, pricing, monitoring, SEO and canonical `https://www.classictrip.org` behavior.
+
 # Classic Trip 1.6.33 — Final Runtime Stability
 
 - Fixed bus From/To/date search so a valid second, third, or later route in the same company listing is matched correctly.
@@ -489,3 +499,7 @@ npm start
 - Confirmed paid tickets now send SMS automatically when the customer supplied a phone number, alongside email/WhatsApp where available.
 - SMS ticket delivery uses a short secure ticket URL and generic booking delivery now leaves the request path through the encrypted outbox.
 - Removed the obsolete paid SMS/WhatsApp ticket starter add-on because digital ticket delivery is now standard.
+
+
+## v1.6.39
+- Stabilized partner signup, server-side country/currency derivation, error reporting, form recovery, session fallback, and secondary provisioning resilience.

@@ -50,6 +50,7 @@ function authQueryMessage(query = {}) {
   };
   if (messages[code]) return { type: 'error', text: messages[code] };
   if (String(query.pending || '').toLowerCase() === 'approval') return { type: 'info', text: 'Your account was created and is awaiting activation.' };
+  if (String(query.created || '').toLowerCase() === 'partner') return { type: 'success', text: 'Partner account created successfully. Sign in to continue verification.' };
   return null;
 }
 
@@ -59,10 +60,14 @@ async function showLogin(req, res, next) {
     const queryMessage = authQueryMessage(req.query || {});
     const flashMessages = Array.isArray(res.locals.flashMessages) ? [...res.locals.flashMessages] : [];
     if (queryMessage && !flashMessages.length) flashMessages.push(queryMessage);
+    const partnerDraft = req.session?.partnerFormDraft && typeof req.session.partnerFormDraft === 'object'
+      ? { ...req.session.partnerFormDraft }
+      : {};
+    if (req.session?.partnerFormDraft) delete req.session.partnerFormDraft;
     return res.render('pages/auth/login', {
       seo: { title: 'Login, signup or partner onboarding | Classic Trip' },
       next: req.query.next || '',
-      partnerForm: { ...req.query },
+      partnerForm: { ...req.query, ...partnerDraft },
       flashMessages,
     });
   } catch (error) {

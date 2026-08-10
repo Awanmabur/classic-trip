@@ -36,13 +36,13 @@ const dashboardJs = read('public/js/dashboard-workspace.js');
 const driverEligibility = read('src/services/company/driverEligibilityService.js');
 
 // One partner onboarding flow.
-check('Legacy partner GET redirects into the one shared authentication page', publicRoutes.includes("router.get('/partner/onboarding', (req, res) => res.redirect(303, '/register?role=partner#partner'))") && !partnerController.includes('partnerOnly: true'));
+check('Legacy partner GET redirects into the one shared authentication page', publicRoutes.includes("router.get('/partner/onboarding', (req, res) => res.redirect(303, '/login?role=partner#partner'))") && !partnerController.includes('partnerOnly: true'));
 check('General auth and partner onboarding reuse one visual template and one embedded partner panel', authView.includes('id="loginPanel"') && authView.includes('id="signupPanel"') && authView.includes('id="partnerPanel"') && authView.includes("include('./_partner-signup')") && !authView.includes('partnerOnly'));
 check('Customer/promoter signup opens the partner panel on the same page', authView.includes('href="#partner" data-open-panel="partner"') && !authView.includes('href="/partner/onboarding"'));
 check('Legacy public partner lead endpoint is retired', !publicRoutes.includes('/partner-requests') && /createOnboarding/.test(partnerController));
-check('Commission page and footer use direct partner registration without plans', commissionPage.includes('/register?role=partner#partner') && footer.includes('/register?role=partner#partner') && !/planId|selectedPlan|partner\/onboarding\?plan/.test(commissionPage));
-check('Partner validation errors return to the unified partner panel', validation.includes("authPath === '/partner/onboarding'") && validation.includes("res.redirect('/register?role=partner#partner')"));
-check('Accidental partner registration redirects to the unified partner panel', authController.includes("return res.redirect('/register?role=partner#partner')"));
+check('Commission page and footer use direct partner registration without plans', commissionPage.includes('/login?role=partner#partner') && footer.includes('/login?role=partner#partner') && !/planId|selectedPlan|partner\/onboarding\?plan/.test(commissionPage));
+check('Partner validation errors return to the unified partner panel', validation.includes("authPath === '/partner/onboarding'") && validation.includes("res.redirect('/login?role=partner#partner')"));
+check('Accidental partner registration redirects to the unified partner panel', authController.includes("return res.redirect('/login?role=partner#partner')"));
 
 // No parallel cart/booking architecture.
 check('Legacy active cart checkout is absent', !publicRoutes.includes("/cart") && !exists('src/controllers/public/cartController.js') && !exists('src/services/cart/cartService.js'));

@@ -13,8 +13,8 @@ const sms = read('src/services/notification/smsService.js');
 const env = read('src/config/env.js');
 const render = read('render.yaml');
 const sw = read('public/sw.js');
-check('release version is v1.6.38', pkg.version === '1.6.38');
-check('service worker cache is v1.6.38', sw.includes('classic-trip-static-v1.6.38'));
+check('release version matches current package', pkg.version === '1.6.40');
+check('service worker cache matches current package', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('admin dashboards use exact page entity plans', snap.includes('const ADMIN_PAGE_ENTITIES') && snap.includes("bookings: new Set(['users','companies','listings','bookings'"));
 check('employee and driver overviews are independently scoped', snap.includes('EMPLOYEE_OVERVIEW_ENTITIES') && snap.includes('DRIVER_OVERVIEW_ENTITIES'));
 check('employee pages no longer add the broad employee collection plan everywhere', !snap.includes('COMPANY_PAGE_ENTITIES.employee.forEach'));
@@ -29,4 +29,4 @@ check('SMS transport has a bounded request timeout', sms.includes('AbortControll
 check('generic confirmed-ticket delivery leaves the request path through the outbox', notifications.includes('enqueueBookingConfirmed') && read('src/services/booking/bookingService.js').includes('enqueueBookingConfirmed(booking)'));
 check('production dashboard concurrency and cache are raised safely', render.includes('DASHBOARD_DB_READ_CONCURRENCY\n        value: "10"') && render.includes('MONGO_READ_CONCURRENCY\n        value: "12"') && render.includes('DASHBOARD_SNAPSHOT_TTL_MS\n        value: "180000"'));
 check('web and worker share SMS sender/timeout configuration', (render.match(/SMS_FROM/g)||[]).length >= 3 && (render.match(/SMS_REQUEST_TIMEOUT_MS/g)||[]).length >= 3);
-if (!process.exitCode) console.log(`v1.6.38 dashboard speed + SMS checks passed (${passed}/${passed}).`);
+if (!process.exitCode) console.log(`Dashboard speed + SMS checks passed (${passed}/${passed}).`);

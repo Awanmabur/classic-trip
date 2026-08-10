@@ -5,23 +5,21 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.33
+## Current release — version 1.6.40
 
-- **Bus search:** From/To/date matching now checks every live route attached to a listing, not only the first route shown on the card. Valid bus pairs come from published database routes with live departures.
-- **Search-page pair safety:** switching the general marketplace search to Bus dynamically limits From/To to real database pairs, preventing invalid combinations that can only return “No match.”
-- **Dashboard notifications:** notification pages use real role routes and the live `/api/notifications` feed. Company, customer, employee, driver, promoter, support, finance, operations, content and admin dashboards are covered.
-- **Push/read state:** read state persists; Mark read, Mark all read, Enable push and Test push remain wired through the notification API. Content Admin is included in the API authorization set.
-- **Rolling departures:** a vehicle conflict on one date no longer freezes the whole recurring rule. The worker defers the affected date, scans for later free dates, and never batches across a date that preflight deliberately skipped.
-- **Recurring-rule safety:** new, edited or resumed active rules reject obvious same-vehicle recurring overlaps before save. Genuine vehicle conflicts and missing permit/inspection/insurance remain safety blockers for the affected departure.
-- **Return tickets, SEO, contact and domain:** the v1.6.32 return-trip fixes, push/contact hub, and canonical `https://www.classictrip.org` behavior remain intact.
+- **Mongo startup clean-up:** Monitoring activity expiry now has one explicit TTL index only, removing the duplicate `expiresAt` Mongoose schema-index warning.
+- **Rolling conflict state:** date-specific overlaps still defer only those dates, but a rule blocked across its entire missing 30-day window is persisted as `action needed` instead of being fully rescanned on every repair cycle.
+- **Automatic recovery:** changing a recurring rule that is listed as a blocker clears dependent conflict states and queues them for immediate retry; a six-hour safety expiry also forces a later re-check.
+- **Partner dashboard clarity:** recurring rules expose blocking rule IDs and the actionable materialization reason instead of leaving the operator to interpret long worker logs.
+- **Preserved releases:** v1.6.39 partner signup repair, v1.6.38 dashboard speed/SMS, guest booking/ticket delivery, return tickets, notifications/push, UGX pricing, monitoring, SEO, and `https://www.classictrip.org` remain intact.
 
-Run the focused dependency-free v1.6.33 gate with:
+Focused check:
 
 ```bash
-npm run check:v1633-final-stability
+npm run check:v1640-rolling-index-cleanup
 ```
 
-Before production deployment, also run `npm run release:check` after a clean `npm ci` and follow `FINAL_RELEASE_CHECKLIST.md`.
+Before deployment, run a clean `npm ci`, `npm run release:check`, then `npm run db:indexes` because this release changes the Monitoring TTL schema declaration.
 
 ## Seven-service marketplace completion
 

@@ -30,6 +30,7 @@ const MATERIALIZATION_BLOCKER_FIELDS = Object.freeze({
   materializationBlockerCode: '',
   materializationBlockerReason: '',
   materializationBlockerFailures: '',
+  materializationBlockerRuleIds: '',
   materializationRequiresAction: '',
   materializationStateUpdatedAt: '',
 });
@@ -39,6 +40,41 @@ async function clearScheduleRuleMaterializationBlocker(companyId, ruleId) {
     { id: ruleId, companyId },
     { $unset: MATERIALIZATION_BLOCKER_FIELDS },
   );
+}
+
+async function clearDependentRecurringVehicleBlockers(companyId, changedRuleId) {
+  const blockerId = cleanText(changedRuleId, 180);
+  if (!companyId || !blockerId) return [];
+  const filter = {
+    companyId,
+    materializationBlockerCode: 'vehicle_schedule_conflict_window',
+    materializationBlockerRuleIds: blockerId,
+  };
+  const dependents = await repository.scheduleRules.list(filter, { limit: 250 });
+  if (!dependents.length) return [];
+  await repository.scheduleRules.updateMany(
+    filter,
+    {
+      $unset: MATERIALIZATION_BLOCKER_FIELDS,
+      $set: { materializationStateUpdatedAt: nowIso() },
+    },
+  );
+  const timestamp = nowIso();
+  for (const dependent of dependents) {
+    if (normalize(dependent.status) !== 'active') continue;
+    // Requeue immediately when the rule that caused the conflict changes. This
+    // avoids waiting for the periodic repair scan after an operator resolves it.
+    // eslint-disable-next-line no-await-in-loop
+    await repository.outbox({
+      eventType: 'ScheduleRuleMaterializationRequested',
+      aggregateType: 'schedule_rule',
+      aggregateId: dependent.id,
+      companyId,
+      payload: { companyId, ruleId: dependent.id },
+      dedupeKey: `ScheduleRuleMaterializationRequested:${dependent.id}:dependency-cleared:${blockerId}:${timestamp}`,
+    });
+  }
+  return dependents.map((row) => row.id);
 }
 
 function nowIso() { return new Date().toISOString(); }
@@ -1034,6 +1070,7 @@ async function updateScheduleRule(companyId, ruleId, payload = {}, actor = 'comp
   if (requestedStatus === 'active') await assertNoRecurringVehicleRuleConflict(companyId, rule, rule.id);
   await repository.scheduleRules.save(rule, { id: rule.id });
   await clearScheduleRuleMaterializationBlocker(companyId, rule.id);
+  await clearDependentRecurringVehicleBlockers(companyId, rule.id);
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { routeId: route.id, status: requestedStatus } });
   if (requestedStatus === 'active') {
     await repository.outbox({
@@ -1062,6 +1099,7 @@ async function setScheduleRuleStatus(companyId, ruleId, status, actor = 'company
   rule.updatedAt = nowIso();
   await repository.scheduleRules.save(rule, { id: rule.id });
   await clearScheduleRuleMaterializationBlocker(companyId, rule.id);
+  await clearDependentRecurringVehicleBlockers(companyId, rule.id);
   await repository.audit({ actorId: actorId(actor), action: 'bus.schedule_rule.status_updated', targetType: 'schedule_rule', targetId: rule.id, companyId, metadata: { status: next } });
   if (next === 'active') {
     await repository.outbox({

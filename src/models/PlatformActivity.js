@@ -19,7 +19,8 @@ const platformActivitySchema = new Schema({
   browserHint: String,
   requestId: String,
   occurredAt: { type: Date, default: Date.now, index: true },
-  expiresAt: { type: Date, index: true },
+  // TTL index is declared explicitly below; do not also set index:true here.
+  expiresAt: { type: Date },
 }, { timestamps: true });
 
 platformActivitySchema.index({ occurredAt: -1, eventType: 1 });

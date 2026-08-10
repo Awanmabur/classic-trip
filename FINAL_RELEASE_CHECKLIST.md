@@ -1,14 +1,15 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.33.
+Use this checklist for version 1.6.40.
 
 
 ## Current focused validation
 
 ```bash
+npm run check:v1640-rolling-index-cleanup
+npm run check:v1639-partner-signup
+npm run check:v1638-dashboard-speed-sms
 npm run check:v1633-final-stability
-npm run check:v1632-return-notifications-contact
-npm run check:v1632-domain-rolling-db-search
 ```
 
 After deployment, confirm:
@@ -20,6 +21,15 @@ After deployment, confirm:
 - phone bar dimensions remain unchanged while bar copy is slightly larger;
 - the two badges inside bar images are smaller; and
 - the top-right green availability badge is readable in light mode.
+
+
+### v1.6.40 rolling/index production check
+
+After `npm run db:indexes`, restart web + worker and confirm the old Mongoose warning `Duplicate schema index on {"expiresAt":1}` is gone.
+
+For an existing deterministic conflict such as rule 11 blocked by rule 10 on every date, the first scan may persist the blocker and log one concise `Recurring departure rule needs action` message. Subsequent repair cycles/restarts inside the blocker window should not dump the same 30 conflicts again. In **Partner Admin → Departures & Fares → Recurring departure rules**, the affected rule should show `action needed` and the blocking rule ID.
+
+Resolve the real vehicle schedule conflict by assigning another vehicle/time or by correcting the conflicting recurring rule **and its already-created dated departures**. Editing/pausing a referenced blocking recurring rule clears the dependent action state and queues an immediate re-check; the worker also performs a bounded safety re-check after six hours.
 
 ## 1. Clean installation
 

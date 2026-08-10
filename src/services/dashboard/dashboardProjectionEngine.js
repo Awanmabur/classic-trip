@@ -2134,6 +2134,11 @@ function createDashboardProjection(initialState = {}) {
         ? rule.daysOfWeek.map((day) => weekdayLabels[Number(day)] || String(day)).join(', ')
         : 'Every day';
       const label = `${formatRouteLabel(route.origin, route.destination, route.routeName) || 'Route'} at ${rule.departureTime || '--:--'}`;
+      const blockerRuleIds = Array.isArray(rule.materializationBlockerRuleIds) ? rule.materializationBlockerRuleIds.filter(Boolean) : [];
+      const rollingNeedsAction = rule.materializationRequiresAction === true && normalize(rule.materializationBlockerCode) === 'vehicle_schedule_conflict_window';
+      const statusLabel = rollingNeedsAction
+        ? `${rule.status || 'active'} · action needed${blockerRuleIds.length ? ` · blocked by ${blockerRuleIds.join(', ')}` : ''}`
+        : (rule.status || 'draft');
       return [
         label,
         repeat,
@@ -2141,10 +2146,10 @@ function createDashboardProjection(initialState = {}) {
         vehicle.name || rule.vehicleId || 'Vehicle pending',
         fareProduct.name || fareProduct.fareClass || 'Fare plan',
         driverUser.fullName || employee.fullName || 'Optional / unassigned',
-        rule.status || 'draft',
+        statusLabel,
         {
-          entity: 'schedule_rule', id: rule.id, label, status: rule.status,
-          detail: { scheduleRule: rule, route, vehicle, fareProduct, driver: employee, user: safeEmployeeUser(driverUser), listing: listingDetail(findListing(rule.listingId) || {}), company: companyDetail(company), purpose: 'Recurring rules create future dated departures. Editing the rule changes future materialization; already-created departures remain independent and editable.' }
+          entity: 'schedule_rule', id: rule.id, label, status: statusLabel,
+          detail: { scheduleRule: rule, route, vehicle, fareProduct, driver: employee, user: safeEmployeeUser(driverUser), listing: listingDetail(findListing(rule.listingId) || {}), company: companyDetail(company), materialization: { needsAction: rollingNeedsAction, blockerRuleIds, reason: rule.materializationBlockerReason || '', blockedUntil: rule.materializationBlockedUntil || '' }, purpose: rollingNeedsAction ? (rule.materializationBlockerReason || 'This recurring rule cannot create any missing rolling date because the assigned vehicle is occupied by departures generated from another recurring rule. Resolve the vehicle/time overlap and any already-created departures; Classic Trip will retry automatically.') : 'Recurring rules create future dated departures. Editing the rule changes future materialization; already-created departures remain independent and editable.' }
         }
       ];
     });

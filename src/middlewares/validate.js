@@ -10,6 +10,13 @@ function validateRequest(req, res, next) {
   const authPath = String(req.path || '');
   if (authPath === '/partner/onboarding') {
     const message = details.map((item) => item.msg).join(', ') || 'Please check the partner onboarding form and try again.';
+    if (req.session) {
+      const blocked = new Set(['password', 'confirmPassword', '_csrf', 'nationalIdNumber', 'driverLicenceNumber']);
+      req.session.partnerFormDraft = Object.entries(req.body || {}).reduce((draft, [key, value]) => {
+        if (!blocked.has(key) && typeof value !== 'object') draft[key] = String(value || '').slice(0, 1000);
+        return draft;
+      }, {});
+    }
     if (req.flash) req.flash('error', message);
     return res.redirect('/login?role=partner#partner');
   }

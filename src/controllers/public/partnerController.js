@@ -1,5 +1,36 @@
 const { currencyForCountry } = require('../../config/countryMarkets');
 const authService = require('../../services/auth/authService');
+const logger = require('../../config/logger');
+
+
+function partnerDraft(body = {}) {
+  const allowed = ['partnerCategory','companyType','name','contactName','email','phone','country','city','legalName','registrationNumber','taxNumber','headOfficeAddress','website','description','agencyLicenceNumber','iataTidsNumber','agencySpecialities','preferredOperatingAreas','fleetSize','vehicleTypes','vehicleType','vehicleMake','vehicleModel','vehicleYear','vehicleColor','hasOwnVehicle'];
+  return allowed.reduce((draft, key) => {
+    if (typeof body[key] !== 'undefined') draft[key] = String(body[key] || '').slice(0, 1000);
+    return draft;
+  }, {});
+}
+
+async function establishPartnerSession(req, user) {
+  if (!req.session) return false;
+  try {
+    await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
+    req.session.user = authService.sanitizeUser(user);
+    return true;
+  } catch (error) {
+    // The partner account is already committed. A transient session-store error
+    // must not tell the applicant that registration failed or create duplicates.
+    logger.error('Partner signup succeeded but session regeneration failed', { userId: user?.id, error: error.message });
+    return false;
+  }
+}
+
+function partnerSafeMessage(error) {
+  if (error?.publicMessage) return error.publicMessage;
+  if (Number(error?.status) >= 400 && Number(error?.status) < 500) return error.message;
+  if (/database|mongo|connection|timeout|pool/i.test(String(error?.message || ''))) return 'Classic Trip could not finish partner setup because the database was temporarily busy. Your details were not partially saved; please try once more.';
+  return 'Classic Trip could not complete the partner application. Please try again. If it continues, contact support and mention Partner signup.';
+}
 
 function redirectToPartnerForm(res, errorCode = '') {
   const suffix = errorCode ? `?error=${encodeURIComponent(errorCode)}` : '?role=partner';
@@ -55,16 +86,24 @@ async function createOnboarding(req, res, next) {
       termsAccepted: req.body.termsAccepted,
       signupSource: 'partner_onboarding',
     });
-    await new Promise((resolve, reject) => req.session.regenerate((error) => (error ? reject(error) : resolve())));
-    req.session.user = authService.sanitizeUser(user);
-    if (req.flash) req.flash('success', 'Partner account created. Complete company verification before publishing services or receiving payouts. No registration payment is required.');
-    return res.redirect('/company/profile?onboarding=1');
+    const signedIn = await establishPartnerSession(req, user);
+    if (req.flash) req.flash('success', signedIn
+      ? 'Partner account created. Complete company verification before publishing services or receiving payouts. No registration payment is required.'
+      : 'Partner account created successfully. Please sign in to continue company verification.');
+    return res.redirect(signedIn ? '/company/profile?onboarding=1' : '/login?created=partner#login');
   } catch (error) {
-    if (['account_exists', 'registration_conflict', 'company_registration_conflict', 'company_identifier_unavailable', 'authenticated_account_conflict'].includes(error.code)) {
-      if (req.flash) req.flash('error', error.message);
-      return redirectToPartnerForm(res, error.code);
-    }
-    return next(error);
+    if (req.session) req.session.partnerFormDraft = partnerDraft(req.body);
+    logger.error('Partner onboarding failed', {
+      code: error.code || 'partner_signup_failed',
+      status: error.status || 500,
+      partnerCategory: req.body?.partnerCategory || '',
+      companyType: req.body?.companyType || '',
+      country: req.body?.country || '',
+      error: error.message,
+      stack: Number(error.status || 500) >= 500 ? error.stack : undefined,
+    });
+    if (req.flash) req.flash('error', partnerSafeMessage(error));
+    return redirectToPartnerForm(res, error.code || 'partner_signup_failed');
   }
 }
 

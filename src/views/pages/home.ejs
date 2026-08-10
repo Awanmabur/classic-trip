@@ -65,14 +65,14 @@
   <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.38" />
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.38">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.40" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.40">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.38">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.40">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.38" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.40" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -304,7 +304,7 @@
         </section>
 
         <section class="section marketplaceSection marketplaceSection--hotel" id="hotel" data-marketplace-section="hotel">
-          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, apartments, <br> villas, private rooms and shared rooms with dated availability.</p></div><div class="sectionHeadTools"><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span><div class="sectionViewToggle" role="group" aria-label="Stays view"><button class="active" type="button" data-home-action="set-section-view" data-group="hotel" data-view="cards"><i class="fa-solid fa-images"></i><span>Gallery</span></button><button type="button" data-home-action="set-section-view" data-group="hotel" data-view="bars"><i class="fa-solid fa-list"></i><span>List</span></button></div></div></div>
+          <div class="sectionHead"><div><h2>Stays, homes, apartments & rooms</h2><p>Book verified hotels or Airbnb-style entire homes, apartments, villas, private rooms and shared rooms with dated availability.</p></div><div class="sectionHeadTools"><span class="badge badgeOk"><i class="fa-solid fa-door-open"></i> Room selection</span><div class="sectionViewToggle" role="group" aria-label="Stays view"><button class="active" type="button" data-home-action="set-section-view" data-group="hotel" data-view="cards"><i class="fa-solid fa-images"></i><span>Gallery</span></button><button type="button" data-home-action="set-section-view" data-group="hotel" data-view="bars"><i class="fa-solid fa-list"></i><span>List</span></button></div></div></div>
           <% var hotelListings = (bootstrap.listings || []).filter(function(item) { return item && (item.serviceType === 'hotel' || item.group === 'hotel'); }); var initialHotelListings = hotelListings.slice(0, 4); %>
           <div class="gridCards sectionListingCollection sectionListingCollection--hotel" id="hotelCards" data-section-group="hotel" data-view="cards">
             <% if (initialHotelListings.length) { initialHotelListings.forEach(function(item) { %><%- include('../partials/listing-card', { listing: item }) %><% }); } else { %>
@@ -508,11 +508,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.38" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.38" defer></script>
-  <script src="/js/route-pair-select.js?v=1.6.38" defer></script>
-<script src="/js/home-service-search.js?v=1.6.38" defer></script>
-  <script src="/js/home.js?v=1.6.38" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.40" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.40" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.40" defer></script>
+<script src="/js/home-service-search.js?v=1.6.40" defer></script>
+  <script src="/js/home.js?v=1.6.40" defer></script>
   <%- include('../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.38" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.40" defer></script>
 </body>
 </html>

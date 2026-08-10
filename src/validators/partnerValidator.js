@@ -1,6 +1,7 @@
 'use strict';
 const { body } = require('express-validator');
 const { supportedCurrencies } = require('../utils/currency');
+const { currencyForCountry } = require('../config/countryMarkets');
 const { PARTNER_PROFILE_KEYS, partnerProfile } = require('../config/partnerProfiles');
 
 function text(value) { return String(value || '').trim(); }
@@ -44,8 +45,12 @@ const partnerOnboardingRules = [
   }),
   body('country').trim().notEmpty().withMessage('Country is required'),
   body('city').trim().notEmpty().withMessage('Operating city is required'),
-  body('operatingCurrency').trim().custom((value) => {
-    if (!supportedCurrencies().includes(String(value || '').toUpperCase())) throw new Error('Choose a currency enabled in Platform Settings');
+  body('operatingCurrency').custom((value, { req }) => {
+    // Never make partner signup depend on the hidden browser currency field.
+    // Country is the authoritative source and the backend derives the value.
+    const derived = String(currencyForCountry(req.body.country) || '').toUpperCase();
+    if (!derived || !supportedCurrencies().includes(derived)) throw new Error('Choose a country with a supported operating currency');
+    req.body.operatingCurrency = derived;
     return true;
   }),
   requiredForProfile('legalName', 'Registered legal name is required for this partner type'),

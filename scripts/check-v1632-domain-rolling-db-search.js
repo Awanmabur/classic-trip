@@ -19,7 +19,7 @@ function check(label, ok) {
   if (!ok) { console.error(`✗ ${label}`); process.exitCode = 1; }
   else { passed += 1; console.log(`✓ ${label}`); }
 }
-check('release version is 1.6.38', pkg.version === '1.6.38');
+check('release version is 1.6.38', pkg.version === '1.6.40');
 check('Render uses the real HTTPS domain', render.includes('value: https://www.classictrip.org') && !render.includes('value: http://www.classictrip.org'));
 check('public/fallback Classic Trip domain uses .org', !legal.includes('classictrip.com') && legal.includes('classictrip.org'));
 check('IndexNow key is wired in production', /key: INDEXNOW_KEY\s+value: [A-Za-z0-9-]{8,128}/m.test(render) && /INDEXNOW_KEY=[A-Za-z0-9-]{8,128}/.test(envExample));

@@ -12,7 +12,7 @@ const snapshot = read('src/services/dashboard/dashboardSnapshotService.js');
 const admin = read('src/controllers/admin/dashboardController.js');
 const monitorView = read('src/views/dashboards/shared/sections/monitoring.ejs');
 const sw = read('public/sw.js');
-check('release version is 1.6.38', pkg.version === '1.6.38');
+check('release version matches current package', pkg.version === '1.6.40');
 check('login Tip uses structural top gap', login.includes('.loginPanelStack{display:grid;gap:18px}') && login.includes('<div class="loginPanelStack">') && login.includes('.authTipNotice{margin:0!important}'));
 check('Google buttons use local branded G asset', login.includes('/images/google-g.svg') && !login.includes('fa-brands fa-google'));
 check('Google branded asset contains four brand colors', ['#4285F4','#34A853','#FBBC05','#EA4335'].every(c => google.includes(c)));
@@ -24,7 +24,7 @@ check('monitoring admin snapshot is intentionally minimal', snapshot.includes("m
 check('notification dashboard snapshots are lighter', snapshot.includes("notifications: new Set(['notifications'])") && snapshot.includes("notifications: new Set(['users', 'notificationDeliveryAttempts'])"));
 check('admin dashboard and monitoring load concurrently', admin.includes('Promise.all([') && admin.includes('monitoringPromise'));
 check('monitoring identifies slow pages', monitorView.includes('Slowest pages') && monitorView.includes('Average page response'));
-check('service worker cache is v1.6.38', sw.includes('classic-trip-static-v1.6.38'));
+check('service worker cache matches current package', sw.includes(`classic-trip-static-v${pkg.version}`));
 const staleViews = [...fs.readdirSync('src/views', { recursive: true })].filter(Boolean).filter(name => String(name).endsWith('.ejs')).some(name => read(path.join('src/views', name)).includes('v=1.6.36'));
 check('no stale v1.6.36 browser asset keys remain', !staleViews);
-if (!process.exitCode) console.log(`v1.6.38 auth/monitoring/speed checks passed (${passed}/${passed}).`);
+if (!process.exitCode) console.log(`Auth/monitoring/speed checks passed (${passed}/${passed}).`);

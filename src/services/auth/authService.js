@@ -217,11 +217,16 @@ async function findOrCreateSignupCompany(user, payload = {}, ownerId = null) {
 
 async function provisionCompanyAdmin(user, payload = {}) {
   const company = await findOrCreateSignupCompany(user, payload, user.id);
-  const [wallet] = await Promise.all([
-    walletService.getOrCreateWallet('company', company.id, company.operatingCurrency),
-    verificationService.getReview('company', company.id, { includeInventorySummary: false }),
-  ]);
-  Object.assign(company, { ownerId: company.ownerId || user.id, walletId: wallet.id, updatedAt: new Date().toISOString() });
+  // Wallet/review/audit initialization is recoverable. Partner identity and
+  // company ownership are the core registration transaction; settlement can
+  // create the company wallet idempotently later if this secondary write fails.
+  let wallet = null;
+  try {
+    wallet = await walletService.getOrCreateWallet('company', company.id, company.operatingCurrency);
+  } catch (error) {
+    logger.error('Partner wallet initialization deferred', { companyId: company.id, userId: user.id, error: error.message });
+  }
+  Object.assign(company, { ownerId: company.ownerId || user.id, walletId: wallet?.id || company.walletId || '', updatedAt: new Date().toISOString() });
   Object.assign(user, {
     role: 'company_admin',
     companyId: company.id,
@@ -231,8 +236,20 @@ async function provisionCompanyAdmin(user, payload = {}) {
     onboardingStatus: 'company_verification',
     updatedAt: new Date().toISOString(),
   });
-  await Promise.all([identityRepository.companies.save(company, { id: company.id }), identityRepository.users.save(user, { id: user.id })]);
-  await recordAudit('auth.company_admin_registered', user.id, 'company', company.id, 'pending_verification');
+  await Promise.all([
+    identityRepository.companies.save(company, { id: company.id }),
+    identityRepository.users.save(user, { id: user.id }),
+  ]);
+  try {
+    await verificationService.getReview('company', company.id, { includeInventorySummary: false });
+  } catch (error) {
+    logger.error('Partner verification review initialization deferred', { companyId: company.id, userId: user.id, error: error.message });
+  }
+  try {
+    await recordAudit('auth.company_admin_registered', user.id, 'company', company.id, 'pending_verification');
+  } catch (error) {
+    logger.error('Partner registration audit initialization deferred', { companyId: company.id, userId: user.id, error: error.message });
+  }
   return { user, company, wallet };
 }
 
