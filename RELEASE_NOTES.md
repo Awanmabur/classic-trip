@@ -1,3 +1,19 @@
+# v1.6.48 — Rolling worker Mongo outage aggregation
+
+- Classified raw `MongoNetworkTimeoutError` names and the driver message `connection … to …:27017 timed out` as database unavailability in the rolling queue.
+- One socket outage now requeues the current rule and pauses the whole rolling queue with bounded exponential backoff instead of spending attempts and emitting a warning for every rule.
+- Added explicit `web` and `worker` process identity for direct launches and rolling outage logs; `npm start` retains the separate worker architecture.
+- Added exact unit coverage for the reported Atlas timeout and ordinary validation errors, plus an eight-point v1.6.48 release gate.
+- Advanced package, lockfile, semantic assets and Service Worker cache to `1.6.48` while preserving v1.6.47 secret protection and all earlier launch functionality.
+
+# v1.6.47 — Secret-fixture cleanup and deployment configuration guard
+
+- Removed the credential-shaped fake MongoDB URI from the production startup regression and replaced it with a reserved, credential-free `.invalid` endpoint that is never contacted.
+- Removed full `process.env` inheritance from the child validation process; only operating-system variables needed to launch Node are allowlisted, while every application value is synthetic and isolated.
+- Added `check:v1647-secret-regression` to the full release and backend verification chains so committed credential-bearing MongoDB URIs and a future full-environment spread fail the build.
+- Retained strict same-host HTTPS validation for `APP_URL`, Pesapal callback and Pesapal IPN URLs. The Render environment must be corrected rather than weakening payment callback security.
+- Advanced package, lockfile, semantic assets and Service Worker cache to `1.6.47` while preserving the v1.6.46 Mongo outage deadlines and all earlier launch functionality.
+
 # v1.6.46 — Render startup repair and MongoDB outage fail-fast
 
 - Fixed the production-only `ReferenceError: appUrl is not defined` in environment validation by retaining the parsed application URL for Pesapal callback/IPN host checks.

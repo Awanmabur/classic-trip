@@ -125,10 +125,12 @@ function combineDateAndTime(date, timeString, timeZone) {
 function isMongoUnavailable(error = {}) {
   const status = Number(error.status || 0);
   const code = String(error.code || '').toLowerCase();
+  const name = String(error.name || '').toLowerCase();
   const message = String(error.message || error || '');
   return code === 'mongodb_unavailable'
     || status === 503
-    || /mongodb is unavailable|server selection|getaddrinfo|enotfound|connection pool|wait queue/i.test(message);
+    || /mongonetwork|mongoserverselection|mongowaitqueue/i.test(name)
+    || /mongodb is unavailable|server selection|getaddrinfo|enotfound|connection pool|wait queue|connection \d+ to [^ ]+:\d+ timed out|socket timed out/i.test(message);
 }
 
 function isTransientFailure(error = {}) {
@@ -145,6 +147,7 @@ function pauseMongoQueue(error = {}) {
   if (mongoQueuePauseLoggedUntil < mongoQueuePauseUntil) {
     mongoQueuePauseLoggedUntil = mongoQueuePauseUntil;
     logger.warn('Rolling departure queue paused because MongoDB is unavailable', {
+      process: process.env.CLASSIC_TRIP_PROCESS_ROLE || 'app',
       queuedRules: backgroundQueue.size,
       retryAt: new Date(mongoQueuePauseUntil).toISOString(),
       error: String(error.message || error || 'MongoDB unavailable'),
@@ -955,6 +958,7 @@ async function drainBackgroundQueue() {
         }
         job.attempts += 1;
         logger.warn('Rolling departure batch failed and will retry', {
+          process: process.env.CLASSIC_TRIP_PROCESS_ROLE || 'app',
           companyId: job.companyId,
           ruleId: job.ruleId,
           attempts: job.attempts,
@@ -1134,5 +1138,6 @@ module.exports = {
   queueRuleMaterialization,
   queueAllActiveRules,
   startWebFallback,
+  isMongoUnavailable,
   stopWebFallback,
 };

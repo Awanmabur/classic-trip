@@ -1,3 +1,5 @@
+process.env.CLASSIC_TRIP_PROCESS_ROLE = process.env.CLASSIC_TRIP_PROCESS_ROLE || 'web';
+
 const { env, validateEnv } = require('./config/env');
 const { connectDb, mongoose } = require('./config/db');
 const { connectRedis, closeRedis } = require('./config/redis');

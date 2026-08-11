@@ -27,7 +27,7 @@ const authRoutes = read('src/routes/web/auth.js');
 const authController = read('src/controllers/auth/authController.js');
 const redirects = read('src/utils/dashboardRedirect.js');
 
-check('release includes v1.6.41 core repair', pkg.version === '1.6.46');
+check('release includes v1.6.41 core repair', pkg.version === '1.6.48');
 check('rolling rules preserve their original recurring occurrence count', rolling.includes('rollingTargetDepartureCount') && rolling.includes('futureCount < targetDepartureCount') && rolling.includes('extensionDays < 14'));
 check('departure lifecycle immediately requeues its recurring rule', departure.includes("eventType: 'ScheduleRuleMaterializationRequested'") && departure.includes("['departed', 'arrived', 'completed', 'cancelled', 'archived'].includes(next)"));
 check('real vehicle conflicts remain enforced', rolling.includes('vehicle_time_conflict') && departure.includes('Selected vehicle is already assigned to an overlapping departure'));

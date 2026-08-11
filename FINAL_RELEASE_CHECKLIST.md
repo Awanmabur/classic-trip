@@ -326,6 +326,22 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
 
+### v1.6.48 rolling worker Mongo outage aggregation
+
+1. Run `npm run check:v1648-mongo-worker-resilience`, `npm test`, then `npm run release:check`.
+2. Start locally with `npm start`. Confirm separate `process=web` and `process=worker` MongoDB connection logs appear.
+3. During an intentional staging Atlas outage, confirm one `Rolling departure queue paused because MongoDB is unavailable` warning appears with `process=worker`; rules must not each emit repeated batch-failed warnings.
+4. Restore Atlas access and confirm the queue resumes automatically, missing rolling dates continue filling, and Home replaces its reconnect notice with live inventory.
+5. If isolating a Windows network problem, temporarily set `RUN_BACKGROUND_WORKER=false` and `WEB_ROLLING_FALLBACK=false`, restart, and test Home. Restore `RUN_BACKGROUND_WORKER=true` after diagnosis.
+
+### v1.6.47 secret cleanup and Pesapal host alignment
+
+1. Run `npm run check:v1647-secret-regression`, `npm run check:v1646-render-startup-failfast`, then `npm run release:check`.
+2. In Render, set `APP_URL=https://www.classictrip.org`, `SITE_URL=https://www.classictrip.org`, `PESAPAL_CALLBACK_URL=https://www.classictrip.org/booking/payment/callback`, and `PESAPAL_IPN_URL=https://www.classictrip.org/api/webhooks/payments`. All three payment/application hosts must match exactly.
+3. Deploy only after the log shows MongoDB connected and Classic Trip listening. A Pesapal validation error means the new instance never opened a port and Render may continue serving the old slow deployment.
+4. Confirm a cold listing fails within the v1.6.46 deadline during an intentional staging database outage and becomes normal immediately after database access returns.
+5. In GitHub Secret scanning, inspect the historical v1.6.46 alert. The committed value was a synthetic test fixture; close it as a test/false-positive only after this cleanup commit is pushed. Rotate immediately if any real credential was ever substituted into that line.
+
 ### v1.6.46 Render startup and MongoDB outage check
 
 1. Run `npm run check:v1646-render-startup-failfast`, then `npm run release:check`. The production-like Pesapal environment validation must complete without `appUrl` errors.

@@ -5,7 +5,15 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.46
+## Current release — version 1.6.48
+
+- **Atlas outage aggregation:** the exact `MongoNetworkTimeoutError: connection … timed out` reported by the rolling worker is classified as one database outage. The queue pauses globally with bounded backoff instead of retrying and logging every schedule rule independently.
+- **Clear process ownership:** direct and orchestrated launches identify MongoDB and rolling logs as `web` or `worker`, making it clear that `npm start` keeps scheduled departure materialization out of the web request process.
+- **Local diagnosis without architecture rollback:** one-command development still launches web and worker; a documented temporary web-only mode is available for isolating local Atlas network problems.
+
+- **Secret-scanning repair:** the production startup regression contains no credential-bearing MongoDB URI, uses only synthetic test values and inherits only allowlisted operating-system variables.
+- **Release secret guard:** `release:check` now rejects credential-bearing MongoDB URIs or a full parent-environment spread in the startup fixture before deployment.
+- **Strict payment callback protection retained:** `APP_URL`, `PESAPAL_CALLBACK_URL` and `PESAPAL_IPN_URL` must use the same HTTPS host in production; a mismatch stops startup instead of accepting an unsafe callback destination.
 
 - **Render startup crash repaired:** production Pesapal validation now keeps the parsed `APP_URL` in scope, eliminating the `ReferenceError: appUrl is not defined` crash before MongoDB startup.
 - **Public MongoDB outage fail-fast:** cold public listing requests stop waiting through repeated socket timeouts, return a controlled `503` within a bounded deadline, and Home falls back to its reconnect state within 2.5 seconds.
@@ -29,7 +37,9 @@ The existing visual design is preserved across public pages, authentication, par
 Focused launch repair check:
 
 ```bash
+npm run check:v1648-mongo-worker-resilience
 npm run check:v1646-render-startup-failfast
+npm run check:v1647-secret-regression
 npm run check:v1645-launch-functionality
 ```
 
@@ -743,7 +753,7 @@ SMS_FROM=Classic Trip
 SMS_REQUEST_TIMEOUT_MS=8000
 ```
 
-### Launch SEO/operator seed — v1.6.46
+### Launch SEO/operator seed — v1.6.48
 
 Preview without writes:
 
@@ -757,7 +767,7 @@ Apply after the Super Admin exists:
 npm run seed:launch-content
 ```
 
-The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.46 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
+The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.48 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
 
 Pesapal production uses API 3.0 with `https://pay.pesapal.com/v3/api`; IPNs are reconciled using GetTransactionStatus. Keep `PESAPAL_CONSUMER_SECRET` in Render secrets only.
 
