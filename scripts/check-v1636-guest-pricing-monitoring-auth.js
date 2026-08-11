@@ -8,7 +8,7 @@ let passed = 0;
 function check(label, ok) { if (!ok) { console.error(`✖ ${label}`); process.exitCode = 1; } else { passed += 1; console.log(`✓ ${label}`); } }
 const pkg = JSON.parse(read('package.json'));
 const pricing = require('../src/utils/busCustomerPricing');
-check('release includes v1.6.38 work', pkg.version === '1.6.45');
+check('release includes v1.6.38 work', pkg.version === '1.6.46');
 check('UGX service fee tiers are continuous and exact', pricing.serviceFeeForTicket(1000,'UGX')===1000 && pricing.serviceFeeForTicket(30000,'UGX')===1000 && pricing.serviceFeeForTicket(30001,'UGX')===2000 && pricing.serviceFeeForTicket(100000,'UGX')===2000 && pricing.serviceFeeForTicket(100001,'UGX')===3000 && pricing.serviceFeeForTicket(150000,'UGX')===3000 && pricing.serviceFeeForTicket(150001,'UGX')===5000);
 check('full route gets UGX 3000 acquisition discount', pricing.priceBusTicket({partnerFare:50000,isMainRoute:true,currency:'UGX'}).customerFare===47000);
 check('service fee tier follows discounted customer fare', pricing.priceBusTicket({partnerFare:31000,isMainRoute:true,currency:'UGX'}).serviceFee===1000 && pricing.priceBusTicket({partnerFare:151000,isMainRoute:true,currency:'UGX'}).serviceFee===3000);

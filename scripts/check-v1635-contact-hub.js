@@ -3,7 +3,7 @@ const pkg = require('../package.json');
 const css = fs.readFileSync('public/css/completion-fixes.css','utf8');
 const js = fs.readFileSync('public/js/contact-hub.js','utf8');
 let passed=0; function check(name, ok){ if(!ok){ console.error('FAIL',name); process.exitCode=1; } else { passed++; console.log('PASS',name); } }
-check('version includes v1.6.38 contact hub', pkg.version === '1.6.45');
+check('version includes v1.6.38 contact hub', pkg.version === '1.6.46');
 check('launcher is circular', css.includes('.ctContactHubToggle{') && css.includes('border-radius:50%!important'));
 check('launcher text hidden globally', css.includes('.ctContactHubToggle span{display:none!important;}'));
 check('dark action background opaque', css.includes('html[data-theme="dark"] .ctContactHubAction') && css.includes('background:#111827!important'));

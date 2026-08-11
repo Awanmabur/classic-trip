@@ -10,6 +10,7 @@ const { getPlatformConfig, getCachedPlatformConfig } = require('../platform/plat
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
+const { withDeadline } = require('../shared/deadline');
 const redisRuntime = require('../../config/redis');
 const flightSearchService = require('../../modules/flight/services/flightSearchService');
 const { blogPresentation, listingPresentationMedia } = require('../../config/launchMedia');
@@ -42,6 +43,14 @@ const listingSnapshotInflight = new Map();
 const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
 const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
+
+function publicCatalogDeadlineError(resource = 'catalog') {
+  const error = new Error(`Public ${resource} data exceeded its database response deadline`);
+  error.status = 503;
+  error.code = 'public_catalog_temporarily_unavailable';
+  error.publicMessage = 'Live travel information is reconnecting. Please retry in a moment.';
+  return error;
+}
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
@@ -321,7 +330,11 @@ async function snapshotForListing(identifier, serviceType = '', options = {}) {
     listingSnapshotInflight.set(key, inflight);
   }
   try {
-    return await inflight;
+    return await withDeadline(
+      inflight,
+      env.performance.publicCatalogDeadlineMs,
+      () => publicCatalogDeadlineError('listing'),
+    );
   } catch (error) {
     if (cached) return cached.value;
     throw error;
@@ -1073,7 +1086,11 @@ async function homeBootstrap(options = {}) {
     return homeBootstrapCache;
   }
   try {
-    return await refreshHomeBootstrap();
+    return await withDeadline(
+      refreshHomeBootstrap(),
+      env.performance.homeBootstrapDeadlineMs,
+      () => publicCatalogDeadlineError('Home'),
+    );
   } catch (error) {
     if (homeBootstrapCache) return homeBootstrapCache;
     degradedHomeBootstrapCache = degradedHomeBootstrap(error);

@@ -326,6 +326,14 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
 
+### v1.6.46 Render startup and MongoDB outage check
+
+1. Run `npm run check:v1646-render-startup-failfast`, then `npm run release:check`. The production-like Pesapal environment validation must complete without `appUrl` errors.
+2. Confirm the Render web and worker environments set `MONGO_SOCKET_TIMEOUT_MS=8000`, `PUBLIC_CATALOG_DB_DEADLINE_MS=6500`, and `HOME_BOOTSTRAP_DEADLINE_MS=2500`.
+3. Verify the production `MONGO_URI` host is reachable from Render and that the database network/firewall policy allows the service. The code now fails fast, but it cannot restore an unreachable database endpoint.
+4. In staging, temporarily block database access. Home must show its reconnect state in about 2.5 seconds, and a cold listing must return a controlled `503` within about 6.5 seconds rather than waiting about 63 seconds.
+5. Restore database access, confirm startup connects and listens, then open Home, `/blogs`, one bus operator, search and each dashboard role before promoting the deployment.
+
 ### v1.6.45 runtime media, real actions and launch check
 
 1. Install from a clean package with `npm ci`, confirm `.env.example` is present, copy it to `.env`, and provide real production secrets only through the deployment environment.

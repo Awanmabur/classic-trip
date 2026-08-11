@@ -12,7 +12,7 @@ const snapshot = read('src/services/dashboard/dashboardSnapshotService.js');
 const admin = read('src/controllers/admin/dashboardController.js');
 const monitorView = read('src/views/dashboards/shared/sections/monitoring.ejs');
 const sw = read('public/sw.js');
-check('release version matches current package', pkg.version === '1.6.45');
+check('release version matches current package', pkg.version === '1.6.46');
 check('login Tip uses structural top gap', login.includes('.loginPanelStack{display:grid;gap:18px}') && login.includes('<div class="loginPanelStack">') && login.includes('.authTipNotice{margin:0!important}'));
 check('Google buttons use local branded G asset', login.includes('/images/google-g.svg') && !login.includes('fa-brands fa-google'));
 check('Google branded asset contains four brand colors', ['#4285F4','#34A853','#FBBC05','#EA4335'].every(c => google.includes(c)));

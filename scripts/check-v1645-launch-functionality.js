@@ -37,7 +37,7 @@ const checks = [];
 const check = (name, ok) => checks.push([name, Boolean(ok)]);
 const hasAll = (source, values) => values.every((value) => source.includes(value));
 
-check('release and Service Worker cache are v1.6.45', pkg.version === '1.6.45' && read('public/sw.js').includes("classic-trip-static-v1.6.45"));
+check('release and Service Worker cache stay synchronized after v1.6.45', Number(pkg.version.split('.')[2]) >= 45 && read('public/sw.js').includes(`classic-trip-static-v${pkg.version}`));
 check('all seven guide photographs have a meaningful URL and alt', Object.keys(BLOG_MEDIA).length === 7 && Object.values(BLOG_MEDIA).every((media) => /^https:\/\//.test(media.url) && media.alt.length > 20));
 check('all six launch operators have identified coach photographs', Object.keys(OPERATOR_MEDIA).length === 6 && Object.values(OPERATOR_MEDIA).every((media) => /^https:\/\//.test(media.url) && /^https:\/\//.test(media.sourceUrl) && /coach|bus/i.test(media.alt)));
 check('logo detector recognizes Classic Trip launch artwork', isLogoLikeImage('/images/launch-lockup-512.png') && isLogoLikeImage('/images/logo-symbol.svg'));

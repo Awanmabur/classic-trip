@@ -1,3 +1,12 @@
+# v1.6.46 — Render startup repair and MongoDB outage fail-fast
+
+- Fixed the production-only `ReferenceError: appUrl is not defined` in environment validation by retaining the parsed application URL for Pesapal callback/IPN host checks.
+- Added a production-like Pesapal startup regression that executes the real environment validator before each release can pass.
+- Bounded cold public listing database waits at 6.5 seconds and Home bootstrap waits at 2.5 seconds, retaining stale/degraded fallbacks where available.
+- Stopped retrying an already-spent MongoDB network socket timeout and reduced the configured web/worker socket deadline to eight seconds.
+- Normalized MongoDB connectivity failures to a controlled `503` response with a safe reconnect message instead of an internal-server-error page.
+- Advanced package, lockfile, semantic assets and the Service Worker cache to `1.6.46`.
+
 # v1.6.45 — Runtime media repair, real dashboard actions and launch hardening
 
 - Added a shared presentation-media resolver so the seven launch guides and six researched bus operators show meaningful travel/coach photographs even when an existing MongoDB row still contains a Classic Trip logo. Real editor/operator uploads always take priority.

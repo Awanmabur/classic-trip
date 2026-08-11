@@ -31,10 +31,13 @@ function cleanFieldName(value) {
 function normalizeOperationalError(error) {
   if (!error || error.status) return error;
 
-  if (/timed out while checking out a connection from connection pool|wait queue timeout/i.test(String(error.message || ''))) {
+  const errorName = String(error.name || '');
+  const errorMessage = String(error.message || '');
+  if (/MongoNetworkTimeoutError|MongoServerSelectionError|MongoWaitQueueTimeoutError/i.test(errorName)
+      || /timed out while checking out a connection from connection pool|wait queue timeout|connection \d+ to [^ ]+:\d+ timed out|server selection timed out|MongoDB is unavailable/i.test(errorMessage)) {
     error.status = 503;
-    error.code = 'database_busy';
-    error.publicMessage = 'Classic Trip is temporarily busy. Please retry in a moment; your data has not been lost.';
+    error.code = /connection pool|wait queue/i.test(errorMessage) ? 'database_busy' : 'database_temporarily_unavailable';
+    error.publicMessage = 'Classic Trip is reconnecting to its database. Please retry in a moment; your data has not been lost.';
     return error;
   }
 

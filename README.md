@@ -5,7 +5,11 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.45
+## Current release — version 1.6.46
+
+- **Render startup crash repaired:** production Pesapal validation now keeps the parsed `APP_URL` in scope, eliminating the `ReferenceError: appUrl is not defined` crash before MongoDB startup.
+- **Public MongoDB outage fail-fast:** cold public listing requests stop waiting through repeated socket timeouts, return a controlled `503` within a bounded deadline, and Home falls back to its reconnect state within 2.5 seconds.
+- **Shorter resource hold:** a spent `MongoNetworkTimeoutError` is not retried, and the web/worker socket deadline is capped at eight seconds so a database network outage cannot consume a request worker for about a minute.
 
 - **Three-blog Home design restored:** Home shows exactly three travel guides, with a bottom-right **More blogs** link to the complete directory.
 - **Meaningful real imagery at runtime:** seeded blogs no longer use the Classic Trip logo, and all six researched bus-operator listings receive a genuine coach photograph with a recorded source. Existing logo-like MongoDB values are also corrected during public presentation, while real custom uploads are preserved.
@@ -25,6 +29,7 @@ The existing visual design is preserved across public pages, authentication, par
 Focused launch repair check:
 
 ```bash
+npm run check:v1646-render-startup-failfast
 npm run check:v1645-launch-functionality
 ```
 
@@ -738,7 +743,7 @@ SMS_FROM=Classic Trip
 SMS_REQUEST_TIMEOUT_MS=8000
 ```
 
-### Launch SEO/operator seed — v1.6.45
+### Launch SEO/operator seed — v1.6.46
 
 Preview without writes:
 
@@ -752,7 +757,7 @@ Apply after the Super Admin exists:
 npm run seed:launch-content
 ```
 
-The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.45 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
+The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.46 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
 
 Pesapal production uses API 3.0 with `https://pay.pesapal.com/v3/api`; IPNs are reconciled using GetTransactionStatus. Keep `PESAPAL_CONSUMER_SECRET` in Render secrets only.
 

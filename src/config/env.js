@@ -58,7 +58,7 @@ const env = {
     // minute-long freezes even though cached data was available.
     serverSelectionTimeoutMs: Math.max(2500, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000)),
     connectTimeoutMs: Math.max(3000, number('MONGO_CONNECT_TIMEOUT_MS', 5000)),
-    socketTimeoutMs: Math.max(8000, number('MONGO_SOCKET_TIMEOUT_MS', 15000)),
+    socketTimeoutMs: Math.max(3000, Math.min(8000, number('MONGO_SOCKET_TIMEOUT_MS', 8000))),
     queryMaxTimeMs: Math.max(1000, number('MONGO_QUERY_MAX_TIME_MS', 5000)),
     retryAttempts: Math.max(1, Math.min(8, number('MONGO_CONNECT_RETRY_ATTEMPTS', 5))),
     retryDelayMs: Math.max(250, number('MONGO_CONNECT_RETRY_DELAY_MS', 750)),
@@ -216,6 +216,11 @@ const env = {
     mongoReadQueueTimeoutMs: Math.max(250, number('MONGO_READ_QUEUE_TIMEOUT_MS', 1200)),
     listingCacheTtlMs: Math.max(30000, number('LISTING_SNAPSHOT_TTL_MS', 300000)),
     listingCacheStaleMs: Math.max(120000, number('LISTING_SNAPSHOT_STALE_MS', 1800000)),
+    // MongoDB maxTimeMS does not cover a dead network socket. These outer
+    // response deadlines let public pages use stale/degraded data or return a
+    // controlled 503 instead of waiting through multiple driver timeouts.
+    publicCatalogDeadlineMs: Math.max(1500, Math.min(15000, number('PUBLIC_CATALOG_DB_DEADLINE_MS', 6500))),
+    homeBootstrapDeadlineMs: Math.max(750, Math.min(10000, number('HOME_BOOTSTRAP_DEADLINE_MS', 2500))),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
@@ -260,8 +265,8 @@ function validateEnv() {
   if (env.isProduction && missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
+  let appUrl = null;
   if (env.isProduction) {
-    let appUrl;
     try { appUrl = new URL(env.appUrl); } catch (error) { throw new Error('APP_URL must be a valid absolute URL'); }
     if (appUrl.protocol !== 'https:') throw new Error('APP_URL must use HTTPS in production');
     let siteUrl;

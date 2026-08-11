@@ -19,6 +19,11 @@ function requireMongo(entity = 'repository') {
 function retryableReadError(error) {
   const name = String(error?.name || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
+  // A socket timeout has already consumed the full driver deadline. Retrying it
+  // immediately doubles an outage into a minute-long page request without
+  // improving availability. Keep the single retry for short pool/topology
+  // interruptions, but fail socket timeouts fast so the public fallback can run.
+  if (name.includes('mongonetworktimeout') || /connection \d+ to [^ ]+:\d+ timed out/.test(message)) return false;
   return name.includes('mongowaitqueuetimeout')
     || name.includes('mongonetwork')
     || message.includes('timed out while checking out a connection')
