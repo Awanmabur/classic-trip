@@ -5,8 +5,14 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.43
+## Current release — version 1.6.45
 
+- **Three-blog Home design restored:** Home shows exactly three travel guides, with a bottom-right **More blogs** link to the complete directory.
+- **Meaningful real imagery at runtime:** seeded blogs no longer use the Classic Trip logo, and all six researched bus-operator listings receive a genuine coach photograph with a recorded source. Existing logo-like MongoDB values are also corrected during public presentation, while real custom uploads are preserved.
+- **Real Quick Actions:** dashboard overview shortcuts first navigate to the correct role-scoped destination page, load that page's scoped data, and invoke its normal validated action/form. Actions unavailable to an employee/driver are not rendered.
+- **Departures prepared safely:** the launch seed adds one editable research Draft departure per operator. The records remain non-bookable until the operator confirms the timetable and provides compliant vehicle, seat-map and approved fare inventory.
+- **Timezone-safe rolling departures:** recurring materialization uses the schedule rule's IANA timezone rather than the server host timezone, preventing date shifts between web/worker hosts.
+- **Startup and worker resilience:** Home remains usable with an honest reconnect notice during initial MongoDB unavailability; cron jobs do not overlap and missed resume-time executions are aggregated into one bounded warning.
 - **Rolling inventory repair:** recurring rules now maintain their intended future occurrence count instead of allowing the visible departure inventory to shrink as earlier departures leave the window. Departed/arrived/completed/cancelled/archived rule-generated schedules also queue an immediate replacement request; the worker cron remains the safety fallback.
 - **Real conflicts remain protected:** a recurring rule that would double-book a vehicle is still blocked and shown as `action needed`; valid non-conflicting rules continue replenishing automatically.
 - **Super Admin listing review restored:** Listings now have working Approve/Reject actions backed by the service-specific publish/readiness workflow. The frontend action renderer no longer crashes from using the listing ID before declaration, and review mutations invalidate the correct dashboard caches.
@@ -16,10 +22,10 @@ The existing visual design is preserved across public pages, authentication, par
 - **Promoter commission:** eligible referred UGX bookings use a fixed **UGX 2,000** promoter reward funded from Classic Trip's commission; partner payout is not reduced a second time.
 - **Production cleanup:** Uganda-specific pricing/reward currency policy is centralized in Platform Settings, while old one-off release reports are removed from the shipped runtime documentation.
 
-Focused repair check:
+Focused launch repair check:
 
 ```bash
-npm run check:v1641-core-repair
+npm run check:v1645-launch-functionality
 ```
 
 Before deployment, run a clean `npm ci`, `npm run release:check`, `npm run db:indexes`, and then test one valid non-conflicting rolling rule plus one real listing approval from Super Admin.
@@ -82,9 +88,9 @@ Production refuses transaction-sensitive flows when MongoDB transaction support 
 ## Initial setup
 
 ```bash
-cp .env.example .env
 npm ci
-npm run seed:superadmin
+cp .env.example .env
+npm run seed:launch-all
 npm run verify
 npm start
 ```
@@ -732,7 +738,7 @@ SMS_FROM=Classic Trip
 SMS_REQUEST_TIMEOUT_MS=8000
 ```
 
-### Launch SEO/operator seed — v1.6.43
+### Launch SEO/operator seed — v1.6.45
 
 Preview without writes:
 
@@ -746,13 +752,13 @@ Apply after the Super Admin exists:
 npm run seed:launch-content
 ```
 
-The seed is insert-only. It creates seven Super-Admin-owned blog posts and researched Draft/Pending records for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
+The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.45 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
 
 Pesapal production uses API 3.0 with `https://pay.pesapal.com/v3/api`; IPNs are reconciled using GetTransactionStatus. Keep `PESAPAL_CONSUMER_SECRET` in Render secrets only.
 
 ## v1.6.43 — seven blogs and seeded Partner Admin accounts
 
-The Home page now renders up to seven published travel guides and `/blogs` provides the complete public card/bar directory. Individual `/blogs/:slug` pages load the shared public head/styles and include a structured article layout plus related guides.
+The complete `/blogs` public card/bar directory and individual `/blogs/:slug` article pages remain available. In v1.6.44, Home was intentionally returned to its original three-blog preview design.
 
 If v1.6.42 launch content already exists in MongoDB, run the v1.6.43 launch seed again. It is designed to keep existing edited values, fill only blank/seed-placeholder profile fields, create the missing seeded Partner Admin accounts, and leave compliance-sensitive approval fields pending.
 

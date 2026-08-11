@@ -2,8 +2,8 @@
 const fs=require('fs');const path=require('path');const root=path.resolve(__dirname,'..');const read=(f)=>fs.readFileSync(path.join(root,f),'utf8');const pkg=require('../package.json');
 const seed=read('scripts/seed-launch-seo-operators.js');const catalog=read('src/services/marketplace/catalogService.js');const blogs=read('src/views/pages/blogs.ejs');const post=read('src/views/pages/blog-post.ejs');const home=read('src/views/pages/home.ejs');const css=read('public/css/pages/home.css');
 const checks=[];const check=(n,o)=>checks.push([n,!!o]);
-check('release is v1.6.43',pkg.version==='1.6.43');
-check('home bootstrap exposes seven blogs',catalog.includes("slice(0, 7)")&&catalog.includes('imageAlt: row.imageAlt'));
+check('release includes the v1.6.43 blog/account work',/^1\.6\.(?:4[3-9]|[5-9]\d|\d{3,})$/.test(pkg.version));
+check('home bootstrap exposes seven blogs',catalog.includes("slice(0, 7)")&&catalog.includes('imageAlt: presented.imageAlt'));
 check('home uses dedicated responsive blog collection',home.includes('class="blogHomeGrid" id="blogCards"')&&css.includes('.blogHomeGrid'));
 check('blog directory has styled cards/bars',blogs.includes('blogDirectoryGrid')&&blogs.includes('blogDirectoryCard')&&css.includes('.blogDirectoryCard--featured'));
 check('blog preview loads shared site head and full article styling',post.startsWith("<%- include('../partials/site-head'")&&post.includes('blogPostLayout')&&css.includes('.blogPostContent'));

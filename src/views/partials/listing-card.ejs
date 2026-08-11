@@ -34,7 +34,7 @@
 <article class="listing marketplaceListingCard <%= isBusListing ? 'referenceBusCard' : '' %>" data-id="<%= listing.listingId || listing.id || listingIdentifier %>" data-catalog-key="<%= listing.catalogKey || listing.id || listingIdentifier %>" data-group="<%= listing.group || listingType %>" data-service-type="<%= listingType %>" data-stay-type="<%= listing.stayType || '' %>" data-corridor="<%= listing.corridor || 'regional' %>">
   <a class="listingThumbLink" href="<%= listingHref %>" aria-label="View <%= listing.title || 'service' %>">
     <div class="thumb">
-      <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.title || 'Service image' %>" loading="lazy" decoding="async" width="640" height="420"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
+      <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.imageAlt || listing.title || 'Service image' %>" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="640" height="420"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
       <div class="thumbBadges"><span class="badge badgeInfo thumbBadge thumbBadge--type"><i class="fa-solid <%= listingIcon %>"></i> <%= listingTypeLabel %></span><span class="badge badgeOk thumbBadge thumbBadge--rating"><i class="fa-solid fa-star"></i> <%= listingRatingLabel %></span></div>
     </div>
   </a>

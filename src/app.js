@@ -67,7 +67,25 @@ const cspDirectives = {
   scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
-  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
+  imgSrc: [
+    "'self'",
+    'data:',
+    'https://res.cloudinary.com',
+    'https://*.cloudinary.com',
+    'https://cdn.jsdelivr.net',
+    'https://tile.openstreetmap.org',
+    'https://*.tile.openstreetmap.org',
+    // Launch content uses genuine operator/route photography instead of the
+    // Classic Trip logo. Keep this list explicit rather than opening img-src
+    // to every HTTPS host.
+    'https://bebetocoachservices.com',
+    'https://zawadigroups.com',
+    'https://trinityexpress.rw',
+    'https://pbs.twimg.com',
+    'https://cdn.bookaway.com',
+    'https://booking.ttta.co.ug',
+    ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : []),
+  ],
   connectSrc: ["'self'"],
   frameSrc: ["'none'"],
   objectSrc: ["'none'"],

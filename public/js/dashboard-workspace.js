@@ -3980,6 +3980,20 @@
     syncSmartBusForm(els.crudModal.querySelector('#crudForm'));
   }
 
+  function openRequestedPageAction() {
+    const url = new URL(window.location.href);
+    const mode = String(url.searchParams.get('action') || '').trim().toLowerCase();
+    const type = String(url.searchParams.get('type') || '').trim().toLowerCase();
+    if (!['create', 'edit', 'view'].includes(mode) || !type || type.length > 80 || !/^[a-z0-9 _-]+$/.test(type)) return;
+    // Quick Actions first load the same page and scoped option data used by
+    // the page's real action button, then invoke the shared CRUD form. This
+    // prevents overview shortcuts from opening incomplete generic forms.
+    openCrud(mode, type, '', {});
+    url.searchParams.delete('action');
+    url.searchParams.delete('type');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+
   function bindEvents() {
     document.addEventListener('change', function (e) {
       const foldInput = e.target.closest('[data-fold-select] input[type="checkbox"]');
@@ -4668,6 +4682,7 @@
     const crudBody = document.getElementById('crudBody');
     if (crudBody) new MutationObserver(() => enhanceFormLabels(crudBody)).observe(crudBody, { childList: true, subtree: true });
     bindEvents();
+    openRequestedPageAction();
     window.addEventListener('popstate', function () {
       const fromPath = String(window.location.pathname || '').split('/').filter(Boolean).pop();
       const page = String(window.location.hash || '').replace('#', '') || (fromPath === 'dashboard' ? 'overview' : fromPath) || 'overview';

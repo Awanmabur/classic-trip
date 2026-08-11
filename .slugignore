@@ -11,6 +11,7 @@ public/uploads/
 *.log
 .env
 .env.*
+!.env.example
 
 # Local one-time seeded credentials; never deploy or commit
 seed-output/

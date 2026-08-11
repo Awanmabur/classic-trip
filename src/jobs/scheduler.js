@@ -77,6 +77,22 @@ const scheduledTasks = new Map();
 const lastRuns = new Map();
 const runningJobs = new Map();
 const pendingLaunchTimers = new Set();
+let missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
+let missedExecutionFlushTimer = null;
+
+function recordMissedExecution(name, context = {}) {
+  missedExecutionSummary.total += 1;
+  missedExecutionSummary.byJob[name] = Number(missedExecutionSummary.byJob[name] || 0) + 1;
+  missedExecutionSummary.lastScheduledAt = context.date?.toISOString?.() || context.date || missedExecutionSummary.lastScheduledAt;
+  if (missedExecutionFlushTimer) return;
+  missedExecutionFlushTimer = setTimeout(() => {
+    const summary = missedExecutionSummary;
+    missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
+    missedExecutionFlushTimer = null;
+    logger.warn('Scheduled executions were skipped while the worker process was paused or blocked', summary);
+  }, 750);
+  missedExecutionFlushTimer.unref?.();
+}
 
 function jobTimeoutMs(definition = {}) {
   return Math.max(5000, Math.min(Number(env.jobs.maxRunMs || 45000), Math.max(5000, Number(definition.leaseTtlMs || 60000) - 1000)));
@@ -190,9 +206,14 @@ function startScheduledJobs({ force = false, active = true } = {}) {
       timer.unref?.();
       pendingLaunchTimers.add(timer);
     };
+    const taskOptions = { noOverlap: true };
     const task = active
-      ? cron.schedule(expression, launch)
-      : cron.createTask(expression, launch);
+      ? cron.schedule(expression, launch, taskOptions)
+      : cron.createTask(expression, launch, taskOptions);
+    // node-cron logs once for every missed minute when a development laptop or
+    // container resumes. Registering this listener suppresses that flood and
+    // emits one bounded Classic Trip summary instead.
+    task.on?.('execution:missed', (context) => recordMissedExecution(name, context));
     scheduledTasks.set(name, { expression, task, active });
     logger.debug('Scheduled job registered', { name, expression, active });
   });
@@ -208,6 +229,9 @@ function stopScheduledJobs() {
   scheduledTasks.clear();
   pendingLaunchTimers.forEach((timer) => clearTimeout(timer));
   pendingLaunchTimers.clear();
+  if (missedExecutionFlushTimer) clearTimeout(missedExecutionFlushTimer);
+  missedExecutionFlushTimer = null;
+  missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
 }
 
 function jobStatus() {

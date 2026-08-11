@@ -1,3 +1,21 @@
+# v1.6.45 — Runtime media repair, real dashboard actions and launch hardening
+
+- Added a shared presentation-media resolver so the seven launch guides and six researched bus operators show meaningful travel/coach photographs even when an existing MongoDB row still contains a Classic Trip logo. Real editor/operator uploads always take priority.
+- Kept the approved three-blog Home layout and bottom-right **More blogs** link; the full published directory remains at `/blogs`.
+- Changed overview Quick Actions into real role-scoped page links. Their destination page loads its normal data and opens the same validated CRUD action used by that page, instead of launching an incomplete overview-only modal.
+- Added a safe Home reconnect state during initial MongoDB unavailability, aggregated missed scheduler executions, and enabled cron non-overlap to prevent laptop/container resume log floods.
+- Made rolling departure materialization use each rule's IANA timezone rather than the web/worker host timezone, while retaining Draft/readiness protection and the rolling 30-occurrence repair behavior.
+- Restored `.env.example` to deployment/source packages and added a 33-point v1.6.45 launch functionality gate covering public media, Home, Quick Actions, role boundaries, CSRF, rate limits, scheduler resilience, departures and packaging.
+- Advanced package, lockfile, semantic assets and the Service Worker cache to `1.6.45`.
+
+# v1.6.44 — Three-blog Home preview, real coach media and departure drafts
+
+- Restored the intended three-card blog preview on Home and added a bottom-right **More blogs** button linking to the complete `/blogs` directory.
+- Replaced seeded Classic Trip logo placeholders with seven meaningful travel/coach photographs; rerunning the seed upgrades only blank or legacy-logo blog images and preserves custom editorial uploads.
+- Added genuine coach photographs for all six researched launch operators, with explicit photo sources and a narrow image-host CSP allowlist.
+- Added one editable research **Draft** departure per seeded operator from identified public timetable references. These records are visible for Partner Admin review but cannot be published or booked until the operator confirms the timetable and adds compliant vehicle, seat-map and fare inventory.
+- Advanced package, lockfile, semantic asset versions and Service Worker cache to `1.6.44`.
+
 # v1.6.43 — Blog presentation + seeded Partner Admin accounts
 
 - Home now exposes all seven seeded SEO/travel posts instead of truncating the feed at four.

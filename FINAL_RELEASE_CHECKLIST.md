@@ -326,6 +326,28 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
 
+### v1.6.45 runtime media, real actions and launch check
+
+1. Install from a clean package with `npm ci`, confirm `.env.example` is present, copy it to `.env`, and provide real production secrets only through the deployment environment.
+2. Run `npm run check:v1645-launch-functionality`, then `npm run release:check`. Do not launch if syntax/EJS, any historical regression, the 104 unit contracts, role/security checks, or the production dependency audit fails.
+3. Against the intended MongoDB database, run `npm run seed:launch-content:dry`, review the target/counts, then run `npm run seed:launch-content`. This is required on an existing database to repair old logo-like seeded media and add missing research Draft departures.
+4. Open Home in a clean/incognito browser. Confirm exactly three meaningful blog photographs appear and **More blogs** opens `/blogs`; confirm all published cards and article pages use meaningful travel images rather than the Classic Trip logo.
+5. Inspect each of the six launch bus operators. Confirm its public listing shows the identified coach photograph, while a genuine operator-uploaded custom bus image remains unchanged.
+6. Test Quick Actions role by role: Super Admin, Company Admin (bus/stay/other services), Employee, Driver, Customer, Promoter, Support, Finance, Operations and Content. Every shortcut must load its real scoped destination URL and use that page's normal action; unavailable employee/driver actions must remain hidden.
+7. Confirm tenant isolation with two different partner companies and least-privilege employees. A changed URL/ID must not expose or mutate another company's listing, route, vehicle, schedule, manifest, booking, staff or payout.
+8. Confirm each research departure remains Draft/non-bookable. Reconcile timetable, vehicle, seat map, fare inventory and compliance with the operator before publishing. Verify a confirmed rolling rule creates dates in its configured IANA timezone on both web and worker hosts.
+9. Temporarily stop/restart database access in staging: Home should show its reconnect notice instead of a blank/503 marketing page; protected writes must still fail closed. Resume the worker and confirm missed cron executions produce one bounded summary rather than hundreds of warnings.
+10. Complete staging smoke journeys for signup/login/MFA, public search, booking/seat or room hold, provider payment callback+webhook retry, ticket/voucher, cancellation/refund, notifications, check-in/manifest, partner CRUD, promoter attribution/withdrawal, admin approvals and reports. Use provider sandbox credentials and restore test data afterwards.
+
+### v1.6.44 Home blog, coach-media and departure-draft check
+
+1. Run `npm run check:v1644-home-media-departures`.
+2. Confirm Home shows exactly three blog cards and the bottom-right **More blogs** button opens `/blogs`, where every published article remains available.
+3. Rerun `npm run seed:launch-content`; verify legacy logo placeholders are replaced while a manually uploaded custom blog/listing image is preserved.
+4. Confirm each of the six seeded operator listings has a real coach photograph rather than the Classic Trip logo.
+5. Confirm each seeded Partner Admin can see one research Draft departure for review. It must remain Draft/non-bookable and state that operator confirmation, compliant vehicle, seat map and fare inventory are required.
+6. Do not publish a research Draft from its public-reference data alone. Reconcile it with the operator's signed/current timetable and operational records first.
+
 ### v1.6.43 launch content and Pesapal check
 
 1. Run `npm run seed:superadmin`, then `npm run seed:launch-content:dry`, review the counts, and run `npm run seed:launch-content`.
@@ -341,5 +363,5 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 - Run `npm run seed:launch-content` against the intended Atlas database.
 - Save `seed-output/partner-credentials.json` somewhere private, then remove it from the project after changing the temporary passwords.
 - Confirm all six Partner Admin accounts can log in and reach their own pending company profile without access to another company.
-- Confirm Home displays all seven published seeded posts, `/blogs` displays the full card/bar directory, and each article opens with full styling.
+- Confirm Home displays exactly three published seeded posts, the **More blogs** button opens `/blogs`, the directory displays all published posts, and each article opens with full styling.
 - Review researched contacts/terminals against the operator information you already received. Do not approve legal/compliance/vehicle details until the actual operator documents are entered.

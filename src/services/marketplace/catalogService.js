@@ -6,12 +6,13 @@ const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPu
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const { formatRouteLabel } = require('../../utils/routeLabel');
 const { priceBusTicket } = require('../../utils/busCustomerPricing');
-const { getPlatformConfig } = require('../platform/platformConfigService');
+const { getPlatformConfig, getCachedPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
 const redisRuntime = require('../../config/redis');
 const flightSearchService = require('../../modules/flight/services/flightSearchService');
+const { blogPresentation, listingPresentationMedia } = require('../../config/launchMedia');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
@@ -34,6 +35,8 @@ let snapshotInflight = null;
 let homeBootstrapCache = null;
 let homeBootstrapCachedAt = 0;
 let homeBootstrapInflight = null;
+let degradedHomeBootstrapCache = null;
+let degradedHomeBootstrapRetryAt = 0;
 const listingSnapshotCache = new Map();
 const listingSnapshotInflight = new Map();
 const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
@@ -361,6 +364,8 @@ function invalidateMarketplaceCache() {
   snapshotCachedAt = 0;
   homeBootstrapCache = null;
   homeBootstrapCachedAt = 0;
+  degradedHomeBootstrapCache = null;
+  degradedHomeBootstrapRetryAt = 0;
   listingSnapshotCache.clear();
 }
 
@@ -558,6 +563,14 @@ function catalogItem(data, listing, preferredRoute = null) {
   const bookableReason = bookable
     ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : serviceType === 'tour' ? 'Tour capacity available' : serviceType === 'car_rental' ? 'Vehicle available' : serviceType === 'cargo' ? 'Cargo booking available' : 'Live inventory available')
     : serviceType === 'bus' && !nextSchedule ? 'No upcoming departure' : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
+  // Existing production rows can contain a non-empty company/platform logo in
+  // the listing image field. For the six researched launch operators, project
+  // the identified coach photograph whenever the current value is missing or
+  // logo-like. Real photos uploaded later by an operator always win.
+  const presentationMedia = serviceType === 'bus' ? listingPresentationMedia(listing, company || {}) : null;
+  const projectedMedia = presentationMedia?.media?.length
+    ? presentationMedia.media
+    : (Array.isArray(listing.media) ? listing.media : []);
   const enriched = {
     id: stableId,
     slug: listing.slug || stableId,
@@ -590,13 +603,13 @@ function catalogItem(data, listing, preferredRoute = null) {
     branchName: listing.branchName || '',
     address: listing.address || '',
     location: listing.location || listing.address || '',
-    media: Array.isArray(listing.media) ? listing.media.map((item) => ({
+    media: projectedMedia.map((item) => ({
       url: item.url || item.secureUrl || '',
       secureUrl: item.secureUrl || item.url || '',
       alt: item.alt || item.label || listing.title || '',
       label: item.label || item.alt || '',
       resourceType: item.resourceType || 'image',
-    })) : [],
+    })),
     serviceType,
     type: listing.type || serviceType,
     internalGroup: listing.group || '',
@@ -634,7 +647,8 @@ function catalogItem(data, listing, preferredRoute = null) {
     ratingAverage: number(listing.ratingAverage || listing.rating),
     rating: String(listing.ratingAverage || listing.rating || ''),
     reviewCount: number(listing.reviewCount || listing.reviewsCount),
-    img: listing.img || listing.image || listing.coverImage || listing.media?.[0]?.url || '',
+    img: presentationMedia?.image || listing.img || listing.image || listing.coverImage || listing.media?.[0]?.url || '',
+    imageAlt: presentationMedia?.imageAlt || listing.imageAlt || listing.title || '',
     bookable,
     bookableReason,
     instantConfirmation: listing.instantConfirmation !== false && bookable,
@@ -989,13 +1003,47 @@ function buildHomeBootstrap(data, airports = []) {
     companies: data.companies.map((row) => publicCompany(data, row)).filter((row) => row.verificationStatus === 'verified' && row.activeListingsCount > 0),
     routes: data.routes.filter((row) => active(row) && listings.some((listing) => sameId(listing.id, row.listingId))).map((row) => publicRoute(data, row)),
     campaigns,
-    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 7).map((row) => ({ id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: row.image || row.coverImage || '', imageAlt: row.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` })),
+    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 7).map((row) => {
+      const presented = blogPresentation(row);
+      return { id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: presented.image || '', imageAlt: presented.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` };
+    }),
     serviceStats: data.categories.map((category) => { const rows = listings.filter((item) => item.serviceType === category.key); return { ...category, count: rows.length, available: rows.reduce((sum, row) => sum + row.remainingInventory, 0) }; }),
     corridorStats: routeHighlights(listings),
     marketplace,
     heroStats: { liveRoutes: marketplace.routeHighlights.length, verifiedPartners: marketplace.stats.partners, bookableInventory: listings.filter((row) => row.bookable).length, totalServices: marketplace.stats.liveListings, availableNow: marketplace.stats.availableNow, departuresNext24h: marketplace.stats.departuresNext24h },
     searchOptions: searchOptions(data, listings, airports),
   };
+}
+
+function degradedHomeBootstrap(error) {
+  const categories = TYPE_ORDER.map((key, index) => ({
+    ...SERVICE_REGISTRY[key],
+    order: index + 1,
+  }));
+  const value = buildHomeBootstrap({
+    categories,
+    listings: [],
+    companies: [],
+    routes: [],
+    routeStops: [],
+    fareProducts: [],
+    segmentFares: [],
+    serviceAddons: [],
+    schedules: [],
+    seats: [],
+    vehicles: [],
+    roomTypes: [],
+    roomUnits: [],
+    roomNights: [],
+    links: [],
+    campaigns: [],
+    blogs: [],
+    platformConfig: getCachedPlatformConfig(),
+  }, []);
+  value.degraded = true;
+  value.degradedReason = error?.code || 'catalog_temporarily_unavailable';
+  value.degradedMessage = 'Live marketplace inventory is reconnecting. You can still explore every Classic Trip service and try the live search again shortly.';
+  return value;
 }
 
 async function refreshHomeBootstrap() {
@@ -1008,6 +1056,8 @@ async function refreshHomeBootstrap() {
     .then((value) => {
       homeBootstrapCache = value;
       homeBootstrapCachedAt = Date.now();
+      degradedHomeBootstrapCache = null;
+      degradedHomeBootstrapRetryAt = 0;
       return value;
     })
     .finally(() => { homeBootstrapInflight = null; });
@@ -1015,6 +1065,7 @@ async function refreshHomeBootstrap() {
 }
 
 async function homeBootstrap(options = {}) {
+  if (!options.force && !homeBootstrapCache && degradedHomeBootstrapCache && Date.now() < degradedHomeBootstrapRetryAt) return degradedHomeBootstrapCache;
   const age = homeBootstrapCache ? Date.now() - homeBootstrapCachedAt : Infinity;
   if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheTtlMs) return homeBootstrapCache;
   if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheStaleMs) {
@@ -1025,7 +1076,9 @@ async function homeBootstrap(options = {}) {
     return await refreshHomeBootstrap();
   } catch (error) {
     if (homeBootstrapCache) return homeBootstrapCache;
-    throw error;
+    degradedHomeBootstrapCache = degradedHomeBootstrap(error);
+    degradedHomeBootstrapRetryAt = Date.now() + 5000;
+    return degradedHomeBootstrapCache;
   }
 }
 

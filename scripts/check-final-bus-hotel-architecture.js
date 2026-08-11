@@ -38,7 +38,7 @@ check('Shared auth template renders customer/promoter signup panel', /id="signup
 check('Shared auth template renders one embedded partner panel', /id="partnerPanel"/.test(login) && /data-open-panel="partner"/.test(login) && !/partnerOnly/.test(login));
 check('Unified auth has one partner panel instance', (login.match(/id="partnerPanel"/g) || []).length === 1);
 check('Partner entry stays on the unified authentication page', /href="#partner"[^>]*data-open-panel="partner"/.test(login) && !/href="\/partner\/onboarding/.test(login));
-check('Legacy partner GET redirects to the unified partner panel', publicRoutes.includes("router.get('/partner/onboarding', (req, res) => res.redirect(303, '/register?role=partner#partner'))") && !/partnerOnly/.test(partnerController));
+check('Legacy partner GET redirects to the unified partner panel', publicRoutes.includes("router.get('/partner/onboarding', (req, res) => res.redirect(303, '/login?role=partner#partner'))") && !/partnerOnly/.test(partnerController));
 check('Partner POST remains one canonical onboarding endpoint', publicRoutes.includes("router.post('/partner/onboarding'"));
 
 // Canonical hotel domain records.

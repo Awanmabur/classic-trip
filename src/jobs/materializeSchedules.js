@@ -68,15 +68,58 @@ function invalidateRollingDashboardCaches(companyId) {
 
 function startOfDay(value) {
   const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  if (Number.isNaN(date.getTime())) return date;
+  const literal = typeof value === 'string' ? String(value).match(/^(\d{4})-(\d{2})-(\d{2})/) : null;
+  if (literal) return new Date(Date.UTC(Number(literal[1]), Number(literal[2]) - 1, Number(literal[3])));
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 }
 
-function combineDateAndTime(date, timeString) {
+function safeTimeZone(value) {
+  const requested = String(value || '').trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Kampala';
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: requested }).format(new Date());
+    return requested;
+  } catch (_) {
+    return 'Africa/Kampala';
+  }
+}
+
+function zonedParts(value, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: safeTimeZone(timeZone),
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(value));
+  return Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, Number(part.value)]));
+}
+
+function calendarDateKey(value, timeZone) {
+  const parts = zonedParts(value, timeZone);
+  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+function calendarDate(value) {
+  const key = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? value.slice(0, 10)
+    : new Date(value).toISOString().slice(0, 10);
+  return new Date(`${key}T00:00:00.000Z`);
+}
+
+function combineDateAndTime(date, timeString, timeZone) {
   const [hours, minutes] = String(timeString || '00:00').split(':').map(Number);
-  const combined = new Date(date);
-  combined.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
-  return combined;
+  const [year, month, day] = calendarDate(date).toISOString().slice(0, 10).split('-').map(Number);
+  const requestedUtc = Date.UTC(year, month - 1, day, Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  const zone = safeTimeZone(timeZone);
+  let candidate = requestedUtc;
+  // Derive the IANA offset at the requested wall-clock time. A second pass
+  // handles offset boundaries without binding recurrence dates to server TZ.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const parts = zonedParts(candidate, zone);
+    const representedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0);
+    candidate += requestedUtc - representedUtc;
+  }
+  return new Date(candidate);
 }
 
 function isMongoUnavailable(error = {}) {
@@ -260,11 +303,13 @@ async function clearExpiredOrResolvedBlocker(rule) {
 
 function matchingFutureDates(rule, cursor, windowEnd, now) {
   const dates = [];
-  let day = new Date(cursor);
-  while (day <= windowEnd) {
-    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getDay());
+  let day = calendarDate(cursor);
+  const end = calendarDate(windowEnd);
+  const timeZone = safeTimeZone(rule.timezone);
+  while (day <= end) {
+    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getUTCDay());
     if (matchesWeekday) {
-      const departAt = combineDateAndTime(day, rule.departureTime);
+      const departAt = combineDateAndTime(day, rule.departureTime, timeZone);
       if (departAt.getTime() > now.getTime()) dates.push(departAt);
     }
     day = new Date(day.getTime() + DAY_MS);
@@ -287,7 +332,7 @@ function rollingTargetDepartureCount(rule = {}) {
   let count = 0;
   let day = new Date(ruleStart);
   while (day <= cappedEnd) {
-    if (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getDay())) count += 1;
+    if (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getUTCDay())) count += 1;
     day = new Date(day.getTime() + DAY_MS);
   }
   return Math.max(0, Math.min(ROLLING_WINDOW_DAYS, count));
@@ -296,15 +341,16 @@ function rollingTargetDepartureCount(rule = {}) {
 function rollingWindowBounds(rule, horizonEnd, now) {
   const ruleStart = startOfDay(rule.startDate);
   const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
-  const today = startOfDay(now);
+  const timeZone = safeTimeZone(rule.timezone);
+  const today = calendarDate(calendarDateKey(now, timeZone));
   let cursor = ruleStart > today ? new Date(ruleStart) : today;
   let effectiveHorizonEnd = startOfDay(horizonEnd);
   let replacedDepartedDate = false;
   const todayMatchesRule = ruleStart <= today
     && (!ruleEnd || ruleEnd >= today)
-    && (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(today.getDay()));
+    && (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(today.getUTCDay()));
   if (cursor.getTime() === today.getTime() && todayMatchesRule) {
-    const todayDeparture = combineDateAndTime(today, rule.departureTime);
+    const todayDeparture = combineDateAndTime(today, rule.departureTime, timeZone);
     if (todayDeparture.getTime() <= now.getTime()) {
       cursor = new Date(today.getTime() + DAY_MS);
       effectiveHorizonEnd = new Date(effectiveHorizonEnd.getTime() + DAY_MS);
@@ -324,8 +370,8 @@ function rollingWindowBounds(rule, horizonEnd, now) {
     const nextEnd = new Date(windowEnd.getTime() + DAY_MS);
     windowEnd = ruleEnd && ruleEnd < nextEnd ? ruleEnd : nextEnd;
     extensionDays += 1;
-    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(windowEnd.getDay());
-    if (matchesWeekday && combineDateAndTime(windowEnd, rule.departureTime).getTime() > now.getTime()) futureCount += 1;
+    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(windowEnd.getUTCDay());
+    if (matchesWeekday && combineDateAndTime(windowEnd, rule.departureTime, timeZone).getTime() > now.getTime()) futureCount += 1;
     if (ruleEnd && windowEnd.getTime() >= ruleEnd.getTime()) break;
   }
   return { cursor, windowEnd, replacedDepartedDate, targetDepartureCount, extensionDays };
@@ -351,6 +397,7 @@ function schedulePayload(rule, departAt) {
     // checks pass. createSchedule safely retains it as Draft otherwise.
     status: 'published',
     scheduleRuleId: rule.id,
+    timezone: safeTimeZone(rule.timezone),
   };
 }
 
@@ -618,7 +665,7 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
       // repeated relationship reads that used to exhaust the MongoDB pool.
       const result = await companyService.createScheduleBatch(rule.companyId, {
         ...schedulePayload(rule, dates[0]),
-        repeatUntil: dates[dates.length - 1].toISOString().slice(0, 10),
+        repeatUntil: calendarDateKey(dates[dates.length - 1], rule.timezone),
         repeatDays: Array.isArray(rule.daysOfWeek) ? rule.daysOfWeek.map(String) : [],
       });
       created = Number(result.count || 0);
@@ -667,8 +714,8 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
         // eslint-disable-next-line no-await-in-loop
         const result = await companyService.createScheduleBatch(rule.companyId, {
           ...schedulePayload(rule, departAt),
-          repeatUntil: departAt.toISOString().slice(0, 10),
-          repeatDays: [String(departAt.getDay())],
+          repeatUntil: calendarDateKey(departAt, rule.timezone),
+          repeatDays: [String(calendarDate(calendarDateKey(departAt, rule.timezone)).getUTCDay())],
         });
         const batchCreated = Number(result.count || 0);
         if (batchCreated < 1) {

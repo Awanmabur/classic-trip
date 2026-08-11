@@ -65,14 +65,14 @@
   <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.43" />
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.43">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.45" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.45">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.43">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.45">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.43" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.45" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -128,6 +128,11 @@
   </nav>
 
   <main>
+    <% if (bootstrap.degraded) { %>
+    <div class="container" role="status" aria-live="polite">
+      <div class="notice" style="margin-top:12px"><i class="fa-solid fa-rotate"></i> <%= bootstrap.degradedMessage %></div>
+    </div>
+    <% } %>
     <section class="container hero" id="home">
       <div class="card heroCard">
         <div class="heroTop">
@@ -426,10 +431,10 @@
             <% if (currentUser?.role === 'super_admin') { %><a class="btn btnGhost" href="/admin/blogs"><i class="fa-solid fa-pen-nib"></i> Write blog</a><% } %>
           </div>
           <div class="blogHomeGrid" id="blogCards">
-<% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
+<% var homeBlogs = (bootstrap.blogs || []).slice(0, 3); if (homeBlogs.length) { homeBlogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
             <article class="promoCard blogCard">
               <div class="blogImage">
-                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>" loading="lazy" decoding="async"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
+                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>" loading="lazy" decoding="async" referrerpolicy="no-referrer"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
                 <span class="badge <%= badgeCls %> blogTag"><%= post.tag || 'Guide' %></span>
                 <div class="blogIconActions">
                   <a class="miniIcon" href="<%= post.url %>" title="Read"><i class="fa-regular fa-eye"></i></a>
@@ -447,6 +452,7 @@
             <div class="card" data-home-empty="blogs" style="padding:20px"><strong>No published articles yet</strong><p class="muted" style="margin:6px 0 0">Articles created and published by the Super Admin will appear here.</p></div>
 <% } %>
           </div>
+          <div class="moreRow blogMoreRow"><a class="btn btnGhost moreBtn" href="/blogs"><i class="fa-solid fa-arrow-right"></i> More blogs</a></div>
         </section>
 
       </div>
@@ -508,11 +514,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.43" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.43" defer></script>
-  <script src="/js/route-pair-select.js?v=1.6.43" defer></script>
-<script src="/js/home-service-search.js?v=1.6.43" defer></script>
-  <script src="/js/home.js?v=1.6.43" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.45" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.45" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.45" defer></script>
+<script src="/js/home-service-search.js?v=1.6.45" defer></script>
+  <script src="/js/home.js?v=1.6.45" defer></script>
   <%- include('../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.43" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.45" defer></script>
 </body>
 </html>

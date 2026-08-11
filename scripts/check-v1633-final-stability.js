@@ -23,7 +23,7 @@ function check(label, ok) {
   if (!ok) { console.error(`✗ ${label}`); process.exitCode = 1; }
   else { passed += 1; console.log(`✓ ${label}`); }
 }
-check('release version matches current package', pkg.version === '1.6.43');
+check('release version matches current package', pkg.version === '1.6.45');
 check('bus search matches every DB route, not only first listing route', catalog.includes('function matchingBusRoute') && catalog.includes('const routes = Array.isArray(item.routes) ? item.routes : []') && catalog.includes('rows = rows.map((item) => withMatchedBusRoute(item, query))'));
 check('bus search validates selected date against live route departures', catalog.includes('route.departures || []') && catalog.includes('isoDateInTimeZone(departure.departAt'));
 check('bus search options contain only routes with live departures', catalog.includes('liveBusRouteIds') && catalog.includes('liveBusRouteIds.has'));
