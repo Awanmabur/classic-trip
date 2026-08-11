@@ -5,12 +5,28 @@ const { connectDb, mongoose } = require('./config/db');
 const { connectRedis, closeRedis } = require('./config/redis');
 const logger = require('./config/logger');
 const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
+const catalogService = require('./services/marketplace/catalogService');
 const repositories = require('./repositories');
 const scheduleMaterializer = require('./jobs/materializeSchedules');
 
 let httpServer = null;
 let shuttingDown = false;
 let app = null;
+
+function schedulePublicCatalogWarmup() {
+  const warmup = setImmediate(() => {
+    catalogService.prewarmHome()
+      .then((bootstrap) => logger.info('Marketplace cache warmed', {
+        listings: bootstrap?.listings?.length || 0,
+        routes: bootstrap?.routes?.length || 0,
+        blogs: bootstrap?.blogs?.length || 0,
+      }))
+      .catch((error) => logger.warn('Marketplace cache warmup deferred', {
+        error: error?.message || String(error),
+      }));
+  });
+  warmup.unref?.();
+}
 
 async function start() {
   validateEnv();
@@ -25,6 +41,10 @@ async function start() {
   }
   httpServer = app.listen(env.port, () => {
     logger.startup(`${env.appName} listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
+    // Open the port first so Render health checks cannot be blocked by a large
+    // cold catalog read. Warm discovery data immediately afterwards so the
+    // first real visitor receives live or last-known-good inventory.
+    schedulePublicCatalogWarmup();
   });
   httpServer.keepAliveTimeout = 65_000;
   httpServer.headersTimeout = 66_000;

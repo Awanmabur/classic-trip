@@ -14,11 +14,15 @@ const { withDeadline } = require('../shared/deadline');
 const redisRuntime = require('../../config/redis');
 const flightSearchService = require('../../modules/flight/services/flightSearchService');
 const { blogPresentation, listingPresentationMedia } = require('../../config/launchMedia');
+const { promisify } = require('util');
+const { gzip, gunzip } = require('zlib');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
 const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
 function canonicalPublicServiceType(value) { const key = normalize(value); return ['stay','stays','home','homes','accommodation','accommodations'].includes(key) ? 'hotel' : key; }
@@ -33,9 +37,13 @@ function isPublicListing(row, data = {}) { return publicListingVisible(row, data
 let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
+let snapshotSharedHydrated = false;
+let snapshotSharedHydration = null;
 let homeBootstrapCache = null;
 let homeBootstrapCachedAt = 0;
 let homeBootstrapInflight = null;
+let homeBootstrapSharedHydrated = false;
+let homeBootstrapSharedHydration = null;
 let degradedHomeBootstrapCache = null;
 let degradedHomeBootstrapRetryAt = 0;
 const listingSnapshotCache = new Map();
@@ -43,12 +51,13 @@ const listingSnapshotInflight = new Map();
 const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
 const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
+const CATALOG_EMERGENCY_STALE_MS = env.performance.publicCatalogEmergencyStaleMs;
 
 function publicCatalogDeadlineError(resource = 'catalog') {
   const error = new Error(`Public ${resource} data exceeded its database response deadline`);
   error.status = 503;
   error.code = 'public_catalog_temporarily_unavailable';
-  error.publicMessage = 'Live travel information is reconnecting. Please retry in a moment.';
+  error.publicMessage = 'Live travel information is taking longer than expected. Please retry in a moment.';
   return error;
 }
 
@@ -127,6 +136,115 @@ async function loadSnapshotFresh() {
   ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
+}
+
+function sharedCatalogSnapshotKey() {
+  return redisRuntime.key('catalog-snapshot', 'public');
+}
+
+async function readSharedCatalogSnapshot() {
+  const client = redisRuntime.activeClient();
+  if (!client) return null;
+  try {
+    const encoded = await client.get(sharedCatalogSnapshotKey());
+    if (!encoded) return null;
+    let parsed;
+    if (encoded.startsWith('ctz1:')) {
+      const compressed = Buffer.from(encoded.slice(5), 'base64');
+      parsed = JSON.parse((await gunzipAsync(compressed)).toString('utf8'));
+    } else {
+      parsed = JSON.parse(encoded);
+    }
+    if (!parsed?.value || !Number(parsed.createdAt)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function writeSharedCatalogSnapshot(value, createdAt = Date.now()) {
+  const client = redisRuntime.activeClient();
+  if (!client || !value) return;
+  try {
+    const compressed = await gzipAsync(Buffer.from(JSON.stringify({ createdAt, value }), 'utf8'));
+    await client.set(sharedCatalogSnapshotKey(), `ctz1:${compressed.toString('base64')}`, { PX: CATALOG_EMERGENCY_STALE_MS });
+  } catch (_) {
+    // Redis cache persistence is an availability optimization. MongoDB remains
+    // authoritative and a cache write must never fail a marketplace request.
+  }
+}
+
+function sharedHomeBootstrapKey() {
+  return redisRuntime.key('home-bootstrap', 'public');
+}
+
+async function readSharedHomeBootstrap() {
+  const client = redisRuntime.activeClient();
+  if (!client) return null;
+  try {
+    const encoded = await client.get(sharedHomeBootstrapKey());
+    if (!encoded) return null;
+    let parsed;
+    if (encoded.startsWith('ctz1:')) {
+      const compressed = Buffer.from(encoded.slice(5), 'base64');
+      parsed = JSON.parse((await gunzipAsync(compressed)).toString('utf8'));
+    } else {
+      parsed = JSON.parse(encoded);
+    }
+    if (!parsed?.value || !Number(parsed.createdAt)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function writeSharedHomeBootstrap(value, createdAt = Date.now()) {
+  const client = redisRuntime.activeClient();
+  if (!client || !value) return;
+  try {
+    const compressed = await gzipAsync(Buffer.from(JSON.stringify({ createdAt, value }), 'utf8'));
+    await client.set(sharedHomeBootstrapKey(), `ctz1:${compressed.toString('base64')}`, { PX: env.performance.homeViewCacheStaleMs });
+  } catch (_) {
+    // The homepage Redis snapshot is a latency/availability optimization only.
+    // A cache persistence failure must never turn a successful catalog refresh
+    // into a failed public request.
+  }
+}
+
+async function hydrateHomeBootstrapFromSharedCache() {
+  if (homeBootstrapSharedHydrated) return homeBootstrapCache;
+  if (!homeBootstrapSharedHydration) {
+    homeBootstrapSharedHydration = readSharedHomeBootstrap()
+      .then((shared) => {
+        homeBootstrapSharedHydrated = true;
+        const age = shared ? Date.now() - shared.createdAt : Infinity;
+        if (shared && age <= env.performance.homeViewCacheStaleMs && (!homeBootstrapCache || shared.createdAt > homeBootstrapCachedAt)) {
+          homeBootstrapCache = shared.value;
+          homeBootstrapCachedAt = shared.createdAt;
+        }
+        return homeBootstrapCache;
+      })
+      .finally(() => { homeBootstrapSharedHydration = null; });
+  }
+  return homeBootstrapSharedHydration;
+}
+
+async function hydrateSnapshotFromSharedCache() {
+  if (snapshotSharedHydrated) return snapshotCache;
+  if (!snapshotSharedHydration) {
+    snapshotSharedHydration = readSharedCatalogSnapshot()
+      .then((shared) => {
+        snapshotSharedHydrated = true;
+        const age = shared ? Date.now() - shared.createdAt : Infinity;
+        if (shared && age <= CATALOG_EMERGENCY_STALE_MS && (!snapshotCache || shared.createdAt > snapshotCachedAt)) {
+          snapshotCache = shared.value;
+          snapshotCachedAt = shared.createdAt;
+        }
+        return snapshotCache;
+      })
+      .finally(() => { snapshotSharedHydration = null; });
+  }
+  return snapshotSharedHydration;
 }
 
 
@@ -344,9 +462,12 @@ async function snapshotForListing(identifier, serviceType = '', options = {}) {
 async function refreshSnapshot() {
   if (snapshotInflight) return snapshotInflight;
   snapshotInflight = loadSnapshotFresh()
-    .then((value) => {
+    .then(async (value) => {
+      const createdAt = Date.now();
       snapshotCache = value;
-      snapshotCachedAt = Date.now();
+      snapshotCachedAt = createdAt;
+      snapshotSharedHydrated = true;
+      await writeSharedCatalogSnapshot(value, createdAt);
       return value;
     })
     .finally(() => { snapshotInflight = null; });
@@ -354,18 +475,23 @@ async function refreshSnapshot() {
 }
 
 async function snapshot(options = {}) {
+  if (!options.force && !snapshotCache) await hydrateSnapshotFromSharedCache();
   const age = snapshotCache ? Date.now() - snapshotCachedAt : Infinity;
   if (!options.force && snapshotCache && age <= env.performance.homeCacheTtlMs) return snapshotCache;
-  if (!options.force && snapshotCache && age <= env.performance.homeCacheStaleMs) {
+  if (!options.force && snapshotCache && age <= CATALOG_EMERGENCY_STALE_MS) {
     refreshSnapshot().catch(() => {});
     return snapshotCache;
   }
   try {
-    return await refreshSnapshot();
+    return await withDeadline(
+      refreshSnapshot(),
+      env.performance.publicCatalogDeadlineMs,
+      () => publicCatalogDeadlineError('catalog'),
+    );
   } catch (error) {
     // A previously completed catalog is safer than replacing the marketplace
     // with a 500 page during a brief Atlas pool/network incident.
-    if (snapshotCache) return snapshotCache;
+    if (snapshotCache && age <= CATALOG_EMERGENCY_STALE_MS) return snapshotCache;
     throw error;
   }
 }
@@ -383,8 +509,30 @@ function invalidateMarketplaceCache() {
 }
 
 async function prewarmHome() {
-  await snapshot({ force: true });
-  return homeBootstrap({ force: true });
+  // Prime the rendered homepage from its compact Redis snapshot first. This is
+  // intentionally separate from the much larger raw catalog snapshot: after a
+  // Render deploy the first visitor must not wait for MongoDB catalog warmup.
+  await hydrateHomeBootstrapFromSharedCache();
+  if (homeBootstrapCache) {
+    refreshHomeBootstrap().catch(() => {});
+    return homeBootstrapCache;
+  }
+
+  // During the first deploy that introduces the compact Home snapshot, v1.6.49
+  // may already have a last-known-good full catalog in Redis. Project Home from
+  // that catalog immediately (airports can refresh moments later) instead of
+  // making the first visitor spend the 2.5 second cold database deadline.
+  await hydrateSnapshotFromSharedCache();
+  if (snapshotCache) {
+    const primed = primeHomeBootstrapFromCatalogCache();
+    refreshHomeBootstrap().catch(() => {});
+    return primed;
+  }
+
+  // True first-ever cache miss: build the catalog once. Future deploys then
+  // inherit both the raw catalog and the compact rendered Home handoff.
+  await refreshSnapshot();
+  return refreshHomeBootstrap();
 }
 
 function companyFor(data, identifier) {
@@ -1054,9 +1202,31 @@ function degradedHomeBootstrap(error) {
     platformConfig: getCachedPlatformConfig(),
   }, []);
   value.degraded = true;
-  value.degradedReason = error?.code || 'catalog_temporarily_unavailable';
-  value.degradedMessage = 'Live marketplace inventory is reconnecting. You can still explore every Classic Trip service and try the live search again shortly.';
+  const errorName = String(error?.name || '').toLowerCase();
+  const errorMessage = String(error?.message || '').toLowerCase();
+  const confirmedDatabaseOutage = /mongo|database/.test(`${errorName} ${errorMessage}`)
+    && !/response deadline/.test(errorMessage);
+  value.degradedReason = confirmedDatabaseOutage ? 'database_temporarily_unavailable' : 'catalog_warming';
+  value.degradedMessage = confirmedDatabaseOutage
+    ? 'Live marketplace inventory is temporarily unavailable. Please try again shortly.'
+    : 'Live marketplace inventory is loading. Please refresh in a moment.';
   return value;
+}
+
+function rememberHomeBootstrap(value, createdAt = Date.now()) {
+  if (!value) return value;
+  homeBootstrapCache = value;
+  homeBootstrapCachedAt = createdAt;
+  homeBootstrapSharedHydrated = true;
+  degradedHomeBootstrapCache = null;
+  degradedHomeBootstrapRetryAt = 0;
+  writeSharedHomeBootstrap(value, createdAt).catch(() => {});
+  return value;
+}
+
+function primeHomeBootstrapFromCatalogCache() {
+  if (!snapshotCache) return null;
+  return rememberHomeBootstrap(buildHomeBootstrap(snapshotCache, []));
 }
 
 async function refreshHomeBootstrap() {
@@ -1065,19 +1235,21 @@ async function refreshHomeBootstrap() {
     snapshot(),
     flightSearchService.listAirports().catch(() => []),
   ])
-    .then(([data, airports]) => buildHomeBootstrap(data, airports))
-    .then((value) => {
-      homeBootstrapCache = value;
-      homeBootstrapCachedAt = Date.now();
-      degradedHomeBootstrapCache = null;
-      degradedHomeBootstrapRetryAt = 0;
-      return value;
-    })
+    .then(([data, airports]) => rememberHomeBootstrap(buildHomeBootstrap(data, airports)))
     .finally(() => { homeBootstrapInflight = null; });
   return homeBootstrapInflight;
 }
 
 async function homeBootstrap(options = {}) {
+  if (!options.force && !homeBootstrapCache) await hydrateHomeBootstrapFromSharedCache();
+  if (!options.force && !homeBootstrapCache) {
+    await hydrateSnapshotFromSharedCache();
+    if (snapshotCache) {
+      const primed = primeHomeBootstrapFromCatalogCache();
+      refreshHomeBootstrap().catch(() => {});
+      return primed;
+    }
+  }
   if (!options.force && !homeBootstrapCache && degradedHomeBootstrapCache && Date.now() < degradedHomeBootstrapRetryAt) return degradedHomeBootstrapCache;
   const age = homeBootstrapCache ? Date.now() - homeBootstrapCachedAt : Infinity;
   if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheTtlMs) return homeBootstrapCache;

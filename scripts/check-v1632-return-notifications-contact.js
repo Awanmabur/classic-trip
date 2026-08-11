@@ -27,7 +27,7 @@ function check(label, ok) {
   if (!ok) { console.error(`✗ ${label}`); process.exitCode = 1; }
   else { passed += 1; console.log(`✓ ${label}`); }
 }
-check('release includes v1.6.38 work', pkg.version === '1.6.48');
+check('release includes v1.6.38 work', pkg.version === '1.6.50');
 check('return discovery compares flexible location identity', busDomain.includes('function locationMatches') && search.includes('locationMatches(stop?.name, wantedName)'));
 check('return preview no longer waits for outbound arrival', preview.includes('outboundDepartureTime') && !preview.includes('outboundFloor = new Date(outboundSchedule.arriveAt'));
 check('return preview requires only a later future reverse departure', preview.includes('returnTime > Date.now()') && preview.includes('returnTime > outboundDepartureTime'));

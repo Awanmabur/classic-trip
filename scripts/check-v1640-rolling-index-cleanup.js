@@ -9,7 +9,7 @@ const ruleModel = read('src/models/ScheduleRule.js');
 const rolling = read('src/jobs/materializeSchedules.js');
 const departure = read('src/modules/bus/services/busDepartureService.js');
 const projection = read('src/services/dashboard/dashboardProjectionEngine.js');
-check('version includes v1.6.40 work', pkg.version === '1.6.48');
+check('version includes v1.6.40 work', pkg.version === '1.6.50');
 check('monitoring expiresAt uses one explicit TTL index', activity.includes('expiresAt: { type: Date }') && activity.includes("platformActivitySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })") && !activity.includes('expiresAt: { type: Date, index: true }'));
 check('recurring rules persist blocking rule IDs', ruleModel.includes('materializationBlockerRuleIds'));
 check('full-window recurring conflicts become persistent action blockers', rolling.includes("materializationBlockerCode: 'vehicle_schedule_conflict_window'") && rolling.includes('persistFullWindowVehicleConflictBlocker'));

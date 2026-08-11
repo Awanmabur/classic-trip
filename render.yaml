@@ -12,6 +12,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24
       - key: APP_NAME
         value: Classic Trip
       - key: APP_URL
@@ -78,6 +80,8 @@ services:
         value: "6500"
       - key: HOME_BOOTSTRAP_DEADLINE_MS
         value: "2500"
+      - key: PUBLIC_CATALOG_EMERGENCY_STALE_MS
+        value: "86400000"
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -191,6 +195,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24
       - key: APP_URL
         fromService:
           type: web
@@ -226,6 +232,8 @@ services:
         value: "8000"
       - key: MONGO_QUERY_MAX_TIME_MS
         value: "5000"
+      - key: PUBLIC_CATALOG_EMERGENCY_STALE_MS
+        value: "86400000"
       - key: MONGO_CONNECT_RETRY_ATTEMPTS
         value: "5"
       - key: MONGO_CONNECT_RETRY_DELAY_MS

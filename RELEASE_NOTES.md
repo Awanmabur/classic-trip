@@ -1,3 +1,27 @@
+# v1.6.50 — Redis homepage handoff and cold-deploy speed
+
+- Added a compact compressed Redis snapshot for the fully rendered public Home bootstrap, separate from the much larger raw catalog snapshot.
+- On Render restart/deploy, Home now hydrates the last known-good bootstrap from Redis before waiting on MongoDB catalog warmup.
+- Added stale-while-revalidate behavior: a valid shared Home snapshot is returned immediately while live catalog/airport data refreshes in the background.
+- Kept MongoDB authoritative for booking, inventory mutation, holds, payments and all writes; the new Redis snapshot is read-only discovery acceleration.
+- Preserved the existing 2.5-second cold-load safety deadline for the true first-ever cache miss, while removing that wait from normal redeploys after Redis has been warmed once.
+
+# v1.6.49 — Render cold-start and inventory continuity recovery
+
+- Removed the brittle Pesapal exact-host startup restriction that rejected a safe `www`/canonical/infrastructure callback alias and prevented Render from opening a port. Production callbacks and IPNs must still be public HTTPS URLs without URL credentials or local/private-network destinations.
+- Pinned Node.js to the tested `24.x` LTS line so Render can no longer select an untested future major from `>=20`.
+- Added non-blocking marketplace prewarming immediately after the HTTP listener opens. Render health/port checks remain independent of Mongo catalog hydration.
+- Added a compressed Redis copy of the last successful full public catalog. A restarted web process can serve known-good discovery inventory immediately while refreshing in the background.
+- Added a 24-hour emergency stale window for discovery only. Booking, seat/room holds, payment, ticketing and all mutations remain authoritative live-database operations and fail closed during an outage.
+- Applied the public catalog outer deadline to search and all service/partner discovery pages, not only Home and listing-scoped pages.
+- Corrected fallback wording: an unfinished cold load says inventory is loading; a confirmed Mongo/database error says inventory is temporarily unavailable.
+- Added a production warning when Redis is not configured, making missing shared sessions/catalog cache visible instead of silently degrading.
+- Added a 14-point v1.6.49 regression gate covering the exact Render failure, public-HTTPS callback security, post-listen warming, shared compressed inventory, bounded catalog pages, Node pinning and production deployment commands.
+
+## Deployment contract
+
+Use `npm ci && npm run release:check && npm prune --omit=dev` as the Render build command, `npm start` as the web start command, and `/ready` as the health-check path. Set `RUN_BACKGROUND_WORKER=false` on the web service when the dedicated `classic-trip-worker` service is running. Configure `REDIS_URL` and `REDIS_REQUIRED=true`; without Redis, the process can still warm its memory cache but cannot preserve inventory or sessions across deployments.
+
 # v1.6.48 — Rolling worker Mongo outage aggregation
 
 - Classified raw `MongoNetworkTimeoutError` names and the driver message `connection … to …:27017 timed out` as database unavailability in the rolling queue.

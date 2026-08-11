@@ -26,7 +26,9 @@ check('anonymous read-only marketing pages use lazy CSRF', csrf.includes('READ_O
 check('CSRF cookie is not rewritten when unchanged', csrf.includes("req.cookies?.['XSRF-TOKEN'] !== token"));
 check('anonymous marketing HTML has shared stale-while-revalidate caching', publicPerf.includes('s-maxage=60') && app.includes('app.use(publicPerformance)'));
 check('derived home bootstrap is cached with SWR', catalog.includes('homeBootstrapCache') && catalog.includes('homeViewCacheStaleMs') && catalog.includes('refreshHomeBootstrap'));
-check('web server stays free of background read-model maintenance', !read('src/server.js').includes('prewarmHome'));
+const server = read('src/server.js');
+check('web server opens its port before non-blocking public cache warmup', server.includes('schedulePublicCatalogWarmup')
+  && server.indexOf('app.listen') < server.indexOf('schedulePublicCatalogWarmup();'));
 check('below-fold marketing rendering uses content-visibility', css.includes('content-visibility:auto') && css.includes('contain-intrinsic-size'));
 check('phone bottom navigation has increased rounded corners', css.includes('border-radius:34px!important') && css.includes('border-radius:19px!important'));
 check('large dashboard workspace no longer blocks first paint', workspace.includes(`dashboard-shell.js?v=${pkg.version}`) && workspace.includes('data-start="paint"') && workspace.includes(`data-modules="/js/dashboard-workspace.js?v=${pkg.version}`));

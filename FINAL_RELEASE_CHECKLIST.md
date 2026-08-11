@@ -326,6 +326,31 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
 
+
+### v1.6.50 Redis Home handoff and cold-deploy speed
+
+1. Confirm Render logs `Redis connected` with `sessions:true`, `rateLimits:true`, and `marketplaceCache:true`.
+2. Keep `REDIS_URL`, `REDIS_REQUIRED=true`, and `REDIS_PREFIX=classic-trip:` on the web service.
+3. After the first successful Home warmup, redeploy/restart and confirm Home can hydrate the compact `home-bootstrap:public` snapshot before MongoDB catalog warmup completes.
+4. Verify the older shared full-catalog snapshot can prime Home on the first v1.6.50 deployment when the compact Home key does not yet exist.
+5. Run `npm run check:v1650-home-redis-handoff`, `npm run check`, and the production/performance validation gates before deployment.
+6. Do not use the Redis discovery snapshot as booking truth; holds, seat/room inventory, payments and mutations must continue using live authoritative stores.
+
+### v1.6.49 Render recovery and inventory continuity
+
+1. Use Node `24.x`; both `package.json` and `.node-version` are pinned. The Render log must not select Node 26 or another untested major.
+2. Set the web build command to `npm ci && npm run release:check && npm prune --omit=dev`, start command to `npm start`, and health-check path to `/ready`. A log showing only `npm install` and `node src/server.js` means the existing service is still bypassing the production blueprint.
+3. Connect the Render Key Value service and set `REDIS_URL`, `REDIS_REQUIRED=true`, and `REDIS_PREFIX=classic-trip:`. Startup must log `Redis connected`; do not accept the warning that shared marketplace/session caches are unavailable.
+4. Keep `APP_URL` and `SITE_URL` on the intended public HTTPS domain. Pesapal callback/IPN may use a different safe public HTTPS hostname, but must never use HTTP, URL credentials, localhost or a private IP.
+5. Set `PUBLIC_CATALOG_DB_DEADLINE_MS=6500`, `HOME_BOOTSTRAP_DEADLINE_MS=2500`, and `PUBLIC_CATALOG_EMERGENCY_STALE_MS=86400000`.
+6. When a dedicated `classic-trip-worker` exists, set `RUN_BACKGROUND_WORKER=false` and `WEB_ROLLING_FALLBACK=false` on the web service. The worker must use `npm run worker`.
+7. Deploy and confirm the order: MongoDB connected, Redis connected, Classic Trip listening, service live, then Marketplace cache warmed. Cache warming must never occur before the listening log.
+8. Open Home in a clean browser immediately after deployment. It must show live or last-known-good inventory without a false database-reconnecting notice. A genuinely empty first-ever cache may briefly say inventory is loading, not reconnecting.
+9. Open `/search`, `/buses`, `/stays`, `/airbnb`, `/tours`, `/car-rentals`, `/cargo`, `/companies`, `/promoters`, one listing and its booking flow. No discovery request may wait about 60 seconds.
+10. During an intentional staging Atlas interruption, discovery may serve the last successful public snapshot. Booking, holds, payments and mutations must reject safely rather than confirming stale inventory.
+11. Restore Atlas and confirm `Marketplace cache warmed` returns, current departures replace stale discovery data, and the worker resumes the retained rolling queue.
+12. Run `npm run check:v1649-final-recovery`, `npm test`, and `npm run release:check`. Do not deploy if any command fails.
+
 ### v1.6.48 rolling worker Mongo outage aggregation
 
 1. Run `npm run check:v1648-mongo-worker-resilience`, `npm test`, then `npm run release:check`.
@@ -334,10 +359,10 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 4. Restore Atlas access and confirm the queue resumes automatically, missing rolling dates continue filling, and Home replaces its reconnect notice with live inventory.
 5. If isolating a Windows network problem, temporarily set `RUN_BACKGROUND_WORKER=false` and `WEB_ROLLING_FALLBACK=false`, restart, and test Home. Restore `RUN_BACKGROUND_WORKER=true` after diagnosis.
 
-### v1.6.47 secret cleanup and Pesapal host alignment
+### v1.6.47 secret cleanup and Pesapal host alignment (superseded by v1.6.49)
 
 1. Run `npm run check:v1647-secret-regression`, `npm run check:v1646-render-startup-failfast`, then `npm run release:check`.
-2. In Render, set `APP_URL=https://www.classictrip.org`, `SITE_URL=https://www.classictrip.org`, `PESAPAL_CALLBACK_URL=https://www.classictrip.org/booking/payment/callback`, and `PESAPAL_IPN_URL=https://www.classictrip.org/api/webhooks/payments`. All three payment/application hosts must match exactly.
+2. v1.6.49 removed the exact-host startup dependency. Keep every URL public and HTTPS; canonical, `www`, and safe infrastructure hostnames may differ.
 3. Deploy only after the log shows MongoDB connected and Classic Trip listening. A Pesapal validation error means the new instance never opened a port and Render may continue serving the old slow deployment.
 4. Confirm a cold listing fails within the v1.6.46 deadline during an intentional staging database outage and becomes normal immediately after database access returns.
 5. In GitHub Secret scanning, inspect the historical v1.6.46 alert. The committed value was a synthetic test fixture; close it as a test/false-positive only after this cleanup commit is pushed. Rotate immediately if any real credential was ever substituted into that line.

@@ -12,7 +12,10 @@ function activeClient() {
 }
 
 async function connectRedis() {
-  if (!env.redis.url) return null;
+  if (!env.redis.url) {
+    if (env.isProduction) logger.warn('Redis is not configured; shared marketplace and session caches are unavailable');
+    return null;
+  }
   if (activeClient()) return client;
   if (connecting) return connecting;
 
@@ -33,7 +36,7 @@ async function connectRedis() {
   connecting = client.connect()
     .then(async () => {
       await client.ping();
-      logger.startup('Redis connected', { sessions: true, rateLimits: true });
+      logger.startup('Redis connected', { sessions: true, rateLimits: true, marketplaceCache: true });
       return client;
     })
     .catch((error) => {

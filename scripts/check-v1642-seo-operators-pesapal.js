@@ -20,7 +20,7 @@ check('seed uses explicitly unassigned staff placeholders rather than fake peopl
 check('Pesapal platform currency fallback is explicitly imported', provider.includes("const { platformCurrency } = require('../../utils/currency');"));
 check('Pesapal reuses registered IPN URLs before creating duplicates', provider.includes("'/URLSetup/GetIpnList'") && provider.includes("'/URLSetup/RegisterIPN'"));
 check('Pesapal merchant references are strict and bounded', provider.includes('safeMerchantReference') && provider.includes('reference.length > 50') && provider.includes('/^[A-Za-z0-9._:-]+$/'));
-check('Pesapal live callbacks/IPNs require HTTPS and canonical host', env.includes('PESAPAL_CALLBACK_URL must use HTTPS on the APP_URL host') && env.includes('PESAPAL_IPN_URL must use HTTPS on the APP_URL host'));
+check('Pesapal live callbacks/IPNs require public HTTPS without a brittle exact-host dependency', env.includes("productionHttpsUrl('PESAPAL_CALLBACK_URL'") && env.includes("productionHttpsUrl('PESAPAL_IPN_URL'") && env.includes('cannot target a local or private network address'));
 check('Pesapal checkout redirects are restricted to pesapal.com HTTPS', provider.includes('assertPesapalRedirect') && provider.includes("host.endsWith('.pesapal.com')"));
 check('Pesapal webhook trust comes from server-side GetTransactionStatus', provider.includes("'/Transactions/GetTransactionStatus'") && provider.includes('Never fall back to the caller-supplied merchant reference'));
 check('Pesapal IPN response follows provider acknowledgement fields', controller.includes('orderNotificationType') && controller.includes('orderTrackingId') && controller.includes('orderMerchantReference') && controller.includes('status: 200'));

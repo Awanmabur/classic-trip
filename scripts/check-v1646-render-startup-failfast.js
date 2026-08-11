@@ -58,9 +58,10 @@ const child = spawnSync(process.execPath, ['-e', "require('./src/config/env').va
 });
 
 check('production Pesapal validateEnv executes without an appUrl ReferenceError', child.status === 0 && child.stdout === 'valid');
-check('APP_URL validation remains outside block scope for provider host checks', envSource.includes('let appUrl = null;') && envSource.includes('appUrl.hostname.toLowerCase()'));
+check('production public URLs use reusable HTTPS and private-network validation', envSource.includes('function productionHttpsUrl') && envSource.includes("productionHttpsUrl('APP_URL'") && envSource.includes("productionHttpsUrl('PESAPAL_CALLBACK_URL'"));
 check('listing responses have a bounded outer Mongo network deadline', catalog.includes('env.performance.publicCatalogDeadlineMs') && catalog.includes("publicCatalogDeadlineError('listing')"));
 check('Home cold loads have a shorter degraded-response deadline', catalog.includes('env.performance.homeBootstrapDeadlineMs') && catalog.includes("publicCatalogDeadlineError('Home')"));
+check('all full public catalog reads have a bounded outer deadline', catalog.includes("publicCatalogDeadlineError('catalog')") && catalog.includes('return await withDeadline'));
 check('Mongo network and server-selection failures become controlled 503 responses', errors.includes('MongoNetworkTimeoutError') && errors.includes('error.status = 503') && errors.includes('database_temporarily_unavailable'));
 check('a spent Mongo socket timeout is not retried into a minute-long request', repository.includes("name.includes('mongonetworktimeout')") && repository.includes('return false'));
 check('Mongo socket timeout is capped at eight seconds', envSource.includes("Math.min(8000, number('MONGO_SOCKET_TIMEOUT_MS', 8000))") && (render.match(/value: "8000"/g) || []).length >= 2);
