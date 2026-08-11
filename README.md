@@ -5,21 +5,24 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.40
+## Current release — version 1.6.43
 
-- **Mongo startup clean-up:** Monitoring activity expiry now has one explicit TTL index only, removing the duplicate `expiresAt` Mongoose schema-index warning.
-- **Rolling conflict state:** date-specific overlaps still defer only those dates, but a rule blocked across its entire missing 30-day window is persisted as `action needed` instead of being fully rescanned on every repair cycle.
-- **Automatic recovery:** changing a recurring rule that is listed as a blocker clears dependent conflict states and queues them for immediate retry; a six-hour safety expiry also forces a later re-check.
-- **Partner dashboard clarity:** recurring rules expose blocking rule IDs and the actionable materialization reason instead of leaving the operator to interpret long worker logs.
-- **Preserved releases:** v1.6.39 partner signup repair, v1.6.38 dashboard speed/SMS, guest booking/ticket delivery, return tickets, notifications/push, UGX pricing, monitoring, SEO, and `https://www.classictrip.org` remain intact.
+- **Rolling inventory repair:** recurring rules now maintain their intended future occurrence count instead of allowing the visible departure inventory to shrink as earlier departures leave the window. Departed/arrived/completed/cancelled/archived rule-generated schedules also queue an immediate replacement request; the worker cron remains the safety fallback.
+- **Real conflicts remain protected:** a recurring rule that would double-book a vehicle is still blocked and shown as `action needed`; valid non-conflicting rules continue replenishing automatically.
+- **Super Admin listing review restored:** Listings now have working Approve/Reject actions backed by the service-specific publish/readiness workflow. The frontend action renderer no longer crashes from using the listing ID before declaration, and review mutations invalidate the correct dashboard caches.
+- **Role/dashboard repair without rollback:** the hardened single login/signup flow and partner onboarding remain intact; over-narrow Super Admin page data plans were repaired so actions have the related data they need without returning to the old load-everything architecture.
+- **Notification center spacing restored:** notification cards have explicit desktop/mobile padding and list spacing again.
+- **Booking alert chime:** new confirmed bookings create operational notifications for Partner Admin and Super Admin. Open dashboards can chime immediately from Web Push, with 10-second notification polling as a fallback after the browser has allowed audio interaction.
+- **Promoter commission:** eligible referred UGX bookings use a fixed **UGX 2,000** promoter reward funded from Classic Trip's commission; partner payout is not reduced a second time.
+- **Production cleanup:** Uganda-specific pricing/reward currency policy is centralized in Platform Settings, while old one-off release reports are removed from the shipped runtime documentation.
 
-Focused check:
+Focused repair check:
 
 ```bash
-npm run check:v1640-rolling-index-cleanup
+npm run check:v1641-core-repair
 ```
 
-Before deployment, run a clean `npm ci`, `npm run release:check`, then `npm run db:indexes` because this release changes the Monitoring TTL schema declaration.
+Before deployment, run a clean `npm ci`, `npm run release:check`, `npm run db:indexes`, and then test one valid non-conflicting rolling rule plus one real listing approval from Super Admin.
 
 ## Seven-service marketplace completion
 
@@ -728,3 +731,49 @@ SMS_API_TOKEN=
 SMS_FROM=Classic Trip
 SMS_REQUEST_TIMEOUT_MS=8000
 ```
+
+### Launch SEO/operator seed — v1.6.43
+
+Preview without writes:
+
+```bash
+npm run seed:launch-content:dry
+```
+
+Apply after the Super Admin exists:
+
+```bash
+npm run seed:launch-content
+```
+
+The seed is insert-only. It creates seven Super-Admin-owned blog posts and researched Draft/Pending records for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
+
+Pesapal production uses API 3.0 with `https://pay.pesapal.com/v3/api`; IPNs are reconciled using GetTransactionStatus. Keep `PESAPAL_CONSUMER_SECRET` in Render secrets only.
+
+## v1.6.43 — seven blogs and seeded Partner Admin accounts
+
+The Home page now renders up to seven published travel guides and `/blogs` provides the complete public card/bar directory. Individual `/blogs/:slug` pages load the shared public head/styles and include a structured article layout plus related guides.
+
+If v1.6.42 launch content already exists in MongoDB, run the v1.6.43 launch seed again. It is designed to keep existing edited values, fill only blank/seed-placeholder profile fields, create the missing seeded Partner Admin accounts, and leave compliance-sensitive approval fields pending.
+
+```bash
+npm run seed:launch-content:dry
+npm run seed:launch-content
+```
+
+New Partner Admin passwords are generated securely at seed time and written once to the local ignored file `seed-output/partner-credentials.json`. The deterministic login emails are:
+
+- `partner.bebeto-coach-services@classictrip.org`
+- `partner.trinity-express@classictrip.org`
+- `partner.zawadi-travel-service@classictrip.org`
+- `partner.eco-bus@classictrip.org`
+- `partner.friendship-bus@classictrip.org`
+- `partner.yy-coaches@classictrip.org`
+
+Delete the credentials file after saving/changing the passwords. If a seeded temporary password is lost before the account is handed to the operator, intentionally reset only the seeded launch accounts with:
+
+```bash
+npm run seed:partner-credentials
+```
+
+`npm run seed` remains production-safe and seeds only the Super Admin. To create the Super Admin and then the launch content in one explicit command use `npm run seed:launch-all`.

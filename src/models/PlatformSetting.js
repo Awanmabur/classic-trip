@@ -7,6 +7,8 @@ const financeRulesSchema = new Schema({
   // Promoter rewards are funded from the platform commission, never added on
   // top of the customer total and never deducted a second time from partners.
   promoterSharePercent: { type: Number, min: 0, max: 100, default: 30 },
+  // Uganda promoter policy: a fixed reward per eligible referred booking.
+  promoterFixedUgx: { type: Number, min: 0, default: 2000 },
   customerServiceFeePercent: { type: Number, min: 0, max: 100, default: 0 },
   customerServiceFeeFlat: { type: Number, min: 0, default: 0 },
   customerTaxPercent: { type: Number, min: 0, max: 100, default: 0 },

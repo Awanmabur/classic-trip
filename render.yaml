@@ -121,6 +121,8 @@ services:
         value: https://www.classictrip.org/api/webhooks/payments
       - key: PESAPAL_IPN_ID
         sync: false
+      - key: PESAPAL_NOTIFICATION_TYPE
+        value: POST
       - key: PESAPAL_WEBHOOK_SECRET
         sync: false
       - key: EMAIL_FROM

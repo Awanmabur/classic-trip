@@ -1802,3 +1802,16 @@ body{font-family:Inter,Arial,sans-serif;margin:28px;color:#111827;background:#ff
 .seatLabelTools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
 .seatLabelTools>[data-seat-label-count]{margin-right:auto;color:var(--muted);font-size:11px;font-weight:950}
 .seatLabelEditor.has-error textarea{border-color:rgba(239,68,68,.55)!important;background:rgba(239,68,68,.08)!important}
+
+/* v1.6.41 — notification center owns real inner spacing instead of relying on
+   table/list children. This protects Super Admin + every role from edge-to-edge
+   notification content after the compact dashboard spacing pass. */
+.notificationCenterCard{padding:16px;overflow:hidden}
+.notificationCenterCard > .cardHead{padding:0}
+.notificationCenterCard .notificationPageList{margin:14px 0 0}
+.notificationCenterCard > .innerTabs{margin-left:0;margin-right:0}
+.notificationCenterCard > .tabPane{margin-left:0;margin-right:0;margin-bottom:0}
+@media(max-width:680px){
+  .notificationCenterCard{padding:12px}
+  .notificationCenterCard .notificationPageList{margin:12px 0 0}
+}

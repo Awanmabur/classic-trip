@@ -1,5 +1,9 @@
 'use strict';
 
+const { currencyForCountry } = require('../config/countryMarkets');
+
+const UGANDA_CURRENCY = currencyForCountry('Uganda');
+
 const FULL_ROUTE_DISCOUNT_UGX = 3000;
 const MIN_CUSTOMER_FARE_UGX = 1000;
 
@@ -9,10 +13,10 @@ function amount(value) {
 }
 
 function isUgx(currency) {
-  return String(currency || '').trim().toUpperCase() === 'UGX';
+  return String(currency || '').trim().toUpperCase() === UGANDA_CURRENCY;
 }
 
-function serviceFeeForTicket(partnerTicketAmount, currency = 'UGX') {
+function serviceFeeForTicket(partnerTicketAmount, currency = UGANDA_CURRENCY) {
   const ticket = amount(partnerTicketAmount);
   if (!ticket || !isUgx(currency) || ticket < 1000) return 0;
   if (ticket <= 30000) return 1000;
@@ -21,14 +25,14 @@ function serviceFeeForTicket(partnerTicketAmount, currency = 'UGX') {
   return 5000;
 }
 
-function discountForTicket(partnerTicketAmount, { isMainRoute = false, currency = 'UGX' } = {}) {
+function discountForTicket(partnerTicketAmount, { isMainRoute = false, currency = UGANDA_CURRENCY } = {}) {
   const ticket = amount(partnerTicketAmount);
   if (!ticket || !isMainRoute || !isUgx(currency)) return 0;
   // Never turn a very low fare into a zero/negative customer price.
   return Math.min(FULL_ROUTE_DISCOUNT_UGX, Math.max(0, ticket - MIN_CUSTOMER_FARE_UGX));
 }
 
-function priceBusTicket({ partnerFare = 0, seatDelta = 0, isMainRoute = false, currency = 'UGX' } = {}) {
+function priceBusTicket({ partnerFare = 0, seatDelta = 0, isMainRoute = false, currency = UGANDA_CURRENCY } = {}) {
   const partnerTicketAmount = amount(Number(partnerFare || 0) + Number(seatDelta || 0));
   const discount = discountForTicket(partnerTicketAmount, { isMainRoute, currency });
   const customerFare = Math.max(0, partnerTicketAmount - discount);
@@ -40,7 +44,7 @@ function priceBusTicket({ partnerFare = 0, seatDelta = 0, isMainRoute = false, c
     serviceFee,
     customerTotal: customerFare + serviceFee,
     isMainRoute: Boolean(isMainRoute),
-    currency: String(currency || 'UGX').toUpperCase(),
+    currency: String(currency || UGANDA_CURRENCY).toUpperCase(),
   };
 }
 

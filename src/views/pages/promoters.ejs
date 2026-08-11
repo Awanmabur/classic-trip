@@ -4,11 +4,11 @@
   <section class="card heroCard">
     <span class="badge badgeHot"><i class="fa-solid fa-share-nodes"></i> Promoter program</span>
     <h1 class="heroTitle">Turn trusted travel recommendations into transparent earnings.</h1>
-    <p class="heroSub">Create secure referral links, recommend bookable services and follow every eligible click, booking, commission balance and withdrawal from your private promoter dashboard. The promoter receives <%= platformConfig.promoterSharePercent %>% of Classic Trip’s commission on eligible referred bookings. The partner share is not reduced again.</p>
+    <p class="heroSub">Create secure referral links, recommend bookable services and follow every eligible click, booking, commission balance and withdrawal from your private promoter dashboard. For eligible UGX referred bookings, the promoter earns a fixed <strong>UGX <%= Number(platformConfig.promoterFixedUgx || 2000).toLocaleString() %></strong> reward funded from Classic Trip’s commission. The partner share is not reduced again.</p>
     <div class="metricRow" style="margin-top:14px">
       <div class="stat"><b><%= stats.promotableListings %></b><span>Promotable services</span></div>
       <div class="stat"><b><%= stats.activeCampaigns %></b><span>Active campaigns</span></div>
-      <div class="stat"><b><%= platformConfig.promoterSharePercent %>%</b><span>Share of platform commission</span></div>
+      <div class="stat"><b>UGX <%= Number(platformConfig.promoterFixedUgx || 2000).toLocaleString() %></b><span>Per eligible referred booking</span></div>
     </div>
     <div class="actions" style="margin-top:14px">
       <a class="btn btnPrimary" href="/promoter/dashboard"><i class="fa-solid fa-chart-line"></i> Open promoter dashboard</a>

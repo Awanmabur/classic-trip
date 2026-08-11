@@ -8,7 +8,7 @@
   const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency || platformConfig.defaultCurrency;
   const busTicketPrice = (partnerFare, seatDelta, isMainRoute) => {
     const partner = Math.max(0, Math.round(Number(partnerFare || 0) + Number(seatDelta || 0)));
-    const ugx = String(currency || '').toUpperCase() === 'UGX';
+    const ugx = String(currency || '').toUpperCase() === String(platformConfig.ugandaCurrency || '').toUpperCase();
     const discount = ugx && isMainRoute ? Math.min(3000, Math.max(0, partner - 1000)) : 0;
     const fare = Math.max(0, partner - discount);
     const fee = ugx && fare >= 1000 ? (fare <= 30000 ? 1000 : fare <= 100000 ? 2000 : fare <= 150000 ? 3000 : 5000) : 0;

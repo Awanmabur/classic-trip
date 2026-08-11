@@ -238,22 +238,81 @@ function bookingConfirmationRequest(booking = {}) {
     referenceType: 'booking',
     referenceId: booking.id,
     dedupeKey: `booking-confirmed:${booking.id}`,
-    meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, ticketUrl: ticketPath, ticketPdfUrl: ticketPdfPath, url: ticketPath },
+    meta: { bookingRef: booking.bookingRef, companyId: booking.companyId, ticketUrl: ticketPath, ticketPdfUrl: ticketPdfPath, url: ticketPath, alertScope: 'traveller' },
   };
 }
 
+function bookingOperationalRequests(booking = {}) {
+  const companyId = String(booking.providerCompanyId || booking.agentCompanyId || booking.companyId || '').trim();
+  const serviceLabel = String(booking.serviceType || 'booking').replace(/[_-]+/g, ' ');
+  const amount = Number(booking.pricing?.total || 0);
+  const currency = String(booking.pricing?.currency || '').trim().toUpperCase();
+  const totalLabel = amount > 0 ? ` ${currency ? `${currency} ` : ''}${amount.toLocaleString('en-US')}` : '';
+  const commonMeta = {
+    bookingRef: booking.bookingRef,
+    bookingId: booking.id,
+    companyId,
+    eventType: 'booking_confirmed',
+    alertSound: 'booking',
+    priority: 'high',
+  };
+  const requests = [];
+  if (companyId) {
+    requests.push({
+      userId: null,
+      channels: ['in_app', 'push'],
+      title: `New booking ${booking.bookingRef}`,
+      message: `A customer completed a ${serviceLabel} booking${totalLabel}. Open Bookings to review the reservation and fulfilment details.`,
+      recipient: {},
+      ownerType: 'company',
+      ownerId: companyId,
+      audience: 'partners',
+      referenceType: 'booking',
+      referenceId: booking.id,
+      dedupeKey: `booking-operational-company:${booking.id}:${companyId}`,
+      meta: { ...commonMeta, url: '/company/bookings', alertScope: 'partner_booking' },
+    });
+  }
+  requests.push({
+    userId: null,
+    channels: ['in_app', 'push'],
+    title: `Booking completed ${booking.bookingRef}`,
+    message: `A customer completed a ${serviceLabel} booking${totalLabel}. Open platform Bookings for oversight and support.`,
+    recipient: {},
+    ownerType: 'platform',
+    ownerId: 'super-admin',
+    audience: 'admins',
+    referenceType: 'booking',
+    referenceId: booking.id,
+    dedupeKey: `booking-operational-admin:${booking.id}`,
+    meta: { ...commonMeta, url: '/admin/bookings', alertScope: 'admin_booking' },
+  });
+  return requests;
+}
+
 async function bookingConfirmed(booking) {
-  return queueNotification(bookingConfirmationRequest(booking));
+  const requests = [bookingConfirmationRequest(booking), ...bookingOperationalRequests(booking)];
+  const groups = [];
+  for (const request of requests) {
+    // eslint-disable-next-line no-await-in-loop
+    groups.push(await queueNotification(request));
+  }
+  return groups.flat();
 }
 
 async function enqueueBookingConfirmed(booking) {
-  const request = bookingConfirmationRequest(booking);
-  return enqueueNotification(request, {
-    aggregateType: 'booking',
-    aggregateId: booking.id,
-    companyId: booking.companyId,
-    dedupeKey: `booking-confirmed-delivery:${booking.id}`,
-  });
+  const requests = [bookingConfirmationRequest(booking), ...bookingOperationalRequests(booking)];
+  const events = [];
+  for (const request of requests) {
+    // eslint-disable-next-line no-await-in-loop
+    events.push(await enqueueNotification(request, {
+      aggregateType: 'booking',
+      aggregateId: booking.id,
+      companyId: booking.companyId,
+      dedupeKey: `booking-confirmed-delivery:${booking.id}:${request.meta?.alertScope || request.audience || 'customer'}`,
+    }));
+  }
+  return events;
 }
 
 async function paymentUpdated(booking, payment) {
@@ -392,6 +451,7 @@ module.exports = {
   enqueueNotification,
   bookingConfirmed,
   enqueueBookingConfirmed,
+  bookingOperationalRequests,
   bookingConfirmationChannels,
   hasCommunicationTicketAddon,
   paymentUpdated,

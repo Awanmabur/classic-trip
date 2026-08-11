@@ -20,8 +20,8 @@ const fileHash = (file) => crypto.createHash('sha256').update(fs.readFileSync(pa
 const approvedUi = {
   'public/css/base.css': '653530243e926bc64e4cb2e733066dcb18586af8baa86ff8d8351701ab976ca5',
   'public/css/components.css': 'd6d52392225dd6c931954ae51cd658dc27f94601de35b025ae59b4b1a50e3965',
-  'public/css/dashboard-workspace.css': '68c5a5b6e4b90fb4153430a043e64724865ddc9ca3d283386c366eb9f3865ab5',
-  'public/css/pages/home.css': '3b979c081e7acdb5d8f8ba146912722a822aa4957e3924523c945b0b21882090',
+  'public/css/dashboard-workspace.css': '2952617d9b8727fce0907f8eaff7d1df7d49a155d41dec08dbe9b26f7c22561f',
+  'public/css/pages/home.css': 'dac5e711db2a5c331355acca2b7c2255bf5fbcccf04a5a0eb8638e102926116a',
 };
 Object.entries(approvedUi).forEach(([file, expected]) => check(`${file} matches the uploaded approved UI`, fileHash(file) === expected));
 const travelCss = read('public/css/pages/travel-booking.css');

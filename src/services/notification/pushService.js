@@ -82,7 +82,18 @@ async function sendPush(message = {}) {
   const recipients = await subscriptionsFor(message);
   if (!recipients.length) return { status: 'queued', channel: 'push', provider: 'web-push', reason: 'No active browser push subscription for recipient' };
   if (!configureWebPush()) return { status: 'queued', channel: 'push', provider: 'web-push', reason: 'Web Push VAPID keys are not configured' };
-  const payload = JSON.stringify({ title: message.title || 'Classic Trip update', message: message.message || '', url: message.meta?.url || message.meta?.ticketUrl || '/account', referenceType: message.referenceType || '', referenceId: message.referenceId || '' });
+  const payload = JSON.stringify({
+    title: message.title || 'Classic Trip update',
+    message: message.message || '',
+    url: message.meta?.url || message.meta?.ticketUrl || '/account',
+    referenceType: message.referenceType || '',
+    referenceId: message.referenceId || '',
+    meta: {
+      alertSound: message.meta?.alertSound || '',
+      bookingRef: message.meta?.bookingRef || '',
+      alertScope: message.meta?.alertScope || '',
+    },
+  });
   const results = await Promise.allSettled(recipients.map((subscription) => webpush.sendNotification(safeSubscription(subscription), payload)));
   let sent = 0; let failed = 0;
   await Promise.all(results.map(async (result, index) => {

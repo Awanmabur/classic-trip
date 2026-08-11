@@ -22,7 +22,7 @@ async function createCommission(booking, hasValidReferral, existingSplit = null,
     }
     return duplicate;
   }
-  const split = existingSplit || calculateCommission(booking.pricing.total, hasValidReferral, { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
+  const split = existingSplit || calculateCommission(booking.pricing.total, hasValidReferral, { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent, currency: booking.pricing?.currency });
   const commission = {
     id: await nextId('commission'),
     bookingId: booking.id,
@@ -33,6 +33,8 @@ async function createCommission(booking, hasValidReferral, existingSplit = null,
     partnerCommissionPercent: split.partnerCommissionPercent,
     partnerPayoutPercent: split.partnerPayoutPercent,
     promoterSharePercent: split.promoterSharePercent,
+    promoterRewardModel: split.promoterRewardModel || 'percentage_share',
+    promoterFixedAmount: Number(split.promoterFixedAmount || 0),
     totalCommission: split.totalCommission,
     platformFee: split.platformFee,
     promoterAmount: split.promoterAmount,

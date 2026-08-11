@@ -36,8 +36,9 @@ check('Return Ticket is always a first-class journey choice',
   && details.includes('<b>Return Ticket</b>')
   && details.includes('setTripType'));
 check('Return search remains visible when no reverse trip exists',
-  details.includes('No bookable ${ticketClassLabel(activeTicketClass)} reverse trips are currently scheduled')
-  && !details.includes("toggle.checked = false"));
+  details.includes('No future reverse departure is currently published for this journey.')
+  && details.includes('No future reverse trips available')
+  && details.includes('returnTime > outboundDepartureTime'));
 check('Ticket class is persisted and returned through every dated-departure API layer',
   tripSchedule.includes("vehicleClass: { type: String, enum: ['standard', 'vip']")
   && departureService.includes('vehicleClass: normalize(vehicle.vehicleClass || seatMapVersion.vehicleClass)')

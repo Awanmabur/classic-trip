@@ -60,7 +60,7 @@ async function createRide(payload = {}, actor = {}) {
     const requestRef = code('RQ');
     const rideRef = code('RIDE');
     const listing = await repo.oneOrThrow(repo.listings, { id: quote.listingId, companyId: PLATFORM_MOBILITY_OWNER, bookable: true }, 'Local rides are not available', opts(session));
-    const split = calculateCommission(quote.priceSnapshot.total, Boolean(actor.referralCode), { commissionPercent: listing.commissionPercent });
+    const split = calculateCommission(quote.priceSnapshot.total, Boolean(actor.referralCode), { commissionPercent: listing.commissionPercent, currency: quote.priceSnapshot?.currency });
     const pricing = { ...quote.priceSnapshot, split };
     const pickupPin = String(Math.floor(1000 + Math.random() * 9000));
     const scheduled = new Date(quote.scheduledPickupAt).getTime() > Date.now() + 5 * 60 * 1000;

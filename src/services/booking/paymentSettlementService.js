@@ -48,7 +48,7 @@ async function settleBookingPayment(bookingOrRef, options = {}) {
     let split = booking.pricing?.split;
     if (!split) {
       const commissionableAmount = Number(booking.pricing?.commissionableSubtotal ?? booking.pricing?.total ?? 0);
-      const coreSplit = calculateCommission(commissionableAmount, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent });
+      const coreSplit = calculateCommission(commissionableAmount, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent, currency: booking.pricing?.currency });
       const customerServiceFee = Number(booking.pricing?.serviceFee || 0);
       const customerTaxAmount = Number(booking.pricing?.taxAmount || 0);
       split = {

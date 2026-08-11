@@ -146,6 +146,7 @@ async function completeRide(ride, payload = {}, actor = {}) {
     const booking = await repo.oneOrThrow(repo.bookings, { id: current.bookingId, companyId: current.companyId }, 'Ride booking was not found', opts(session));
     const bookingSplit = calculateCommission(total, Boolean(booking.promoterAttribution), {
       commissionPercent: booking.commercialTermsSnapshot?.commissionPercent,
+      currency: booking.pricing?.currency || estimate.currency,
     });
     const pricing = { ...estimate, total, split: bookingSplit, estimated: false, fareLocked: true, controlledBy: 'platform' };
     current.finalFareSnapshot = {

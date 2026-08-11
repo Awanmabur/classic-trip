@@ -989,7 +989,7 @@ function buildHomeBootstrap(data, airports = []) {
     companies: data.companies.map((row) => publicCompany(data, row)).filter((row) => row.verificationStatus === 'verified' && row.activeListingsCount > 0),
     routes: data.routes.filter((row) => active(row) && listings.some((listing) => sameId(listing.id, row.listingId))).map((row) => publicRoute(data, row)),
     campaigns,
-    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 4).map((row) => ({ id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: row.image || row.coverImage || '', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` })),
+    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 7).map((row) => ({ id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: row.image || row.coverImage || '', imageAlt: row.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` })),
     serviceStats: data.categories.map((category) => { const rows = listings.filter((item) => item.serviceType === category.key); return { ...category, count: rows.length, available: rows.reduce((sum, row) => sum + row.remainingInventory, 0) }; }),
     corridorStats: routeHighlights(listings),
     marketplace,

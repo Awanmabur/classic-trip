@@ -1,6 +1,51 @@
-<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-head', { seo, bodyClass: 'blogPostPage' }) %>
 <%- include('../partials/site-header') %>
-<main class="container marketingPage blogPostMarketingPage" style="padding:16px 0 30px">
-  <article class="card heroCard"><span class="badge badgeInfo"><%= blog.tag %></span><h1 class="heroTitle"><%= blog.title %></h1><p class="heroSub"><%= blog.excerpt %></p><div class="visualHero" style="border-radius:24px;overflow:hidden;margin-top:12px"><img src="<%= blog.image %>" alt="<%= blog.title %>"></div><p class="heroSub" style="font-size:16px;max-width:78ch"><%= blog.body %></p><a class="btn btnGhost" href="/blogs">Back to guides</a></article>
+<main class="container marketingPage blogPostShell">
+  <nav class="blogBreadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><i class="fa-solid fa-chevron-right"></i><a href="/blogs">Travel guides</a><i class="fa-solid fa-chevron-right"></i><span><%= blog.tag || 'Guide' %></span></nav>
+
+  <article class="blogPostArticle">
+    <header class="blogPostHeader card">
+      <div class="blogPostHeaderCopy">
+        <span class="badge badgeInfo"><%= blog.tag || 'Travel guide' %></span>
+        <h1><%= blog.title %></h1>
+        <p class="blogPostLead"><%= blog.excerpt %></p>
+        <div class="blogMeta blogPostMeta">
+          <% if (blog.publishedAt) { %><span><i class="fa-regular fa-calendar"></i> <time datetime="<%= new Date(blog.publishedAt).toISOString() %>"><%= new Date(blog.publishedAt).toLocaleDateString('en-UG', { year:'numeric', month:'long', day:'numeric' }) %></time></span><% } %>
+          <span><i class="fa-regular fa-clock"></i> <%= Math.max(3, Math.round(String(blog.body || '').split(/\s+/).length / 210)) %> min read</span>
+          <span><i class="fa-solid fa-shield-halved"></i> Classic Trip guide</span>
+        </div>
+      </div>
+      <div class="blogPostHeroMedia">
+        <% if (blog.image) { %><img src="<%= blog.image %>" alt="<%= blog.imageAlt || blog.title %>" width="1200" height="630" loading="eager" decoding="async"><% } else { %><div class="blogDirectoryPlaceholder"><i class="fa-solid fa-route"></i></div><% } %>
+      </div>
+    </header>
+
+    <div class="blogPostLayout">
+      <section class="card blogPostContent">
+        <% String(blog.body || '').split(/\n\s*\n/).filter(Boolean).forEach(function(paragraph, index){ %>
+          <p class="<%= index === 0 ? 'blogPostFirst' : '' %>"><%= paragraph %></p>
+        <% }) %>
+        <div class="blogPostCta">
+          <div><strong>Ready to find your trip?</strong><span>Compare published routes, live departures and available seats on Classic Trip.</span></div>
+          <a class="btn btnPrimary" href="/buses"><i class="fa-solid fa-bus"></i> Search bus tickets</a>
+        </div>
+      </section>
+
+      <aside class="blogPostAside">
+        <div class="card blogPostExplore"><span class="eyebrow">Continue exploring</span><a href="/buses"><i class="fa-solid fa-bus"></i><span><strong>Bus tickets</strong><small>Find live departures</small></span></a><a href="/routes"><i class="fa-solid fa-route"></i><span><strong>Routes</strong><small>Browse published corridors</small></span></a><a href="/companies"><i class="fa-solid fa-building"></i><span><strong>Companies</strong><small>Review operators</small></span></a><a href="/support"><i class="fa-solid fa-headset"></i><span><strong>Support</strong><small>Get booking help</small></span></a></div>
+      </aside>
+    </div>
+  </article>
+
+  <% if (relatedBlogs && relatedBlogs.length) { %>
+  <section class="section blogRelatedSection">
+    <div class="sectionHead"><div><span class="eyebrow">Keep reading</span><h2>More Classic Trip guides</h2></div><a class="btn btnGhost" href="/blogs">View all</a></div>
+    <div class="blogDirectoryGrid blogDirectoryGrid--related">
+      <% relatedBlogs.forEach(function(item){ %>
+      <article class="blogDirectoryCard"><a class="blogDirectoryMedia" href="<%= item.url %>"><% if(item.image){ %><img src="<%= item.image %>" alt="<%= item.imageAlt || item.title %>" width="640" height="360" loading="lazy" decoding="async"><% } %><span class="badge badgeInfo blogDirectoryTag"><%= item.tag || 'Guide' %></span></a><div class="blogDirectoryBody"><h3><a href="<%= item.url %>"><%= item.title %></a></h3><p><%= item.excerpt %></p><a class="btn btnGhost" href="<%= item.url %>">Read guide</a></div></article>
+      <% }) %>
+    </div>
+  </section>
+  <% } %>
 </main>
 <%- include('../partials/site-footer') %>

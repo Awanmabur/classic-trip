@@ -10,6 +10,8 @@ const commissionSchema = new Schema({
   partnerCommissionPercent: { type: Number, min: 0, max: 100 },
   partnerPayoutPercent: { type: Number, min: 0, max: 100 },
   promoterSharePercent: { type: Number, min: 0, max: 100, default: 0 },
+  promoterRewardModel: { type: String, enum: ['percentage_share', 'fixed_ugx'], default: 'percentage_share' },
+  promoterFixedAmount: { type: Number, min: 0, default: 0 },
   totalCommission: Number,
   platformFee: Number,
   promoterAmount: Number,

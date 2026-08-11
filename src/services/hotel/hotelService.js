@@ -1000,7 +1000,7 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
   const fees = customerFees.totalFees;
   const total = customerFees.total;
   const company = await hotelRepository.companyOrThrow(listing.companyId);
-  const split = calculateCommission(total, Boolean(payload.promoterAttribution?.promoterId || payload.referralCode), { commissionPercent: company?.commercialTerms?.commissionPercent });
+  const split = calculateCommission(total, Boolean(payload.promoterAttribution?.promoterId || payload.referralCode), { commissionPercent: company?.commercialTerms?.commissionPercent, currency });
   const requestedSourceForPricing = clean(payload.source).toLowerCase().replace(/-/g, '_');
   if (requestedSourceForPricing === 'agent_offline') {
     const trustedOfflinePricing = options.trustedOffline === true && String(options.companyId || '') === String(listing.companyId || '') && clean(options.actorId);

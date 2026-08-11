@@ -46,17 +46,17 @@ check('Retired pricing and company billing aliases are removed', !/\/pricing/.te
 check('Company upgrade endpoint is removed', !/upgrade|pendingUpgradeOrderRef/.test(companyRoutes));
 check('Payment webhook cannot activate a partner plan', !/billingService|activateOrder|subscription/i.test(webhook));
 check('Repository registry contains no partner subscription collections', !/subscriptionOrders|subscriptions:\s*'Subscription'/.test(repositories));
-check('Platform model stores one partner commission percentage', /partnerCommissionPercent/.test(platformModel) && /promoterSharePercent/.test(platformModel));
+check('Platform model stores partner commission and fixed UGX promoter reward', /partnerCommissionPercent/.test(platformModel) && /promoterFixedUgx/.test(platformModel));
 check('Platform model contains no partner plan array', !/subscriptionPlans|monthlyFee|annualFee/.test(platformModel));
 check('Company stores an auditable commission contract', /commercialTerms/.test(companyModel) && /commissionPercent/.test(companyModel) && /admin_override/.test(companyModel));
 check('Booking persists an immutable commercial snapshot', /commercialTermsSnapshot/.test(bookingModel));
-check('Commission record persists rates and amounts', ['partnerCommissionPercent','partnerPayoutPercent','promoterSharePercent','totalCommission'].every((field) => commissionModel.includes(field)));
-check('Commission creation writes the frozen rate snapshot', ['partnerCommissionPercent','partnerPayoutPercent','promoterSharePercent','totalCommission'].every((field) => commissionService.includes(field)));
+check('Commission record persists rates, fixed reward model and amounts', ['partnerCommissionPercent','partnerPayoutPercent','promoterRewardModel','promoterFixedAmount','totalCommission'].every((field) => commissionModel.includes(field)));
+check('Commission creation writes the frozen reward snapshot', ['partnerCommissionPercent','partnerPayoutPercent','promoterRewardModel','promoterFixedAmount','totalCommission'].every((field) => commissionService.includes(field)));
 check('Partner amount is total minus one commission', /companyAmount\s*=\s*roundMoney\(Math\.max\(0, amount - totalCommission\)\)/.test(calculator));
-check('Promoter reward is funded from total commission', /totalCommission \* rates\.promoterSharePercent/.test(calculator) && /platformFee\s*=\s*roundMoney\(Math\.max\(0, totalCommission - promoterAmount\)\)/.test(calculator));
+check('UGX promoter reward is fixed and funded from total commission', /useFixedUgxReward/.test(calculator) && /promoterFixedUgx/.test(calculator) && /Math\.min\(rates\.promoterFixedUgx, totalCommission\)/.test(calculator) && /platformFee\s*=\s*roundMoney\(Math\.max\(0, totalCommission - promoterAmount\)\)/.test(calculator));
 check('Super Admin can update one partner percentage', adminRoutes.includes("/admin/companies/:slug/commission") && /updateCommercialTerms/.test(companyService));
 check('Partner table exposes a commission action', /data-type="partner commission"/.test(workspace) && /commissionPercent/.test(workspace));
-check('Global settings expose commission, not plans', /partner commission %/i.test(settingsView) && !/subscriptionPlans|monthlyFee|annualFee/.test(settingsView));
+check('Global settings expose partner commission and fixed UGX promoter reward, not plans', /partner commission %/i.test(settingsView) && /promoter commission per eligible ugx booking/i.test(settingsView) && !/subscriptionPlans|monthlyFee|annualFee/.test(settingsView));
 check('Migration converts legacy percentages', /deriveCommission/.test(migration) && /partnerCommissionPercent/.test(migration));
 check('Migration removes retired company billing fields', /pendingUpgradeOrderRef/.test(migration) && /billingStatus/.test(migration));
 check('Invitation schema and services contain no commission plan field', !/commissionPlan/.test(read('src/models/Invitation.js')) && !/commissionPlan/.test(read('src/services/onboarding/invitationService.js')));
@@ -80,6 +80,9 @@ try {
       getCachedPlatformConfig: () => ({
         partnerCommissionPercent: 10,
         promoterSharePercent: 30,
+        promoterFixedUgx: 2000,
+        defaultCurrency: 'UGX',
+        ugandaCurrency: 'UGX',
       }),
     },
     children: [],
@@ -89,8 +92,8 @@ try {
   const calculateCommission = require(calculatorPath);
   const direct = calculateCommission(100000, false);
   check('Default split pays partner 90% without referral', direct.companyAmount === 90000 && direct.totalCommission === 10000 && direct.platformFee === 10000 && direct.promoterAmount === 0);
-  const referred = calculateCommission(100000, true);
-  check('Promoter reward is carved from Classic Trip commission', referred.companyAmount === 90000 && referred.totalCommission === 10000 && referred.platformFee === 7000 && referred.promoterAmount === 3000);
+  const referred = calculateCommission(100000, true, { currency: 'UGX' });
+  check('UGX promoter reward is fixed at 2000 and carved from Classic Trip commission', referred.companyAmount === 90000 && referred.totalCommission === 10000 && referred.platformFee === 8000 && referred.promoterAmount === 2000 && referred.promoterRewardModel === 'fixed_ugx');
   const overridden = calculateCommission(100000, false, { partnerCommissionPercent: 12.5 });
   check('Partner-specific override freezes the requested percentage', overridden.companyAmount === 87500 && overridden.totalCommission === 12500 && overridden.partnerCommissionPercent === 12.5);
 } finally {

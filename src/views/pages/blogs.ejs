@@ -1,7 +1,39 @@
-<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-head', { seo, bodyClass: 'blogsPage' }) %>
 <%- include('../partials/site-header') %>
-<main class="container marketingPage blogsMarketingPage" style="padding:16px 0 30px">
-  <section class="card heroCard"><span class="badge badgeHot"><i class="fa-solid fa-newspaper"></i> Blog and SEO</span><h1 class="heroTitle">Route guides, booking help and partner education.</h1><p class="heroSub">The blueprint asks for SEO/blog support, so the platform includes a ready public guide section.</p></section>
-  <section class="gridCards" style="margin-top:14px"><% blogs.forEach(blog => { %><article class="listing"><a href="/blogs/<%= blog.slug %>"><div class="thumb"><img src="<%= blog.image %>" alt="<%= blog.title %>" loading="lazy" decoding="async"></div><div class="listingBody"><span class="badge badgeInfo"><%= blog.tag %></span><h3 class="listingTitle"><%= blog.title %></h3><p class="desc"><%= blog.excerpt %></p></div></a></article><% }) %></section>
+<main class="container marketingPage blogsMarketingPage blogDirectoryPage">
+  <section class="card heroCard blogDirectoryHero">
+    <div>
+      <span class="badge badgeHot"><i class="fa-solid fa-newspaper"></i> Classic Trip Travel Guides</span>
+      <h1 class="heroTitle">Practical travel guides for Uganda and East Africa.</h1>
+      <p class="heroSub">Clear route advice, booking help, payment safety and travel planning written to help customers choose and book with confidence.</p>
+    </div>
+    <div class="blogDirectoryActions">
+      <a class="btn btnPrimary" href="/buses"><i class="fa-solid fa-bus"></i> Find a bus</a>
+      <a class="btn btnGhost" href="/routes"><i class="fa-solid fa-route"></i> Explore routes</a>
+    </div>
+  </section>
+
+  <section class="section blogDirectorySection">
+    <div class="sectionHead">
+      <div><span class="eyebrow">Latest guides</span><h2>Read, compare and travel better</h2><p>All published Classic Trip articles appear here.</p></div>
+      <span class="badge badgeInfo"><%= blogs.length %> article<%= blogs.length === 1 ? '' : 's' %></span>
+    </div>
+    <div class="blogDirectoryGrid">
+      <% blogs.forEach(function(blog, index) { %>
+        <article class="blogDirectoryCard <%= index === 0 ? 'blogDirectoryCard--featured' : '' %>">
+          <a class="blogDirectoryMedia" href="/blogs/<%= blog.slug %>" aria-label="Read <%= blog.title %>">
+            <% if (blog.image) { %><img src="<%= blog.image %>" alt="<%= blog.imageAlt || blog.title %>" width="640" height="360" loading="<%= index < 2 ? 'eager' : 'lazy' %>" decoding="async"><% } else { %><span class="blogDirectoryPlaceholder"><i class="fa-solid fa-route"></i></span><% } %>
+            <span class="badge badgeInfo blogDirectoryTag"><%= blog.tag || 'Travel guide' %></span>
+          </a>
+          <div class="blogDirectoryBody">
+            <div class="blogMeta"><% if (blog.publishedAt) { %><span><i class="fa-regular fa-calendar"></i> <%= new Date(blog.publishedAt).toLocaleDateString('en-UG',{day:'2-digit',month:'short',year:'numeric'}) %></span><% } %><span><i class="fa-regular fa-clock"></i> <%= Math.max(3, Math.round(String(blog.body || '').split(/\s+/).length / 210)) %> min read</span></div>
+            <h2><a href="/blogs/<%= blog.slug %>"><%= blog.title %></a></h2>
+            <p><%= blog.excerpt %></p>
+            <div class="blogDirectoryFooter"><a class="btn btnGhost" href="/blogs/<%= blog.slug %>"><i class="fa-regular fa-eye"></i> Read guide</a><a class="miniIcon" href="/blogs/<%= blog.slug %>" title="Open article" aria-label="Open article"><i class="fa-solid fa-arrow-right"></i></a></div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  </section>
 </main>
 <%- include('../partials/site-footer') %>

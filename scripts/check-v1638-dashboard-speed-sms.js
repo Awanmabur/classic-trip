@@ -13,7 +13,7 @@ const sms = read('src/services/notification/smsService.js');
 const env = read('src/config/env.js');
 const render = read('render.yaml');
 const sw = read('public/sw.js');
-check('release version matches current package', pkg.version === '1.6.40');
+check('release version matches current package', pkg.version === '1.6.43');
 check('service worker cache matches current package', sw.includes(`classic-trip-static-v${pkg.version}`));
 check('admin dashboards use exact page entity plans', snap.includes('const ADMIN_PAGE_ENTITIES') && snap.includes("bookings: new Set(['users','companies','listings','bookings'"));
 check('employee and driver overviews are independently scoped', snap.includes('EMPLOYEE_OVERVIEW_ENTITIES') && snap.includes('DRIVER_OVERVIEW_ENTITIES'));

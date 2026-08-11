@@ -20,7 +20,7 @@ function boundedPercent(value, fallback = 5) {
 }
 async function flightCommercialSplit(total, listing, agentCompanyId, hasReferral, session) {
   const amount = roundMoney(total);
-  const base = calculateCommission(amount, hasReferral, { commissionPercent: listing.commissionPercent });
+  const base = calculateCommission(amount, hasReferral, { commissionPercent: listing.commissionPercent, currency: listing.currency || listing.priceSnapshot?.currency });
   if (!agentCompanyId) {
     return {
       ...base,

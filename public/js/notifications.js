@@ -2,7 +2,7 @@
   'use strict';
   if (!window.fetch) return;
 
-  var state = { config: null, notifications: [], open: false, subscription: null, syncing: false };
+  var state = { config: null, notifications: [], open: false, subscription: null, syncing: false, initialized: false, seenIds: {}, audioContext: null, audioArmed: false, pollTimer: null };
 
   function csrfToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
@@ -20,6 +20,58 @@
       window.clearTimeout(window.__ctNotifyToast);
       window.__ctNotifyToast = window.setTimeout(function () { el.classList.remove('show'); }, 2600);
     }
+  }
+
+  function dashboardRole() {
+    var bootstrap = document.getElementById('dashboardWorkspaceBootstrap');
+    if (!bootstrap) return '';
+    try { return String((JSON.parse(bootstrap.textContent || '{}').shell || {}).currentRole || '').toLowerCase(); }
+    catch (_) { return ''; }
+  }
+
+  function armNotificationSound() {
+    if (state.audioArmed) return;
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    try {
+      state.audioContext = state.audioContext || new AudioContext();
+      var resume = state.audioContext.state === 'suspended' ? state.audioContext.resume() : Promise.resolve();
+      Promise.resolve(resume).then(function () { state.audioArmed = true; }).catch(function () {});
+    } catch (_) {}
+  }
+
+  function playBookingSound() {
+    if (!state.audioArmed || !state.audioContext) return;
+    try {
+      var ctx = state.audioContext;
+      var now = ctx.currentTime;
+      [[880, 0, .11], [1174, .14, .13]].forEach(function (tone) {
+        var oscillator = ctx.createOscillator();
+        var gain = ctx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(tone[0], now + tone[1]);
+        gain.gain.setValueAtTime(0.0001, now + tone[1]);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + tone[1] + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + tone[1] + tone[2]);
+        oscillator.connect(gain); gain.connect(ctx.destination);
+        oscillator.start(now + tone[1]); oscillator.stop(now + tone[1] + tone[2] + 0.02);
+      });
+    } catch (_) {}
+  }
+
+  function alertForNewBookings(nextNotifications) {
+    if (!state.initialized) return;
+    var bookingRefs = {};
+    (nextNotifications || []).forEach(function (note) {
+      if (!note || state.seenIds[note.id] || note.readAt || !note.meta || note.meta.alertSound !== 'booking') return;
+      var key = note.meta.bookingRef || note.referenceId || note.id;
+      bookingRefs[key] = note;
+    });
+    var keys = Object.keys(bookingRefs);
+    if (!keys.length) return;
+    playBookingSound();
+    var newest = bookingRefs[keys[0]];
+    toast(keys.length > 1 ? keys.length + ' new bookings received.' : (newest.title || 'New booking received.'));
   }
 
   function api(path, options) {
@@ -221,9 +273,41 @@
   function loadNotifications() {
     return api('/api/notifications?limit=50').then(function (data) {
       if (!data || !data.ok) return;
-      state.notifications = data.notifications || [];
+      var nextNotifications = data.notifications || [];
+      alertForNewBookings(nextNotifications);
+      state.notifications = nextNotifications;
+      nextNotifications.forEach(function (note) { if (note && note.id) state.seenIds[note.id] = true; });
+      state.initialized = true;
       ensureDock();
       render();
+    });
+  }
+
+  function listenForPushBookingAlerts() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.addEventListener('message', function (event) {
+      var data = event && event.data ? event.data : {};
+      var meta = data.meta || {};
+      var role = dashboardRole();
+      if (data.type !== 'classic-trip-push' || meta.alertSound !== 'booking' || !['admin', 'company'].includes(role)) return;
+      var key = meta.bookingRef || data.referenceId || '';
+      if (key && state.seenIds['push:' + key]) return;
+      if (key) state.seenIds['push:' + key] = true;
+      playBookingSound();
+      toast(data.title || (key ? 'New booking ' + key : 'New booking received.'));
+      window.setTimeout(function () { loadNotifications(); }, 150);
+    });
+  }
+
+  function startLiveBookingAlerts() {
+    var role = dashboardRole();
+    if (!['admin', 'company'].includes(role) || state.pollTimer) return;
+    var poll = function () {
+      if (document.visibilityState === 'visible') loadNotifications();
+    };
+    state.pollTimer = window.setInterval(poll, 10000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') poll();
     });
   }
 
@@ -313,6 +397,8 @@
 
   function init() {
     bindPageActions();
+    document.addEventListener('pointerdown', armNotificationSound, { once: true, passive: true });
+    document.addEventListener('keydown', armNotificationSound, { once: true });
     api('/api/notifications/config').then(function (data) {
       if (!data || !data.ok) return;
       state.config = data;
@@ -333,7 +419,10 @@
           updatePushUi();
           return null;
         });
-      }).then(loadNotifications);
+      }).then(loadNotifications).then(function () {
+        listenForPushBookingAlerts();
+        startLiveBookingAlerts();
+      });
     });
   }
 

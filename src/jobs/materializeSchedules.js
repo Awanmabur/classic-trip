@@ -272,6 +272,27 @@ function matchingFutureDates(rule, cursor, windowEnd, now) {
   return dates;
 }
 
+// A "rolling 30 days" rule must not slowly lose departure instances as old
+// departures pass. The target is the number of operating occurrences that the
+// rule had in its original 30-calendar-day window. Daily rules therefore keep
+// 30 future departures; weekday/weekly rules keep the equivalent recurrence
+// count and extend the far edge by only the few days needed to replace a passed
+// occurrence. This preserves the 30-day product semantics without creating 30
+// weeks of inventory for a once-a-week service.
+function rollingTargetDepartureCount(rule = {}) {
+  const ruleStart = startOfDay(rule.startDate || new Date());
+  const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
+  const referenceEnd = new Date(ruleStart.getTime() + HORIZON_DAYS * DAY_MS);
+  const cappedEnd = ruleEnd && ruleEnd < referenceEnd ? ruleEnd : referenceEnd;
+  let count = 0;
+  let day = new Date(ruleStart);
+  while (day <= cappedEnd) {
+    if (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getDay())) count += 1;
+    day = new Date(day.getTime() + DAY_MS);
+  }
+  return Math.max(0, Math.min(ROLLING_WINDOW_DAYS, count));
+}
+
 function rollingWindowBounds(rule, horizonEnd, now) {
   const ruleStart = startOfDay(rule.startDate);
   const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
@@ -290,8 +311,24 @@ function rollingWindowBounds(rule, horizonEnd, now) {
       replacedDepartedDate = true;
     }
   }
-  const windowEnd = ruleEnd && ruleEnd < effectiveHorizonEnd ? ruleEnd : effectiveHorizonEnd;
-  return { cursor, windowEnd, replacedDepartedDate };
+  let windowEnd = ruleEnd && ruleEnd < effectiveHorizonEnd ? ruleEnd : effectiveHorizonEnd;
+  const targetDepartureCount = rollingTargetDepartureCount(rule);
+  // Keep the original recurrence count stable. A weekly pattern can lose one
+  // departure even though the calendar horizon advanced by one day, so extend
+  // the far edge just until the replacement matching weekday enters the window.
+  // A seven-day recurrence means six extra scan days is normally sufficient;
+  // use a bounded 14-day guard for edited legacy rules and unusual start dates.
+  let futureCount = matchingFutureDates(rule, cursor, windowEnd, now).length;
+  let extensionDays = 0;
+  while (futureCount < targetDepartureCount && extensionDays < 14 && (!ruleEnd || windowEnd < ruleEnd)) {
+    const nextEnd = new Date(windowEnd.getTime() + DAY_MS);
+    windowEnd = ruleEnd && ruleEnd < nextEnd ? ruleEnd : nextEnd;
+    extensionDays += 1;
+    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(windowEnd.getDay());
+    if (matchesWeekday && combineDateAndTime(windowEnd, rule.departureTime).getTime() > now.getTime()) futureCount += 1;
+    if (ruleEnd && windowEnd.getTime() >= ruleEnd.getTime()) break;
+  }
+  return { cursor, windowEnd, replacedDepartedDate, targetDepartureCount, extensionDays };
 }
 
 function schedulePayload(rule, departAt) {
@@ -1045,6 +1082,7 @@ module.exports = {
   HORIZON_DAYS,
   startOfDay,
   matchingFutureDates,
+  rollingTargetDepartureCount,
   rollingWindowBounds,
   queueRuleMaterialization,
   queueAllActiveRules,

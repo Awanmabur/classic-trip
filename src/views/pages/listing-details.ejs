@@ -7,7 +7,7 @@
   const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency;
   const customerFeeFor = (subtotal) => Math.round((Number(subtotal || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(subtotal || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
   const initialBusFare = Number(safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0);
-  const initialBusServiceFee = String(currency || '').toUpperCase() === 'UGX' && initialBusFare >= 1000 ? (initialBusFare <= 30000 ? 1000 : initialBusFare <= 100000 ? 2000 : initialBusFare <= 150000 ? 3000 : 5000) : 0;
+  const initialBusServiceFee = String(currency || '').toUpperCase() === String(platformConfig.ugandaCurrency || '').toUpperCase() && initialBusFare >= 1000 ? (initialBusFare <= 30000 ? 1000 : initialBusFare <= 100000 ? 2000 : initialBusFare <= 150000 ? 3000 : 5000) : 0;
   const serviceFee = previewData.serviceFee ?? (listing.serviceType === 'bus' ? initialBusServiceFee : customerFeeFor(listing.priceFrom || 0));
   const initialDisplayedFare = listing.serviceType === 'bus' ? initialBusFare : Number(listing.priceFrom || 0);
   const totalEstimate = previewData.totalEstimate ?? (initialDisplayedFare + serviceFee);
@@ -332,11 +332,11 @@
   let outboundJourneyDebounce = null;
   let activeReturnRequest = null;
   let outboundRequestSequence = 0;
-  const customerFeeConfig = <%- toScriptJson({ percent: platformConfig.customerServiceFeePercent || 0, flat: platformConfig.customerServiceFeeFlat || 0, taxPercent: platformConfig.customerTaxPercent || 0 }) %>;
+  const customerFeeConfig = <%- toScriptJson({ percent: platformConfig.customerServiceFeePercent || 0, flat: platformConfig.customerServiceFeeFlat || 0, taxPercent: platformConfig.customerTaxPercent || 0, ugandaCurrency: platformConfig.ugandaCurrency || '' }) %>;
   function customerFees(subtotal) { const base = Math.max(0, Number(subtotal || 0)); return Math.round((base * Number(customerFeeConfig.percent || 0) / 100) + Number(customerFeeConfig.flat || 0) + (base * Number(customerFeeConfig.taxPercent || 0) / 100)); }
   function busTicketPrice(partnerFare, seatDelta, isMainRoute) {
     const partner = Math.max(0, Math.round(Number(partnerFare || 0) + Number(seatDelta || 0)));
-    const ugx = String(previewPricing.currency || '').toUpperCase() === 'UGX';
+    const ugx = String(previewPricing.currency || '').toUpperCase() === String(customerFeeConfig.ugandaCurrency || '').toUpperCase();
     const discount = ugx && isMainRoute ? Math.min(3000, Math.max(0, partner - 1000)) : 0;
     const fare = Math.max(0, partner - discount);
     let fee = 0;

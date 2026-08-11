@@ -92,11 +92,11 @@ const env = {
   paymentProviders: {
     pesapal: {
       apiUrl: process.env.PESAPAL_API_URL || process.env.PAYMENT_API_URL || 'https://pay.pesapal.com/v3/api',
-      consumerKey: process.env.PESAPAL_CONSUMER_KEY || process.env.PAYMENT_API_KEY || '',
-      consumerSecret: process.env.PESAPAL_CONSUMER_SECRET || process.env.PAYMENT_API_SECRET || '',
+      consumerKey: configuredValue('PESAPAL_CONSUMER_KEY') || configuredValue('PAYMENT_API_KEY'),
+      consumerSecret: configuredValue('PESAPAL_CONSUMER_SECRET') || configuredValue('PAYMENT_API_SECRET'),
       callbackUrl: process.env.PESAPAL_CALLBACK_URL || process.env.PAYMENT_CALLBACK_URL || `${process.env.APP_URL || 'http://localhost:5000'}/booking/payment/callback`,
       ipnUrl: process.env.PESAPAL_IPN_URL || process.env.PAYMENT_IPN_URL || `${process.env.APP_URL || 'http://localhost:5000'}/api/webhooks/payments`,
-      ipnId: process.env.PESAPAL_IPN_ID || '',
+      ipnId: configuredValue('PESAPAL_IPN_ID'),
       webhookSecret: process.env.PESAPAL_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
       notificationType: process.env.PESAPAL_NOTIFICATION_TYPE || 'POST',
     },
@@ -312,6 +312,16 @@ function validateEnv() {
     if (!activeProvider.callbackUrl) missingPesapal.push('PESAPAL_CALLBACK_URL');
     if (!activeProvider.ipnId && !activeProvider.ipnUrl) missingPesapal.push('PESAPAL_IPN_ID or PESAPAL_IPN_URL');
     if (missingPesapal.length) throw new Error(`Missing Pesapal configuration: ${missingPesapal.join(', ')}`);
+    let pesapalApi; let pesapalCallback; let pesapalIpn = null;
+    try { pesapalApi = new URL(activeProvider.apiUrl); } catch (error) { throw new Error('PESAPAL_API_URL must be a valid absolute URL'); }
+    if (pesapalApi.protocol !== 'https:' || pesapalApi.hostname.toLowerCase() !== 'pay.pesapal.com') throw new Error('Production PESAPAL_API_URL must be https://pay.pesapal.com/v3/api');
+    try { pesapalCallback = new URL(activeProvider.callbackUrl); } catch (error) { throw new Error('PESAPAL_CALLBACK_URL must be a valid absolute URL'); }
+    if (pesapalCallback.protocol !== 'https:' || pesapalCallback.hostname.toLowerCase() !== appUrl.hostname.toLowerCase()) throw new Error('PESAPAL_CALLBACK_URL must use HTTPS on the APP_URL host');
+    if (activeProvider.ipnUrl) {
+      try { pesapalIpn = new URL(activeProvider.ipnUrl); } catch (error) { throw new Error('PESAPAL_IPN_URL must be a valid absolute URL'); }
+      if (pesapalIpn.protocol !== 'https:' || pesapalIpn.hostname.toLowerCase() !== appUrl.hostname.toLowerCase()) throw new Error('PESAPAL_IPN_URL must use HTTPS on the APP_URL host');
+    }
+    if (!['GET', 'POST'].includes(String(activeProvider.notificationType || '').toUpperCase())) throw new Error('PESAPAL_NOTIFICATION_TYPE must be GET or POST');
   } else if (env.isProduction) {
     const missingProvider = [];
     if (!activeProvider.apiUrl) missingProvider.push(`${env.paymentProvider.toUpperCase()}_API_URL`);

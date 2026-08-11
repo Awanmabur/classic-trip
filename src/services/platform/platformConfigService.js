@@ -1,13 +1,16 @@
 'use strict';
 
 const platformSettingsRepository = require('../../repositories/domain/platformSettingsRepository');
+const { currencyForCountry } = require('../../config/countryMarkets');
 
 const SYSTEM_DEFAULTS = Object.freeze({
   platformName: 'Classic Trip',
   defaultCurrency: 'UGX',
+  ugandaCurrency: currencyForCountry('Uganda'),
   supportedCurrencies: ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'CDF', 'SOS', 'USD'],
   partnerCommissionPercent: 10,
   promoterSharePercent: 30,
+  promoterFixedUgx: 2000,
   customerServiceFeePercent: 0,
   customerServiceFeeFlat: 0,
   customerTaxPercent: 0,
@@ -57,6 +60,7 @@ function normalize(row = {}) {
   const legacyPartnerCommission = legacyCommissionPercent(finance);
   const partnerCommissionPercent = number(legacyPartnerCommission, SYSTEM_DEFAULTS.partnerCommissionPercent);
   const promoterSharePercent = number(legacyPromoterShare(finance, partnerCommissionPercent), SYSTEM_DEFAULTS.promoterSharePercent);
+  const promoterFixedUgx = number(finance.promoterFixedUgx, SYSTEM_DEFAULTS.promoterFixedUgx, 0, 1000000000);
   const customerServiceFeePercent = number(finance.customerServiceFeePercent, SYSTEM_DEFAULTS.customerServiceFeePercent);
   const customerServiceFeeFlat = number(finance.customerServiceFeeFlat, SYSTEM_DEFAULTS.customerServiceFeeFlat, 0, 1000000000);
   const customerTaxPercent = number(finance.customerTaxPercent, SYSTEM_DEFAULTS.customerTaxPercent);
@@ -65,9 +69,11 @@ function normalize(row = {}) {
   return {
     platformName: String(row.platformName || SYSTEM_DEFAULTS.platformName).trim(),
     defaultCurrency,
+    ugandaCurrency: SYSTEM_DEFAULTS.ugandaCurrency,
     supportedCurrencies,
     partnerCommissionPercent,
     promoterSharePercent,
+    promoterFixedUgx,
     partnerPayoutPercent: Math.max(0, 100 - partnerCommissionPercent),
     promoterEffectivePercent: Number(((partnerCommissionPercent * promoterSharePercent) / 100).toFixed(4)),
     customerServiceFeePercent,
@@ -91,6 +97,7 @@ function toStored(config) {
     financeRules: {
       partnerCommissionPercent: config.partnerCommissionPercent,
       promoterSharePercent: config.promoterSharePercent,
+      promoterFixedUgx: config.promoterFixedUgx,
       customerServiceFeePercent: config.customerServiceFeePercent,
       customerServiceFeeFlat: config.customerServiceFeeFlat,
       customerTaxPercent: config.customerTaxPercent,

@@ -1297,6 +1297,17 @@ async function transitionSchedule(companyId, scheduleId, payload = {}, actor = '
     const update = { id: await repository.nextId('trip-status'), companyId, scheduleId: schedule.id, vehicleId: schedule.vehicleId, status: next, location: cleanText(payload.location, 300), note: schedule.statusReason, createdBy: actorId(actor), createdAt: timestamp };
     await repository.tripStatusUpdates.save(update, { id: update.id }, { session });
     await repository.outbox({ eventType: `BusDeparture${next.split('_').map((x) => x[0].toUpperCase() + x.slice(1)).join('')}`, aggregateType: 'trip_schedule', aggregateId: schedule.id, companyId, payload: { scheduleId: schedule.id, status: next, reason: schedule.statusReason }, dedupeKey: `BusDepartureStatus:${schedule.id}:${next}:${timestamp}`, session });
+    if (schedule.scheduleRuleId && ['departed', 'arrived', 'completed', 'cancelled', 'archived'].includes(next)) {
+      await repository.outbox({
+        eventType: 'ScheduleRuleMaterializationRequested',
+        aggregateType: 'schedule_rule',
+        aggregateId: schedule.scheduleRuleId,
+        companyId,
+        payload: { companyId, ruleId: schedule.scheduleRuleId },
+        dedupeKey: `ScheduleRuleMaterializationRequested:${schedule.scheduleRuleId}:departure-${schedule.id}:${next}:${timestamp}`,
+        session,
+      });
+    }
     await repository.audit({ actorId: actorId(actor), action: 'bus.departure.status_updated', targetType: 'trip_schedule', targetId: schedule.id, companyId, metadata: { status: next }, session });
   });
   return schedule;

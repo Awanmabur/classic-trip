@@ -14,6 +14,7 @@ const platformSettingsRepository = require('../../repositories/domain/platformSe
 const { savePlatformConfig, getPlatformConfig } = require('../../services/platform/platformConfigService');
 const { resolveCurrency } = require('../../utils/currency');
 const { nextId } = require('../../services/data/idService');
+const dashboardSnapshotService = require('../../services/dashboard/dashboardSnapshotService');
 
 const ADMIN_ROLES = new Set(['admin', 'finance_admin', 'support_admin', 'operations_admin', 'content_admin']);
 const CAMPAIGN_PLACEMENTS = new Set(['marketplace_top', 'route_card', 'hotel_card', 'banner', 'promoter_share', 'route_boost', 'homepage_feature']);
@@ -80,6 +81,72 @@ async function createListing(req, res, next) {
     await audit(req, 'admin.listing.created', listing.id, { entityType: 'listing', companyId: listing.companyId }, { entityType: 'listing' });
     redirect(res, '/admin/listings');
   } catch (err) { next(err); }
+}
+
+async function approveListing(req, res, next) {
+  try {
+    const listingId = cleanText(req.params.id, 180);
+    const listing = await repository.listings.findOne({ id: listingId });
+    if (!listing) throw error('Listing not found', 404);
+    const published = await companyService.publishListing(listing.companyId, listing.id, actor(req));
+    const refreshed = await repository.listings.findOne({ id: listing.id }) || published || listing;
+    const reviewedAt = new Date().toISOString();
+    refreshed.publication = {
+      ...(refreshed.publication || {}),
+      reviewStatus: 'approved',
+      reviewedBy: actor(req),
+      reviewedAt,
+      rejectionReason: '',
+    };
+    refreshed.isVerified = true;
+    refreshed.updatedAt = reviewedAt;
+    await repository.listings.save(refreshed, { id: refreshed.id });
+    await audit(req, 'admin.listing.approved', refreshed.id, {
+      entityType: 'listing', companyId: refreshed.companyId, serviceType: refreshed.serviceType,
+    }, { entityType: 'listing' });
+    dashboardSnapshotService.invalidate('admin', { activePage: 'listings' });
+    dashboardSnapshotService.invalidate('company', { companyId: refreshed.companyId });
+    if (req.flash) req.flash('success', `${refreshed.title || 'Listing'} approved and published successfully.`);
+    return redirect(res, '/admin/listings');
+  } catch (err) {
+    if (req.flash && [409, 422].includes(Number(err.status || 0))) {
+      req.flash('error', `Listing cannot be approved yet: ${err.message}`);
+      return redirect(res, '/admin/listings');
+    }
+    return next(err);
+  }
+}
+
+async function rejectListing(req, res, next) {
+  try {
+    const listingId = cleanText(req.params.id, 180);
+    const listing = await repository.listings.findOne({ id: listingId });
+    if (!listing) throw error('Listing not found', 404);
+    const reason = cleanText(req.body.reason || req.body.note || 'Listing requires partner corrections before approval.', 1600);
+    const reviewedAt = new Date().toISOString();
+    listing.status = 'draft';
+    listing.bookable = false;
+    listing.releaseStatus = 'rejected';
+    listing.unpublishedAt = reviewedAt;
+    listing.publication = {
+      ...(listing.publication || {}),
+      public: false,
+      state: 'draft',
+      reviewStatus: 'rejected',
+      rejectionReason: reason,
+      reviewedBy: actor(req),
+      reviewedAt,
+    };
+    listing.updatedAt = reviewedAt;
+    await repository.listings.save(listing, { id: listing.id });
+    await audit(req, 'admin.listing.rejected', listing.id, {
+      entityType: 'listing', companyId: listing.companyId, serviceType: listing.serviceType, reason,
+    }, { entityType: 'listing' });
+    dashboardSnapshotService.invalidate('admin', { activePage: 'listings' });
+    dashboardSnapshotService.invalidate('company', { companyId: listing.companyId });
+    if (req.flash) req.flash('warning', `${listing.title || 'Listing'} returned to the partner for correction.`);
+    return redirect(res, '/admin/listings');
+  } catch (err) { return next(err); }
 }
 
 async function createPromotion(req, res, next) {
@@ -294,6 +361,7 @@ async function updateFinanceRules(req, res, next) {
     const current = await getPlatformConfig();
     const partnerCommissionPercent = amountValue(req.body.partnerCommissionPercent ?? req.body.platformCommissionPercent, current.partnerCommissionPercent);
     const promoterSharePercent = amountValue(req.body.promoterSharePercent, current.promoterSharePercent);
+    const promoterFixedUgx = amountValue(req.body.promoterFixedUgx, current.promoterFixedUgx || 2000);
     const customerServiceFeePercent = amountValue(req.body.customerServiceFeePercent, current.customerServiceFeePercent);
     const customerServiceFeeFlat = amountValue(req.body.customerServiceFeeFlat, current.customerServiceFeeFlat);
     const customerTaxPercent = amountValue(req.body.customerTaxPercent, current.customerTaxPercent);
@@ -312,6 +380,7 @@ async function updateFinanceRules(req, res, next) {
       financeRules: {
         partnerCommissionPercent,
         promoterSharePercent,
+        promoterFixedUgx,
         customerServiceFeePercent,
         customerServiceFeeFlat,
         customerTaxPercent,
@@ -524,7 +593,7 @@ async function rejectDriverRequest(req, res, next) {
 }
 
 module.exports = {
-  createBooking, createListing, createPromotion, createNotice, sendNotification, createCustomerNote,
+  createBooking, createListing, approveListing, rejectListing, createPromotion, createNotice, sendNotification, createCustomerNote,
   inviteAdmin, approveDriverRequest, rejectDriverRequest, createVerificationTask, createRefund,
   runPayout, freezePayment, updateFinanceRules, updatePriceRule, updateTemplate,
   replySupport, createInternalNote, approveReschedule, rejectReschedule,

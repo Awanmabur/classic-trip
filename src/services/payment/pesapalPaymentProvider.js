@@ -1,3 +1,4 @@
+const { platformCurrency } = require('../../utils/currency');
 const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 6000;
 
 function requestTimeoutMs(config = {}) {
@@ -43,6 +44,47 @@ function normalizeStatus(value = '') {
   if (['failed', 'invalid', 'declined', 'cancelled', 'canceled'].includes(status)) return 'failed';
   if (['reversed', 'refunded'].includes(status)) return 'refunded';
   return status || 'pending';
+}
+
+function safeMerchantReference(value = '') {
+  const reference = String(value || '').trim();
+  if (!reference) {
+    const error = new Error('Pesapal merchant reference is required'); error.status = 422; throw error;
+  }
+  if (reference.length > 50 || !/^[A-Za-z0-9._:-]+$/.test(reference)) {
+    const error = new Error('Pesapal merchant reference must be 50 characters or fewer and use only letters, numbers, dot, underscore, colon or dash');
+    error.status = 422; throw error;
+  }
+  return reference;
+}
+
+function validatedAbsoluteUrl(value = '', label = 'URL', { requireHttps = false } = {}) {
+  let parsed;
+  try { parsed = new URL(String(value || '').trim()); } catch (error) { const err = new Error(`${label} must be a valid absolute URL`); err.status = 503; throw err; }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.hash) { const err = new Error(`${label} is not allowed`); err.status = 503; throw err; }
+  if (requireHttps && parsed.protocol !== 'https:') { const err = new Error(`${label} must use HTTPS for live Pesapal`); err.status = 503; throw err; }
+  return parsed;
+}
+
+function isLivePesapal(config = {}) {
+  try { return new URL(config.apiUrl).hostname.toLowerCase() === 'pay.pesapal.com'; } catch (error) { return false; }
+}
+
+function assertPesapalRedirect(value = '', config = {}) {
+  const parsed = validatedAbsoluteUrl(value, 'Pesapal checkout URL', { requireHttps: true });
+  const host = parsed.hostname.toLowerCase();
+  if (!(host === 'pesapal.com' || host.endsWith('.pesapal.com'))) {
+    const error = new Error('Pesapal returned an unexpected checkout host'); error.status = 502; throw error;
+  }
+  if (isLivePesapal(config) && host.includes('cybqa')) { const error = new Error('Live Pesapal returned a sandbox checkout URL'); error.status = 502; throw error; }
+  return parsed.toString();
+}
+
+function tokenExpiryAt(result = {}) {
+  const absolute = result.expiryDate || result.expiry_date || result.expires_at || result.expiresAt;
+  if (absolute) { const parsed = Date.parse(absolute); if (Number.isFinite(parsed) && parsed > Date.now()) return parsed; }
+  const ttl = Number(result.expires_in || result.expiry || 300);
+  return Date.now() + Math.max(120, Number.isFinite(ttl) ? ttl : 300) * 1000;
 }
 
 async function requestJson(config, pathname, { method = 'POST', token = '', body = null, query = null } = {}) {
@@ -96,39 +138,50 @@ async function tokenFor(config = {}) {
     error.providerResponse = result;
     throw error;
   }
-  const ttlSeconds = Number(result.expires_in || result.expiry || 300);
-  tokenCache = { key, token, expiresAt: Date.now() + Math.max(120, ttlSeconds) * 1000 };
+  tokenCache = { key, token, expiresAt: tokenExpiryAt(result) };
   return token;
 }
 
 async function notificationIdFor(config = {}, token = '') {
-  if (config.ipnId) return config.ipnId;
+  if (config.ipnId) return String(config.ipnId).trim();
   if (!config.ipnUrl) {
     const error = new Error('Pesapal IPN URL or IPN ID is required');
     error.status = 503;
     throw error;
   }
-  const key = `${config.apiUrl}:${config.ipnUrl}:${config.notificationType || 'POST'}`;
-  if (notificationCache.key === key && notificationCache.ipnId && notificationCache.expiresAt > Date.now()) {
-    return notificationCache.ipnId;
+  const ipnUrl = validatedAbsoluteUrl(config.ipnUrl, 'Pesapal IPN URL', { requireHttps: isLivePesapal(config) }).toString();
+  const notificationType = String(config.notificationType || 'POST').toUpperCase();
+  if (!['GET', 'POST'].includes(notificationType)) { const error = new Error('PESAPAL_NOTIFICATION_TYPE must be GET or POST'); error.status = 503; throw error; }
+  const key = `${config.apiUrl}:${ipnUrl}:${notificationType}`;
+  if (notificationCache.key === key && notificationCache.ipnId && notificationCache.expiresAt > Date.now()) return notificationCache.ipnId;
+
+  // Pesapal exposes GetIPNList. Reuse an already-registered active URL instead of
+  // registering duplicates after every deploy/restart.
+  try {
+    const listed = await requestJson(config, '/URLSetup/GetIpnList', { method: 'GET', token });
+    const rows = Array.isArray(listed) ? listed : (Array.isArray(listed?.data) ? listed.data : Array.isArray(listed?.ipn_list) ? listed.ipn_list : []);
+    const match = rows.find((row) => {
+      const sameUrl = String(row.url || '').replace(/\/$/, '') === ipnUrl.replace(/\/$/, '');
+      const type = String(row.ipn_notification_type_description || row.notification_type_description || row.ipn_notification_type || '').toUpperCase();
+      const active = row.ipn_status === undefined || row.ipn_status === 1 || row.ipn_status === '1' || String(row.ipn_status_description || row.ipn_status_decription || '').toLowerCase() === 'active';
+      return sameUrl && active && (!type || type === notificationType);
+    });
+    const existingId = match && (match.ipn_id || match.ipnId || match.notification_id);
+    if (existingId) {
+      notificationCache = { key, ipnId: existingId, expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
+      return existingId;
+    }
+  } catch (error) {
+    // Registration remains the authoritative fallback; a transient list failure
+    // must not make checkout unavailable.
   }
+
   const result = await requestJson(config, '/URLSetup/RegisterIPN', {
     token,
-    body: {
-      url: config.ipnUrl,
-      ipn_notification_type: config.notificationType || 'POST',
-    },
+    body: { url: ipnUrl, ipn_notification_type: notificationType },
   });
   const ipnId = result.ipn_id || result.ipnId || result.notification_id || result.data?.ipn_id;
-  if (!ipnId) {
-    const error = new Error('Pesapal IPN registration response did not include an IPN ID');
-    error.status = 502;
-    error.providerResponse = result;
-    throw error;
-  }
-  // Registering the same IPN URL on every checkout adds two unnecessary network
-  // round trips. Cache the provider-issued ID for 24 hours; configured IPN IDs
-  // continue to bypass registration completely.
+  if (!ipnId) { const error = new Error('Pesapal IPN registration response did not include an IPN ID'); error.status = 502; error.providerResponse = result; throw error; }
   notificationCache = { key, ipnId, expiresAt: Date.now() + (24 * 60 * 60 * 1000) };
   return ipnId;
 }
@@ -145,27 +198,33 @@ function splitName(value = '') {
 function buildOrder(payment = {}, config = {}, notificationId = '') {
   const customer = payment.customer || {};
   const name = splitName(customer.fullName || customer.name || payment.fullName || 'Classic Trip Guest');
-  const bookingRef = payment.bookingRef || payment.orderRef || payment.idempotencyKey;
+  const bookingRef = safeMerchantReference(payment.bookingRef || payment.orderRef || payment.idempotencyKey);
+  const amount = Number(payment.amount || 0);
+  if (!Number.isFinite(amount) || amount <= 0) { const error = new Error('Pesapal payment amount must be greater than zero'); error.status = 422; throw error; }
+  const email = String(customer.email || payment.email || '').trim();
+  const phone = String(customer.phone || payment.phone || '').trim();
+  if (!email && !phone) { const error = new Error('Pesapal requires a customer email address or phone number'); error.status = 422; throw error; }
+  const callback = validatedAbsoluteUrl(payment.callbackUrl || config.callbackUrl, 'Pesapal callback URL', { requireHttps: isLivePesapal(config) }).toString();
   return {
     id: bookingRef,
     currency: String(payment.currency || platformCurrency()).toUpperCase(),
-    amount: Number(payment.amount || 0),
-    description: payment.description || `Classic Trip booking ${bookingRef}`,
-    callback_url: payment.callbackUrl || config.callbackUrl,
+    amount: Number(amount.toFixed(2)),
+    description: String(payment.description || `Classic Trip booking ${bookingRef}`).trim().slice(0, 100),
+    callback_url: callback,
     notification_id: notificationId,
     billing_address: {
-      email_address: customer.email || payment.email || '',
-      phone_number: customer.phone || payment.phone || '',
-      country_code: customer.countryCode || payment.countryCode || 'UG',
-      first_name: name.firstName,
-      middle_name: name.middleName,
-      last_name: name.lastName,
-      line_1: customer.address || payment.address || '',
+      email_address: email,
+      phone_number: phone,
+      country_code: String(customer.countryCode || payment.countryCode || 'UG').trim().toUpperCase().slice(0, 2),
+      first_name: name.firstName.slice(0, 50),
+      middle_name: name.middleName.slice(0, 50),
+      last_name: name.lastName.slice(0, 50),
+      line_1: String(customer.address || payment.address || '').slice(0, 100),
       line_2: '',
-      city: customer.city || payment.city || '',
-      state: customer.state || '',
-      postal_code: customer.postalCode || '',
-      zip_code: customer.zipCode || customer.postalCode || '',
+      city: String(customer.city || payment.city || '').slice(0, 50),
+      state: String(customer.state || '').slice(0, 50),
+      postal_code: String(customer.postalCode || '').slice(0, 20),
+      zip_code: String(customer.zipCode || customer.postalCode || '').slice(0, 20),
     },
   };
 }
@@ -191,10 +250,14 @@ async function initiatePayment(payment = {}, config = {}) {
   const order = buildOrder(payment, config, notificationId);
   const result = await requestJson(config, '/Transactions/SubmitOrderRequest', { token, body: order });
   const status = normalizeStatus(result.status || result.payment_status_description || result.data?.status);
+  const providerReference = String(result.order_tracking_id || result.OrderTrackingId || result.orderTrackingId || result.data?.order_tracking_id || '').trim();
+  const rawCheckoutUrl = result.redirect_url || result.redirectUrl || result.checkoutUrl || result.data?.redirect_url || '';
+  if (!providerReference || !rawCheckoutUrl) { const error = new Error('Pesapal order response is missing the tracking ID or checkout URL'); error.status = 502; error.providerResponse = result; throw error; }
+  const checkoutUrl = assertPesapalRedirect(rawCheckoutUrl, config);
   return {
     provider: 'pesapal',
-    providerReference: result.order_tracking_id || result.OrderTrackingId || result.orderTrackingId || result.data?.order_tracking_id || '',
-    checkoutUrl: result.redirect_url || result.redirectUrl || result.checkoutUrl || result.data?.redirect_url || '',
+    providerReference,
+    checkoutUrl,
     amount: Number(result.amount || order.amount),
     currency: result.currency || order.currency,
     status: status === 'pending' && (result.redirect_url || result.redirectUrl) ? 'pending' : status,
@@ -214,16 +277,29 @@ async function verifyWebhook(payload = {}, config = {}) {
   });
   const verified = pesapalFields(statusPayload);
   const status = normalizeStatus(verified.status || statusPayload.payment_status_description || statusPayload.status);
+  const verifiedBookingRef = String(verified.bookingRef || statusPayload.merchant_reference || '').trim();
+  const verifiedAmountRaw = pickFirst(verified.amount, statusPayload.amount, statusPayload.payment_amount);
+  const verifiedCurrencyRaw = pickFirst(verified.currency, statusPayload.currency, statusPayload.currency_code);
+  const returnedTrackingId = String(pickFirst(statusPayload.order_tracking_id, statusPayload.OrderTrackingId, statusPayload.orderTrackingId) || '').trim();
+  if (!verifiedBookingRef) {
+    const error = new Error('Pesapal transaction status did not include the merchant reference'); error.status = 502; error.code = 'pesapal_status_reference_missing'; throw error;
+  }
+  if (returnedTrackingId && returnedTrackingId !== String(fields.providerReference)) {
+    const error = new Error('Pesapal transaction status tracking reference does not match the requested transaction'); error.status = 502; error.code = 'pesapal_status_tracking_mismatch'; throw error;
+  }
+  if (status === 'successful' && (verifiedAmountRaw === undefined || verifiedCurrencyRaw === undefined)) {
+    const error = new Error('Pesapal completed transaction status is missing amount or currency'); error.status = 502; error.code = 'pesapal_status_money_missing'; throw error;
+  }
   return {
     valid: true,
     provider: 'pesapal',
-    // Trust Pesapal's own GetTransactionStatus response for this OrderTrackingId over the
-    // caller-supplied webhook body, otherwise an attacker can pay for booking A and confirm
-    // booking B by forging OrderMerchantReference in the webhook payload.
-    bookingRef: verified.bookingRef || statusPayload.merchant_reference || fields.bookingRef || '',
+    // Never fall back to the caller-supplied merchant reference. The reference,
+    // amount and currency used to confirm a booking must come from Pesapal's own
+    // GetTransactionStatus response for this OrderTrackingId.
+    bookingRef: verifiedBookingRef,
     providerReference: fields.providerReference,
-    amount: Number(verified.amount || fields.amount || statusPayload.amount || 0),
-    currency: String(verified.currency || fields.currency || statusPayload.currency || platformCurrency()).toUpperCase(),
+    amount: verifiedAmountRaw === undefined ? undefined : Number(verifiedAmountRaw),
+    currency: verifiedCurrencyRaw === undefined ? undefined : String(verifiedCurrencyRaw).toUpperCase(),
     status,
     payload: { ...payload, statusPayload },
   };
@@ -292,4 +368,4 @@ async function initiateRefund(refund = {}, config = {}) {
   };
 }
 
-module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, normalizeStatus, pesapalFields };
+module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, normalizeStatus, pesapalFields, safeMerchantReference, assertPesapalRedirect, buildOrder, tokenExpiryAt };

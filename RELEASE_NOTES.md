@@ -1,3 +1,36 @@
+# v1.6.43 — Blog presentation + seeded Partner Admin accounts
+
+- Home now exposes all seven seeded SEO/travel posts instead of truncating the feed at four.
+- Added responsive blog card/bar directory and a fully styled article preview page with the shared site head, related guides and internal travel CTAs.
+- Launch operator seed creates one editable Partner Admin account per seeded coach operator and writes newly generated one-time temporary credentials to ignored `seed-output/partner-credentials.json`; reruns do not overwrite that file with blank passwords.
+- `npm run seed:partner-credentials` intentionally resets only seeded launch Partner Admin passwords when credentials are lost.
+- Existing seeded operator records are enriched only where fields are blank/placeholders; compliance/legal/vehicle identities are never fabricated as verified facts.
+
+# Classic Trip 1.6.42 — SEO Launch Content, Operator Onboarding Seeds & Pesapal Hardening
+
+- Added seven original, editable, published SEO/customer-acquisition travel guides owned by the active Super Admin seed account.
+- Added an insert-only launch seed for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches with researched routes, terminal/office records, operator contacts where publicly supported, and unassigned staff-role slots.
+- Seeded operator companies/listings remain Pending/Draft/Review: no staff names, vehicle plates, registration numbers, licences, permits, insurance, inspections or live schedules are fabricated.
+- Added source/confidence and operator-confirmation notes so Super Admin can reconcile public research with signed onboarding information before approval/publication.
+- Added `seed:launch-content:dry` and `seed:launch-content`; the normal `npm run seed` now creates the Super Admin first and then applies the non-destructive launch content seed.
+- Hardened Pesapal API 3.0: fixed the missing platform-currency import, validates merchant references/amount/contact data, honors provider token expiry, reuses existing IPN registrations via GetIPNList, validates HTTPS callbacks/IPNs and Pesapal checkout hosts, and rejects incomplete/mismatched transaction-status responses.
+- Pesapal IPN handling supports GET/POST and returns the provider acknowledgement shape only after server-side GetTransactionStatus processing. Browser callbacks remain untrusted.
+- Payment initiation responses no longer expose stored provider raw payloads to the browser.
+
+# Classic Trip 1.6.41 — Core Repair: Rolling Inventory, Roles, Listing Review & Booking Alerts
+
+- Reworked rolling-window targeting to maintain the intended number of future recurring occurrences instead of allowing valid rules to shrink as departures leave the window.
+- Rule-generated departures now queue immediate materialization when they move to departed, arrived, completed, cancelled or archived; the periodic worker remains a fallback.
+- Preserved full vehicle-overlap protection and v1.6.40 `action needed` behavior for genuinely impossible recurring schedules.
+- Restored Super Admin listing Approve/Reject with service-specific publication/readiness validation, audit state and targeted dashboard-cache invalidation.
+- Fixed a dashboard JavaScript TDZ error where listing review actions referenced `id` before it was declared.
+- Repaired overly narrow Super Admin page data plans while preserving page-scoped dashboard performance.
+- Kept the v1.6.39 hardened single-login/partner-signup flow after role/auth audits passed; no broad rollback was applied to working auth.
+- Restored explicit notification-center card padding and list spacing on desktop and mobile.
+- Added operational booking notifications for Partner Admin and Super Admin, with immediate Service Worker signaling to open dashboards and a browser booking chime plus polling fallback.
+- Changed eligible referred Uganda-currency promoter rewards to a fixed UGX 2,000 funded from Classic Trip commission, preserving partner payout.
+- Centralized Uganda-specific pricing/reward currency policy in Platform Settings and removed obsolete one-off runtime release reports from `/docs`.
+
 # Classic Trip 1.6.40 — Clean Mongo Index & Actionable Rolling Conflicts
 
 - Removed the duplicate `PlatformActivity.expiresAt` schema index declaration; the field now uses only the intended TTL index, eliminating the Mongoose duplicate-index startup warning.

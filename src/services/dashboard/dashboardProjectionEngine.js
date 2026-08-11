@@ -3526,7 +3526,9 @@ function createDashboardProjection(initialState = {}) {
           bookingId: booking.id,
           bookingRef: booking.bookingRef,
           referralCode: booking.promoterAttribution?.code || mainLink.code || '',
-          referralPercent: booking.pricing?.split?.promoterPercent || '0%',
+          referralPercent: (commission.promoterRewardModel === 'fixed_ugx' || booking.pricing?.split?.promoterRewardModel === 'fixed_ugx')
+            ? `UGX ${Number(commission.promoterFixedAmount || booking.pricing?.split?.promoterFixedAmount || booking.pricing?.split?.promoterAmount || 2000).toLocaleString()} fixed`
+            : (booking.pricing?.split?.promoterPercent || `${Number(commission.promoterSharePercent || 0)}%`),
           grossAmount: formatMoney(booking.pricing?.total || 0, booking.pricing?.currency),
           commissionAmount: formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
           commissionStatus: commission.status || (['successful', 'paid'].includes(normalize(booking.paymentStatus)) ? 'earned' : 'pending'),

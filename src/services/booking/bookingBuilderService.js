@@ -266,7 +266,7 @@ async function buildBooking(payload = {}, req = null) {
   const customerFees = calculateCustomerFees(subtotal);
   const fees = customerFees.totalFees;
   const total = customerFees.total + addonTotal;
-  const split = calculateCommission(total, Boolean(promoterAttribution), { commissionPercent: company?.commercialTerms?.commissionPercent });
+  const split = calculateCommission(total, Boolean(promoterAttribution), { commissionPercent: company?.commercialTerms?.commissionPercent, currency: bookingCurrency });
   const initialPaymentStatus = payload.paymentStatus || (payload.deferPayment ? 'pending' : 'successful');
   const booking = {
     id: bookingId, bookingRef, guestLookupCode: crypto.randomBytes(6).toString('hex').toUpperCase(), serviceType,

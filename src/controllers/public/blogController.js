@@ -52,6 +52,7 @@ async function show(req, res, next) {
         ],
       },
       blog,
+      relatedBlogs: (await contentRepository.blogs.list({ status: 'published', slug: { $ne: blog.slug } }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 3 })).map((row) => ({ ...row, url: `/blogs/${row.slug}` })),
     });
   } catch (error) { return next(error); }
 }

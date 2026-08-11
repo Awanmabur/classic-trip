@@ -265,7 +265,7 @@ const ADMIN_PAGE_GROUP = Object.freeze({
   notifications: 'notifications',
   partners: 'identity', admins: 'identity', kyc: 'identity',
   bookings: 'booking', customers: 'booking', refunds: 'booking',
-  support: 'support', notifications: 'support', handover: 'support',
+  support: 'support', handover: 'support',
   listings: 'inventory', routes: 'inventory', vehicles: 'inventory',
   schedules: 'inventory', schedule: 'inventory', inventory: 'inventory',
   'seat-maps': 'inventory', 'hotel-rooms': 'inventory',
@@ -342,7 +342,12 @@ function adminEntitiesFor(context = {}) {
     || (['overview', 'analytics'].includes(page)
       ? ADMIN_OVERVIEW_ENTITIES
       : (ADMIN_ENTITY_GROUPS[ADMIN_PAGE_GROUP[page]] || ADMIN_OVERVIEW_ENTITIES));
-  return [...new Set([...ADMIN_SHELL_ENTITIES, ...pageEntities])]
+  // v1.6.38 made some exact page plans too narrow for the projection/actions
+  // they render (notably Listings review/approval). Keep page-specific reads,
+  // but union the relevant domain group so a page never loses required related
+  // records. This is still far smaller than the historical all-collections load.
+  const groupEntities = ADMIN_ENTITY_GROUPS[ADMIN_PAGE_GROUP[page]] || new Set();
+  return [...new Set([...ADMIN_SHELL_ENTITIES, ...pageEntities, ...groupEntities])]
     .filter((entity) => ALL_ENTITIES.includes(entity) && repositories[entity]);
 }
 

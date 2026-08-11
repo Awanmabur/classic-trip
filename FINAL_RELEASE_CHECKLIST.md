@@ -1,16 +1,27 @@
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.40.
+Use this checklist for version 1.6.43.
 
 
 ## Current focused validation
 
 ```bash
+npm run check:v1641-core-repair
 npm run check:v1640-rolling-index-cleanup
 npm run check:v1639-partner-signup
 npm run check:v1638-dashboard-speed-sms
-npm run check:v1633-final-stability
 ```
+
+### v1.6.41 core-repair production check
+
+- Pick one active recurring rule with no vehicle overlap. Record its intended future departure count, complete/depart its earliest occurrence, then confirm the rule queues replacement materialization and returns to its intended future occurrence count.
+- Keep a deliberately conflicting rule only for verification: it must remain `action needed` and must **not** double-book the vehicle.
+- Open **Super Admin → Listings** and approve a ready listing. The row action must submit successfully, run the service-specific publish/readiness checks, refresh the table, and record the review state. Rejecting a listing must return it to Draft with a review reason.
+- Verify `/login`, signup and partner signup for the intended roles; the project still uses the single public account page rather than separate customer login/signup pages.
+- Open **Super Admin → Notifications** and confirm the card has visible inner padding on desktop and phone.
+- Complete one paid bus booking. Partner Admin and Super Admin should receive the operational booking notification; after browser audio is armed, an open dashboard should play the booking chime. Web Push provides the immediate signal when configured; the 10-second poll is the fallback.
+- Complete an eligible referred UGX booking and confirm the promoter reward snapshot is **UGX 2,000**, funded from Classic Trip commission without reducing partner payout again.
+
 
 After deployment, confirm:
 
@@ -314,3 +325,21 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 6. Complete one paid guest bus booking with a valid phone and email. Confirm one in-app record (if signed in), one email, one SMS and one WhatsApp delivery attempt, all carrying the secure ticket URL.
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
+
+### v1.6.43 launch content and Pesapal check
+
+1. Run `npm run seed:superadmin`, then `npm run seed:launch-content:dry`, review the counts, and run `npm run seed:launch-content`.
+2. In Super Admin, review the seven Blog posts and the six seeded bus companies. Public research is not verification evidence.
+3. For each operator, confirm the authorised representative, registration/compliance documents, exact active terminals, vehicles/seat templates, complete current fares/stop fares and future departure schedules before approving/publishing.
+4. Set live Pesapal secrets only in the deployment environment. Production API URL must be `https://pay.pesapal.com/v3/api`, callback/IPN must use `https://www.classictrip.org`, and `PESAPAL_NOTIFICATION_TYPE` must be GET or POST.
+5. Run `npm run check:pesapal-security`, `npm run check:v1642-seo-operators-pesapal`, and the full `npm run release:check`.
+6. Make a low-value production-mode test payment in the provider-approved environment and verify: the merchant reference binds to the correct booking; amount/currency match; an IPN can be retried without duplicate booking/payment/ticket effects; a copied callback URL cannot confirm payment; and the IPN receives a 200 acknowledgement only after server-side reconciliation.
+
+## v1.6.43 blog + Partner account verification
+
+- Run `npm run seed:launch-content:dry` and review the requested counts.
+- Run `npm run seed:launch-content` against the intended Atlas database.
+- Save `seed-output/partner-credentials.json` somewhere private, then remove it from the project after changing the temporary passwords.
+- Confirm all six Partner Admin accounts can log in and reach their own pending company profile without access to another company.
+- Confirm Home displays all seven published seeded posts, `/blogs` displays the full card/bar directory, and each article opens with full styling.
+- Review researched contacts/terminals against the operator information you already received. Do not approve legal/compliance/vehicle details until the actual operator documents are entered.

@@ -6,7 +6,7 @@ const rolling = read('src/jobs/materializeSchedules.js');
 const pkg = JSON.parse(read('package.json'));
 let passed = 0;
 function check(label, ok){ if(!ok){ console.error('FAIL', label); process.exitCode=1; } else { passed += 1; console.log('PASS', label); } }
-check('version matches current package', pkg.version === '1.6.40');
+check('version matches current package', pkg.version === '1.6.43');
 check('rolling scan walks complete missing window', rolling.includes('for (const departAt of missingDates)') && !rolling.includes('Math.min(missingDates.length, 10)'));
 check('rolling conflict rows are preloaded once', rolling.includes('const conflictRows = earliestMissing && latestMissing') && rolling.includes('vehicleConflictsFromRows(conflictRows, departAt, arriveAt)'));
 check('rolling diagnostics include conflicting schedule and rule IDs', rolling.includes('conflictingScheduleId') && rolling.includes('conflictingRuleId'));

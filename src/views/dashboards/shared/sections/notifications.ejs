@@ -1,6 +1,6 @@
 <% const canManageNotificationCampaigns = ['admin', 'content'].includes(String(dashboardRoleKey || '')); %>
 <section class="section" id="notifications">
-  <div class="card">
+  <div class="card notificationCenterCard">
     <div class="cardHead">
       <div class="cardTitle">
         <h3><i class="fa-solid fa-bell"></i> <%= canManageNotificationCampaigns ? 'Notification center' : 'Notifications' %></h3>

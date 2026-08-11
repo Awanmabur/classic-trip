@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'classic-trip-static-v1.6.40';
+const STATIC_CACHE = 'classic-trip-static-v1.6.43';
 const STATIC_ASSETS = [
   '/site.webmanifest',
   '/images/favicon-48.png',
@@ -72,7 +72,15 @@ self.addEventListener('push', (event) => {
     tag: data.referenceId || 'classic-trip-notification',
     renotify: false,
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, options),
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => Promise.all(clientList.map((client) => client.postMessage({
+      type: 'classic-trip-push',
+      title,
+      referenceId: data.referenceId || '',
+      meta: data.meta || {},
+    })))),
+  ]));
 });
 
 self.addEventListener('notificationclick', (event) => {

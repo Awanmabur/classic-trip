@@ -13,3 +13,6 @@ tmp
 public/uploads
 *.zip
 *.log
+
+# Local one-time seeded credentials; never deploy or commit
+seed-output/

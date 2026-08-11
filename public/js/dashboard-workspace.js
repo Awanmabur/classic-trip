@@ -272,7 +272,7 @@
     routes: ['Routes', 'Manage every bus route, corridor, boarding point, drop-off point, and route status.'],
     vehicles: ['Vehicles', 'Manage partner buses, assigned drivers, compliance, seat layouts, and operating status.'],
     schedules: ['Schedules', 'Monitor departure times, assigned vehicles, availability, capacity, and publishing status.'],
-    payments: ['Payments & Commission', `Review payment settlements, ${platformConfig.partnerCommissionPercent ?? ''}% partner commission, promoter rewards funded from that commission, and partner payouts.`],
+    payments: ['Payments & Commission', `Review payment settlements, ${platformConfig.partnerCommissionPercent ?? ''}% partner commission, fixed UGX ${Number(platformConfig.promoterFixedUgx ?? 2000).toLocaleString()} promoter rewards, and partner payouts.`],
     promoters: ['Promoters', 'Manage referral links, commission balances, payout requests, and campaign performance.'],
     customers: ['Customers', 'View customer profiles, bookings, receipts, saved items, refunds, and support tickets.'],
     support: ['Support & Disputes', 'Handle payment problems, missing tickets, refund cases, and partner disputes.'],
@@ -463,6 +463,19 @@
     const paymentStatusKey = String(detailBooking.paymentStatus || meta?.detail?.payment?.status || '').toLowerCase().replace(/[\s-]+/g, '_');
     const bookingStatusKey = String(detailBooking.bookingStatus || meta?.status || '').toLowerCase().replace(/[\s-]+/g, '_');
     const stayStatusKey = String(detailBooking.hotelStay?.status || bookingStatusKey).toLowerCase().replace(/[\s-]+/g, '_');
+    const rawId = meta?.id || dashboardRecordId(meta?.detail || {});
+    const id = rawId ? encodeURIComponent(rawId) : '';
+    if (role === 'admin' && entity === 'listing_review' && id) {
+      const reviewStatus = String(meta?.detail?.listing?.publication?.reviewStatus || meta?.status || '').toLowerCase();
+      const approve = reviewStatus !== 'approved'
+        ? `<form method="POST" action="/admin/listings/${id}/approve" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Approve and publish listing"><i class="fa-solid fa-circle-check"></i></button></form>`
+        : '';
+      const reject = `<form method="POST" action="/admin/listings/${id}/reject" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="reason" value="Listing requires corrections before approval"><button class="tinyBtn danger" type="submit" title="Reject and return listing for correction"><i class="fa-solid fa-ban"></i></button></form>`;
+      return `<div class="rowActions">
+        <button class="tinyBtn" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr} title="Review listing"><i class="fa-regular fa-eye"></i></button>
+        ${approve}${reject}
+      </div>`;
+    }
     if (role === 'admin' && entity === 'kyc') {
       const detail = meta?.detail || {};
       const targetType = encodeURIComponent(detail.targetType || 'company');
@@ -488,8 +501,6 @@
         ${partnerManagedEmployee ? '' : checklistButtons}${activate}${reject}
       </div>`;
     }
-    const rawId = meta?.id || dashboardRecordId(meta?.detail || {});
-    const id = rawId ? encodeURIComponent(rawId) : '';
     let scopedActions = '';
     if (entity === 'notification' && id) {
       const alreadyRead = Boolean(meta?.detail?.notification?.readAt || meta?.readAt);
@@ -3745,7 +3756,8 @@
       action: platformActionPath('finance', '/finance-rules'), submit: 'Save finance rules',
       fields: [
         { name:'partnerCommissionPercent', label:'Partner commission %', type:'number', icon:'fa-percent', value:String(platformConfig.partnerCommissionPercent ?? ''), help:'Classic Trip retains this percentage from completed bookings. The partner receives the remainder.' },
-        { name:'promoterSharePercent', label:'Promoter share of commission %', type:'number', icon:'fa-percent', value:String(platformConfig.promoterSharePercent ?? ''), help:'Paid from Classic Trip’s commission when a valid referral exists; never deducted again from the partner.' },
+        { name:'promoterFixedUgx', label:'Promoter commission per eligible UGX booking', type:'number', icon:'fa-coins', value:String(platformConfig.promoterFixedUgx ?? 2000), help:'Fixed UGX promoter reward funded from Classic Trip’s commission; partner payout is not reduced again.' },
+        { name:'promoterSharePercent', label:'Non-UGX promoter fallback %', type:'hidden', value:String(platformConfig.promoterSharePercent ?? '') },
         { name:'customerServiceFeePercent', label:'Customer service fee %', type:'number', icon:'fa-percent', value:String(platformConfig.customerServiceFeePercent ?? '') },
         { name:'customerServiceFeeFlat', label:'Customer flat service fee', type:'number', icon:'fa-coins', value:String(platformConfig.customerServiceFeeFlat ?? '') },
         { name:'customerTaxPercent', label:'Customer tax %', type:'number', icon:'fa-percent', value:String(platformConfig.customerTaxPercent ?? '') },

@@ -151,6 +151,8 @@ router.post('/admin/reviews/:id/moderate', reviewController.moderate);
 router.get('/admin/api/promotions', promotionController.list);
 router.post('/admin/bookings', actionController.createBooking);
 router.post('/admin/listings', actionController.createListing);
+router.post('/admin/listings/:id/approve', actionController.approveListing);
+router.post('/admin/listings/:id/reject', actionController.rejectListing);
 router.post('/admin/promotions', promotionController.create);
 router.post('/admin/blogs', blogController.create);
 router.post('/admin/blogs/:id/update', blogController.update);
