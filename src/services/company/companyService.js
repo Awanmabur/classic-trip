@@ -16,6 +16,7 @@ const { SERVICE_REGISTRY, normalizeServiceType } = require('../../config/service
 const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
 const { evaluateDriverAssignment, evaluateDriverEligibility, evaluatePartnerDriverActivation } = require('./driverEligibilityService');
 const { LISTING_DESCRIPTION_MIN_LENGTH, assertPublicDescription, normalizePublicDescription } = require('../../config/contentRules');
+const { mediaUrl } = require('../../utils/mediaUrl');
 
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
 const BRANCH_TYPES = Object.freeze(['terminal', 'branch', 'pickup_point', 'dropoff_point', 'office', 'property', 'front_desk']);
@@ -340,7 +341,7 @@ async function createListing(companyId, payload = {}) {
     address: cleanText(payload.address || branch?.address || '', 300), from: cleanText(payload.from || payload.origin || payload.pickupLocation || '', 140), to: cleanText(payload.to || payload.destination || payload.deliveryLocation || '', 140),
     corridor: cleanText(payload.corridor || listingRouteLabel(payload).toLowerCase().replace(/\s+to\s+/i, '-'), 200),
     price: priceFrom, priceFrom, pricingUnit: cleanText(payload.pricingUnit || pricingUnits[serviceType], 60),
-    currency: cleanText(company.operatingCurrency, 8).toUpperCase(), media, img: media[0]?.url || '', amenities: parseList(payload.amenities),
+    currency: cleanText(company.operatingCurrency, 8).toUpperCase(), media, img: mediaUrl(media) || '', amenities: parseList(payload.amenities),
     checkInTime: cleanText(payload.checkInTime, 20), checkOutTime: cleanText(payload.checkOutTime, 20), stayType: cleanText(payload.stayType || payload.propertyType || '', 80),
     serviceNotes: cleanText(payload.serviceNotes || '', 2000), contactPhone: cleanText(payload.contactPhone || company.supportContacts?.phone || '', 60),
     pickupInstructions: cleanText(payload.pickupInstructions || '', 1000), dropoffInstructions: cleanText(payload.dropoffInstructions || '', 1000),
@@ -416,7 +417,7 @@ async function updateListing(companyId, listingId, payload = {}) {
   if (payload.amenities) listing.amenities = parseList(payload.amenities);
   if (typeof payload.cargoTypes !== 'undefined' || typeof payload.cargoType !== 'undefined') listing.cargoTypes = parseList(payload.cargoTypes || payload.cargoType);
   const media = payloadMedia(payload, listing.title);
-  if (media.length) { listing.media = Array.isArray(listing.media) ? listing.media : []; listing.media.push(media[0]); listing.img = listing.img || media[0].url; }
+  if (media.length) { listing.media = Array.isArray(listing.media) ? listing.media : []; listing.media.push(media[0]); listing.img = listing.img || mediaUrl(media[0]); }
   if (typeof payload.priceFrom !== 'undefined' || typeof payload.price !== 'undefined') { listing.priceFrom = moneyValue(payload.priceFrom ?? payload.price, listing.priceFrom); listing.price = listing.priceFrom; }
   const numericFields = ['inventory', 'remainingInventory', 'durationMinutes', 'maxGuests', 'minimumAge', 'seatsCount', 'weightLimitKg', 'packageLimit'];
   numericFields.forEach((field) => { if (typeof payload[field] !== 'undefined') listing[field] = Math.max(field === 'maxGuests' || field === 'seatsCount' || field === 'packageLimit' ? 1 : 0, moneyValue(payload[field], listing[field])); });
@@ -881,6 +882,8 @@ async function inviteEmployee(companyId, payload = {}) {
     listingIds: scopes.listingIds,
     scheduleIds: scopes.scheduleIds,
     serviceCategories: parseList(payload.serviceCategories || company.companyType || ''),
+    shift: cleanText(payload.shift, 120),
+    notes: cleanText(payload.notes || payload.note, 2000),
     termsSummary: 'Access is limited to the assigned company, branch, listings, schedules, and permissions.',
     validDays: 7,
   }, payload.invitedBy || company.ownerId || 'company-admin', 'company_staff');
@@ -929,7 +932,7 @@ async function attachMedia({ companyId, target, targetId, asset, metadata = {} }
     return { target: 'company', company, media: documentMedia };
   }
   if (['listingMedia', 'busListing', 'hotelListing'].includes(target)) {
-    const listing = await listingOrThrow(company.id, targetId); listing.media = Array.isArray(listing.media) ? listing.media : []; media.label = media.label || listing.title; listing.media.push(media); listing.img = listing.img || media.url;
+    const listing = await listingOrThrow(company.id, targetId); listing.media = Array.isArray(listing.media) ? listing.media : []; media.label = media.label || listing.title; listing.media.push(media); listing.img = listing.img || mediaUrl(media);
     await companyRepository.withTransaction(async (session) => { await companyRepository.listings.save(listing, { id: listing.id }, { session }); await writeAudit(actor, 'listing.media.attached', listing.id, { target, publicId: media.publicId, entityType: 'listing' }, { session }); });
     return { target: 'listing', listing, media };
   }
@@ -996,7 +999,7 @@ async function removeMedia({ companyId, target, targetId, publicId, actorId = 's
   const config = configs[target]; if (!config) throw validation('Unsupported media target');
   const [collection, resolve, field, action, entityType] = config; const row = await resolve();
   row[field] = (row[field] || []).filter((item) => { const match = mediaMatches(item, publicId); if (match) removedMedia = item; return !match; });
-  if (entityType === 'listing' && removedMedia && row.img === removedMedia.url) row.img = row.media?.[0]?.url || '';
+  if (entityType === 'listing' && removedMedia && row.img === mediaUrl(removedMedia)) row.img = mediaUrl(row.media) || '';
   await companyRepository.withTransaction(async (session) => { await collection.save(row, { id: row.id }, { session }); await writeAudit(actorId, action, row.id, { target, publicId: removedMedia?.publicId || publicId, entityType }, { session }); });
   return { target: entityType, [entityType === 'company_employee' ? 'driver' : entityType.replace(/_([a-z])/g, (_, c) => c.toUpperCase())]: row, media: removedMedia };
 }

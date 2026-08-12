@@ -8,6 +8,6 @@
     <div class="field"><label for="marketplaceAvailability">Availability</label><div class="control"><i class="fa-solid fa-circle-check"></i><select id="marketplaceAvailability" name="available" class="selectLike"><option value="">Any</option><option value="true" <%= query?.available === 'true' ? 'selected' : '' %>>Open inventory</option></select></div></div>
     <div class="field"><label for="marketplaceSort">Sort</label><div class="control"><i class="fa-solid fa-arrow-down-wide-short"></i><select id="marketplaceSort" name="sort" class="selectLike"><option value="recommended" <%= query?.sort === 'recommended' || !query?.sort ? 'selected' : '' %>>Recommended</option><option value="soonest" <%= query?.sort === 'soonest' ? 'selected' : '' %>>Soonest</option><option value="cheapest" <%= query?.sort === 'cheapest' ? 'selected' : '' %>>Cheapest</option><option value="availability" <%= query?.sort === 'availability' ? 'selected' : '' %>>Most open</option></select></div></div>
   </div>
-  <script type="application/json" data-marketplace-db-search-json><%- toScriptJson({ all: dbOptions.all || {}, bus: dbOptions.bus || {} }) %></script>
+  <script type="application/json" nonce="<%= cspNonce %>" data-marketplace-db-search-json><%- toScriptJson({ all: dbOptions.all || {}, bus: dbOptions.bus || {} }) %></script>
   <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
 </form>

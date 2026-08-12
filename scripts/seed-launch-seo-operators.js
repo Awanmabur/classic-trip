@@ -9,20 +9,33 @@ const Route = require('../src/models/Route');
 const CompanyBranch = require('../src/models/CompanyBranch');
 const CompanyEmployee = require('../src/models/CompanyEmployee');
 const BlogPost = require('../src/models/BlogPost');
+const RouteStop = require('../src/models/RouteStop');
+const RouteSegment = require('../src/models/RouteSegment');
+const FareProduct = require('../src/models/FareProduct');
+const BusSegmentFare = require('../src/models/BusSegmentFare');
+const Vehicle = require('../src/models/Vehicle');
 const TripSchedule = require('../src/models/TripSchedule');
+const busSetupService = require('../src/modules/bus/services/busSetupService');
+const busDepartureService = require('../src/modules/bus/services/busDepartureService');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { employeePermissions } = require('../src/config/accessControl');
-const { isMissingOrLogoLikeImage, mediaUrl } = require('../src/config/launchMedia');
+const { SEEDED_OPERATOR_IMAGES: OPERATOR_IMAGES, SEEDED_BLOG_IMAGES: BLOG_IMAGES, isLegacySeedBlogUrl, isLegacySeedOperatorUrl } = require('../src/utils/seedMedia');
 
 const apply = process.argv.includes('--apply');
-const SEEDED_AT = '2026-08-11T08:00:00.000Z';
-const SOURCE_KEY = 'classic-trip-v1.6.45-launch-research';
+const SEEDED_AT = '2026-08-11T17:20:00.000Z';
+const SOURCE_KEY = 'classic-trip-v1.6.44-launch-research';
 const resetPartnerPasswords = process.argv.includes('--reset-partner-passwords');
 const CREDENTIALS_DIR = path.join(__dirname, '..', 'seed-output');
 const CREDENTIALS_PATH = path.join(CREDENTIALS_DIR, 'partner-credentials.json');
+
+
+
+function seededMedia(url, alt, label = alt) {
+  return [{ url, secureUrl: url, publicId: `seed:${url}`, resourceType: 'image', alt, label, status: 'pending_review' }];
+}
 
 function slug(value = '') {
   return String(value || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -77,11 +90,11 @@ const operators = [
       ['Kigali', 'Trinity Kigali — Nyabugogo', 'Nyabugogo Taxi Park, Kigali — confirm bay/office', 'terminal', 'paused'],
     ],
     routes: withReverse([
-      pair('Kigali', 'Kampala', { source: 'public_operator_site' }),
+      pair('Kigali', 'Kampala', { fare: 110000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
       pair('Kigali', 'Mbarara', { source: 'public_route_reference' }),
       pair('Kigali', 'Nairobi', { source: 'public_operator_site' }),
-      pair('Kampala', 'Nairobi', { source: 'public_operator_site' }),
-      pair('Kampala', 'Juba', { source: 'public_operator_site' }),
+      pair('Kampala', 'Nairobi', { fare: 100000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Juba', { fare: 130000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
       pair('Juba', 'Bor', { source: 'public_operator_site' }),
     ]),
   },
@@ -99,9 +112,9 @@ const operators = [
       ['Adjumani', 'Zawadi Adjumani Office', 'Plot 14 Zawadi Services, Magni Road, Adjumani', 'terminal', 'active'],
     ],
     routes: withReverse([
-      pair('Kampala', 'Adjumani', { source: 'booking_reference' }),
-      pair('Kampala', 'Gulu', { source: 'booking_reference' }),
-      pair('Kampala', 'Moyo', { source: 'booking_reference' }),
+      pair('Kampala', 'Adjumani', { fare: 55000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Gulu', { fare: 40000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Moyo', { fare: 60000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
       pair('Kampala', 'Nebbi', { source: 'booking_reference' }),
       pair('Kampala', 'Arua', { source: 'booking_reference' }),
       pair('Kampala', 'Pakwach', { source: 'booking_reference' }),
@@ -123,7 +136,7 @@ const operators = [
       ['Nimule', 'ECO Nimule — Malakia', 'Malakia Station 5, Nimule — confirm exact bay', 'terminal', 'paused'],
     ],
     routes: withReverse([
-      pair('Juba', 'Kampala', { source: 'official' }),
+      pair('Kampala', 'Juba', { fare: 120000, fareClass: 'Standard', currency: 'UGX', source: 'public_social' }),
       pair('Juba', 'Bor', { source: 'official' }),
       pair('Juba', 'Nimule', { source: 'official' }),
       pair('Juba', 'Nairobi', { source: 'public_operator_reference' }),
@@ -143,10 +156,10 @@ const operators = [
       ['Juba', 'Friendship Juba — Sherikat', 'Sherikat, Juba — confirm exact terminal', 'terminal', 'paused'],
     ],
     routes: withReverse([
-      pair('Kampala', 'Arua', { source: 'booking_reference' }),
-      pair('Kampala', 'Juba', { source: 'booking_reference' }),
-      pair('Kampala', 'Magwi', { source: 'booking_reference' }),
-      pair('Kampala', 'Nebbi', { source: 'booking_reference' }),
+      pair('Kampala', 'Arua', { fare: 50000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Juba', { fare: 120000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Magwi', { fare: 70000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Nebbi', { fare: 50000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
     ]),
   },
   {
@@ -165,76 +178,21 @@ const operators = [
       ['Arua', 'YY Arua Terminal', 'Arua — confirm exact terminal address', 'terminal', 'paused'],
     ],
     routes: withReverse([
-      pair('Kampala', 'Apac', { source: 'booking_reference' }),
-      pair('Kampala', 'Arua', { source: 'booking_reference' }),
-      pair('Kampala', 'Iganga', { source: 'booking_reference' }),
-      pair('Kampala', 'Jinja', { source: 'booking_reference' }),
-      pair('Kampala', 'Koboko', { source: 'booking_reference' }),
-      pair('Kampala', 'Kumi', { source: 'booking_reference' }),
-      pair('Kampala', 'Lira', { source: 'booking_reference' }),
-      pair('Kampala', 'Mbale', { source: 'booking_reference' }),
-      pair('Kampala', 'Soroti', { source: 'booking_reference' }),
-      pair('Kampala', 'Wakiso', { source: 'booking_reference' }),
-      pair('Kampala', 'Yumbe', { source: 'booking_reference' }),
+      pair('Kampala', 'Apac', { fare: 40000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Arua', { fare: 50000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Iganga', { fare: 20000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Jinja', { fare: 15000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Koboko', { fare: 70000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Kumi', { fare: 30000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Lira', { fare: 30000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Mbale', { fare: 25000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Soroti', { fare: 35000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Wakiso', { fare: 15000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
+      pair('Kampala', 'Yumbe', { fare: 70000, fareClass: 'Standard', currency: 'UGX', source: 'booking_reference' }),
       pair('Kampala', 'Kitgum', { source: 'public_social' }),
     ]),
   },
 ];
-
-// These are genuine photographs of the named operators, sourced from the
-// operator's own public site/social profile or an identified booking profile.
-// They are launch presentation media only; a photo is not compliance evidence.
-const OPERATOR_MEDIA = Object.freeze({
-  'bebeto-coach-services': {
-    url: 'https://bebetocoachservices.com/bebeto-hero.jpg.jpeg',
-    sourceUrl: 'https://bebetocoachservices.com/',
-    sourceLabel: 'Bebeto Coach Services official website',
-    alt: 'Bebeto Coach Services long-distance coach in East Africa',
-  },
-  'trinity-express': {
-    url: 'https://trinityexpress.rw/images/bus-hero-image.jpg',
-    sourceUrl: 'https://trinityexpress.rw/',
-    sourceLabel: 'Trinity Express public operator website',
-    alt: 'Trinity Express coaches ready for regional service',
-  },
-  'zawadi-travel-service': {
-    url: 'https://zawadigroups.com/wp-content/uploads/2021/11/ZAWADI-BUSES.jpg',
-    sourceUrl: 'https://zawadigroups.com/transport/',
-    sourceLabel: 'Zawadi Group official transport page',
-    alt: 'Zawadi Services passenger buses in Uganda',
-  },
-  'eco-bus': {
-    url: 'https://pbs.twimg.com/media/FaWRexRXEAANcyV.jpg',
-    sourceUrl: 'https://x.com/EcobusCoaches',
-    sourceLabel: 'EcoBus Coaches public operator profile',
-    alt: 'EcoBus regional coach serving Uganda and South Sudan',
-  },
-  'friendship-bus': {
-    url: 'https://booking.ttta.co.ug/wp-content/uploads/2024/07/friends-bus.jpg',
-    sourceUrl: 'https://booking.ttta.co.ug/Bus/friendship-bus-coaches-kampala-to-juba/',
-    sourceLabel: 'Friendship Bus public booking profile',
-    alt: 'Friendship Bus coach serving the Kampala and Juba corridor',
-  },
-  'yy-coaches': {
-    url: 'https://cdn.bookaway.com/media/files/69a87ac00e780962303253c5.jpeg',
-    sourceUrl: 'https://www.bookaway.com/suppliers/yy-coaches',
-    sourceLabel: 'YY Coaches public booking profile',
-    alt: 'YY Coaches intercity bus in Uganda',
-  },
-});
-
-// Public timetable references can help Partner Admins start data entry, but
-// they are not safe to sell as live inventory before operator confirmation,
-// vehicle compliance, seat-map publication and fare approval. The seed creates
-// one visible Draft departure per operator and never publishes it.
-const OPERATOR_DEPARTURE_DRAFTS = Object.freeze({
-  'bebeto-coach-services': [{ origin: 'Kampala', destination: 'Nairobi', time: '15:30', durationMinutes: 720, basePrice: 120000, currency: 'UGX', sourceLabel: 'Bebeto public daily-departure notice', sourceUrl: 'https://www.instagram.com/p/DWZ2MX8DcPn/' }],
-  'trinity-express': [{ origin: 'Kampala', destination: 'Nairobi', time: '16:00', durationMinutes: 720, basePrice: 120000, currency: 'UGX', sourceLabel: 'Trinity public booking timetable reference', sourceUrl: 'https://trinityexpressbus.store/' }],
-  'zawadi-travel-service': [{ origin: 'Kampala', destination: 'Arua', time: '03:00', durationMinutes: 480, basePrice: 0, currency: 'UGX', sourceLabel: 'Zawadi public booking timetable reference', sourceUrl: 'https://www.bookaway.com/suppliers/zawadi-bus' }],
-  'eco-bus': [{ origin: 'Kampala', destination: 'Juba', time: '20:00', durationMinutes: 780, basePrice: 0, currency: 'UGX', sourceLabel: 'EcoBus public operator timetable notice', sourceUrl: 'https://x.com/EcobusCoaches' }],
-  'friendship-bus': [{ origin: 'Kampala', destination: 'Juba', time: '21:00', durationMinutes: 960, basePrice: 120000, currency: 'UGX', sourceLabel: 'Friendship Bus public booking timetable reference', sourceUrl: 'https://booking.ttta.co.ug/Bus/friendship-bus-coaches-kampala-to-juba/' }],
-  'yy-coaches': [{ origin: 'Kampala', destination: 'Mbale', time: '07:30', durationMinutes: 300, basePrice: 30000, currency: 'UGX', sourceLabel: 'YY Coaches public departure update', sourceUrl: 'https://www.facebook.com/yycoaches/' }],
-});
 
 const blogs = [
   {
@@ -387,16 +345,6 @@ A simple booking strategy works well: decide the journey, confirm documents wher
   },
 ];
 
-const BLOG_MEDIA = Object.freeze({
-  'how-to-book-bus-tickets-online-uganda-east-africa': { url: 'https://bebetocoachservices.com/bebeto-hero.jpg.jpeg', sourceUrl: 'https://bebetocoachservices.com/', alt: 'A real East African coach ready for an online-booked journey' },
-  'kampala-to-juba-bus-travel-guide': { url: 'https://bebetocoachservices.com/bebeto18.jpg.jpeg', sourceUrl: 'https://bebetocoachservices.com/destinations', alt: 'A long-distance coach serving the Kampala and Juba travel corridor' },
-  'kampala-to-nairobi-bus-travel-guide': { url: 'https://bebetocoachservices.com/bebeto-nrb1.jpg.jpeg', sourceUrl: 'https://bebetocoachservices.com/destinations', alt: 'A real coach used for travel between Kampala and Nairobi' },
-  'uganda-bus-travel-gulu-lira-arua-soroti-mbale-guide': { url: 'https://zawadigroups.com/wp-content/uploads/2021/11/ZAWADI-BUSES.jpg', sourceUrl: 'https://zawadigroups.com/transport/', alt: 'Ugandan intercity buses serving regional destinations' },
-  'east-africa-cross-border-bus-travel-checklist': { url: 'https://trinityexpress.rw/images/bus-hero-image.jpg', sourceUrl: 'https://trinityexpress.rw/', alt: 'Regional coaches prepared for cross-border travel in East Africa' },
-  'how-classic-trip-secure-online-bus-booking-payments-tickets': { url: 'https://bebetocoachservices.com/bebeto16.jpg.jpeg', sourceUrl: 'https://bebetocoachservices.com/destinations', alt: 'A real coach representing verified online bus booking and ticketing' },
-  'when-to-book-bus-tickets-uganda-holidays-weekends-night-travel': { url: 'https://cdn.bookaway.com/media/files/69a87ac00e780962303253c5.jpeg', sourceUrl: 'https://www.bookaway.com/suppliers/yy-coaches', alt: 'A Ugandan intercity bus used for daily and peak-period travel' },
-});
-
 
 const staffRoles = ['Terminal Manager', 'Booking Agent', 'Dispatcher', 'Customer Care', 'Driver Coordinator'];
 const rolePermissionDefaults = {
@@ -459,11 +407,26 @@ function operatorTerminalMap(operator) {
 }
 
 async function insertOnly(Model, query, doc) {
+  // Seed IDs are canonical. Check them before a looser semantic query so a
+  // status/name change made after an older seed cannot produce E11000 when the
+  // exact seeded record already exists.
+  if (doc?.id) {
+    const bySeedId = await Model.findOne({ id: doc.id });
+    if (bySeedId) return { row: bySeedId, created: false };
+  }
   const existing = await Model.findOne(query);
   if (existing) return { row: existing, created: false };
   if (!apply) return { row: doc, created: true };
-  const row = await Model.create(doc);
-  return { row, created: true };
+  try {
+    const row = await Model.create(doc);
+    return { row, created: true };
+  } catch (error) {
+    if (error?.code === 11000 && doc?.id) {
+      const raced = await Model.findOne({ id: doc.id });
+      if (raced) return { row: raced, created: false };
+    }
+    throw error;
+  }
 }
 async function enrichSeededDoc(row, patch = {}, counts) {
   if (!apply || !row || typeof row.save !== 'function') return row;
@@ -476,83 +439,215 @@ async function enrichSeededDoc(row, patch = {}, counts) {
   return row;
 }
 
-function routeDirectionKey(origin, destination) {
-  return `${String(origin || '').trim().toLowerCase()}|${String(destination || '').trim().toLowerCase()}`;
+
+function fareClassValue(value = '') {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized.includes('vip')) return 'vip';
+  if (normalized.includes('business')) return 'business';
+  if (normalized.includes('executive')) return 'executive';
+  if (normalized.includes('premium')) return 'premium';
+  if (normalized.includes('express')) return 'express';
+  if (normalized.includes('econom')) return 'economy';
+  return 'standard';
 }
 
-function nextKampalaDeparture(departureTime) {
-  const [hour, minute] = String(departureTime || '12:00').split(':').map(Number);
-  const eastAfricaNow = new Date(Date.now() + (3 * 60 * 60 * 1000));
-  return new Date(Date.UTC(
-    eastAfricaNow.getUTCFullYear(),
-    eastAfricaNow.getUTCMonth(),
-    eastAfricaNow.getUTCDate() + 1,
-    Number.isFinite(hour) ? hour - 3 : 9,
-    Number.isFinite(minute) ? minute : 0,
-  ));
-}
-
-async function seedResearchDraftDepartures(operator, company, listing, routeByDirection, superAdmin, counts) {
-  const rows = OPERATOR_DEPARTURE_DRAFTS[operator.key] || [];
-  for (const research of rows) {
-    const route = routeByDirection.get(routeDirectionKey(research.origin, research.destination));
-    if (!route) {
-      counts.draftDeparturesSkipped += 1;
-      continue;
-    }
-    const departAt = nextKampalaDeparture(research.time);
-    const arriveAt = new Date(departAt.getTime() + (Number(research.durationMinutes || 0) * 60 * 1000));
-    const companyId = company.id || String(company._id || '');
-    const listingId = listing.id || String(listing._id || '');
-    const routeId = route.id || String(route._id || '');
-    const actorId = superAdmin.id || String(superAdmin._id || '');
-    const id = `departure-research-${operator.key}-${slug(research.origin)}-${slug(research.destination)}`;
-    const result = await insertOnly(TripSchedule, { id }, {
-      id,
-      routeId,
-      listingId,
-      companyId,
-      vehicleId: '',
-      vehicleName: 'Unassigned coach — operator confirmation required',
-      vehicleClass: 'standard',
-      routeVersion: 1,
-      routeSnapshot: {
-        routeId,
-        origin: research.origin,
-        destination: research.destination,
-        routeName: `${research.origin} ⇄ ${research.destination}`,
-        timezone: 'Africa/Kampala',
-        sourceLabel: research.sourceLabel,
-        sourceUrl: research.sourceUrl,
-        researchDraft: true,
+async function ensureRouteInfrastructure({ operator, route, routeResearch, listing, originBranch, destinationBranch, superAdmin, counts }) {
+  const companyId = route.companyId;
+  let stops = await RouteStop.find({ companyId, routeId: route.id, status: { $ne: 'archived' } }).sort({ stopOrder: 1 });
+  if (stops.length < 2) {
+    await RouteStop.deleteMany({ companyId, routeId: route.id, id: { $regex: '^route-stop-seed-' } });
+    const originStopId = `route-stop-seed-${operator.key}-${slug(routeResearch.origin)}-${slug(routeResearch.destination)}-origin`;
+    const destinationStopId = `route-stop-seed-${operator.key}-${slug(routeResearch.origin)}-${slug(routeResearch.destination)}-destination`;
+    const actor = superAdmin.id || String(superAdmin._id);
+    const originStop = await RouteStop.findOneAndUpdate(
+      { companyId, routeId: route.id, stopOrder: 1 },
+      {
+        $setOnInsert: {
+          id: originStopId, routeId: route.id, listingId: listing.id, companyId,
+          branchId: originBranch?.id || '', name: routeResearch.origin, stopType: 'origin',
+          stopOrder: 1, timeOffsetMinutes: 0, pickupAllowed: true, dropoffAllowed: false,
+          publicInstructions: 'Seeded route origin. Confirm the exact operator bay before publication.',
+          status: 'active', createdBy: actor, createdAt: SEEDED_AT,
+        },
       },
-      departAt,
-      arriveAt,
-      basePrice: Number(research.basePrice || 0),
-      currency: research.currency || 'UGX',
-      totalSeats: 0,
-      availableSeats: 0,
-      status: 'draft',
-      fareClass: 'standard',
-      notes: `RESEARCH DRAFT — ${research.sourceLabel}. Confirm the exact timetable, terminal, fare, compliant vehicle and seat map with ${operator.name} before publication.`,
-      statusReason: 'Not bookable: operator confirmation, compliant vehicle, published seat map and approved fare inventory are required.',
-      publishValidation: {
-        valid: false,
-        researchDraft: true,
-        operatorConfirmationRequired: true,
-        sourceLabel: research.sourceLabel,
-        sourceUrl: research.sourceUrl,
-        sourceCheckedAt: SEEDED_AT,
-        seedSource: SOURCE_KEY,
-        failures: ['operator_confirmation_required', 'vehicle_required', 'seat_map_required', 'fare_inventory_required'],
+      { upsert: true, new: true },
+    );
+    const destinationStop = await RouteStop.findOneAndUpdate(
+      { companyId, routeId: route.id, stopOrder: 2 },
+      {
+        $setOnInsert: {
+          id: destinationStopId, routeId: route.id, listingId: listing.id, companyId,
+          branchId: destinationBranch?.id || '', name: routeResearch.destination, stopType: 'destination',
+          stopOrder: 2, timeOffsetMinutes: 0, pickupAllowed: false, dropoffAllowed: true,
+          publicInstructions: 'Seeded route destination. Confirm the exact operator bay before publication.',
+          status: 'active', createdBy: actor, createdAt: SEEDED_AT,
+        },
       },
-      createdBy: actorId,
-      updatedBy: actorId,
-      createdAt: SEEDED_AT,
-      updatedAt: SEEDED_AT,
-    });
-    if (result.created) counts.draftDepartures += 1;
+      { upsert: true, new: true },
+    );
+    stops = [originStop, destinationStop];
+    counts.routeStops += 2;
   }
+
+  stops = stops.sort((a, b) => Number(a.stopOrder) - Number(b.stopOrder));
+  const originStop = stops[0];
+  const destinationStop = stops[stops.length - 1];
+  const existingSegments = await RouteSegment.find({ companyId, routeId: route.id, status: 'active' }).sort({ segmentOrder: 1 });
+  let segments = existingSegments;
+  if (existingSegments.length !== stops.length - 1) {
+    await RouteSegment.deleteMany({ companyId, routeId: route.id });
+    segments = [];
+    for (let index = 0; index < stops.length - 1; index += 1) {
+      const from = stops[index];
+      const to = stops[index + 1];
+      const segment = await RouteSegment.create({
+        id: `route-segment-seed-${operator.key}-${slug(routeResearch.origin)}-${slug(routeResearch.destination)}-${index + 1}`,
+        companyId, listingId: listing.id, routeId: route.id,
+        fromStopId: from.id, toStopId: to.id, fromOrder: Number(from.stopOrder),
+        toOrder: Number(to.stopOrder), segmentOrder: index, status: 'active',
+        createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
+      });
+      segments.push(segment);
+    }
+    counts.routeSegments += segments.length;
+  }
+
+  route.originStopId = originStop.id;
+  route.destinationStopId = destinationStop.id;
+  route.stopCount = stops.length;
+  route.segmentCount = segments.length;
+  route.boardingBranchIds = uniq(stops.filter((stop) => stop.pickupAllowed && stop.branchId).map((stop) => stop.branchId));
+  route.dropoffBranchIds = uniq(stops.filter((stop) => stop.dropoffAllowed && stop.branchId).map((stop) => stop.branchId));
+  route.boardingPoints = stops.filter((stop) => stop.pickupAllowed).map((stop) => stop.name);
+  route.dropoffPoints = stops.filter((stop) => stop.dropoffAllowed).map((stop) => stop.name);
+  await route.save();
+
+  let fareProduct = null;
+  if (Number(routeResearch.fare || 0) > 0) {
+    const seededFareId = `fare-product-seed-${operator.key}-${slug(routeResearch.origin)}-${slug(routeResearch.destination)}`;
+    fareProduct = await FareProduct.findOne({ companyId, routeId: route.id, id: seededFareId, status: 'active' });
+    if (!fareProduct) {
+      const operatorEditedFare = await FareProduct.findOne({ companyId, routeId: route.id, status: 'active' });
+      if (operatorEditedFare) return { stops, segments, fareProduct: null, operatorEditedFarePreserved: true };
+      fareProduct = await FareProduct.create({
+        id: seededFareId,
+        companyId, listingId: listing.id, routeId: route.id,
+        name: `${routeResearch.origin} ⇄ ${routeResearch.destination} ${routeResearch.fareClass || 'Standard'} review fare`,
+        fareClass: fareClassValue(routeResearch.fareClass),
+        currency: String(routeResearch.currency || listing.currency || 'UGX').toUpperCase(),
+        refundable: false, changeable: false, baggageAllowanceKg: 0,
+        status: 'active', createdBy: superAdmin.id || String(superAdmin._id), updatedBy: superAdmin.id || String(superAdmin._id),
+        createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
+      });
+      counts.fareProducts += 1;
+    }
+    const existingFare = await BusSegmentFare.findOne({
+      companyId, fareProductId: fareProduct.id, fromStopId: originStop.id, toStopId: destinationStop.id,
+    });
+    if (!existingFare) {
+      await BusSegmentFare.create({
+        id: `segment-fare-seed-${operator.key}-${slug(routeResearch.origin)}-${slug(routeResearch.destination)}`,
+        companyId, listingId: listing.id, routeId: route.id, fareProductId: fareProduct.id,
+        fromStopId: originStop.id, toStopId: destinationStop.id,
+        fromOrder: Number(originStop.stopOrder), toOrder: Number(destinationStop.stopOrder),
+        amount: Number(routeResearch.fare), currency: String(routeResearch.currency || listing.currency || 'UGX').toUpperCase(),
+        status: 'active', createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
+      });
+      counts.segmentFares += 1;
+    }
+    if (!route.activeFareProductId) {
+      route.activeFareProductId = fareProduct.id;
+      await route.save();
+    }
+  }
+  return { stops, segments, fareProduct };
+}
+
+async function ensureSeedReviewVehicle(operator, company, listing, superAdmin, counts) {
+  const companyId = company.id || String(company._id);
+  const plateOrCode = `REVIEW-${slug(operator.key).replace(/-/g, '').slice(0, 18).toUpperCase()}`;
+  let vehicle = await Vehicle.findOne({ companyId, listingId: listing.id, plateOrCode, status: { $ne: 'archived' } });
+  if (vehicle) {
+    const seededOperatorImage = OPERATOR_IMAGES[operator.key];
+    const oldSeedImagePattern = /^\/images\/operators\//i;
+    const currentMedia = Array.isArray(vehicle.media) ? vehicle.media : [];
+    if (!currentMedia.length) {
+      vehicle.media = seededMedia(seededOperatorImage, `${operator.name} coach`, `${operator.name} real coach photo`);
+      await vehicle.save();
+      counts.enriched += 1;
+    } else if (currentMedia.some((item) => oldSeedImagePattern.test(String(item?.url || item?.secureUrl || '')))) {
+      vehicle.media = currentMedia.map((item) => oldSeedImagePattern.test(String(item?.url || item?.secureUrl || ''))
+        ? { ...(typeof item.toObject === 'function' ? item.toObject() : item), url: seededOperatorImage, secureUrl: seededOperatorImage, publicId: `seed:${seededOperatorImage}` }
+        : item);
+      await vehicle.save();
+      counts.enriched += 1;
+    }
+    return vehicle;
+  }
+  vehicle = await busSetupService.createVehicle(companyId, {
+    listingId: listing.id,
+    name: `${operator.name} review coach`,
+    plateOrCode,
+    vehicleClass: 'standard',
+    layoutName: '2x2',
+    totalSeats: 40,
+    rows: 10,
+    columns: 4,
+    numberingStartSide: 'left',
+    driverPosition: 'right',
+    amenities: operator.amenities || [],
+    imageUrl: OPERATOR_IMAGES[operator.key],
+    imageAlt: `${operator.name} coach`,
+    status: 'active',
+    registrationCountry: operator.country,
+  }, superAdmin);
+  counts.vehicles += 1;
+  return vehicle;
+}
+
+function reviewDepartureAt(offsetDays = 3) {
+  const base = new Date();
+  base.setUTCHours(6, 0, 0, 0); // 09:00 Africa/Kampala.
+  base.setUTCDate(base.getUTCDate() + Math.max(3, Number(offsetDays || 3)));
+  return base;
+}
+
+async function ensureReviewDeparture({ operator, company, route, fareProduct, vehicle, superAdmin, offsetDays, counts }) {
+  if (!fareProduct || !vehicle) return null;
+  const companyId = company.id || String(company._id);
+  const marker = `Classic Trip seeded review departure — ${SOURCE_KEY} — ${route.id}`;
+  const existing = await TripSchedule.findOne({
+    companyId, routeId: route.id, vehicleId: vehicle.id, status: 'draft',
+    departAt: { $gt: new Date() }, notes: marker,
+  }).sort({ departAt: 1 });
+  if (existing) return existing;
+  const result = await busDepartureService.createSchedule(companyId, {
+    routeId: route.id,
+    vehicleId: vehicle.id,
+    fareProductId: fareProduct.id,
+    departAt: reviewDepartureAt(offsetDays).toISOString(),
+    boardingLeadMinutes: 45,
+    status: 'draft',
+    notes: marker,
+  }, superAdmin);
+  const publishValidation = {
+    ...(result.schedule.publishValidation || {}),
+    seededReview: true,
+    operatorConfirmationRequired: true,
+    source: SOURCE_KEY,
+  };
+  await TripSchedule.updateOne(
+    { id: result.schedule.id, companyId },
+    {
+      $set: {
+        statusReason: 'Review draft: confirm the exact date/time, assigned vehicle, fare, terminals and compliance before publication.',
+        publishValidation,
+        updatedAt: new Date(),
+      },
+    },
+  );
+  counts.departures += 1;
+  return TripSchedule.findOne({ id: result.schedule.id, companyId });
 }
 
 async function seedOperator(operator, superAdmin, counts, credentialRows) {
@@ -609,51 +704,53 @@ async function seedOperator(operator, superAdmin, counts, credentialRows) {
   }
 
   const researchedFares = operator.routes.filter((r) => r.fare).map((r) => ({ origin: r.origin, destination: r.destination, amount: r.fare, currency: r.currency || 'UGX', className: r.fareClass || '', source: r.source, operatorConfirmationRequired: true }));
-  const operatorPhoto = OPERATOR_MEDIA[operator.key] || null;
-  const listingMedia = operatorPhoto ? [{
-    id: `listing-photo-${operator.key}`,
-    url: operatorPhoto.url,
-    secureUrl: operatorPhoto.url,
-    resourceType: 'image',
-    alt: operatorPhoto.alt,
-    label: 'Real operator coach photograph',
-    target: operatorPhoto.sourceUrl,
-  }] : [];
   const listingDoc = {
     id: listingId, companyId: company.id || companyId, companySlug: operator.key, companyName: operator.name,
     serviceType: 'bus', group: 'bus', type: 'bus', listingKind: 'operator_service', title: operator.name, slug: `${operator.key}-bus`,
     shortDescription: operator.description, country: operator.country, city: operator.city, address: branchByCity.get(operator.city.toLowerCase())?.address || '',
     from: '', to: '', corridor: 'Uganda and East Africa', priceFrom: researchedFares.filter((f) => f.currency === 'UGX').reduce((min, f) => min === 0 ? f.amount : Math.min(min, f.amount), 0), currency: 'UGX',
-    media: listingMedia, amenities: operator.amenities || [], contactPhone: operator.contacts?.phone || operator.contacts?.kampala || '',
+    amenities: operator.amenities || [], contactPhone: operator.contacts?.phone || operator.contacts?.kampala || '',
+    media: seededMedia(OPERATOR_IMAGES[operator.key], `${operator.name} coach`, `${operator.name} real coach photo`),
     salesChannels: ['classic_trip'], availabilityMode: 'dated_capacity', bookable: false, isVerified: false, releaseStatus: 'review', status: 'draft',
     publication: { public: false, state: 'draft', reviewStatus: 'pending', seededResearch: true, lastStatusChangeAt: SEEDED_AT },
     serviceDetails: {
       seedSource: SOURCE_KEY, researchedAt: SEEDED_AT, sources: operator.sources, researchedFares,
-      operatorPhoto: operatorPhoto ? { sourceUrl: operatorPhoto.sourceUrl, sourceLabel: operatorPhoto.sourceLabel, alt: operatorPhoto.alt, complianceEvidence: false } : null,
       routeResearch: operator.routes.map((r) => ({ origin: r.origin, destination: r.destination, confidence: r.inferredReverse ? 'inferred_reverse_requires_confirmation' : r.source || 'public_reference' })),
-      approvalChecklist: ['Confirm authorised operator representative', 'Verify company registration/compliance', 'Add compliant vehicles and seat templates', 'Confirm exact active terminal addresses', 'Confirm live fares including stop fares', 'Create future dated/rolling departures'],
+      approvalChecklist: ['Confirm authorised operator representative', 'Verify company registration/compliance', 'Review/replace the seeded review vehicle and confirm its seat template', 'Confirm exact active terminal addresses', 'Confirm seeded research fares and stop fares', 'Review seeded draft departures, then configure the operator’s real rolling schedule'],
       warning: 'Seeded research is editable preparation data, not approval evidence.',
     },
     createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
   };
   const listingResult = await insertOnly(Listing, { companyId: company.id || companyId, serviceType: 'bus' }, listingDoc);
   if (listingResult.created) counts.listings += 1;
-  const listing = await enrichSeededDoc(listingResult.row, { address: branchByCity.get(operator.city.toLowerCase())?.address || '', contactPhone: operator.contacts?.phone || operator.contacts?.kampala || '', shortDescription: operator.description, media: listingMedia }, counts);
+  const listing = await enrichSeededDoc(listingResult.row, { address: branchByCity.get(operator.city.toLowerCase())?.address || '', contactPhone: operator.contacts?.phone || operator.contacts?.kampala || '', shortDescription: operator.description }, counts);
   if (apply && listing && typeof listing.save === 'function') {
     listing.amenities = uniq([...(listing.amenities || []), ...(operator.amenities || [])]);
-    listing.serviceDetails = { ...(listing.serviceDetails || {}), seedSource: SOURCE_KEY, researchedAt: SEEDED_AT, sources: operator.sources, researchedFares, operatorPhoto: operatorPhoto ? { sourceUrl: operatorPhoto.sourceUrl, sourceLabel: operatorPhoto.sourceLabel, alt: operatorPhoto.alt, complianceEvidence: false } : listing.serviceDetails?.operatorPhoto || null };
-    // Fill-only enrichment was not enough for real databases whose listing
-    // image was already the company/platform logo. Replace only a missing or
-    // recognisably logo-like value; keep every genuine operator upload.
-    const currentListingImage = mediaUrl(listing.img || listing.image || listing.coverImage || listing.media);
-    if (operatorPhoto && isMissingOrLogoLikeImage(currentListingImage)) {
-      listing.media = listingMedia;
-      counts.listingImagesUpdated += 1;
+    const seededOperatorImage = OPERATOR_IMAGES[operator.key];
+    const oldSeedImagePattern = /^\/images\/operators\//i;
+    const existingSeedMedia = Array.isArray(listing.media) ? listing.media : [];
+    if (!existingSeedMedia.length) {
+      listing.media = seededMedia(seededOperatorImage, `${operator.name} coach`, `${operator.name} real coach photo`);
+    } else if (existingSeedMedia.some((item) => oldSeedImagePattern.test(String(item?.url || item?.secureUrl || '')) || isLegacySeedOperatorUrl(operator.key, item?.secureUrl || item?.url || ''))) {
+      listing.media = existingSeedMedia.map((item) => (oldSeedImagePattern.test(String(item?.url || item?.secureUrl || '')) || isLegacySeedOperatorUrl(operator.key, item?.secureUrl || item?.url || ''))
+        ? { ...(typeof item.toObject === 'function' ? item.toObject() : item), url: seededOperatorImage, secureUrl: seededOperatorImage, publicId: `seed:${seededOperatorImage}` }
+        : item);
+      listing.img = seededOperatorImage;
     }
+    listing.serviceDetails = {
+      ...(listing.serviceDetails || {}),
+      seedSource: SOURCE_KEY,
+      researchedAt: SEEDED_AT,
+      sources: operator.sources,
+      researchedFares,
+      realBusImage: OPERATOR_IMAGES[operator.key],
+      seededReviewInventory: true,
+    };
     await listing.save();
   }
 
-  const routeByDirection = new Map();
+  const reviewVehicle = await ensureSeedReviewVehicle(operator, company, listing, superAdmin, counts);
+  let seededDepartureIndex = 0;
   for (const r of operator.routes) {
     const originBranch = branchByCity.get(r.origin.toLowerCase());
     const destinationBranch = branchByCity.get(r.destination.toLowerCase());
@@ -672,10 +769,31 @@ async function seedOperator(operator, superAdmin, counts, credentialRows) {
     };
     const result = await insertOnly(Route, { companyId: company.id || companyId, origin: r.origin, destination: r.destination, status: 'active' }, routeDoc);
     if (result.created) counts.routes += 1;
-    routeByDirection.set(routeDirectionKey(r.origin, r.destination), result.row);
+    const route = result.row;
+    const infrastructure = await ensureRouteInfrastructure({
+      operator,
+      route,
+      routeResearch: r,
+      listing,
+      originBranch,
+      destinationBranch,
+      superAdmin,
+      counts,
+    });
+    if (infrastructure.fareProduct) {
+      await ensureReviewDeparture({
+        operator,
+        company,
+        route,
+        fareProduct: infrastructure.fareProduct,
+        vehicle: reviewVehicle,
+        superAdmin,
+        offsetDays: 3 + (seededDepartureIndex * 2),
+        counts,
+      });
+      seededDepartureIndex += 1;
+    }
   }
-
-  await seedResearchDraftDepartures(operator, company, listing, routeByDirection, superAdmin, counts);
 
   const hq = branchByCity.get(operator.city.toLowerCase()) || [...branchByCity.values()][0];
   for (const roleTitle of staffRoles) {
@@ -695,28 +813,23 @@ async function seedOperator(operator, superAdmin, counts, credentialRows) {
 async function seedBlogs(superAdmin, counts) {
   const actorId = superAdmin.id || String(superAdmin._id);
   for (const post of blogs) {
-    const blogMedia = BLOG_MEDIA[post.slug] || null;
+    const image = BLOG_IMAGES[post.slug] || '/images/blogs/bus-seat-booking.webp';
     const doc = {
       id: `blog-seed-${slug(post.slug)}`,
       slug: post.slug, tag: post.tag, title: post.title, excerpt: post.excerpt, body: post.body,
-      image: blogMedia?.url || '', imageAlt: blogMedia?.alt || `${post.title} — Classic Trip travel guide`,
-      media: blogMedia ? { id: `blog-photo-${slug(post.slug)}`, url: blogMedia.url, secureUrl: blogMedia.url, resourceType: 'image', alt: blogMedia.alt, label: 'Meaningful travel photograph', target: blogMedia.sourceUrl } : undefined,
+      image, imageAlt: `${post.title} — East Africa travel`,
       status: 'published', publishedAt: SEEDED_AT, createdBy: actorId, updatedBy: actorId, createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
     };
     const result = await insertOnly(BlogPost, { slug: post.slug }, doc);
-    if (result.created) counts.blogs += 1;
-    if (apply && !result.created && blogMedia && result.row && typeof result.row.save === 'function') {
-      const currentImage = mediaUrl(result.row.image || result.row.coverImage || result.row.media);
-      const isLegacyLogo = isMissingOrLogoLikeImage(currentImage);
-      if (isLegacyLogo) {
-        result.row.image = blogMedia.url;
-        result.row.imageAlt = blogMedia.alt;
-        result.row.media = { id: `blog-photo-${slug(post.slug)}`, url: blogMedia.url, secureUrl: blogMedia.url, resourceType: 'image', alt: blogMedia.alt, label: 'Meaningful travel photograph', target: blogMedia.sourceUrl };
-        result.row.updatedBy = actorId;
-        result.row.updatedAt = new Date();
-        await result.row.save();
-        counts.blogImagesUpdated += 1;
-      }
+    if (result.created) {
+      counts.blogs += 1;
+    } else if (result.row && (isBlank(result.row.image) || isLegacySeedBlogUrl(post.slug, result.row.image) || /launch-lockup|logo-symbol|\/images\/operators\/|\/images\/blogs\/(?:bus-seat-booking|v1644-|v1645-)/i.test(String(result.row.image)))) {
+      result.row.image = image;
+      result.row.imageAlt = `${post.title} — East Africa travel`;
+      result.row.updatedBy = actorId;
+      result.row.updatedAt = new Date();
+      await result.row.save();
+      counts.enriched += 1;
     }
   }
 }
@@ -725,16 +838,16 @@ async function main() {
   await connectDb();
   const superAdmin = await User.findOne({ role: 'super_admin', status: 'active' }).sort({ createdAt: 1 });
   if (!superAdmin) throw new Error('No active Super Admin exists. Run npm run seed:superadmin first.');
-  const counts = { blogs: 0, blogImagesUpdated: 0, companies: 0, listings: 0, listingImagesUpdated: 0, routes: 0, terminals: 0, draftDepartures: 0, draftDeparturesSkipped: 0, staffSlots: 0, partnerAccounts: 0, partnerPasswordsReset: 0, enriched: 0 };
+  const counts = { blogs: 0, companies: 0, listings: 0, routes: 0, routeStops: 0, routeSegments: 0, fareProducts: 0, segmentFares: 0, vehicles: 0, departures: 0, terminals: 0, staffSlots: 0, partnerAccounts: 0, partnerPasswordsReset: 0, enriched: 0 };
   const credentialRows = [];
   if (!apply) {
-    console.log(JSON.stringify({ mode: 'dry-run', owner: superAdmin.email || superAdmin.id || superAdmin._id, requested: { blogs: blogs.length, operators: operators.length, routeRecords: operators.reduce((n, o) => n + o.routes.length, 0), researchDraftDepartures: Object.values(OPERATOR_DEPARTURE_DRAFTS).reduce((n, rows) => n + rows.length, 0) }, safety: 'Existing custom blog/listing images are preserved. Timetable references create Draft departures only; nothing is published or made bookable until operator, compliance, vehicle, seat-map and fare checks pass.' }, null, 2));
+    console.log(JSON.stringify({ mode: 'dry-run', owner: superAdmin.email || superAdmin.id || superAdmin._id, requested: { blogs: blogs.length, operators: operators.length, routeRecords: operators.reduce((n, o) => n + o.routes.length, 0) }, safety: 'Existing user-edited images are preserved. Seeded logo blog images are upgraded. Operator services remain pending/draft; seeded vehicles/fares/departures are review inventory and cannot become live without compliance/publication checks.' }, null, 2));
     return;
   }
   await seedBlogs(superAdmin, counts);
   for (const operator of operators) await seedOperator(operator, superAdmin, counts, credentialRows);
   await saveCredentials(credentialRows);
-  console.log(JSON.stringify({ mode: 'apply', owner: superAdmin.email || superAdmin.id || superAdmin._id, created: counts, credentialsFile: CREDENTIALS_PATH, partnerCredentials: credentialRows, note: 'Seed complete. Real operator coach photos and editable research Draft departures were added. Draft departures remain non-bookable until the operator confirms the timetable and assigns compliant vehicle, seat-map and fare inventory.' }, null, 2));
+  console.log(JSON.stringify({ mode: 'apply', owner: superAdmin.email || superAdmin.id || superAdmin._id, created: counts, credentialsFile: CREDENTIALS_PATH, partnerCredentials: credentialRows, note: 'Seed complete. Partner Admin accounts are usable for editing. Real bus photos, route-backed review vehicles, researched fares and fully persisted draft departures were added; listings remain non-public until operator confirmation and compliance checks pass.' }, null, 2));
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => { await mongoose.disconnect().catch(() => {}); });

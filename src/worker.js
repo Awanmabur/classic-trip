@@ -1,7 +1,5 @@
 'use strict';
 
-process.env.CLASSIC_TRIP_PROCESS_ROLE = process.env.CLASSIC_TRIP_PROCESS_ROLE || 'worker';
-
 const { env } = require('./config/env');
 const { connectDb, mongoose } = require('./config/db');
 const { connectRedis, closeRedis } = require('./config/redis');
@@ -17,17 +15,25 @@ async function start() {
   if (!env.mongoUri) throw new Error('MONGO_URI is required for the background worker');
   await Promise.all([connectDb(), connectRedis()]);
   await ensurePlatformConfig();
-  // Establish the single low-priority rolling queue owner before cron tasks are
-  // registered, so materializeSchedules is queue-first even during startup.
-  scheduleMaterializer.startWebFallback({ startupDelayMs: 10000 });
+  // Rolling departures use the normal scheduler plus lifecycle outbox events.
+  // Do not run a second private queue/timer alongside node-cron.
   const jobs = startScheduledJobs({ force: true });
   logger.startup('Classic Trip background worker started', { jobs: jobs.jobs });
-  // Reconcile legacy "active" departures and fill the rolling month as soon
-  // as a release starts; do not leave public listings on "Coming soon" until
-  // the next 03:00 materialization cron.
-  // The worker is the single rolling-queue owner under `npm start`. It drains
-  // all remaining dates in bounded batches and keeps the bounded thirty-minute recovery
-  // scan, while the web process stays free to serve fares, checkout and dashboards.
+  // Normalize legacy duplicate/overlapping rolling rules once at worker startup.
+  // This is intentionally metadata-only: it does not build a 30-day window here,
+  // so startup stays fast while old rule-10/rule-11 style conflicts stop spamming
+  // the scheduler before the normal 15-minute recovery pass.
+  setImmediate(async () => {
+    try {
+      const normalized = await scheduleMaterializer.normalizeActiveRules(new Date());
+      if (normalized.paused > 0) logger.info('Normalized legacy recurring departure rules', { paused: normalized.paused, active: normalized.activeAfter });
+    } catch (error) {
+      logger.warn('Recurring departure rule normalization will retry on the scheduled repair pass', { error: error.message });
+    }
+  });
+  // Existing rolling rules are repaired by the scheduled materializer. New rules
+  // are filled immediately in the company request, and lifecycle events request
+  // replacement through the outbox.
   setImmediate(async () => {
     try {
       const restored = await restoreLegacyDemotedBusListings();

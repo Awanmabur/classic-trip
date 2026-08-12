@@ -192,10 +192,9 @@ const handlers = {
       companyId,
       ruleId,
       new Date(),
-      { waitForLeaseMs: 5000, maxCreates: 1 },
+      { waitForLeaseMs: 5000, maxCreates: materializer.ROLLING_WINDOW_DAYS },
     );
     if (result?.busy) throw new Error('Schedule rule materialization is already in progress');
-    if (Number(result?.pending || 0) > 0) materializer.queueRuleMaterialization(companyId, ruleId);
     return result;
   },
   BusListingPublished: acknowledgeDomainFact,

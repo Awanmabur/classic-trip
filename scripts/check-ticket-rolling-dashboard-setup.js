@@ -21,7 +21,7 @@ const inventoryService = read('src/modules/bus/services/busInventoryService.js')
 const departureService = read('src/modules/bus/services/busDepartureService.js');
 const scheduleController = read('src/controllers/company/scheduleController.js');
 const dashboardJs = read('public/js/dashboard-workspace.js');
-const dashboardView = read('src/views/dashboards/shared/workspace.ejs') + read('src/views/dashboards/shared/sections/overview-quick-actions.ejs');
+const dashboardView = read('src/views/dashboards/shared/workspace.ejs');
 const materializer = read('src/jobs/materializeSchedules.js');
 const tripSchedule = read('src/models/TripSchedule.js');
 

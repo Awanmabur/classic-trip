@@ -570,6 +570,7 @@
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest.pdf" title="Download manifest PDF"><i class="fa-solid fa-file-pdf"></i></a>`;
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest.csv" title="Download manifest CSV"><i class="fa-solid fa-file-csv"></i></a>`;
         scopedActions += `<button class="tinyBtn" data-modal="view" data-type="publish readiness" data-label="${safeLabel}"${detailAttr}${idAttr} title="Check publish readiness"><i class="fa-solid fa-list-check"></i></button>`;
+        scopedActions += `<form method="POST" action="/company/schedules/${id}/repair-inventory" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Repair legacy seat-map link and live inventory"><i class="fa-solid fa-screwdriver-wrench"></i></button></form>`;
         scopedActions += `<form method="POST" action="/company/schedules/${id}/publish" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Publish schedule"><i class="fa-solid fa-upload"></i></button></form>`;
         scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="schedule status" data-label="${safeLabel}"${detailAttr}${idAttr} title="Update trip status"><i class="fa-solid fa-road-circle-check"></i></button>`;
         scopedActions += `<form method="POST" action="/company/schedules/${id}/complete" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Complete trip and release eligible earnings"><i class="fa-solid fa-flag-checkered"></i></button></form>`;
@@ -1628,11 +1629,28 @@
 
   function optionDataAttributes(item = {}) {
     if (!item || typeof item === 'string') return '';
-    return OPTION_META_KEYS.map((key) => item[key] === undefined || item[key] === null || item[key] === '' ? '' : ` data-${kebabCase(key)}="${escapeHtml(item[key])}"`).join('');
+    const metadata = OPTION_META_KEYS.map((key) => item[key] === undefined || item[key] === null || item[key] === '' ? '' : ` data-${kebabCase(key)}="${escapeHtml(item[key])}"`).join('');
+    return `${metadata}${item.currentSelection ? ' data-current-selection="true"' : ''}`;
+  }
+
+  function preserveCurrentSelection(items, selected = '') {
+    const normalized = Array.isArray(items) ? [...items] : [];
+    const selectedValues = Array.isArray(selected)
+      ? selected.map(String).filter(Boolean)
+      : String(selected || '').split(',').map(value => value.trim()).filter(Boolean);
+    selectedValues.forEach((wanted) => {
+      const exists = normalized.some((item) => String(typeof item === 'string' ? item : item?.value) === wanted);
+      if (!exists) normalized.push({ value:wanted, label:`Current saved selection — ${wanted}`, currentSelection:true, status:'legacy_current' });
+    });
+    return normalized.map((item) => {
+      const value = String(typeof item === 'string' ? item : item?.value || '');
+      if (!selectedValues.includes(value) || typeof item === 'string') return item;
+      return { ...item, currentSelection:true };
+    });
   }
 
   function selectOptions(items, selected = '') {
-    const normalized = Array.isArray(items) ? items : [];
+    const normalized = preserveCurrentSelection(items, selected);
     const hasPlaceholder = normalized.some(item => typeof item === 'object' && (item.placeholder || item.value === ''));
     const rows = hasPlaceholder ? normalized : [{ value: '', label: 'Select an option', placeholder: true }, ...normalized];
     return rows.map(item => {
@@ -1662,7 +1680,11 @@
       return String(raw).replace(/Z$/i, '').slice(0, 16);
     }
     if (field.type === 'time') return String(raw).slice(0, 5);
-    if (Array.isArray(raw)) return raw.join(', ');
+    if (Array.isArray(raw)) {
+      if (raw.some((item) => item && typeof item === 'object')) return JSON.stringify(raw);
+      return raw.join(', ');
+    }
+    if (raw && typeof raw === 'object') return JSON.stringify(raw);
     return raw;
   }
 
@@ -1697,7 +1719,7 @@
       const selectedValues = Array.isArray(field.value)
         ? field.value.map(String)
         : String(field.value || '').split(',').map(v => v.trim()).filter(Boolean);
-      const options = (field.options || []).filter(item => !(item && typeof item === 'object' && item.placeholder)).map(item => {
+      const options = preserveCurrentSelection(field.options || [], selectedValues).filter(item => !(item && typeof item === 'object' && item.placeholder)).map(item => {
         const value = typeof item === 'string' ? item : item.value;
         const optionLabel = typeof item === 'string' ? item : item.label;
         const checked = selectedValues.includes(String(value)) ? 'checked' : '';
@@ -1728,7 +1750,8 @@
       Array.from(control.options).forEach((option) => {
         if (!option.value) { option.hidden = false; option.disabled = option.dataset.placeholder === 'true' || option.disabled; return; }
         const matchValue = option.getAttribute(attribute) || '';
-        const visible = !parentValue || String(matchValue) === String(parentValue);
+        const preserveCurrent = option.dataset.currentSelection === 'true' && option.selected;
+        const visible = preserveCurrent || !parentValue || String(matchValue) === String(parentValue);
         option.hidden = !visible;
         option.disabled = !visible;
         if (!visible && option.selected) option.selected = false;
@@ -1739,9 +1762,10 @@
       let visibleCount = 0;
       control.querySelectorAll('.foldOption').forEach((label) => {
         const matchValue = label.getAttribute(attribute) || '';
-        const visible = !parentValue || String(matchValue) === String(parentValue);
-        label.hidden = !visible;
         const input = label.querySelector('input');
+        const preserveCurrent = label.dataset.currentSelection === 'true' && Boolean(input?.checked);
+        const visible = preserveCurrent || !parentValue || String(matchValue) === String(parentValue);
+        label.hidden = !visible;
         if (input) { input.disabled = !visible; if (!visible) input.checked = false; }
         if (visible) visibleCount += 1;
       });
@@ -2342,7 +2366,7 @@
     const staffRoleOptions = staffRoleOptionsByService[companyServiceType] || staffRoleOptionsByService.bus;
     const staffPermissionOptions = staffPermissionOptionsByService[companyServiceType] || staffPermissionOptionsByService.bus;
     const listingStatusOptions = ['draft','active','paused','archived'];
-    const scheduleStatusOptions = ['draft','active','published','boarding','departed','arrived','completed','delayed','cancelled','archived'];
+    const scheduleStatusOptions = ['draft','published','boarding','departed','arrived','completed','delayed','cancelled','archived'];
     const listingSource = companyServiceType === 'hotel' ? (data.options?.hotelListings || data.options?.listings || data.listings) : companyServiceType === 'bus' ? (data.options?.busListings || data.options?.listings || data.listings) : (data.options?.listings || data.listings);
     const listings = optionFromRows(listingSource, 'Create a listing first');
     const routes = optionFromRows(data.options?.routes || data.routes, 'Create a route first');
@@ -2619,9 +2643,12 @@
     if (isCompanyRole && mode === 'edit' && key === 'listing') return {
       action: editActionFor('listing'), submit: 'Save listing changes',
       fields: [
+        ...(companyServiceType === 'bus' ? [{ type:'smart-summary', label:'Complete bus service edit', help:'Every field saved when this bus service was created is loaded back here. Activation-critical terminal, licence, contact, baggage and cancellation fields stay visible and editable.' }] : []),
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, value: fieldValue('listing.title','title') },
-        { name:'branchId', label:'Primary branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, value: fieldValue('listing.branchId','branchId') },
+        { name:'branchId', label:'Primary branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, required: companyServiceType === 'bus', value: fieldValue('listing.branchId','branchId'), help: companyServiceType === 'bus' ? 'Required for bus activation. The current branch remains selected when editing.' : '' },
+        { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', required: companyServiceType === 'bus', value:fieldValue('listing.operatorLicenceRef','operatorLicenceRef'), showFor:'bus', help:'Required before a bus service can be activated.' },
+        { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'], value:fieldValue('listing.salesChannels','salesChannels'), showFor:'bus' },
         { name:'city', label:'City / operating area', icon:'fa-location-dot', value: fieldValue('listing.city','city'), showFor:['hotel','tour','car_rental','cargo'] },
         { name:'from', label:'Start / pickup / origin', icon:'fa-location-dot', value: fieldValue('listing.from','from'), showFor:['hotel','tour','car_rental','cargo'] },
         { name:'to', label:'End / return / destination', icon:'fa-location-dot', value: fieldValue('listing.to','to'), showFor:['hotel','tour','car_rental','cargo'] },
@@ -2648,14 +2675,14 @@
         { name:'pricingUnit', label:'Pricing unit', type:'select', icon:'fa-scale-balanced', options:[{value:'per_shipment',label:'Per shipment'},{value:'per_kg',label:'Per kilogram'},{value:'per_package',label:'Per package'}], value:fieldValue('listing.pricingUnit','pricingUnit'), showFor:'cargo' },
         { name:'deliveryAreas', label:'Delivery areas', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.deliveryAreas','deliveryAreas'), showFor:'cargo' },
         { name:'cargoDescription', label:'Cargo handling details', type:'textarea', full:true, value:fieldValue('listing.serviceDetails.cargoDescription','cargoDescription'), showFor:'cargo' },
-        { name:'contactPhone', label:'Customer contact phone', icon:'fa-phone', value:fieldValue('listing.contactPhone','contactPhone') },
+        { name:'contactPhone', label:'Customer contact phone', icon:'fa-phone', required: companyServiceType === 'bus', value:fieldValue('listing.contactPhone','contactPhone'), help: companyServiceType === 'bus' ? 'Required for bus publication readiness.' : '' },
         { name:'checkInTime', label:'Check-in time', type:'time', icon:'fa-clock', value:fieldValue('listing.checkInTime','checkInTime'), showFor:'hotel' },
         { name:'checkOutTime', label:'Check-out time', type:'time', icon:'fa-clock', value:fieldValue('listing.checkOutTime','checkOutTime'), showFor:'hotel' },
         { name:'amenities', label:'Amenities', type:'multiselect', icon:'fa-wifi', options:hotelAmenityOptions, value:fieldValue('listing.amenities','amenities'), showFor:'hotel' },
         { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', value:fieldValue('listing.pickupInstructions','pickupInstructions'), showFor:'bus' },
         { name:'dropoffInstructions', label:'Drop-off instructions', icon:'fa-location-dot', value:fieldValue('listing.dropoffInstructions','dropoffInstructions'), showFor:'bus' },
-        { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, value:fieldValue('listing.baggageRules','baggageRules'), showFor:'bus' },
-        { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, value:fieldValue('listing.cancellationRules','cancellationRules') },
+        { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, required: companyServiceType === 'bus', value:fieldValue('listing.baggageRules','baggageRules'), showFor:'bus', help:'Required before a bus service can be activated.' },
+        { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, required: companyServiceType === 'bus', value:fieldValue('listing.cancellationRules','cancellationRules'), help: companyServiceType === 'bus' ? 'Required before a bus service can be activated.' : '' },
         { name:'policy', label:'Booking policy', type:'textarea', full:true, value:fieldValue('listing.policy','policy') },
         { name:'serviceNotes', label:'Operating notes', type:'textarea', full:true, value:fieldValue('listing.serviceNotes','serviceNotes') },
         { name:'imageFile', label:'Add service image', type:'file', icon:'fa-image' },
@@ -2668,12 +2695,14 @@
       action: editActionFor('route'), submit: 'Save route changes',
       fields: [
         { type:'smart-summary', label:'Smart route update', help:'Changing endpoint terminals refreshes the generated route identity, endpoint stops and route segments while preserving linked operational records safely.' },
-        { name:'listingId', type:'hidden', value: fieldValue('route.listingId','listing.listing.listingId','listingId') },
+        { name:'listingId', label:'Bus listing', type:'select', icon:'fa-layer-group', options:listings, required:true, value: fieldValue('route.listingId','listing.id','listing.listingId','listingId'), help:'Choose the bus listing for this route. Changes are validated and related draft operational records are kept consistent.' },
         { name:'routeName', label:'Route name', icon:'fa-route', value: fieldValue('route.routeName','routeName') },
         { name:'routeCode', label:'Route code', icon:'fa-hashtag', value: fieldValue('route.routeCode','routeCode') },
         { name:'timezone', label:'Route timezone', type:'select', icon:'fa-clock', options:['Africa/Kampala','Africa/Nairobi','Africa/Kigali','Africa/Dar_es_Salaam','Africa/Juba','Africa/Bujumbura','Africa/Mogadishu'], value: fieldValue('route.timezone','timezone') || 'Africa/Kampala' },
         { name:'originBranchId', label:'Origin terminal / branch', type:'select', icon:'fa-location-dot', options:branches, required:true, value: fieldValue('route.originBranchId','route.originTerminalId','originBranchId','originTerminalId'), help:'Select the existing operating location. The public origin name is derived from it.' },
         { name:'destinationBranchId', label:'Destination terminal / branch', type:'select', icon:'fa-location-dot', options:branches, required:true, value: fieldValue('route.destinationBranchId','route.destinationTerminalId','destinationBranchId','destinationTerminalId'), help:'Select a different destination location.' },
+        { name:'boardingBranchIds', label:'Additional boarding branches', type:'multiselect', icon:'fa-map-pin', options:branches, value:(Array.isArray(detail?.route?.boardingBranchIds) ? detail.route.boardingBranchIds.filter((id) => String(id) !== String(detail?.route?.originBranchId || detail?.route?.originTerminalId || '')) : fieldValue('route.boardingBranchIds','boardingBranchIds')), help:'Same selection used during Create. Origin is automatic; retained stops keep their saved timing and instructions.' },
+        { name:'dropoffBranchIds', label:'Additional drop-off branches', type:'multiselect', icon:'fa-map-pin', options:branches, value:(Array.isArray(detail?.route?.dropoffBranchIds) ? detail.route.dropoffBranchIds.filter((id) => String(id) !== String(detail?.route?.destinationBranchId || detail?.route?.destinationTerminalId || '')) : fieldValue('route.dropoffBranchIds','dropoffBranchIds')), help:'Same selection used during Create. Destination is automatic; retained stops keep their saved timing and instructions.' },
         { name:'distanceKm', label:'Distance KM', type:'number', icon:'fa-road', value: fieldValue('route.distanceKm','distanceKm') },
         { name:'estimatedDuration', label:'Estimated duration', icon:'fa-clock', value: fieldValue('route.estimatedDuration','estimatedDuration') },
         { name:'operatingDays', label:'Operating days', type:'multiselect', icon:'fa-calendar-week', options:dayOptions, value: fieldValue('route.operatingDays','operatingDays'), help:'Pick every day this route can run.' },
@@ -2697,13 +2726,23 @@
     if (isCompanyRole && mode === 'edit' && key === 'vehicle') return {
       action: editActionFor('vehicle'), submit: 'Save vehicle changes',
       fields: [
-        { name:'listingId', type:'hidden', value: fieldValue('vehicle.listingId','listingId') },
+        { name:'listingId', label:`${serviceLabel} listing`, type:'select', icon:'fa-layer-group', options:listings, required:true, value: fieldValue('vehicle.listingId','listing.id','listing.listingId','listingId'), help:'Choose the bus listing for this vehicle. Reassignment is allowed when no committed live booking/inventory would be corrupted.' },
         { name:'serviceType', type:'hidden', value: companyServiceType },
         { name:'name', label:'Vehicle name', icon:'fa-bus-simple', required:true, value: fieldValue('vehicle.name','name') },
         { name:'plateOrCode', label:'Plate / fleet code', icon:'fa-hashtag', required:true, value: fieldValue('vehicle.plateOrCode','plateOrCode') },
         { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value: fieldValue('vehicle.vehicleClass','vehicleClass') || (String(fieldValue('vehicle.defaultSeatClass','defaultSeatClass')).toLowerCase() === 'vip' ? 'vip' : 'standard'), help:'VIP applies to the complete vehicle and its full passenger seat map.' },
+        { name:'layoutName', label:'Seat layout', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'Left 1 + right 1'},{value:'1x2',label:'Left 1 + right 2'},{value:'2x1',label:'Left 2 + right 1'},{value:'2x2',label:'Left 2 + right 2'},{value:'2x3',label:'Left 2 + right 3'},{value:'3x2',label:'Left 3 + right 2'},{value:'3x3',label:'Left 3 + right 3'}], value:fieldValue('vehicle.layoutName','layoutName') || '2x2', help:'Changing seat layout publishes a new version; sold departure snapshots are not rewritten.' },
+        { name:'numberingStartSide', label:'Seat 1 starts on', type:'select', icon:'fa-arrow-right-arrow-left', options:[{value:'left',label:'Left side'},{value:'right',label:'Right side'}], value:fieldValue('vehicle.numberingStartSide','numberingStartSide') || 'left' },
+        { name:'driverPosition', label:'Driver position', type:'select', icon:'fa-steering-wheel', options:[{value:'right',label:'Right side'},{value:'left',label:'Left side'}], value:fieldValue('vehicle.driverPosition','driverPosition') || 'right' },
+        { name:'frontRowPassengerSeats', label:'Front row arrangement', type:'select', icon:'fa-bus-simple', options:[{value:'0',label:'Passenger rows begin behind driver'},{value:'1',label:'Driver plus one passenger seat'}], value:String(fieldValue('vehicle.frontRowPassengerSeats','frontRowPassengerSeats') || '0') },
+        { name:'rowLayoutOverrides', label:'Different rows', type:'textarea', full:true, icon:'fa-grip-lines', value:(Array.isArray(fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides')) ? fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides').map((row) => `${row.row}:${row.leftSeats}+${row.rightSeats}`).join(', ') : fieldValue('vehicle.rowLayoutOverrides','rowLayoutOverrides')), placeholder:'1:1+1, 2:2+3, 8:1+2' },
+        { name:'rows', label:'Rows', type:'number', icon:'fa-grip', value:fieldValue('vehicle.rows','rows') },
+        { name:'totalSeats', label:'Capacity / seats', type:'number', icon:'fa-users', required:true, value:fieldValue('vehicle.totalSeats','totalSeats') },
+        { name:'seatLabelMode', label:'Seat numbering', type:'select', icon:'fa-wand-magic-sparkles', options:[{value:'preserve',label:'Keep current labels'},{value:'automatic',label:'Automatic 1, 2, 3…'},{value:'row_letters',label:'Rows and positions: A1, A2…'},{value:'prefix_numeric',label:'Prefix and number: S1, S2…'},{value:'custom',label:'Custom labels'}], value:fieldValue('vehicle.seatLabelMode','seatLabelMode') || 'preserve' },
+        { name:'seatLabelPrefix', label:'Label prefix', icon:'fa-font', value:fieldValue('vehicle.seatLabelPrefix','seatLabelPrefix') },
+        { name:'seatLabels', label:'Custom seat labels', type:'seat-labels', full:true, value:(Array.isArray(detail?.vehicle?.seatTemplate) ? detail.vehicle.seatTemplate.map((seat) => seat.seatNumber || seat.label).filter(Boolean).join(', ') : fieldValue('vehicle.seatLabels','seatLabels')), help:'Existing seat labels are shown here. Leave numbering unchanged unless you intentionally want a new numbering scheme.' },
         { name:'manufacturer', label:'Manufacturer', icon:'fa-industry', value: fieldValue('vehicle.manufacturer','manufacturer') },
-        { name:'model', label:'Model', icon:'fa-bus', value: fieldValue('vehicle.model','model') },
+        { name:'model', label:'Model', icon:'fa-bus', value: fieldValue('vehicle.modelName','vehicle.model','modelName','model') },
         { name:'modelYear', label:'Model year', type:'number', icon:'fa-calendar', value: fieldValue('vehicle.modelYear','modelYear') },
         { name:'operatorPermitRef', label:'Operating permit ref', icon:'fa-id-card', value: fieldValue('vehicle.operatorPermitRef','operatorPermitRef') },
         { name:'operatorPermitExpiresAt', label:'Permit expiry', type:'date', icon:'fa-calendar-xmark', value: fieldValue('vehicle.operatorPermitExpiresAt','operatorPermitExpiresAt') },
@@ -2714,7 +2753,7 @@
         { name:'imageFile', label:'Add vehicle photo', type:'file', icon:'fa-image' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['active','maintenance','paused','archived'], value: fieldValue('vehicle.status','status') || 'active' },
         { name:'amenities', label:'Amenities', type:'multiselect', icon:'fa-wifi', options:busAmenityOptions, value: fieldValue('vehicle.amenities','amenities'), help:'Select all amenities available in this vehicle.' },
-        { name:'maintenanceNote', label:'Maintenance / compliance note', type:'textarea', full:true, value: fieldValue('vehicle.maintenanceNote','maintenanceNote') }
+        { name:'maintenanceNote', label:'Maintenance / compliance note', type:'textarea', full:true, value: fieldValue('vehicle.maintenanceReason','vehicle.maintenanceNote','maintenanceReason','maintenanceNote') }
       ]
     };
     if (isCompanyRole && mode === 'edit' && key === 'schedule') return {
@@ -2729,7 +2768,7 @@
         { name:'boardingStartAt', label:'Boarding start time', type:'datetime-local', icon:'fa-clock', value: fieldValue('schedule.boardingStartAt','boardingStartAt') },
         { name:'gate', label:'Gate / bay', icon:'fa-signs-post', value: fieldValue('schedule.gate','gate') },
         { name:'platform', label:'Platform / terminal bay', icon:'fa-road', value: fieldValue('schedule.platform','platform') },
-        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: fieldValue('schedule.status','status') || 'draft' },
+        { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:scheduleStatusOptions, value: String(fieldValue('schedule.status','status') || 'draft').toLowerCase() === 'active' ? 'published' : (fieldValue('schedule.status','status') || 'draft'), help:'Legacy Active dated departures are shown as Published here. Draft and Published are the editable pre-trip states; started trips use the lifecycle status action.' },
         { name:'driverId', label:'Assigned driver', type:'select', icon:'fa-user-tie', options:drivers, value: fieldValue('schedule.driverEmployeeId','schedule.driverIds.0','driverEmployeeId','driverIds.0','driverId'), help:'Driver assignment is optional. Any saved company driver can be selected; account, membership and compliance details remain visible as operational warnings.' },
         { name:'blockedSeats', label:'Blocked seats for replacement', type:'multiselect', icon:'fa-ban', options:vehicleSeatOptions, dependsOn:'vehicleId', filterKey:'vehicleId', value:fieldValue('schedule.blockedSeats','blockedSeats'), help:'Uses the selected bus’s published seat labels.' },
         { name:'notes', label:'Schedule notes', type:'textarea', full:true, value: fieldValue('schedule.notes','notes') }
@@ -2739,6 +2778,8 @@
       action: editActionFor('room'), submit: 'Save room inventory summary',
       fields: [
         { type:'smart-summary', label:'Room category inventory', help:'This updates the canonical room type and safely creates or archives physical room units to match the requested inventory.' },
+        { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, value:fieldValue('room.listingId','listing.id','listing.listingId','listingId'), help:'Choose the stay listing.' },
+        { name:'propertyId', label:'Hotel property', type:'select', icon:'fa-building', options:hotelProperties, value:fieldValue('room.propertyId','property.id','propertyId'), help:'Choose the hotel property.' },
         { name:'roomType', label:'Room type', icon:'fa-bed', required:true, value:fieldValue('room.roomType','room.name','name') },
         { name:'capacity', label:'Guest capacity', type:'number', icon:'fa-users', required:true, value:fieldValue('room.capacity','capacity') || '1' },
         { name:'inventory', label:'Physical room units', type:'number', icon:'fa-door-open', required:true, value:fieldValue('room.inventory','inventory') || '0', help:'Reducing inventory archives unused room units only after reservation checks.' },
@@ -2751,6 +2792,7 @@
       action: editActionFor('hotel_property'), submit: 'Save property',
       fields: [
         { type:'smart-summary', label:'Stay property profile', help:'Public identity, guest policies, taxes, contact, accessibility and operational times stay linked to this property and its listing.' },
+        { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true, value:fieldValue('property.listingId','listing.id','listing.listingId','listingId'), help:'Choose the stay listing for this property.' },
         { name:'propertyName', label:'Property name', icon:'fa-hotel', required:true, value: fieldValue('property.propertyName','propertyName') },
         { name:'propertyType', label:'Property type', type:'select', icon:'fa-building', options:['hotel','lodge','resort','guest_house','serviced_apartment','apartment','entire_home','private_room','shared_room','villa','cottage','cabin','bungalow','homestay','holiday_home','farm_stay','bed_and_breakfast','hostel','camp'], value: fieldValue('property.propertyType','propertyType') || 'hotel' },
         { name:'rentalMode', label:'What guests book', type:'select', icon:'fa-key', options:[{value:'room_based',label:'Rooms or units'},{value:'entire_place',label:'Entire place'},{value:'private_room',label:'Private room'},{value:'shared_room',label:'Shared room'}], value: fieldValue('property.rentalMode','rentalMode') || 'room_based' },
@@ -2795,6 +2837,8 @@
       action: editActionFor('room_type'), submit: 'Save room type',
       fields: [
         { type:'smart-summary', label:'Room type and occupancy', help:'Capacity, bedding, included guests, stay limits and fees drive search, pricing and room assignment.' },
+        { name:'listingId', label:'Stay listing', type:'select', icon:'fa-hotel', options:listings, required:true, value:fieldValue('roomType.listingId','listing.id','listing.listingId','listingId'), help:'Choose the stay listing for this room type.' },
+        { name:'propertyId', label:'Hotel property', type:'select', icon:'fa-building', options:hotelProperties, required:true, value:fieldValue('roomType.propertyId','property.id','propertyId'), help:'Choose the property for this room type. Existing committed reservations are protected by backend validation.' },
         { name:'name', label:'Room type', icon:'fa-bed', required:true, value: fieldValue('roomType.name','name') },
         { name:'capacity', label:'Total capacity', type:'number', icon:'fa-users', required:true, value: fieldValue('roomType.capacity','capacity') },
         { name:'maxAdults', label:'Maximum adults', type:'number', icon:'fa-user-group', required:true, value: fieldValue('roomType.maxAdults','maxAdults') },
@@ -2821,6 +2865,7 @@
       action: editActionFor('rate_plan'), submit: 'Save rate plan',
       fields: [
         { type:'smart-summary', label:'Rate and policy rules', help:'Prices, meal plan, cancellation, deposit and stay limits are frozen into each reservation at booking.' },
+        { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, required:true, value:fieldValue('ratePlan.roomTypeId','roomType.id','roomTypeId'), help:'Choose the room type for this rate plan.' },
         { name:'name', label:'Rate plan name', icon:'fa-tags', required:true, value: fieldValue('ratePlan.name','name') },
         { name:'pricingMode', label:'Pricing source', type:'select', icon:'fa-coins', options:[{value:'nightly_inventory',label:'Room-night calendar price'},{value:'fixed',label:'Fixed plan price'}], value: fieldValue('ratePlan.pricingMode','pricingMode') || 'nightly_inventory' },
         { name:'basePrice', label:'Base price', type:'number', icon:'fa-coins', value: fieldValue('ratePlan.basePrice','basePrice') || '0' },
@@ -2842,6 +2887,7 @@
     if (isCompanyRole && mode === 'edit' && key === 'room_unit') return {
       action: editActionFor('room_unit'), submit: 'Save room unit',
       fields: [
+        { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, required:true, value:fieldValue('roomUnit.roomTypeId','roomType.id','roomTypeId'), help:'Choose the room type for this physical room.' },
         { name:'unitNumber', label:'Room / unit number', icon:'fa-door-open', required:true, value: fieldValue('roomUnit.unitNumber','unitNumber') },
         { name:'floor', label:'Floor', icon:'fa-layer-group', value: fieldValue('roomUnit.floor','floor') },
         { name:'wing', label:'Wing', icon:'fa-building', value: fieldValue('roomUnit.wing','wing') },
@@ -2857,6 +2903,10 @@
     if (isCompanyRole && mode === 'edit' && key === 'room_night') return {
       action: editActionFor('room_night'), submit: 'Save room-night status',
       fields: [
+        { name:'roomTypeId', label:'Room type', type:'select', icon:'fa-bed', options:roomTypes, value:fieldValue('roomNight.roomTypeId','roomType.id','roomTypeId'), help:'Choose the room type for this inventory night.' },
+        { name:'roomUnitId', label:'Room unit', type:'select', icon:'fa-door-open', options:roomUnits, value:fieldValue('roomNight.roomUnitId','roomUnit.id','roomUnitId'), help:'Choose the physical room unit for this inventory night.' },
+        { name:'ratePlanId', label:'Rate plan', type:'select', icon:'fa-tags', options:ratePlans, value:fieldValue('roomNight.ratePlanId','ratePlan.id','ratePlanId'), help:'Choose the rate plan for this inventory night.' },
+        { name:'date', label:'Inventory date', type:'date', icon:'fa-calendar-day', readonly:true, value:fieldValue('roomNight.date','date'), help:'Create or regenerate inventory to use a different date.' },
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options:['available','open','maintenance','cleaning','cancelled'], value: fieldValue('roomNight.status','status') || 'available' },
         { name:'price', label:'Night price', type:'number', icon:'fa-coins', value: fieldValue('roomNight.price','price') },
         { name:'closedToArrival', label:'Closed to arrival', type:'select', icon:'fa-person-circle-xmark', options:[{value:'false',label:'No'},{value:'true',label:'Yes'}], value:String(fieldValue('roomNight.closedToArrival','closedToArrival') ?? 'false') },
@@ -2888,11 +2938,11 @@
         ? templateSeats.map(seat => ({ value: seat.seatNumber || seat.id, vehicleId: recordId || vehicleDetail.id || '', label: `Seat ${seat.seatNumber || seat.id} (${seat.seatClass || seat.seatType || seat.status || 'standard'})` }))
         : vehicleSeatOptions;
       return {
-        action: recordId ? `/company/vehicles/${encodeURIComponent(recordId)}/seats` : '/company/vehicles/seat-template',
+        action: '/company/vehicles/seat-template',
         submit: 'Save seat template',
         fields: [
           { type:'smart-summary', label:'Smart seat map', help:'Select a bus and its live layout, capacity and current labels will load automatically. Normal numbering does not require manual labels.' },
-          ...(recordId ? [{ name:'vehicleId', type:'hidden', value:recordId }] : [{ name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true }]),
+          ...(recordId ? [{ name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true, value:recordId, help:'Choose the vehicle whose seat template you want to save.' }] : [{ name:'vehicleId', label:'Vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, required:true }]),
           { name:'vehicleClass', label:'Vehicle class', type:'select', icon:'fa-star', options:[{value:'standard',label:'Standard vehicle — all passenger seats are standard'},{value:'vip',label:'VIP vehicle — all passenger seats are VIP'}], required:true, value: fieldValue('vehicle.vehicleClass','vehicleClass') || (String(fieldValue('vehicle.defaultSeatClass','defaultSeatClass')).toLowerCase() === 'vip' ? 'vip' : 'standard'), help:'This class is applied to every sellable passenger seat in the vehicle.' },
           { name:'layoutName', label:'Normal row layout', type:'select', icon:'fa-chair', options:[{value:'1x1',label:'Left 1 + right 1'},{value:'1x2',label:'Left 1 + right 2'},{value:'2x1',label:'Left 2 + right 1'},{value:'2x2',label:'Left 2 + right 2'},{value:'2x3',label:'Left 2 + right 3'},{value:'3x2',label:'Left 3 + right 2'},{value:'3x3',label:'Left 3 + right 3'},{value:'sleeper',label:'Sleeper berths'},{value:'custom',label:'Custom base layout'}], value: fieldValue('vehicle.layoutName','layoutName') || '2x2', help:'Left and right are viewed while facing the front of the bus.' },
           { name:'numberingStartSide', label:'Seat 1 starts on', type:'select', icon:'fa-arrow-right-arrow-left', options:[{value:'left',label:'Left side of the bus'},{value:'right',label:'Right side of the bus'}], value:fieldValue('vehicle.numberingStartSide','numberingStartSide') || 'left', help:'Controls the physical side where numbering begins, including 2 + 3 and 3 + 2 layouts.' },
@@ -3023,8 +3073,8 @@
         { name:'title', label:`${serviceLabel} listing title`, icon:'fa-pen', required:true, placeholder: companyServiceType === 'hotel' ? 'Enter the property listing title' : companyServiceType === 'tour' ? 'Kampala city and culture experience' : companyServiceType === 'car_rental' ? 'Toyota SUV daily rental' : companyServiceType === 'cargo' ? 'Kampala to Juba cargo delivery' : 'Enter the public bus service name' },
         { name:'branchId', label:'Branch / terminal / operating desk', type:'select', icon:'fa-building', options:branches, required: companyServiceType === 'bus', help:'Select an existing operating location when one is available.' },
         ...(companyServiceType === 'bus' ? [
-          { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', placeholder:'Bus operator licence reference' },
-          { name:'contactPhone', label:'Booking support phone', icon:'fa-phone', placeholder:'Enter phone number' },
+          { name:'operatorLicenceRef', label:'Operator licence / permit ref', icon:'fa-id-card', required:true, placeholder:'Bus operator licence reference', help:'Required before this bus service can be activated.' },
+          { name:'contactPhone', label:'Booking support phone', icon:'fa-phone', required:true, placeholder:'Enter phone number', help:'Required for passenger support and publication readiness.' },
           { name:'salesChannels', label:'Sales channels', type:'multiselect', icon:'fa-cart-shopping', options:['web','mobile','agent','counter'] }
         ] : []),
         { name:'city', label:'City / operating area', icon:'fa-location-dot', placeholder:'Kampala', showFor:['hotel','tour','car_rental','cargo'] },
@@ -3062,8 +3112,8 @@
         { name:'pickupInstructions', label:'Pickup instructions', icon:'fa-map-pin', placeholder:'Pickup desk or terminal', showFor:['bus'] },
         { name:'dropoffInstructions', label:'Drop-off instructions', icon:'fa-location-dot', placeholder:'Arrival desk or drop-off point', showFor:['bus'] },
         ...(companyServiceType === 'bus' ? [
-          { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, placeholder:'Included allowance and excess baggage rules' },
-          { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, placeholder:'When changes, cancellations and refunds are allowed' }
+          { name:'baggageRules', label:'Baggage rules', type:'textarea', full:true, required:true, placeholder:'Included allowance and excess baggage rules', help:'Required before this bus service can be activated.' },
+          { name:'cancellationRules', label:'Cancellation / refund rules', type:'textarea', full:true, required:true, placeholder:'When changes, cancellations and refunds are allowed', help:'Required before this bus service can be activated.' }
         ] : [{ name:'priceFrom', label: companyServiceType === 'hotel' ? 'Price from per night' : companyServiceType === 'tour' ? 'Price per participant' : companyServiceType === 'car_rental' ? 'Price per day' : companyServiceType === 'cargo' ? 'Base cargo price' : 'Price from', type:'number', icon:'fa-coins', required:true, placeholder:'65000' }]),
         { name:'status', label:'Status', type:'select', icon:'fa-circle-check', options: companyServiceType === 'bus' ? ['draft'] : ['draft','active','paused'], value:'draft', help:'Publish only after all required service details, capacity and pricing are complete.' },
         { name:'description', label:'Public description', type:'textarea', full:true, required:true, minLength:125, maxLength:2000, placeholder:'Describe the service, route or location, customer experience, important inclusions and what travelers should expect.', help:'Minimum 125 characters (about 20 words). Marketplace cards display a consistent three-line preview and truncate longer text.' }
@@ -3168,7 +3218,7 @@
       const editing = mode === 'edit' && fareProductId;
       const fields = [
         { type:'smart-summary', label:editing ? 'Edit fare plan' : 'Smart fare setup', help:editing ? 'Update commercial, baggage, refund, change and publication rules. Stop-to-stop prices remain independently editable.' : 'Route, currency and full origin-to-destination segment are reused automatically.' },
-        ...(!editing ? [{ name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true, value:fieldValue('fareProduct.routeId','route.id','routeId') }] : []),
+        { name:'routeId', label:'Route', type:'select', icon:'fa-route', options:routes, required:true, value:fieldValue('fareProduct.routeId','route.id','routeId'), help:editing ? 'Choose the route for this fare plan. Existing committed departures are protected by backend validation.' : 'Select the route this fare plan prices.' },
         { name:'name', label:'Fare plan name', icon:'fa-tag', placeholder:'Generated from route and class', required:editing, value:fieldValue('fareProduct.name','name') },
         { name:'fareClass', label:'Fare class', type:'select', icon:'fa-star', options:['standard','economy','business','executive','vip','premium','express'], value:fieldValue('fareProduct.fareClass','fareClass') || 'standard' },
         ...(!editing ? [{ name:'amount', label:'Full-route fare', type:'number', icon:'fa-coins', required:true, value:fieldValue('segmentFares.0.amount','amount'), help:'Creates the initial origin-to-destination fare.' }] : []),
@@ -3450,6 +3500,8 @@
         { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, help:'Optional. Select only the public services this staff member may work with.' },
         { name:'scheduleIds', label:'Assigned schedules / departures', type:'multiselect', icon:'fa-calendar-days', options:schedules, help:'Optional. Selected schedules must belong to the selected listings and this company.' },
         { name:'permissions', label:'Permissions', type:'multiselect', icon:'fa-key', options: staffPermissionOptions },
+        { name:'shift', label:'Shift / work period', icon:'fa-clock', placeholder:'Day, night, rotating, or custom shift' },
+        { name:'notes', label:'Internal notes', type:'textarea', full:true, placeholder:'Optional company-only staff note' },
       ]
     };
     if (isCompanyRole && key === 'driver') return {
@@ -3496,10 +3548,10 @@
         { name:'documentReference', label:'Licence document reference', icon:'fa-file-shield', value: fieldValue('partnerActivation.licenseDocumentReference'), help:'Leave unchanged when the driver already uploaded a licence document.' },
         { name:'status', label:'Driver status', type:'select', icon:'fa-circle-check', options:['active','pending_verification','invited','requested','suspended'], required:true, value:fieldValue('driver.status','active') || 'active' },
         { name:'safetyStatus', label:'Safety status', type:'select', icon:'fa-shield-halved', options:['cleared','pending_review','not_submitted','rejected'], required:true, value:fieldValue('driver.safetyStatus','cleared') || 'cleared' },
-        { name:'branchId', label:'Branch / terminal', type:'select', icon:'fa-location-dot', options:branches, value:fieldValue('driver.branchId') },
-        { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, value:fieldValue('driver.listingIds') },
-        { name:'scheduleIds', label:'Assigned schedules', type:'multiselect', icon:'fa-calendar-days', options:schedules, value:fieldValue('driver.scheduleIds') },
-        { name:'permissions', label:'Driver permissions', type:'multiselect', icon:'fa-key', options:staffPermissionOptions, value:fieldValue('driver.permissions') },
+        { name:'branchId', label:'Branch / terminal', type:'select', icon:'fa-location-dot', options:branches, value:fieldValue('driver.branchId','invitation.branchId') },
+        { name:'listingIds', label:'Assigned listings', type:'multiselect', icon:'fa-layer-group', options:listings, value:fieldValue('driver.listingIds','invitation.listingIds') },
+        { name:'scheduleIds', label:'Assigned schedules', type:'multiselect', icon:'fa-calendar-days', options:schedules, value:fieldValue('driver.scheduleIds','driver.pendingScheduleId','invitation.scheduleIds','invitation.scheduleId','schedule.id') },
+        { name:'permissions', label:'Driver permissions', type:'multiselect', icon:'fa-key', options:staffPermissionOptions, value:fieldValue('driver.permissions','invitation.permissions') },
         { name:'vehicleId', label:'Assigned vehicle', type:'select', icon:'fa-bus-simple', options:vehicles, value:fieldValue('driver.assignedFleetId','vehicle.id') },
         { name:'notes', label:'Internal notes', type:'textarea', full:true, value:fieldValue('driver.notes') }
       ]
@@ -3894,6 +3946,67 @@
       });
     }
 
+  function recursiveEditValue(source, names = []) {
+    const wanted = new Set([].concat(names || []).filter(Boolean).map(name => String(name).toLowerCase()));
+    const queue = [{ value: source, depth: 0 }];
+    const seen = new Set();
+    while (queue.length) {
+      const { value, depth } = queue.shift();
+      if (!value || typeof value !== 'object' || seen.has(value) || depth > 6) continue;
+      seen.add(value);
+      for (const [key, child] of Object.entries(value)) {
+        if (wanted.has(String(key).toLowerCase()) && child !== undefined && child !== null && child !== '') return child;
+      }
+      for (const child of Object.values(value)) {
+        if (child && typeof child === 'object') queue.push({ value: child, depth: depth + 1 });
+      }
+    }
+    return '';
+  }
+
+  function normalizeEditConfig(config, detail = {}, mode = 'create') {
+    if (!config || mode !== 'edit' || !Array.isArray(config.fields)) return config;
+    const aliases = {
+      model: ['model','modelName'],
+      modelName: ['modelName','model'],
+      driverId: ['driverId','driverEmployeeId'],
+      vehicleId: ['vehicleId','assignedFleetId','pendingVehicleId'],
+      licenceClass: ['licenceClass','licenseClass'],
+      licenseClass: ['licenseClass','licenceClass'],
+      licenceExpiresAt: ['licenceExpiresAt','licenseExpiresAt'],
+      licenseExpiresAt: ['licenseExpiresAt','licenceExpiresAt'],
+      notes: ['notes','note','maintenanceReason'],
+      maintenanceNote: ['maintenanceNote','maintenanceReason'],
+    };
+    const fields = config.fields.map((original) => {
+      const field = { ...original };
+      if (!field.name || field.type === 'file' || field.type === 'smart-summary') return field;
+      const blank = field.value === undefined || field.value === null || field.value === '';
+      if (blank) {
+        const names = aliases[field.name] || [field.name];
+        const value = recursiveEditValue(detail, names);
+        if (value !== undefined && value !== null && value !== '') field.value = value;
+      }
+      if (['select','multiselect'].includes(field.type)) {
+        const values = field.type === 'multiselect'
+          ? (Array.isArray(field.value) ? field.value : String(field.value || '').split(',').map(v => v.trim()).filter(Boolean))
+          : [field.value].filter(value => value !== undefined && value !== null && value !== '');
+        const options = Array.isArray(field.options) ? [...field.options] : [];
+        const known = new Set(options.map(item => String(typeof item === 'string' ? item : item?.value ?? '')));
+        values.forEach((value) => {
+          const text = String(value);
+          if (text && !known.has(text)) {
+            options.push({ value:text, label:`Current selection · ${text}`, currentSelection:true });
+            known.add(text);
+          }
+        });
+        field.options = options;
+      }
+      return field;
+    });
+    return { ...config, fields };
+  }
+
   function openCrud(mode, type, label = '', detail = {}) {
     if (mode === 'delete') {
       const entity = String(detail?.entity || type || '').toLowerCase();
@@ -3947,12 +4060,12 @@
       initializeCharacterCounts(els.crudModal);
       return;
     }
-    const config = adminFormConfig(cleanType, label, detail, mode);
-    if (!config) {
+    const config = normalizeEditConfig(adminFormConfig(cleanType, label, detail, mode), detail, mode);
+    if (!config || !config.action) {
       els.crudBody.innerHTML = `
-        <div class="notice">This admin action is handled by row-level controls, report exports, or a dedicated dashboard page.</div>
+        <div class="notice" role="alert">This action is not available from this shortcut. Open the dedicated dashboard page and use its persisted row action instead.</div>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-          <button class="btn btnBlue" type="button" data-close-modal>Done</button>
+          <button class="btn btnBlue" type="button" data-close-modal>Close</button>
         </div>`;
       openModal(els.crudModal);
       initFoldSelects(els.crudModal);
@@ -3978,20 +4091,6 @@
     bindDependentFields(els.crudModal);
     initializeCharacterCounts(els.crudModal);
     syncSmartBusForm(els.crudModal.querySelector('#crudForm'));
-  }
-
-  function openRequestedPageAction() {
-    const url = new URL(window.location.href);
-    const mode = String(url.searchParams.get('action') || '').trim().toLowerCase();
-    const type = String(url.searchParams.get('type') || '').trim().toLowerCase();
-    if (!['create', 'edit', 'view'].includes(mode) || !type || type.length > 80 || !/^[a-z0-9 _-]+$/.test(type)) return;
-    // Quick Actions first load the same page and scoped option data used by
-    // the page's real action button, then invoke the shared CRUD form. This
-    // prevents overview shortcuts from opening incomplete generic forms.
-    openCrud(mode, type, '', {});
-    url.searchParams.delete('action');
-    url.searchParams.delete('type');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }
 
   function bindEvents() {
@@ -4192,10 +4291,10 @@
 
     document.addEventListener('submit', function (e) {
       if (e.target.matches('#crudForm,#noticeForm,#settingsForm')) {
-        if (e.target.hasAttribute('action')) return;
+        const action = String(e.target.getAttribute('action') || '').trim();
+        if (action) return;
         e.preventDefault();
-        closeAllModals();
-        toast('Action saved');
+        toast('This action is unavailable here. Use the dedicated dashboard page.');
       }
     });
 
@@ -4682,7 +4781,6 @@
     const crudBody = document.getElementById('crudBody');
     if (crudBody) new MutationObserver(() => enhanceFormLabels(crudBody)).observe(crudBody, { childList: true, subtree: true });
     bindEvents();
-    openRequestedPageAction();
     window.addEventListener('popstate', function () {
       const fromPath = String(window.location.pathname || '').split('/').filter(Boolean).pop();
       const page = String(window.location.hash || '').replace('#', '') || (fromPath === 'dashboard' ? 'overview' : fromPath) || 'overview';

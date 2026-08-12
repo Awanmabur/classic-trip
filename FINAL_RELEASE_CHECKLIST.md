@@ -1,9 +1,79 @@
+## v1.6.52 Media/Edit repair gate
+
+- [x] Known legacy seeded blog hotlinks are repairable media.
+- [x] Known legacy seeded operator/listing hotlinks are repairable media.
+- [x] Same-origin blog/operator media fallbacks bypass stale service-worker caching.
+- [x] Launch seed handles existing canonical seed IDs without duplicate-key abort.
+- [x] Edit relationship selects are not disabled or hidden.
+- [x] Bus relationship reassignment is ownership/dependency validated server-side.
+- [x] Stay relationship reassignment is ownership/dependency validated server-side.
+- [x] Current asset/service-worker version is 1.6.52.
+
+Run before launch:
+
+```bash
+npm ci
+npm run check:v1652-media-edit-repair
+npm run migrate:seeded-media:dry
+npm run migrate:seeded-media
+npm run doctor:media:db
+npm run verify
+npm start
+```
+
+---
+
+## v1.6.52 Media + selectable Edit gate
+
+```bash
+npm ci
+npm run check:v1652-media-edit-repair
+npm run check:v1651-media-cloudinary-pdfkit
+npm run doctor:media
+npm run seed:launch-content
+```
+
+Then open the homepage, `/blogs`, one seeded blog article, one seeded Bus listing and the company directory. Confirm images render.
+
+If `npm run doctor:media` reports `cloudinary.configured: true`, optionally migrate the bundled seed media:
+
+```bash
+npm run migrate:seeded-media:dry
+npm run migrate:seeded-media
+npm run doctor:media:db
+```
+
+Custom partner/admin-uploaded media must remain unchanged. New Blog Create/Edit file uploads should return Cloudinary-backed HTTPS media when Cloudinary is configured.
+
+
+## v1.6.50 Create/Edit parity gate
+
+```bash
+npm run check:v1650-edit-form-parity
+```
+
+Confirm Route Edit visibly shows its saved Bus listing and that relationship selectors remain freely selectable like their Create forms. Save a valid reassignment and confirm it persists after reopening Edit.
+
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.43.
+Use this checklist for version 1.6.52.
 
+
+
+## v1.6.49 edit and activation checks
+
+- Open Partner Admin → Bus Setup → Edit listing. Confirm the saved branch, operator licence, baggage policy, cancellation policy, phone and sales channels are preselected/populated.
+- Open Vehicle Edit. Confirm the saved layout, side numbering, driver position, front row, row exceptions, seat count, labels, permits, inspection and insurance values are populated. Saving a compliance-only edit must not unnecessarily replace the seat map.
+- For a future legacy draft departure with no passenger activity and a missing seat-map link/inventory, use Repair then Publish, or set the Bus listing Active and allow smart activation to repair/publish a valid candidate.
+- A departure with a booking/ticket/active hold must refuse automatic seat-map relinking and require manual operational review.
+- Edit Staff and Driver records and confirm current branch/listing/schedule selections remain visible, including a saved selection that has subsequently been paused.
 
 ## Current focused validation
+
+```bash
+npm run check:v1646-final-launch
+```
+
 
 ```bash
 npm run check:v1641-core-repair
@@ -12,10 +82,10 @@ npm run check:v1639-partner-signup
 npm run check:v1638-dashboard-speed-sms
 ```
 
-### v1.6.41 core-repair production check
+### v1.6.49 final-launch production check
 
 - Pick one active recurring rule with no vehicle overlap. Record its intended future departure count, complete/depart its earliest occurrence, then confirm the rule queues replacement materialization and returns to its intended future occurrence count.
-- Keep a deliberately conflicting rule only for verification: it must remain `action needed` and must **not** double-book the vehicle.
+- Keep a deliberately conflicting rule only for verification: its overlapping dates must stay safely deferred without double-booking the vehicle, while the recurring rule continues retrying automatically.
 - Open **Super Admin → Listings** and approve a ready listing. The row action must submit successfully, run the service-specific publish/readiness checks, refresh the table, and record the review state. Rejecting a listing must return it to Draft with a review reason.
 - Verify `/login`, signup and partner signup for the intended roles; the project still uses the single public account page rather than separate customer login/signup pages.
 - Open **Super Admin → Notifications** and confirm the card has visible inner padding on desktop and phone.
@@ -326,77 +396,6 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 7. Confirm retrying the payment webhook does not duplicate the ticket SMS; delivery dedupe remains keyed to the booking/channel.
 8. Use Super Admin Monitoring → Slowest pages after real traffic to identify any remaining page with high average response time.
 
-
-### v1.6.50 Redis Home handoff and cold-deploy speed
-
-1. Confirm Render logs `Redis connected` with `sessions:true`, `rateLimits:true`, and `marketplaceCache:true`.
-2. Keep `REDIS_URL`, `REDIS_REQUIRED=true`, and `REDIS_PREFIX=classic-trip:` on the web service.
-3. After the first successful Home warmup, redeploy/restart and confirm Home can hydrate the compact `home-bootstrap:public` snapshot before MongoDB catalog warmup completes.
-4. Verify the older shared full-catalog snapshot can prime Home on the first v1.6.50 deployment when the compact Home key does not yet exist.
-5. Run `npm run check:v1650-home-redis-handoff`, `npm run check`, and the production/performance validation gates before deployment.
-6. Do not use the Redis discovery snapshot as booking truth; holds, seat/room inventory, payments and mutations must continue using live authoritative stores.
-
-### v1.6.49 Render recovery and inventory continuity
-
-1. Use Node `24.x`; both `package.json` and `.node-version` are pinned. The Render log must not select Node 26 or another untested major.
-2. Set the web build command to `npm ci && npm run release:check && npm prune --omit=dev`, start command to `npm start`, and health-check path to `/ready`. A log showing only `npm install` and `node src/server.js` means the existing service is still bypassing the production blueprint.
-3. Connect the Render Key Value service and set `REDIS_URL`, `REDIS_REQUIRED=true`, and `REDIS_PREFIX=classic-trip:`. Startup must log `Redis connected`; do not accept the warning that shared marketplace/session caches are unavailable.
-4. Keep `APP_URL` and `SITE_URL` on the intended public HTTPS domain. Pesapal callback/IPN may use a different safe public HTTPS hostname, but must never use HTTP, URL credentials, localhost or a private IP.
-5. Set `PUBLIC_CATALOG_DB_DEADLINE_MS=6500`, `HOME_BOOTSTRAP_DEADLINE_MS=2500`, and `PUBLIC_CATALOG_EMERGENCY_STALE_MS=86400000`.
-6. When a dedicated `classic-trip-worker` exists, set `RUN_BACKGROUND_WORKER=false` and `WEB_ROLLING_FALLBACK=false` on the web service. The worker must use `npm run worker`.
-7. Deploy and confirm the order: MongoDB connected, Redis connected, Classic Trip listening, service live, then Marketplace cache warmed. Cache warming must never occur before the listening log.
-8. Open Home in a clean browser immediately after deployment. It must show live or last-known-good inventory without a false database-reconnecting notice. A genuinely empty first-ever cache may briefly say inventory is loading, not reconnecting.
-9. Open `/search`, `/buses`, `/stays`, `/airbnb`, `/tours`, `/car-rentals`, `/cargo`, `/companies`, `/promoters`, one listing and its booking flow. No discovery request may wait about 60 seconds.
-10. During an intentional staging Atlas interruption, discovery may serve the last successful public snapshot. Booking, holds, payments and mutations must reject safely rather than confirming stale inventory.
-11. Restore Atlas and confirm `Marketplace cache warmed` returns, current departures replace stale discovery data, and the worker resumes the retained rolling queue.
-12. Run `npm run check:v1649-final-recovery`, `npm test`, and `npm run release:check`. Do not deploy if any command fails.
-
-### v1.6.48 rolling worker Mongo outage aggregation
-
-1. Run `npm run check:v1648-mongo-worker-resilience`, `npm test`, then `npm run release:check`.
-2. Start locally with `npm start`. Confirm separate `process=web` and `process=worker` MongoDB connection logs appear.
-3. During an intentional staging Atlas outage, confirm one `Rolling departure queue paused because MongoDB is unavailable` warning appears with `process=worker`; rules must not each emit repeated batch-failed warnings.
-4. Restore Atlas access and confirm the queue resumes automatically, missing rolling dates continue filling, and Home replaces its reconnect notice with live inventory.
-5. If isolating a Windows network problem, temporarily set `RUN_BACKGROUND_WORKER=false` and `WEB_ROLLING_FALLBACK=false`, restart, and test Home. Restore `RUN_BACKGROUND_WORKER=true` after diagnosis.
-
-### v1.6.47 secret cleanup and Pesapal host alignment (superseded by v1.6.49)
-
-1. Run `npm run check:v1647-secret-regression`, `npm run check:v1646-render-startup-failfast`, then `npm run release:check`.
-2. v1.6.49 removed the exact-host startup dependency. Keep every URL public and HTTPS; canonical, `www`, and safe infrastructure hostnames may differ.
-3. Deploy only after the log shows MongoDB connected and Classic Trip listening. A Pesapal validation error means the new instance never opened a port and Render may continue serving the old slow deployment.
-4. Confirm a cold listing fails within the v1.6.46 deadline during an intentional staging database outage and becomes normal immediately after database access returns.
-5. In GitHub Secret scanning, inspect the historical v1.6.46 alert. The committed value was a synthetic test fixture; close it as a test/false-positive only after this cleanup commit is pushed. Rotate immediately if any real credential was ever substituted into that line.
-
-### v1.6.46 Render startup and MongoDB outage check
-
-1. Run `npm run check:v1646-render-startup-failfast`, then `npm run release:check`. The production-like Pesapal environment validation must complete without `appUrl` errors.
-2. Confirm the Render web and worker environments set `MONGO_SOCKET_TIMEOUT_MS=8000`, `PUBLIC_CATALOG_DB_DEADLINE_MS=6500`, and `HOME_BOOTSTRAP_DEADLINE_MS=2500`.
-3. Verify the production `MONGO_URI` host is reachable from Render and that the database network/firewall policy allows the service. The code now fails fast, but it cannot restore an unreachable database endpoint.
-4. In staging, temporarily block database access. Home must show its reconnect state in about 2.5 seconds, and a cold listing must return a controlled `503` within about 6.5 seconds rather than waiting about 63 seconds.
-5. Restore database access, confirm startup connects and listens, then open Home, `/blogs`, one bus operator, search and each dashboard role before promoting the deployment.
-
-### v1.6.45 runtime media, real actions and launch check
-
-1. Install from a clean package with `npm ci`, confirm `.env.example` is present, copy it to `.env`, and provide real production secrets only through the deployment environment.
-2. Run `npm run check:v1645-launch-functionality`, then `npm run release:check`. Do not launch if syntax/EJS, any historical regression, the 104 unit contracts, role/security checks, or the production dependency audit fails.
-3. Against the intended MongoDB database, run `npm run seed:launch-content:dry`, review the target/counts, then run `npm run seed:launch-content`. This is required on an existing database to repair old logo-like seeded media and add missing research Draft departures.
-4. Open Home in a clean/incognito browser. Confirm exactly three meaningful blog photographs appear and **More blogs** opens `/blogs`; confirm all published cards and article pages use meaningful travel images rather than the Classic Trip logo.
-5. Inspect each of the six launch bus operators. Confirm its public listing shows the identified coach photograph, while a genuine operator-uploaded custom bus image remains unchanged.
-6. Test Quick Actions role by role: Super Admin, Company Admin (bus/stay/other services), Employee, Driver, Customer, Promoter, Support, Finance, Operations and Content. Every shortcut must load its real scoped destination URL and use that page's normal action; unavailable employee/driver actions must remain hidden.
-7. Confirm tenant isolation with two different partner companies and least-privilege employees. A changed URL/ID must not expose or mutate another company's listing, route, vehicle, schedule, manifest, booking, staff or payout.
-8. Confirm each research departure remains Draft/non-bookable. Reconcile timetable, vehicle, seat map, fare inventory and compliance with the operator before publishing. Verify a confirmed rolling rule creates dates in its configured IANA timezone on both web and worker hosts.
-9. Temporarily stop/restart database access in staging: Home should show its reconnect notice instead of a blank/503 marketing page; protected writes must still fail closed. Resume the worker and confirm missed cron executions produce one bounded summary rather than hundreds of warnings.
-10. Complete staging smoke journeys for signup/login/MFA, public search, booking/seat or room hold, provider payment callback+webhook retry, ticket/voucher, cancellation/refund, notifications, check-in/manifest, partner CRUD, promoter attribution/withdrawal, admin approvals and reports. Use provider sandbox credentials and restore test data afterwards.
-
-### v1.6.44 Home blog, coach-media and departure-draft check
-
-1. Run `npm run check:v1644-home-media-departures`.
-2. Confirm Home shows exactly three blog cards and the bottom-right **More blogs** button opens `/blogs`, where every published article remains available.
-3. Rerun `npm run seed:launch-content`; verify legacy logo placeholders are replaced while a manually uploaded custom blog/listing image is preserved.
-4. Confirm each of the six seeded operator listings has a real coach photograph rather than the Classic Trip logo.
-5. Confirm each seeded Partner Admin can see one research Draft departure for review. It must remain Draft/non-bookable and state that operator confirmation, compliant vehicle, seat map and fare inventory are required.
-6. Do not publish a research Draft from its public-reference data alone. Reconcile it with the operator's signed/current timetable and operational records first.
-
 ### v1.6.43 launch content and Pesapal check
 
 1. Run `npm run seed:superadmin`, then `npm run seed:launch-content:dry`, review the counts, and run `npm run seed:launch-content`.
@@ -412,5 +411,5 @@ The output identifies the conflicting schedule ID, recurring rule ID, route, dep
 - Run `npm run seed:launch-content` against the intended Atlas database.
 - Save `seed-output/partner-credentials.json` somewhere private, then remove it from the project after changing the temporary passwords.
 - Confirm all six Partner Admin accounts can log in and reach their own pending company profile without access to another company.
-- Confirm Home displays exactly three published seeded posts, the **More blogs** button opens `/blogs`, the directory displays all published posts, and each article opens with full styling.
+- Confirm Home displays all seven published seeded posts, `/blogs` displays the full card/bar directory, and each article opens with full styling.
 - Review researched contacts/terminals against the operator information you already received. Do not approve legal/compliance/vehicle details until the actual operator documents are entered.

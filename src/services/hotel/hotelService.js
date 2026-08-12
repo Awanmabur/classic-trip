@@ -213,7 +213,19 @@ async function createProperty(companyId, payload = {}, actorId = 'company-admin'
 
 async function updateProperty(companyId, propertyId, payload = {}, actorId = 'company-admin') {
   const property = await hotelRepository.propertyOrThrow(companyId, propertyId);
-  const listing = await hotelRepository.listings.findOne({ id: property.listingId, companyId });
+  const previousListingId = property.listingId;
+  const listing = payload.listingId
+    ? await hotelRepository.listingOrThrow(companyId, payload.listingId)
+    : await hotelRepository.listings.findOne({ id: property.listingId, companyId });
+  const listingChanged = Boolean(listing && String(listing.id) !== String(previousListingId || ''));
+  if (listingChanged) {
+    const committed = await hotelRepository.hotelReservations.count({
+      companyId, propertyId: property.id,
+      status: { $in: ['awaiting_payment', 'confirmed', 'checked_in'] },
+    });
+    if (committed) throw Object.assign(new Error('This property has active reservations. Complete/cancel them before moving the property to another stay listing.'), { status: 409, code: 'hotel_property_listing_change_committed' });
+    property.listingId = listing.id;
+  }
   if (payload.propertyName || payload.name) {
     const propertyName = clean(payload.propertyName || payload.name);
     const normalizedName = normalizedKey(propertyName);
@@ -248,9 +260,16 @@ async function updateProperty(companyId, propertyId, payload = {}, actorId = 'co
   if (listing) Object.assign(listing, { title: property.propertyName || listing.title, type: property.propertyType, address: property.address || listing.address, city: property.city || listing.city, country: property.country || listing.country, timezone: property.timezone || listing.timezone, checkInTime: property.checkInTime, checkOutTime: property.checkOutTime, amenities: property.amenities });
   await hotelRepository.transaction(async (session) => {
     await hotelRepository.hotelProperties.save(property, { id: property.id }, { session });
+    if (listingChanged) {
+      const moved = { $set: { listingId: property.listingId, updatedBy: actorId, updatedAt: property.updatedAt } };
+      await hotelRepository.roomTypes.updateMany({ companyId, propertyId: property.id }, moved, { session });
+      await hotelRepository.ratePlans.updateMany({ companyId, propertyId: property.id }, moved, { session });
+      await hotelRepository.roomUnits.updateMany({ companyId, propertyId: property.id }, moved, { session });
+      await hotelRepository.roomNightInventories.updateMany({ companyId, propertyId: property.id, status: { $nin: ['held','reserved','booked','occupied','checked_in'] } }, moved, { session });
+    }
     if (listing) await hotelRepository.listings.save(listing, { id: listing.id }, { session });
   });
-  await hotelRepository.audit({ actorId, action: 'hotel.property.updated', targetType: 'hotelProperty', targetId: property.id });
+  await hotelRepository.audit({ actorId, action: 'hotel.property.updated', targetType: 'hotelProperty', targetId: property.id, meta: { previousListingId, listingId: property.listingId, listingChanged } });
   await reconcileHotelListingPublication(companyId, property.listingId, actorId);
   return property;
 }
@@ -337,6 +356,19 @@ async function createRoomType(companyId, payload = {}, actorId = 'company-admin'
 
 async function updateRoomType(companyId, roomTypeId, payload = {}, actorId = 'company-admin') {
   const roomType = await hotelRepository.roomTypeOrThrow(companyId, roomTypeId);
+  const previousPropertyId = roomType.propertyId;
+  const previousListingId = roomType.listingId;
+  const targetProperty = payload.propertyId ? await hotelRepository.propertyOrThrow(companyId, payload.propertyId) : await hotelRepository.propertyOrThrow(companyId, roomType.propertyId);
+  if (payload.listingId && String(payload.listingId) !== String(targetProperty.listingId)) {
+    throw Object.assign(new Error('The selected room property does not belong to the selected stay listing.'), { status: 422, code: 'hotel_room_type_listing_property_mismatch' });
+  }
+  const relationshipChanged = String(targetProperty.id) !== String(previousPropertyId || '') || String(targetProperty.listingId) !== String(previousListingId || '');
+  if (relationshipChanged) {
+    const committed = await hotelRepository.roomAssignments.count({ companyId, roomTypeId: roomType.id, status: { $in: ['awaiting_payment','assigned','occupied'] } });
+    if (committed) throw Object.assign(new Error('This room type has active/future assignments. Complete or move those reservations before changing its property.'), { status: 409, code: 'hotel_room_type_parent_change_committed' });
+    roomType.propertyId = targetProperty.id;
+    roomType.listingId = targetProperty.listingId;
+  }
   if (payload.name || payload.roomType) {
     const name = clean(payload.name || payload.roomType); const normalizedName = normalizedKey(name);
     const duplicate = await hotelRepository.roomTypes.findOne({ companyId, propertyId: roomType.propertyId, normalizedName, id: { $ne: roomType.id } });
@@ -360,9 +392,17 @@ async function updateRoomType(companyId, roomTypeId, payload = {}, actorId = 'co
   if (Number(roomType.maxAdults || 1) + Number(roomType.maxChildren || 0) < Number(roomType.capacity || 1)) throw Object.assign(new Error('Adult and child occupancy limits must cover the total room capacity'), { status: 422 });
   if (Number(roomType.maxStay || 1) < Number(roomType.minStay || 1)) throw Object.assign(new Error('Maximum stay must be greater than or equal to minimum stay'), { status: 422 });
   roomType.updatedBy = actorId; roomType.updatedAt = new Date().toISOString();
-  await hotelRepository.roomTypes.save(roomType);
-  if (roomType.defaultRatePlanId) await hotelRepository.ratePlans.updateOne({ id: roomType.defaultRatePlanId, companyId }, { $set: { basePrice: roomType.basePrice, mealPlan: roomType.mealPlan, minStay: roomType.minStay, maxStay: roomType.maxStay, extraAdultFee: roomType.extraAdultFee, extraChildFee: roomType.extraChildFee, updatedBy: actorId, updatedAt: roomType.updatedAt } });
-  await hotelRepository.audit({ actorId, action: 'hotel.room_type.updated', targetType: 'roomType', targetId: roomType.id });
+  await hotelRepository.transaction(async (session) => {
+    await hotelRepository.roomTypes.save(roomType, { id: roomType.id }, { session });
+    if (relationshipChanged) {
+      const moved = { $set: { propertyId: roomType.propertyId, listingId: roomType.listingId, updatedBy: actorId, updatedAt: roomType.updatedAt } };
+      await hotelRepository.ratePlans.updateMany({ companyId, roomTypeId: roomType.id }, moved, { session });
+      await hotelRepository.roomUnits.updateMany({ companyId, roomTypeId: roomType.id }, moved, { session });
+      await hotelRepository.roomNightInventories.updateMany({ companyId, roomTypeId: roomType.id, status: { $nin: ['held','reserved','booked','occupied','checked_in'] } }, moved, { session });
+    }
+    if (roomType.defaultRatePlanId) await hotelRepository.ratePlans.updateOne({ id: roomType.defaultRatePlanId, companyId }, { $set: { basePrice: roomType.basePrice, mealPlan: roomType.mealPlan, minStay: roomType.minStay, maxStay: roomType.maxStay, extraAdultFee: roomType.extraAdultFee, extraChildFee: roomType.extraChildFee, updatedBy: actorId, updatedAt: roomType.updatedAt } }, { session });
+  });
+  await hotelRepository.audit({ actorId, action: 'hotel.room_type.updated', targetType: 'roomType', targetId: roomType.id, meta: { previousPropertyId, propertyId: roomType.propertyId, previousListingId, listingId: roomType.listingId, relationshipChanged } });
   await reconcileHotelListingPublication(companyId, roomType.listingId, actorId);
   return roomType;
 }
@@ -412,6 +452,18 @@ async function createRoomUnits(companyId, payload = {}, actorId = 'company-admin
 
 async function updateRoomUnit(companyId, unitId, payload = {}, actorId = 'company-admin') {
   const unit = await hotelRepository.roomUnitOrThrow(companyId, unitId);
+  const previousRoomTypeId = unit.roomTypeId;
+  const previousPropertyId = unit.propertyId;
+  const previousListingId = unit.listingId;
+  const targetRoomType = payload.roomTypeId ? await hotelRepository.roomTypeOrThrow(companyId, payload.roomTypeId) : await hotelRepository.roomTypeOrThrow(companyId, unit.roomTypeId);
+  const relationshipChanged = String(targetRoomType.id) !== String(previousRoomTypeId || '');
+  if (relationshipChanged) {
+    const committed = await hotelRepository.roomNightInventories.count({ companyId, roomUnitId: unit.id, status: { $in: ['held','reserved','booked','occupied','checked_in'] } });
+    if (committed) throw Object.assign(new Error('This room has committed room-night inventory. Complete/cancel those stays before changing its room type.'), { status: 409, code: 'hotel_room_unit_parent_change_committed' });
+    unit.roomTypeId = targetRoomType.id;
+    unit.propertyId = targetRoomType.propertyId;
+    unit.listingId = targetRoomType.listingId;
+  }
   if (payload.unitNumber || payload.roomNumber) {
     const unitNumber = clean(payload.unitNumber || payload.roomNumber); const normalizedUnitNumber = normalizedKey(unitNumber);
     const duplicate = await hotelRepository.roomUnits.findOne({ companyId, propertyId: unit.propertyId, normalizedUnitNumber, id: { $ne: unit.id } });
@@ -428,8 +480,15 @@ async function updateRoomUnit(companyId, unitId, payload = {}, actorId = 'compan
     unit.status = nextStatus;
   }
   unit.updatedBy = actorId; unit.updatedAt = new Date().toISOString();
-  await hotelRepository.roomUnits.save(unit);
-  await hotelRepository.audit({ actorId, action: 'hotel.room_unit.updated', targetType: 'roomUnit', targetId: unit.id });
+  await hotelRepository.transaction(async (session) => {
+    await hotelRepository.roomUnits.save(unit, { id: unit.id }, { session });
+    if (relationshipChanged) {
+      await hotelRepository.roomNightInventories.updateMany({ companyId, roomUnitId: unit.id, status: { $nin: ['held','reserved','booked','occupied','checked_in'] } }, {
+        $set: { roomTypeId: unit.roomTypeId, propertyId: unit.propertyId, listingId: unit.listingId, updatedBy: actorId, updatedAt: unit.updatedAt },
+      }, { session });
+    }
+  });
+  await hotelRepository.audit({ actorId, action: 'hotel.room_unit.updated', targetType: 'roomUnit', targetId: unit.id, meta: { previousRoomTypeId, roomTypeId: unit.roomTypeId, previousPropertyId, propertyId: unit.propertyId, previousListingId, listingId: unit.listingId, relationshipChanged } });
   await reconcileHotelListingPublication(companyId, unit.listingId, actorId);
   return unit;
 }
@@ -478,6 +537,26 @@ async function createNightInventory(companyId, payload = {}, actorId = 'company-
 async function updateNightStatus(companyId, inventoryId, payload = {}, actorId = 'company-admin') {
   const night = await hotelRepository.nightOrThrow(companyId, inventoryId);
   const current = normalizeLifecycleStatus(night.status || 'available');
+  const committedRelationship = Boolean(night.bookingRef || night.reservationId || night.assignmentId) || ['held','reserved','booked','occupied','checked_in'].includes(current);
+  const relationshipRequested = ['roomTypeId','roomUnitId','ratePlanId'].some((field) => payload[field] && String(payload[field]) !== String(night[field] || ''));
+  if (relationshipRequested && committedRelationship) {
+    throw Object.assign(new Error('This room night belongs to a committed reservation and its room/rate relationships cannot be changed manually.'), { status: 409, code: 'hotel_inventory_relationship_committed' });
+  }
+  if (relationshipRequested) {
+    const targetUnit = await hotelRepository.roomUnitOrThrow(companyId, payload.roomUnitId || night.roomUnitId);
+    const targetRoomType = await hotelRepository.roomTypeOrThrow(companyId, payload.roomTypeId || targetUnit.roomTypeId || night.roomTypeId);
+    if (String(targetUnit.roomTypeId) !== String(targetRoomType.id)) throw Object.assign(new Error('The selected physical room does not belong to the selected room type.'), { status: 422, code: 'hotel_inventory_room_type_mismatch' });
+    let targetRatePlan = null;
+    if (payload.ratePlanId || night.ratePlanId) {
+      targetRatePlan = await hotelRepository.ratePlans.findOne({ id: payload.ratePlanId || night.ratePlanId, companyId });
+      if (!targetRatePlan || String(targetRatePlan.roomTypeId) !== String(targetRoomType.id)) throw Object.assign(new Error('The selected rate plan does not belong to the selected room type.'), { status: 422, code: 'hotel_inventory_rate_plan_mismatch' });
+    }
+    night.roomUnitId = targetUnit.id;
+    night.roomTypeId = targetRoomType.id;
+    night.propertyId = targetRoomType.propertyId;
+    night.listingId = targetRoomType.listingId;
+    night.ratePlanId = targetRatePlan?.id || '';
+  }
   const requested = normalizeLifecycleStatus(payload.status || current);
   const manualStatuses = new Set(['available', 'open', 'maintenance', 'cleaning', 'cancelled']);
   const committedStatuses = new Set(['held', 'reserved', 'booked', 'occupied', 'checked_in']);
@@ -699,6 +778,18 @@ async function createRatePlan(companyId, payload = {}, actorId = 'company-admin'
 async function updateRatePlan(companyId, ratePlanId, payload = {}, actorId = 'company-admin') {
   const row = await hotelRepository.ratePlans.findOne({ id: ratePlanId, companyId });
   if (!row) throw Object.assign(new Error('Hotel rate plan not found'), { status: 404 });
+  const previousRoomTypeId = row.roomTypeId;
+  const previousListingId = row.listingId;
+  let relationshipChanged = false;
+  if (payload.roomTypeId && String(payload.roomTypeId) !== String(row.roomTypeId || '')) {
+    const targetRoomType = await hotelRepository.roomTypeOrThrow(companyId, payload.roomTypeId);
+    const committed = await hotelRepository.roomAssignments.count({ companyId, ratePlanId: row.id, status: { $in: ['awaiting_payment','assigned','occupied'] } });
+    if (committed) throw Object.assign(new Error('This rate plan is attached to active/future reservations. Complete/cancel them before selecting another room type.'), { status: 409, code: 'hotel_rate_plan_parent_change_committed' });
+    row.roomTypeId = targetRoomType.id;
+    row.propertyId = targetRoomType.propertyId;
+    row.listingId = targetRoomType.listingId;
+    relationshipChanged = true;
+  }
   if (typeof payload.name !== 'undefined') row.name = clean(payload.name);
   if (typeof payload.pricingMode !== 'undefined') row.pricingMode = enumValue(payload.pricingMode, RATE_PRICING_MODES, row.pricingMode || 'nightly_inventory', 'pricing mode');
   if (typeof payload.cancellationPenaltyType !== 'undefined') row.cancellationPenaltyType = enumValue(payload.cancellationPenaltyType, CANCELLATION_PENALTY_TYPES, row.cancellationPenaltyType || 'first_night', 'cancellation penalty');
@@ -723,7 +814,7 @@ async function updateRatePlan(companyId, ratePlanId, payload = {}, actorId = 'co
   row.updatedBy = actorId;
   row.updatedAt = new Date().toISOString();
   await hotelRepository.ratePlans.save(row);
-  await hotelRepository.audit({ actorId, action: 'hotel.rate_plan.updated', targetType: 'ratePlan', targetId: row.id });
+  await hotelRepository.audit({ actorId, action: 'hotel.rate_plan.updated', targetType: 'ratePlan', targetId: row.id, meta: { previousRoomTypeId, roomTypeId: row.roomTypeId, previousListingId, listingId: row.listingId, relationshipChanged } });
   await reconcileHotelListingPublication(companyId, row.listingId, actorId);
   return row;
 }

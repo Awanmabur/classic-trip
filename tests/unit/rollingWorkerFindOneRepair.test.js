@@ -51,7 +51,6 @@ function activeRule() {
     startDate: '2026-08-06T00:00:00.000Z',
     departureTime: '12:00',
     daysOfWeek: [],
-    timezone: 'UTC',
     driverIds: [],
     blockedSeats: [],
     status: 'active',
@@ -86,7 +85,7 @@ describe('rolling worker repair after the first dated departure', () => {
     expect(result.created).toBe(1);
     expect(result.draft).toBe(1);
     expect(result.skipped).toBe(0);
-    expect(Boolean(result.pending > 0)).toBe(true);
+    expect(result.pending).toBe(1);
     expect(result.failures).toContain('operator_permit_missing_or_expired');
   });
 

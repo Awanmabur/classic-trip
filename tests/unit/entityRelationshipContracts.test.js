@@ -77,8 +77,7 @@ describe('entity relationship contracts and workflow forms', () => {
     ['admin', 'customer', 'employee', 'driver', 'promoter', 'support', 'finance', 'operations', 'content'].forEach((role) => {
       const shell = buildDashboardShell(role, { user: { role, fullName: `${role} user` } });
       const guide = shell.groups.flatMap((group) => group.items).find((item) => item.page === 'workflow-guide');
-      expect(guide).toMatchObject({ label: 'How This Dashboard Works' });
-      expect(/^\/(?:admin|account|employee|driver|promoter|support|finance|operations|content)/.test(guide.href)).toBe(true);
+      expect(guide).toMatchObject({ label: 'How This Dashboard Works', href: '#workflow-guide' });
     });
   });
 

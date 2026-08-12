@@ -47,7 +47,7 @@ async function clearDependentRecurringVehicleBlockers(companyId, changedRuleId) 
   if (!companyId || !blockerId) return [];
   const filter = {
     companyId,
-    materializationBlockerCode: 'vehicle_schedule_conflict_window',
+    materializationBlockerCode: { $in: ['vehicle_schedule_conflict', 'vehicle_schedule_conflict_window'] },
     materializationBlockerRuleIds: blockerId,
   };
   const dependents = await repository.scheduleRules.list(filter, { limit: 250 });
@@ -359,6 +359,56 @@ function inventoryRepairSnapshot(schedule = {}) {
   };
 }
 
+function protectedPassengerState(row = {}) {
+  return ['booked', 'taken', 'sold', 'confirmed', 'occupied', 'checked_in', 'checked-in', 'no_show', 'no-show', 'held', 'reserved', 'locked']
+    .includes(normalize(row.status));
+}
+
+async function departureHasPassengerActivity(companyId, scheduleId, existingSeats = [], existingInventory = [], session = null) {
+  const queryOptions = session ? { session } : {};
+  const [reservation, assignment, ticket, hold] = await Promise.all([
+    repository.reservations.findOne({ companyId, scheduleId, status: { $nin: ['cancelled', 'refunded', 'expired', 'released'] } }, queryOptions),
+    repository.seatAssignments.findOne({ companyId, scheduleId, status: { $nin: ['cancelled', 'released', 'refunded'] } }, queryOptions),
+    repository.tickets.findOne({ companyId, scheduleId, status: { $nin: ['void', 'cancelled', 'refunded'] } }, queryOptions),
+    repository.holds.findOne({ companyId, scheduleId, status: 'active' }, queryOptions),
+  ]);
+  return Boolean(reservation || assignment || ticket || hold
+    || existingInventory.some(protectedPassengerState)
+    || existingSeats.some(protectedPassengerState));
+}
+
+function scheduleSeatMapSnapshot(version = {}, vehicle = {}) {
+  return immutableSnapshot({
+    versionId: version.id,
+    templateId: version.templateId || vehicle.activeSeatMapTemplateId,
+    version: version.version,
+    checksum: version.checksum,
+    vehicleClass: normalize(vehicle.vehicleClass || version.vehicleClass) === 'vip' ? 'vip' : 'standard',
+    layoutName: version.layoutName,
+    rows: version.rows,
+    columns: version.columns,
+    totalSeats: version.totalSeats,
+    numberingStartSide: version.numberingStartSide || 'left',
+    driverPosition: version.driverPosition || 'right',
+    frontRowPassengerSeats: Number(version.frontRowPassengerSeats || 0) === 1 ? 1 : 0,
+    rowLayoutOverrides: version.rowLayoutOverrides || [],
+    seats: (version.seats || []).map((seat) => ({
+      seatNumber: seat.seatNumber,
+      displayLabel: seat.displayLabel || seat.seatNumber,
+      row: seat.row,
+      col: seat.col ?? seat.column,
+      column: seat.column ?? seat.col,
+      side: seat.side || '',
+      deck: seat.deck || 'main',
+      seatClass: seat.seatClass,
+      seatType: seat.seatType,
+      priceDelta: Number(seat.priceDelta || 0),
+      enabled: seat.enabled !== false,
+      blockedReason: seat.blockedReason || '',
+    })),
+  });
+}
+
 async function repairScheduleInventory(companyId, scheduleId, actor = 'company-admin') {
   let result;
   await repository.withTransaction(async (session) => {
@@ -368,18 +418,11 @@ async function repairScheduleInventory(companyId, scheduleId, actor = 'company-a
     }
 
     let { seatMapVersion, segments } = inventoryRepairSnapshot(schedule);
-    if (!seatMapVersion.seats.length) {
-      const currentVersion = await repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId, status: 'published' }, { session });
-      if (currentVersion?.seats?.length) seatMapVersion = currentVersion;
-    }
     if (!segments.length) {
       segments = await repository.routeSegments.list(
         { companyId, routeId: schedule.routeId, status: 'active' },
         { sort: { segmentOrder: 1 }, session },
       );
-    }
-    if (!seatMapVersion?.id || !Array.isArray(seatMapVersion.seats) || !seatMapVersion.seats.length) {
-      throw validationError('Publish a valid vehicle seat-map version before repairing this departure');
     }
     if (!segments.length) throw validationError('Complete this route\'s stops and segments before repairing seat inventory');
 
@@ -387,14 +430,51 @@ async function repairScheduleInventory(companyId, scheduleId, actor = 'company-a
       repository.seats.list({ companyId, scheduleId: schedule.id }, { session, limit: 500 }),
       repository.segmentInventory.list({ companyId, scheduleId: schedule.id }, { session, limit: 20000 }),
     ]);
+
+    const linkedVersion = schedule.seatMapVersionId
+      ? await repository.seatMapVersions.findOne({ id: schedule.seatMapVersionId, companyId, vehicleId: schedule.vehicleId, status: 'published' }, { session })
+      : null;
+    let relinkedSeatMap = false;
+    let vehicle = null;
+
+    if (linkedVersion?.seats?.length) {
+      seatMapVersion = linkedVersion;
+    } else {
+      vehicle = await repository.vehicles.findOne({ id: schedule.vehicleId, companyId, serviceType: 'bus' }, { session });
+      const fallbackVersion = vehicle?.activeSeatMapVersionId
+        ? await repository.seatMapVersions.findOne({
+          id: vehicle.activeSeatMapVersionId,
+          companyId,
+          vehicleId: vehicle.id,
+          status: 'published',
+        }, { session })
+        : null;
+      if (!fallbackVersion?.seats?.length) {
+        throw validationError('Publish a valid vehicle seat-map version before repairing this departure');
+      }
+      const passengerActivity = await departureHasPassengerActivity(companyId, schedule.id, existingSeats, existingInventory, session);
+      if (passengerActivity) {
+        throw conflictError('This departure has passenger activity, so its missing seat-map link cannot be replaced automatically. Resolve the affected booking or hold first, then retry.', 'inventory_repair_requires_manual_review');
+      }
+      seatMapVersion = fallbackVersion;
+      relinkedSeatMap = true;
+      schedule.seatMapVersionId = fallbackVersion.id;
+      schedule.seatMapTemplateId = fallbackVersion.templateId || vehicle.activeSeatMapTemplateId;
+      schedule.seatMapSnapshot = scheduleSeatMapSnapshot(fallbackVersion, vehicle);
+    }
+
+    if (!seatMapVersion?.id || !Array.isArray(seatMapVersion.seats) || !seatMapVersion.seats.length) {
+      throw validationError('Publish a valid vehicle seat-map version before repairing this departure');
+    }
+
     const expectedKeys = new Set();
     seatMapVersion.seats.forEach((seat) => segments.forEach((segment) => expectedKeys.add(`${normalizeSeatNumber(seat.seatNumber)}:${segment.id}`)));
     const inventoryKeys = new Set(existingInventory.map((row) => `${normalizeSeatNumber(row.seatNumber)}:${row.segmentId}`));
-    const segmentInventoryComplete = [...expectedKeys].every((key) => inventoryKeys.has(key));
+    const segmentInventoryComplete = !relinkedSeatMap && [...expectedKeys].every((key) => inventoryKeys.has(key));
     const existingSeatLabels = new Set(existingSeats.map((seat) => normalizeSeatNumber(seat.seatNumber)));
-    const compatibilitySeatsComplete = seatMapVersion.seats.every((seat) => existingSeatLabels.has(normalizeSeatNumber(seat.seatNumber)));
+    const compatibilitySeatsComplete = !relinkedSeatMap && seatMapVersion.seats.every((seat) => existingSeatLabels.has(normalizeSeatNumber(seat.seatNumber)));
 
-    let mode = 'verified';
+    let mode = relinkedSeatMap ? 'seat_map_relinked_and_inventory_rebuilt' : 'verified';
     let repairedSeats = existingSeats;
     let repairedInventory = existingInventory;
 
@@ -414,15 +494,9 @@ async function repairScheduleInventory(companyId, scheduleId, actor = 'company-a
       await repository.seats.deleteMany({ companyId, scheduleId: schedule.id }, { session });
       await repository.seats.saveMany(repairedSeats, null, { session });
       mode = 'compatibility_rows_rebuilt';
-    } else if (!segmentInventoryComplete) {
-      const protectedState = (row) => ['booked', 'taken', 'sold', 'confirmed', 'occupied', 'checked_in', 'checked-in', 'no_show', 'no-show', 'held', 'reserved', 'locked'].includes(normalize(row.status));
-      const [reservation, assignment, ticket, hold] = await Promise.all([
-        repository.reservations.findOne({ companyId, scheduleId: schedule.id, status: { $nin: ['cancelled', 'refunded', 'expired', 'released'] } }, { session }),
-        repository.seatAssignments.findOne({ companyId, scheduleId: schedule.id, status: { $nin: ['cancelled', 'released', 'refunded'] } }, { session }),
-        repository.tickets.findOne({ companyId, scheduleId: schedule.id, status: { $nin: ['void', 'cancelled', 'refunded'] } }, { session }),
-        repository.holds.findOne({ companyId, scheduleId: schedule.id, status: 'active' }, { session }),
-      ]);
-      if (reservation || assignment || ticket || hold || existingInventory.some(protectedState) || existingSeats.some(protectedState)) {
+    } else if (!segmentInventoryComplete || relinkedSeatMap) {
+      const passengerActivity = await departureHasPassengerActivity(companyId, schedule.id, existingSeats, existingInventory, session);
+      if (passengerActivity) {
         throw conflictError('This departure has passenger activity, so its incomplete inventory cannot be rebuilt automatically. Resolve the affected booking or hold first, then retry.', 'inventory_repair_requires_manual_review');
       }
       const blockedSeats = [...new Set([
@@ -446,7 +520,7 @@ async function repairScheduleInventory(companyId, scheduleId, actor = 'company-a
       });
       repairedSeats = generated.seats;
       repairedInventory = generated.inventory;
-      mode = 'canonical_inventory_rebuilt';
+      if (!relinkedSeatMap) mode = 'canonical_inventory_rebuilt';
     }
 
     const inventoryBySeat = new Map();
@@ -480,10 +554,17 @@ async function repairScheduleInventory(companyId, scheduleId, actor = 'company-a
       targetType: 'trip_schedule',
       targetId: schedule.id,
       companyId,
-      metadata: { mode, seatCount: repairedSeats.length, segmentCount: segments.length, inventoryRows: repairedInventory.length },
+      metadata: {
+        mode,
+        relinkedSeatMap,
+        seatMapVersionId: schedule.seatMapVersionId,
+        seatCount: repairedSeats.length,
+        segmentCount: segments.length,
+        inventoryRows: repairedInventory.length,
+      },
       session,
     });
-    result = { schedule, mode, seatCount: repairedSeats.length, segmentCount: segments.length, inventoryRows: repairedInventory.length };
+    result = { schedule, mode, relinkedSeatMap, seatCount: repairedSeats.length, segmentCount: segments.length, inventoryRows: repairedInventory.length };
   });
   return result;
 }
@@ -1244,7 +1325,7 @@ async function publishSchedule(companyId, scheduleId, actor = 'company-admin', o
   let schedule = options.schedule || await repository.scheduleOrThrow(companyId, scheduleId);
   if (!['draft', 'active'].includes(schedule.status)) throw conflictError('Only draft or active departures can be published');
   let validation = options.validation || await validateSchedulePublish(companyId, schedule);
-  if (validation.failures.includes('seat_segment_inventory_missing')) {
+  if (validation.failures.some((failure) => ['seat_segment_inventory_missing', 'published_seat_map_missing'].includes(failure))) {
     try {
       await repairScheduleInventory(companyId, schedule.id, actor);
       schedule = await repository.scheduleOrThrow(companyId, schedule.id);

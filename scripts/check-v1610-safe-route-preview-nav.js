@@ -37,7 +37,7 @@ check('boarding follows travel time', details.indexOf('id="outboundScheduleSelec
 check('drop-off follows boarding', details.indexOf('id="outboundOriginStopSelect"') < details.indexOf('id="outboundDestinationStopSelect"'));
 check('route choice filters available departures', details.includes('schedulesForActiveRoute') && details.includes('schedule.routeId'));
 check('route changes clear stale fare and seat selection', details.includes('previewPricing.scheduleId = \'\'') && details.includes('activeReturnSelections = []'));
-check('return choices must be strictly later than outbound departure', details.includes('returnTime > outboundDepartureTime'));
+check('return choices must be strictly later than outbound', details.includes('returnTime > outboundFloor'));
 check('controller preserves selected route state', controller.includes('const selectedRouteId = String(selection.routeId') && controller.includes('selectedRouteId,'));
 check('journey controls use a two-column layout', css.includes('.listingPreviewPage .busJourneySelectionGrid') && css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'));
 check('homepage header uses the real header.nav selector', css.includes('body.homePage > header.nav'));

@@ -47,7 +47,7 @@ describe('rolling departure materializer lifecycle', () => {
   test('every run rechecks the full live window so missing dates can be repaired', () => {
     const source = fs.readFileSync(path.join(__dirname, '../../src/jobs/materializeSchedules.js'), 'utf8');
     expect(source).toContain('const { cursor, windowEnd } = rollingWindowBounds(rule, horizonEnd, now);');
-    expect(source).toContain('const missingDates = expectedDates.filter');
+    expect(source).toContain('const dates = expectedDates.filter');
     expect(source).not.toContain('watermark ? new Date(watermark.getTime() + DAY_MS)');
   });
 });

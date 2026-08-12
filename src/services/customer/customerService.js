@@ -1,3 +1,4 @@
+const { resolveMediaUrl } = require('../../utils/mediaUrl');
 const { platformCurrency } = require('../../utils/currency');
 const customerRepository = require('../../repositories/domain/customerRepository');
 const walletService = require('../wallet/walletService');
@@ -275,7 +276,7 @@ async function createSupportTicket(req) {
 }
 
 function frontendListing(listing = {}) {
-  return { ...listing, img: listing.img || listing.media?.[0]?.url, rating: String(listing.rating || listing.ratingAverage || ''), price: listing.price || listing.priceFrom, partner: listing.partner || listing.companyName, url: `/listings/${listing.serviceType}/${listing.slug}`, bookingUrl: listing.bookable ? `/book/${listing.serviceType}/${listing.slug}` : '', companyUrl: `/companies/${listing.companySlug || listing.companyId || ''}` };
+  return { ...listing, img: resolveMediaUrl(listing.img, listing.image, listing.media), rating: String(listing.rating || listing.ratingAverage || ''), price: listing.price || listing.priceFrom, partner: listing.partner || listing.companyName, url: `/listings/${listing.serviceType}/${listing.slug}`, bookingUrl: listing.bookable ? `/book/${listing.serviceType}/${listing.slug}` : '', companyUrl: `/companies/${listing.companySlug || listing.companyId || ''}` };
 }
 
 function frontendBooking(booking = {}, listing = {}) {

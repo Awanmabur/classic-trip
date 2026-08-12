@@ -49,8 +49,9 @@ check(blankLinks.every((tag) => /rel=["'][^"']*noopener/i.test(tag)), 'Every new
 const inlineScripts = [...templateSource.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>/gi)].map((match) => match[0]);
 check(inlineScripts.every((tag) => /nonce=/.test(tag)), 'Every inline template script must carry the CSP nonce');
 
-const jsonBootstrapCount = (templateSource.match(/type=["']application\/json["']/gi) || []).length;
-const safeJsonBootstrapCount = (templateSource.match(/type=["']application\/json["'][\s\S]{0,300}?toScriptJson\(/gi) || []).length;
+const jsonBootstrapTags = [...templateSource.matchAll(/<script\b[\s\S]*?<\/script>/gi)].map((match) => match[0]).filter((tag) => /type=[\"']application\/json[\"']/i.test(tag));
+const jsonBootstrapCount = jsonBootstrapTags.length;
+const safeJsonBootstrapCount = jsonBootstrapTags.filter((tag) => /toScriptJson\(/.test(tag)).length;
 check(jsonBootstrapCount >= 5 && safeJsonBootstrapCount === jsonBootstrapCount, 'Application JSON bootstraps must use the script-safe serializer');
 
 const home = read('src/views/pages/home.ejs');

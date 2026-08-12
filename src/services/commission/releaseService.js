@@ -49,7 +49,9 @@ async function releaseCompletedBooking(bookingRef) {
   }
   const now = new Date().toISOString();
   let bookingChanged = false;
-  if (commissions.length && !booking.earningsReleasedAt) {
+  if (!booking.earningsReleasedAt) {
+    // Mark fulfilled bookings as processed even when no commission row is due.
+    // Otherwise the maintenance job re-reads the same historical booking forever.
     booking.earningsReleasedAt = now;
     bookingChanged = true;
   }

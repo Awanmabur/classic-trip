@@ -5,13 +5,15 @@ Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, v
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.50
+## Current release — version 1.6.52
 
-v1.6.50 is the Redis Home handoff and cold-deploy speed release. Redis is now used not only for sessions, rate limits and the raw public catalog, but also for a compact compressed Home bootstrap snapshot. After one successful warmup, a Render restart can serve the last known-good Home data from Redis immediately while MongoDB and airport discovery refresh in the background. The first v1.6.50 upgrade can also project Home directly from the v1.6.49 shared full-catalog snapshot, avoiding the normal 2.5-second Home cold deadline when that Redis data already exists.
+### v1.6.52 — Seed media repair + freely selectable Edit relationships
 
-MongoDB remains authoritative for booking, seat/room inventory mutation, holds, payments and all writes. The Redis Home snapshot is read-only discovery acceleration with the existing stale-while-revalidate window. Startup logging now confirms `marketplaceCache:true` together with Redis sessions and rate limits.
-
-The release preserves the v1.6.49 Render recovery: Node 24.x pinning, post-listen warmup, the compressed 24-hour emergency public-catalog snapshot, bounded MongoDB response deadlines, safe public HTTPS Pesapal callback validation, and the existing dashboard/rolling-departure resilience work.
+- Known launch-seed hotlink URLs for the seven seeded blogs and six seeded bus operators are now treated as repairable seed media, not protected custom media. Public rendering immediately falls back to same-origin `/media/...` URLs, and `npm run migrate:seeded-media` can upload the bundled images into the configured Cloudinary account.
+- Launch seeding is idempotent against canonical seed IDs and handles an existing seeded route without crashing on duplicate `id` indexes.
+- Edit relationship controls are selectable like Create. Route/Vehicle/Fare/Seat Template and Stay Property/Room Type/Rate Plan/Room Unit/Room-night relationships remain visible and can be changed.
+- Backend update services validate ownership and dependent records before persisting a relationship change; unsafe moves with committed live inventory/reservations are rejected with an actionable conflict rather than disabling the selector.
+- Service-worker/asset version is 1.6.52 and seeded `/media/...` endpoints remain outside the precache.
 
 ## Seven-service marketplace completion
 
@@ -71,9 +73,9 @@ Production refuses transaction-sensitive flows when MongoDB transaction support 
 ## Initial setup
 
 ```bash
-npm ci
 cp .env.example .env
-npm run seed:launch-all
+npm ci
+npm run seed:superadmin
 npm run verify
 npm start
 ```
@@ -721,7 +723,7 @@ SMS_FROM=Classic Trip
 SMS_REQUEST_TIMEOUT_MS=8000
 ```
 
-### Launch SEO/operator seed — v1.6.50
+### Launch SEO/operator seed — v1.6.43
 
 Preview without writes:
 
@@ -735,13 +737,13 @@ Apply after the Super Admin exists:
 npm run seed:launch-content
 ```
 
-The seed creates seven Super-Admin-owned blog posts, genuine sourced coach images, researched Draft/Pending records and one editable research Draft departure for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. On an existing database, rerun `npm run seed:launch-content` after deploying v1.6.50 to replace old logo-like seeded media and add any missing Draft departures. Existing custom blog/listing images are preserved. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
+The seed is insert-only. It creates seven Super-Admin-owned blog posts and researched Draft/Pending records for Bebeto Coach Services, Trinity Express, Zawadi Travel Service, ECO Bus, Friendship Bus and YY Coaches. Public research is preparation data only; operator identity, registration, compliance, vehicles, exact schedules/fare tables and active terminals must be confirmed before publication.
 
 Pesapal production uses API 3.0 with `https://pay.pesapal.com/v3/api`; IPNs are reconciled using GetTransactionStatus. Keep `PESAPAL_CONSUMER_SECRET` in Render secrets only.
 
 ## v1.6.43 — seven blogs and seeded Partner Admin accounts
 
-The complete `/blogs` public card/bar directory and individual `/blogs/:slug` article pages remain available. In v1.6.44, Home was intentionally returned to its original three-blog preview design.
+The Home page now renders up to seven published travel guides and `/blogs` provides the complete public card/bar directory. Individual `/blogs/:slug` pages load the shared public head/styles and include a structured article layout plus related guides.
 
 If v1.6.42 launch content already exists in MongoDB, run the v1.6.43 launch seed again. It is designed to keep existing edited values, fill only blank/seed-placeholder profile fields, create the missing seeded Partner Admin accounts, and leave compliance-sensitive approval fields pending.
 

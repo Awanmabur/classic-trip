@@ -26,6 +26,8 @@ const invitationSchema = new Schema({
   listingIds: [String],
   scheduleIds: [String],
   serviceCategories: [String],
+  shift: String,
+  notes: String,
   termsSummary: String,
   startDate: Date,
   requestedBy: String,

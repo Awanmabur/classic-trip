@@ -5,6 +5,7 @@ const listingController = require('../../controllers/public/listingController');
 const hotelBookingController = require('../../controllers/public/hotelBookingController');
 const bookingPaymentController = require('../../controllers/public/bookingPaymentController');
 const blogController = require('../../controllers/public/blogController');
+const mediaController = require('../../controllers/public/mediaController');
 const supportController = require('../../controllers/public/supportController');
 const invitationController = require('../../controllers/public/invitationController');
 const partnerController = require('../../controllers/public/partnerController');
@@ -118,6 +119,8 @@ router.get('/booking/success/:bookingRef', listingController.bookingSuccess);
 router.get('/tickets', ticketLimiter, listingController.ticketLookupPage);
 router.get('/tickets/:bookingRef.pdf', ticketLimiter, listingController.ticketPdf);
 router.get('/tickets/:bookingRef', ticketLimiter, listingController.ticketPage);
+router.get('/media/blog/:slug', mediaController.blog);
+router.get('/media/operator/:key', mediaController.operator);
 router.get('/blogs', blogController.index);
 router.get('/blogs/:slug', blogController.show);
 router.get('/support', (req, res) => res.render('pages/support', {

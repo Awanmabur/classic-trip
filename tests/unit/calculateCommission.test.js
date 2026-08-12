@@ -9,8 +9,7 @@ test('splits money without referral', () => {
 
 test('splits money with referral', () => {
   const split = calculateCommission(100000, true);
-  expect(split.platformFee).toBe(8000);
-  expect(split.promoterAmount).toBe(2000);
+  expect(split.platformFee).toBe(7000);
+  expect(split.promoterAmount).toBe(3000);
   expect(split.companyAmount).toBe(90000);
-  expect(split.promoterRewardModel).toBe('fixed_ugx');
 });

@@ -40,13 +40,16 @@ async function connectDb() {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     attempted = attempt;
     try {
+      const isWorker = String(process.env.CLASSIC_TRIP_PROCESS_ROLE || '').toLowerCase() === 'worker';
+      const effectivePoolMax = isWorker ? Math.min(env.mongoPool.max, env.mongoPool.workerMax) : env.mongoPool.max;
+      const effectivePoolMin = isWorker ? 0 : env.mongoPool.min;
       const conn = await mongoose.connect(env.mongoUri, {
         serverSelectionTimeoutMS: env.mongoConnection.serverSelectionTimeoutMs,
         connectTimeoutMS: env.mongoConnection.connectTimeoutMs,
         socketTimeoutMS: env.mongoConnection.socketTimeoutMs,
-        minPoolSize: env.mongoPool.min,
-        maxPoolSize: env.mongoPool.max,
-        maxConnecting: Math.min(env.mongoPool.max, env.mongoPool.maxConnecting),
+        minPoolSize: effectivePoolMin,
+        maxPoolSize: effectivePoolMax,
+        maxConnecting: Math.min(effectivePoolMax, isWorker ? 2 : env.mongoPool.maxConnecting),
         maxIdleTimeMS: env.mongoPool.maxIdleTimeMs,
         waitQueueTimeoutMS: env.mongoPool.waitQueueTimeoutMs,
         heartbeatFrequencyMS: 10000,

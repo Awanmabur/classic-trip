@@ -65,14 +65,14 @@
   <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.50" />
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.50">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.52" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.52">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.50">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.52">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.50" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.52" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -128,11 +128,6 @@
   </nav>
 
   <main>
-    <% if (bootstrap.degraded) { %>
-    <div class="container" role="status" aria-live="polite">
-      <div class="notice" style="margin-top:12px"><i class="fa-solid fa-rotate"></i> <%= bootstrap.degradedMessage %></div>
-    </div>
-    <% } %>
     <section class="container hero" id="home">
       <div class="card heroCard">
         <div class="heroTop">
@@ -164,7 +159,7 @@
                 <div class="field"><label for="busToInput">To</label><div class="control"><i class="fa-solid fa-location-dot"></i><select id="busToInput" data-search-param="destination" data-route-destination-select><option value="">Select destination</option><% (dbSearch.bus?.destinations || []).forEach((value) => { %><option value="<%= value %>"><%= value %></option><% }) %></select></div></div>
                 <div class="field"><label for="busDateInput">Departure date</label><div class="control"><i class="fa-regular fa-calendar"></i><input type="date" id="busDateInput" data-search-param="date"></div></div>
                 <div class="field"><label for="busPassengersInput">Passengers / seats</label><div class="control"><i class="fa-solid fa-user-group"></i><select id="busPassengersInput" data-search-param="passengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div></div>
-                <script type="application/json" data-route-pairs-json><%- toScriptJson(dbSearch.bus?.pairs || []) %></script>
+                <script type="application/json" nonce="<%= cspNonce %>" data-route-pairs-json><%- toScriptJson(dbSearch.bus?.pairs || []) %></script>
               </div>
 
               <div id="staySearchPanel" class="formGrid serviceSearchPanel" data-search-panel="hotel" role="tabpanel" aria-label="Stay search fields" hidden>
@@ -431,10 +426,10 @@
             <% if (currentUser?.role === 'super_admin') { %><a class="btn btnGhost" href="/admin/blogs"><i class="fa-solid fa-pen-nib"></i> Write blog</a><% } %>
           </div>
           <div class="blogHomeGrid" id="blogCards">
-<% var homeBlogs = (bootstrap.blogs || []).slice(0, 3); if (homeBlogs.length) { homeBlogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
+<% if (bootstrap.blogs && bootstrap.blogs.length) { bootstrap.blogs.forEach(function(post) { var badgeCls = (post.tag||'').toLowerCase().includes('hotel') ? 'badgeOk' : (post.tag||'').toLowerCase().includes('promo') ? 'badgeWarn' : (post.tag||'').toLowerCase().includes('book') ? 'badgeHot' : 'badgeInfo'; %>
             <article class="promoCard blogCard">
               <div class="blogImage">
-                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>" loading="lazy" decoding="async" referrerpolicy="no-referrer"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
+                <% if (post.image) { %><img src="<%= post.image %>" alt="<%= post.imageAlt || post.title %>" loading="lazy" decoding="async"><% } else { %><div style="height:160px;background:var(--soft)"></div><% } %>
                 <span class="badge <%= badgeCls %> blogTag"><%= post.tag || 'Guide' %></span>
                 <div class="blogIconActions">
                   <a class="miniIcon" href="<%= post.url %>" title="Read"><i class="fa-regular fa-eye"></i></a>
@@ -452,7 +447,9 @@
             <div class="card" data-home-empty="blogs" style="padding:20px"><strong>No published articles yet</strong><p class="muted" style="margin:6px 0 0">Articles created and published by the Super Admin will appear here.</p></div>
 <% } %>
           </div>
-          <div class="moreRow blogMoreRow"><a class="btn btnGhost moreBtn" href="/blogs"><i class="fa-solid fa-arrow-right"></i> More blogs</a></div>
+          <div class="moreRow">
+            <a class="btn btnGhost" href="/blogs"><i class="fa-solid fa-arrow-right"></i> More blogs</a>
+          </div>
         </section>
 
       </div>
@@ -514,11 +511,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.50" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.50" defer></script>
-  <script src="/js/route-pair-select.js?v=1.6.50" defer></script>
-<script src="/js/home-service-search.js?v=1.6.50" defer></script>
-  <script src="/js/home.js?v=1.6.50" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.52" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.52" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.52" defer></script>
+<script src="/js/home-service-search.js?v=1.6.52" defer></script>
+  <script src="/js/home.js?v=1.6.52" defer></script>
   <%- include('../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.50" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.52" defer></script>
 </body>
 </html>

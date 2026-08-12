@@ -47,26 +47,27 @@ check('Only an explicitly started fallback/worker owns the in-memory rolling que
   && materializer.includes('!cleanRuleId || !backgroundQueueOwner')
   && materializer.includes('backgroundQueueOwner = true')
   && materializer.includes('backgroundQueueOwner = false'));
-check('Background rolling uses one dated departure per batch',
-  materializer.includes('const BACKGROUND_BATCH_SIZE = 1') && outbox.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
-check('Background rolling yields between batches',
-  materializer.includes('const BACKGROUND_BATCH_PAUSE_MS = 2000') && materializer.includes('await sleep(BACKGROUND_BATCH_PAUSE_MS)'));
-check('Worker waits for the redirect/request burst before startup repair', worker.includes('startupDelayMs: 10000'));
+check('Rolling materialization is bounded to one complete month per pass',
+  materializer.includes('const BACKGROUND_BATCH_SIZE = ROLLING_WINDOW_DAYS') && outbox.includes('maxCreates: materializer.ROLLING_WINDOW_DAYS'));
+check('Dedicated worker does not start the private rolling drain',
+  !worker.includes('scheduleMaterializer.startWebFallback'));
+check('Worker relies on scheduled recovery instead of startup queue churn', !worker.includes('startupDelayMs: 10000') && worker.includes('startScheduledJobs'));
 check('Rolling cache invalidation is delayed until the drain settles',
   materializer.includes('after the whole rolling drain') && materializer.includes('}, 5000);'));
 check('Repeated publication blockers have a five-minute cooldown',
   materializer.includes('PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000')
   && materializer.includes('publicationBlockerCooldown.set(ruleKey'));
-check('Permanent rolling errors do not hot-loop',
-  materializer.includes('persistVehicleConflictBlocker')
-  && materializer.includes('eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now))')
-  && !materializer.includes('Rolling departure queue paused until the next repair scan'));
-check('Rolling feedback names the background worker and keeps blocker text',
-  scheduleController.includes('queued for the background rolling worker')
+check('Vehicle conflicts are deferred per-date without freezing the recurring rule',
+  materializer.includes("startsWith('vehicle_schedule_conflict')")
+  && materializer.includes('noFreeDateFound')
+  && materializer.includes('pauseDormantOverlappingRules')
+  && !materializer.includes('persistFullWindowVehicleConflictBlocker'));
+check('Rolling feedback keeps blocker text without background-worker queue claims',
+  !scheduleController.includes('queued for the background rolling worker')
   && scheduleController.includes('Draft blockers:'));
 check('Flash text no longer truncates the permit blocker mid-word', (flash.match(/slice\(0, 700\)/g) || []).length >= 2);
-check('The release assertion follows persisted no-hot-loop semantics',
-  releaseCheck.includes('persistVehicleConflictBlocker')
+check('The release assertion follows automatic retry semantics',
+  releaseCheck.includes("startsWith('vehicle_schedule_conflict')")
   && releaseCheck.includes('activePersistentBlocker'));
 
 check('Departure state survives the immediate hold-to-payment redirect', inventory.includes('const SCHEDULE_STATE_TTL_MS = 5000'));

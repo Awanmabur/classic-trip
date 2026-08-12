@@ -32,26 +32,27 @@ check('Dedicated Render web service disables the embedded worker',
   render.includes('RUN_BACKGROUND_WORKER') && render.includes('value: \"false\"'));
 check('Development startup retains the supported Node watcher',
   start.includes("'--watch'") && start.includes("'--watch-preserve-output'") && start.includes('if (!watch)'));
-check('Rolling save creates one dated departure immediately and leaves the remainder to the worker',
-  scheduleController.includes('maxCreates: 1') && materializer.includes('const pending ='));
+check('Rolling save creates the complete safe window immediately',
+  scheduleController.includes('maxCreates: scheduleMaterializer.ROLLING_WINDOW_DAYS') && materializer.includes('const pending ='));
 check('Draft rolling departures are retried and published automatically after readiness is fixed',
   materializer.includes('reconcileDraftSchedules') && materializer.includes("status: 'draft'") && materializer.includes('publishSchedule'));
-check('Rolling reconciliation runs frequently without creating duplicate far-end dates',
+check('Rolling reconciliation uses a lightweight recovery cadence',
   env.includes("JOB_MATERIALIZE_SCHEDULES || '*/15 * * * *'"));
-check('Web fallback completes rolling windows when the separate worker is unavailable',
-  materializer.includes('startWebFallback') && materializer.includes('queueRuleMaterialization') && materializer.includes('BACKGROUND_BATCH_SIZE'));
+check('Dedicated worker avoids a second private rolling queue',
+  !read('src/worker.js').includes('scheduleMaterializer.startWebFallback') && materializer.includes('ROLLING_WINDOW_DAYS'));
 check('Rolling repair batches use the proven single-date batch path after day one',
   materializer.includes('repair_existing_window_create')
   && materializer.includes('companyService.createScheduleBatch')
   && !materializer.includes('const series = await busDepartureService.createScheduleSeries'));
-check('Scheduled and outbox rolling passes are bounded instead of flooding the database pool',
-  materializer.includes('{ maxCreates: BACKGROUND_BATCH_SIZE }') && outboxHandlers.includes('{ waitForLeaseMs: 5000, maxCreates: 1 }'));
-check('Permanent rolling blockers persist a cooldown and are excluded from scans rather than hot-looping',
-  materializer.includes("materializationBlockerCode: 'vehicle_schedule_conflict'")
-  && materializer.includes('VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS')
-  && materializer.includes('eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now))'));
-check('Rolling feedback reports publication blockers rather than false success',
-  scheduleController.includes('Draft blockers:') && scheduleController.includes('background rolling worker'));
+check('Scheduled and lifecycle rolling passes fill only the bounded 30-day window',
+  materializer.includes('{ maxCreates: ROLLING_WINDOW_DAYS }') && outboxHandlers.includes('maxCreates: materializer.ROLLING_WINDOW_DAYS'));
+check('Vehicle conflicts stay date-specific and never freeze the rolling rule',
+  materializer.includes("startsWith('vehicle_schedule_conflict')")
+  && materializer.includes('blocked: false')
+  && materializer.includes('pauseDormantOverlappingRules')
+  && !materializer.includes('persistFullWindowVehicleConflictBlocker'));
+check('Rolling feedback reports publication blockers without pretending work is queued',
+  scheduleController.includes('Draft blockers:') && !scheduleController.includes('queued for the background rolling worker'));
 check('Payment providers have controlled request timeouts',
   payment.includes('payment_provider_timeout') && pesapal.includes('payment_provider_timeout') && payment.includes('AbortController'));
 check('Pesapal reuses its registered IPN ID instead of registering on every checkout',

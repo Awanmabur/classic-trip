@@ -31,12 +31,12 @@ assert(/topic:\s*eventType/.test(repository), 'Every bus outbox event must popul
 assert(/selectedIntermediateStops/.test(setup), 'Selected boarding/drop-off branches must become canonical route-stop records.');
 assert(/routeStops\.saveMany\(\[originStop, \.\.\.intermediateStops, destinationStop\]/.test(setup), 'Route creation must save all selected stops in one unit of work.');
 assert(/boardingBranchIds:\s*\[\.\.\.new Set\(stops\.filter/.test(setup), 'Route boarding/drop-off metadata must derive from active route stops.');
-assert(/A route cannot be moved to another bus listing/.test(setup), 'Unsafe route parent reassignment must be rejected explicitly.');
+assert(/live or in-progress departures[\s\S]*before moving the route to another bus listing/.test(setup), 'Route reassignment must stay selectable while protecting live/in-progress departures.');
 assert(/The selected origin is already an intermediate stop/.test(setup), 'Endpoint edits must reject duplicate stop relationships.');
 assert(!/const stopCandidates = \[\]/.test(onboarding), 'The wizard must not duplicate route stops already handled by createRoute.');
 
 assert(/columnsForLayout\(layoutName\)/.test(setup), 'Vehicle creation must derive columns from the selected seat layout.');
-assert(/A vehicle cannot be moved to another bus listing/.test(setup), 'Unsafe vehicle parent reassignment must be rejected explicitly.');
+assert(/live departure or passenger inventory[\s\S]*before moving it to another bus listing/.test(setup), 'Vehicle reassignment must stay selectable while protecting committed passenger inventory.');
 assert(/A vehicle with this registration or fleet code already exists/.test(setup), 'Vehicle edits must enforce registration/fleet-code uniqueness.');
 assert(/This vehicle is assigned to active or future departures/.test(setup), 'Vehicle maintenance/archive changes must protect active departures.');
 assert(/blockedSeats:\s*parseList\(payload\.blockedSeats\)|\bblockedSeats,/.test(departures), 'Recurring schedule rules must save blocked seats from the form.');
@@ -79,8 +79,8 @@ for (const endpoint of requiredPostEndpoints) {
 assert(/form\.addEventListener\(['"]submit['"]/.test(csrfBrowser) || /document\.addEventListener\(['"]submit['"]/.test(csrfBrowser), 'Browser CSRF logic must synchronize forms at submit time.');
 assert(/FormData/.test(csrfBrowser), 'Browser CSRF logic must cover multipart FormData submissions.');
 assert(/X-CSRF-Token|X-XSRF-TOKEN/i.test(csrfBrowser), 'Browser requests must send a CSRF header.');
-assert(/name:'listingId', type:'hidden'.*route\.listingId/.test(dashboard), 'Route edits must preserve, not reassign, their parent listing.');
-assert(/name:'listingId', type:'hidden'.*vehicle\.listingId/.test(dashboard), 'Vehicle edits must preserve, not reassign, their parent listing.');
+assert(/name:'listingId', label:'Bus listing', type:'select'.*route\.listingId/.test(dashboard) && !/name:'listingId', label:'Bus listing', type:'select'[^\n]*locked:true/.test(dashboard), 'Route edits must show the saved Bus listing as a freely selectable relationship field.');
+assert(/name:'listingId', label:`\$\{serviceLabel\} listing`, type:'select'.*vehicle\.listingId/.test(dashboard) && !/name:'listingId', label:`\$\{serviceLabel\} listing`, type:'select'[^\n]*locked:true/.test(dashboard), 'Vehicle edits must show the saved listing as a freely selectable relationship field.');
 assert(dashboard.includes('/company/vehicles/seat-template'), 'Seat-map geometry must have its own versioned form.');
 
 if (failures.length) {

@@ -1381,6 +1381,12 @@ function createDashboardProjection(initialState = {}) {
       city: listing.city || '',
       baggageRules: listing.baggageRules || '',
       cancellationRules: listing.cancellationRules || '',
+      operatorLicenceRef: listing.operatorLicenceRef || '',
+      contactPhone: listing.contactPhone || '',
+      pickupInstructions: listing.pickupInstructions || '',
+      dropoffInstructions: listing.dropoffInstructions || '',
+      salesChannels: (listing.salesChannels || []).join(','),
+      amenities: (listing.amenities || []).join(','),
       status: listing.status
     });
     const routeOption = route => {
@@ -2135,10 +2141,14 @@ function createDashboardProjection(initialState = {}) {
         : 'Every day';
       const label = `${formatRouteLabel(route.origin, route.destination, route.routeName) || 'Route'} at ${rule.departureTime || '--:--'}`;
       const blockerRuleIds = Array.isArray(rule.materializationBlockerRuleIds) ? rule.materializationBlockerRuleIds.filter(Boolean) : [];
-      const rollingNeedsAction = rule.materializationRequiresAction === true && normalize(rule.materializationBlockerCode) === 'vehicle_schedule_conflict_window';
-      const statusLabel = rollingNeedsAction
-        ? `${rule.status || 'active'} · action needed${blockerRuleIds.length ? ` · blocked by ${blockerRuleIds.join(', ')}` : ''}`
-        : (rule.status || 'draft');
+      const blockerCode = normalize(rule.materializationBlockerCode);
+      const legacyVehicleBlocker = blockerCode.startsWith('vehicle_schedule_conflict');
+      const rollingNeedsAction = rule.materializationRequiresAction === true && !legacyVehicleBlocker;
+      const statusLabel = legacyVehicleBlocker
+        ? `${rule.status || 'active'} · retrying automatically`
+        : rollingNeedsAction
+          ? `${rule.status || 'active'} · action needed`
+          : (rule.status || 'draft');
       return [
         label,
         repeat,
@@ -2149,7 +2159,7 @@ function createDashboardProjection(initialState = {}) {
         statusLabel,
         {
           entity: 'schedule_rule', id: rule.id, label, status: statusLabel,
-          detail: { scheduleRule: rule, route, vehicle, fareProduct, driver: employee, user: safeEmployeeUser(driverUser), listing: listingDetail(findListing(rule.listingId) || {}), company: companyDetail(company), materialization: { needsAction: rollingNeedsAction, blockerRuleIds, reason: rule.materializationBlockerReason || '', blockedUntil: rule.materializationBlockedUntil || '' }, purpose: rollingNeedsAction ? (rule.materializationBlockerReason || 'This recurring rule cannot create any missing rolling date because the assigned vehicle is occupied by departures generated from another recurring rule. Resolve the vehicle/time overlap and any already-created departures; Classic Trip will retry automatically.') : 'Recurring rules create future dated departures. Editing the rule changes future materialization; already-created departures remain independent and editable.' }
+          detail: { scheduleRule: rule, route, vehicle, fareProduct, driver: employee, user: safeEmployeeUser(driverUser), listing: listingDetail(findListing(rule.listingId) || {}), company: companyDetail(company), materialization: { needsAction: rollingNeedsAction, retryingAutomatically: legacyVehicleBlocker, blockerRuleIds, reason: rule.materializationBlockerReason || '', blockedUntil: legacyVehicleBlocker ? '' : (rule.materializationBlockedUntil || '') }, purpose: legacyVehicleBlocker ? 'A historical vehicle-conflict blocker is being cleared automatically. Real overlapping dates remain safely deferred and the rolling worker retries them without freezing the rule.' : rollingNeedsAction ? (rule.materializationBlockerReason || 'This recurring rule needs an operator correction before automated materialization can continue.') : 'Recurring rules create future dated departures. Editing the rule changes future materialization; already-created departures remain independent and editable.' }
         }
       ];
     });
@@ -3996,15 +4006,55 @@ function createDashboardProjection(initialState = {}) {
     const totalSeats = scheduleSeats.length || schedules.reduce((total, schedule) => total + Number(schedule.totalSeats || 0), 0);
     return {
       listing: {
+        ...listing,
         catalogId: listing.catalogId || listingId,
         listingId,
+        id: listingId,
         slug: listing.slug,
         title: listing.title,
         sub: listing.sub || listing.description || '',
+        shortDescription: listing.shortDescription || listing.sub || listing.description || '',
+        description: listing.description || listing.shortDescription || listing.sub || '',
         serviceType: listing.serviceType,
         type: listing.type,
         status: listing.status,
         releaseStatus: listing.releaseStatus || '',
+        branchId: listing.branchId || '',
+        branchName: listing.branchName || '',
+        contactPhone: listing.contactPhone || '',
+        operatorLicenceRef: listing.operatorLicenceRef || '',
+        baggageRules: listing.baggageRules || '',
+        cancellationRules: listing.cancellationRules || '',
+        salesChannels: Array.isArray(listing.salesChannels) ? listing.salesChannels : [],
+        pickupInstructions: listing.pickupInstructions || '',
+        dropoffInstructions: listing.dropoffInstructions || '',
+        serviceNotes: listing.serviceNotes || '',
+        policy: listing.policy || '',
+        city: listing.city || '',
+        country: listing.country || '',
+        address: listing.address || listing.location || '',
+        from: listing.from || '',
+        to: listing.to || '',
+        priceFrom: listing.priceFrom,
+        amenities: Array.isArray(listing.amenities) ? listing.amenities : [],
+        media: Array.isArray(listing.media) ? listing.media : [],
+        stayType: listing.stayType || '',
+        checkInTime: listing.checkInTime || '',
+        checkOutTime: listing.checkOutTime || '',
+        inventory: listing.inventory,
+        remainingInventory: listing.remainingInventory,
+        durationMinutes: listing.durationMinutes,
+        maxGuests: listing.maxGuests,
+        minimumAge: listing.minimumAge,
+        vehicleCategory: listing.vehicleCategory || '',
+        transmission: listing.transmission || '',
+        fuelType: listing.fuelType || '',
+        seatsCount: listing.seatsCount,
+        cargoTypes: Array.isArray(listing.cargoTypes) ? listing.cargoTypes : [],
+        weightLimitKg: listing.weightLimitKg,
+        packageLimit: listing.packageLimit,
+        pricingUnit: listing.pricingUnit || '',
+        serviceDetails: listing.serviceDetails || {},
         isSponsored: Boolean(listing.isSponsored),
         bookable: Boolean(listing.bookable)
       },

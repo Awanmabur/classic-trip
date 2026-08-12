@@ -1,5 +1,4 @@
 const path = require('path');
-const net = require('net');
 let dotenv = null;
 try { dotenv = require('dotenv'); } catch (error) { dotenv = null; }
 if (dotenv) dotenv.config({ path: path.join(process.cwd(), '.env') });
@@ -32,29 +31,19 @@ const csvList = (key, fallback = []) => {
   return String(raw).split(',').map((item) => item.trim()).filter(Boolean);
 };
 
-function privateNetworkHost(hostname = '') {
-  const host = String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
-  if (['localhost', '0.0.0.0', '::', '::1'].includes(host) || host.endsWith('.localhost')) return true;
-  if (net.isIP(host) === 4) {
-    const octets = host.split('.').map(Number);
-    return octets[0] === 10
-      || octets[0] === 127
-      || (octets[0] === 169 && octets[1] === 254)
-      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
-      || (octets[0] === 192 && octets[1] === 168);
-  }
-  if (net.isIP(host) === 6) return host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:');
-  return false;
-}
-
-function productionHttpsUrl(label, value) {
-  let parsed;
-  try { parsed = new URL(value); } catch (error) { throw new Error(`${label} must be a valid absolute URL`); }
-  if (parsed.protocol !== 'https:') throw new Error(`${label} must use HTTPS in production`);
-  if (parsed.username || parsed.password) throw new Error(`${label} cannot contain URL credentials`);
-  if (privateNetworkHost(parsed.hostname)) throw new Error(`${label} cannot target a local or private network address in production`);
-  return parsed;
-}
+// Old v1.6.x environment files used second-level/outbox and one-minute rolling
+// schedules. Those cadences can flood node-cron and Atlas, causing exactly the
+// missed-execution storm that the rolling-window repair is meant to avoid.
+// Preserve legitimate operator overrides, but automatically retire the known
+// legacy high-frequency values when an existing .env is reused after upgrade.
+const safeJobCron = (key, fallback, options = {}) => {
+  const raw = String(process.env[key] || '').trim();
+  if (!raw) return fallback;
+  const fields = raw.split(/\s+/);
+  if (options.rejectSeconds === true && fields.length === 6) return fallback;
+  if (Array.isArray(options.reject) && options.reject.includes(raw)) return fallback;
+  return raw;
+};
 
 const env = {
   appName: process.env.APP_NAME || 'Classic Trip',
@@ -76,6 +65,7 @@ const env = {
     // stale-cache fallback, so a short queue is safer and substantially faster.
     waitQueueTimeoutMs: Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS', 2500)),
     maxConnecting: Math.max(2, number('MONGO_MAX_CONNECTING', 4)),
+    workerMax: Math.max(2, number('MONGO_WORKER_MAX_POOL_SIZE', 6)),
   },
   mongoConnection: {
     // Fail fast during DNS/topology trouble. The previous 30–90 second values
@@ -83,7 +73,7 @@ const env = {
     // minute-long freezes even though cached data was available.
     serverSelectionTimeoutMs: Math.max(2500, number('MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000)),
     connectTimeoutMs: Math.max(3000, number('MONGO_CONNECT_TIMEOUT_MS', 5000)),
-    socketTimeoutMs: Math.max(3000, Math.min(8000, number('MONGO_SOCKET_TIMEOUT_MS', 8000))),
+    socketTimeoutMs: Math.max(8000, number('MONGO_SOCKET_TIMEOUT_MS', 15000)),
     queryMaxTimeMs: Math.max(1000, number('MONGO_QUERY_MAX_TIME_MS', 5000)),
     retryAttempts: Math.max(1, Math.min(8, number('MONGO_CONNECT_RETRY_ATTEMPTS', 5))),
     retryDelayMs: Math.max(250, number('MONGO_CONNECT_RETRY_DELAY_MS', 750)),
@@ -241,28 +231,21 @@ const env = {
     mongoReadQueueTimeoutMs: Math.max(250, number('MONGO_READ_QUEUE_TIMEOUT_MS', 1200)),
     listingCacheTtlMs: Math.max(30000, number('LISTING_SNAPSHOT_TTL_MS', 300000)),
     listingCacheStaleMs: Math.max(120000, number('LISTING_SNAPSHOT_STALE_MS', 1800000)),
-    // MongoDB maxTimeMS does not cover a dead network socket. These outer
-    // response deadlines let public pages use stale/degraded data or return a
-    // controlled 503 instead of waiting through multiple driver timeouts.
-    publicCatalogDeadlineMs: Math.max(1500, Math.min(15000, number('PUBLIC_CATALOG_DB_DEADLINE_MS', 6500))),
-    homeBootstrapDeadlineMs: Math.max(750, Math.min(10000, number('HOME_BOOTSTRAP_DEADLINE_MS', 2500))),
-    // Discovery pages may show the last successful public snapshot during a
-    // deployment or short Atlas outage. Booking and payment writes still read
-    // authoritative live inventory and therefore remain fail-closed.
-    publicCatalogEmergencyStaleMs: Math.max(1800000, Math.min(604800000, number('PUBLIC_CATALOG_EMERGENCY_STALE_MS', 86400000))),
   },
   jobs: {
     enabled: booleanFlag('ENABLE_JOBS', NORMALIZED_NODE_ENV === 'production'),
     maxRunMs: Math.max(5000, number('JOB_MAX_RUN_MS', 45000)),
     outboxBatchSize: Math.max(1, Math.min(25, number('OUTBOX_BATCH_SIZE', 8))),
+    commissionReleaseBatchSize: Math.max(10, Math.min(250, number('COMMISSION_RELEASE_BATCH_SIZE', 50))),
+    materializeRuleBatchSize: Math.max(1, Math.min(20, number('MATERIALIZE_RULE_BATCH_SIZE', 6))),
     cleanupExpiredLocks: process.env.JOB_CLEANUP_EXPIRED_LOCKS || '*/5 * * * *',
-    processOutbox: process.env.JOB_PROCESS_OUTBOX || '*/30 * * * * *',
+    processOutbox: safeJobCron('JOB_PROCESS_OUTBOX', '* * * * *', { rejectSeconds: true, reject: ['*/10 * * * * *'] }),
     expirePaymentIntents: process.env.JOB_EXPIRE_PAYMENT_INTENTS || '*/5 * * * *',
     releaseCommission: process.env.JOB_RELEASE_COMMISSION || '*/10 * * * *',
     bookingReminders: process.env.JOB_BOOKING_REMINDERS || '*/15 * * * *',
     expirePromotions: process.env.JOB_EXPIRE_PROMOTIONS || '*/30 * * * *',
     payoutReports: process.env.JOB_PAYOUT_REPORTS || '0 6 * * *',
-    materializeSchedules: process.env.JOB_MATERIALIZE_SCHEDULES || '*/15 * * * *',
+    materializeSchedules: safeJobCron('JOB_MATERIALIZE_SCHEDULES', '*/15 * * * *', { rejectSeconds: true, reject: ['* * * * *', '*/1 * * * *'] }),
     dispatchTaxiRides: process.env.JOB_DISPATCH_TAXI_RIDES || '* * * * *',
     expireFlightHolds: process.env.JOB_EXPIRE_FLIGHT_HOLDS || '*/2 * * * *',
     purgeArchivedRecords: process.env.JOB_PURGE_ARCHIVED_RECORDS || '30 4 * * *',
@@ -295,8 +278,12 @@ function validateEnv() {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
   if (env.isProduction) {
-    productionHttpsUrl('APP_URL', env.appUrl);
-    productionHttpsUrl('SITE_URL', env.seo.siteUrl);
+    let appUrl;
+    try { appUrl = new URL(env.appUrl); } catch (error) { throw new Error('APP_URL must be a valid absolute URL'); }
+    if (appUrl.protocol !== 'https:') throw new Error('APP_URL must use HTTPS in production');
+    let siteUrl;
+    try { siteUrl = new URL(env.seo.siteUrl); } catch (error) { throw new Error('SITE_URL must be a valid absolute URL'); }
+    if (siteUrl.protocol !== 'https:') throw new Error('SITE_URL must use HTTPS in production');
   }
   if (env.redis.required && !env.redis.url) {
     throw new Error('REDIS_URL is required when REDIS_REQUIRED=true');
@@ -342,15 +329,15 @@ function validateEnv() {
     if (!activeProvider.callbackUrl) missingPesapal.push('PESAPAL_CALLBACK_URL');
     if (!activeProvider.ipnId && !activeProvider.ipnUrl) missingPesapal.push('PESAPAL_IPN_ID or PESAPAL_IPN_URL');
     if (missingPesapal.length) throw new Error(`Missing Pesapal configuration: ${missingPesapal.join(', ')}`);
-    let pesapalApi;
+    let pesapalApi; let pesapalCallback; let pesapalIpn = null;
     try { pesapalApi = new URL(activeProvider.apiUrl); } catch (error) { throw new Error('PESAPAL_API_URL must be a valid absolute URL'); }
     if (pesapalApi.protocol !== 'https:' || pesapalApi.hostname.toLowerCase() !== 'pay.pesapal.com') throw new Error('Production PESAPAL_API_URL must be https://pay.pesapal.com/v3/api');
-    // Pesapal accepts a public HTTPS callback on a canonical domain, a www
-    // alias, or an infrastructure hostname. Requiring an exact APP_URL host
-    // caused a harmless domain alias to stop the entire Render web service.
-    // Validate transport and destination safety without coupling hostnames.
-    productionHttpsUrl('PESAPAL_CALLBACK_URL', activeProvider.callbackUrl);
-    if (activeProvider.ipnUrl) productionHttpsUrl('PESAPAL_IPN_URL', activeProvider.ipnUrl);
+    try { pesapalCallback = new URL(activeProvider.callbackUrl); } catch (error) { throw new Error('PESAPAL_CALLBACK_URL must be a valid absolute URL'); }
+    if (pesapalCallback.protocol !== 'https:' || pesapalCallback.hostname.toLowerCase() !== appUrl.hostname.toLowerCase()) throw new Error('PESAPAL_CALLBACK_URL must use HTTPS on the APP_URL host');
+    if (activeProvider.ipnUrl) {
+      try { pesapalIpn = new URL(activeProvider.ipnUrl); } catch (error) { throw new Error('PESAPAL_IPN_URL must be a valid absolute URL'); }
+      if (pesapalIpn.protocol !== 'https:' || pesapalIpn.hostname.toLowerCase() !== appUrl.hostname.toLowerCase()) throw new Error('PESAPAL_IPN_URL must use HTTPS on the APP_URL host');
+    }
     if (!['GET', 'POST'].includes(String(activeProvider.notificationType || '').toUpperCase())) throw new Error('PESAPAL_NOTIFICATION_TYPE must be GET or POST');
   } else if (env.isProduction) {
     const missingProvider = [];

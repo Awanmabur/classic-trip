@@ -77,41 +77,15 @@ const scheduledTasks = new Map();
 const lastRuns = new Map();
 const runningJobs = new Map();
 const pendingLaunchTimers = new Set();
-let missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
-let missedExecutionFlushTimer = null;
-
-function recordMissedExecution(name, context = {}) {
-  missedExecutionSummary.total += 1;
-  missedExecutionSummary.byJob[name] = Number(missedExecutionSummary.byJob[name] || 0) + 1;
-  missedExecutionSummary.lastScheduledAt = context.date?.toISOString?.() || context.date || missedExecutionSummary.lastScheduledAt;
-  if (missedExecutionFlushTimer) return;
-  missedExecutionFlushTimer = setTimeout(() => {
-    const summary = missedExecutionSummary;
-    missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
-    missedExecutionFlushTimer = null;
-    logger.warn('Scheduled executions were skipped while the worker process was paused or blocked', summary);
-  }, 750);
-  missedExecutionFlushTimer.unref?.();
-}
+const queuedJobs = new Set();
+let activeJobName = null;
+let queueDrainScheduled = false;
 
 function jobTimeoutMs(definition = {}) {
   return Math.max(5000, Math.min(Number(env.jobs.maxRunMs || 45000), Math.max(5000, Number(definition.leaseTtlMs || 60000) - 1000)));
 }
 
-function withTimeout(promise, milliseconds, name) {
-  let timer;
-  const timeout = new Promise((resolve, reject) => {
-    timer = setTimeout(() => {
-      const error = new Error(`${name} exceeded the ${milliseconds}ms job deadline`);
-      error.code = 'job_timeout';
-      reject(error);
-    }, milliseconds);
-    timer.unref?.();
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-async function runJob(name) {
+async function executeJob(name) {
   const definition = jobs[name];
   if (!definition) {
     const error = new Error(`Unknown job: ${name}`);
@@ -119,15 +93,8 @@ async function runJob(name) {
     throw error;
   }
   if (runningJobs.has(name)) {
-    return {
-      name,
-      ok: true,
-      skipped: true,
-      reason: 'previous_run_still_active',
-      startedAt: runningJobs.get(name).toISOString(),
-    };
+    return { name, ok: true, skipped: true, reason: 'previous_run_still_active', startedAt: runningJobs.get(name).toISOString() };
   }
-
   if (mongoose.connection.readyState !== 1) {
     const skipped = { name, ok: true, skipped: true, reason: 'mongodb_unavailable' };
     lastRuns.set(name, skipped);
@@ -138,49 +105,64 @@ async function runJob(name) {
   runningJobs.set(name, startedAt);
   let lease = null;
   let stopLeaseHeartbeat = () => {};
+  let slowTimer = null;
   try {
     lease = await jobLeaseService.acquire(name, definition.leaseTtlMs);
-    if (!lease.acquired) {
-      return {
-        name,
-        ok: true,
-        skipped: true,
-        reason: 'distributed_lease_held',
-        leaseBackend: lease.backend,
-      };
-    }
+    if (!lease.acquired) return { name, ok: true, skipped: true, reason: 'distributed_lease_held', leaseBackend: lease.backend };
     stopLeaseHeartbeat = jobLeaseService.keepAlive(lease, definition.leaseTtlMs);
-    const result = await withTimeout(Promise.resolve().then(() => definition.module().run()), jobTimeoutMs(definition), name);
+    const warningMs = jobTimeoutMs(definition);
+    slowTimer = setTimeout(() => logger.warn('Scheduled job is still running; lease remains held until it really finishes', { name, warningMs }), warningMs);
+    slowTimer.unref?.();
+    const result = await Promise.resolve().then(() => definition.module().run());
     const finishedAt = new Date();
-    const status = {
-      name,
-      ok: true,
-      startedAt: startedAt.toISOString(),
-      finishedAt: finishedAt.toISOString(),
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      result,
-      leaseBackend: lease.backend,
-    };
+    const status = { name, ok: true, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), durationMs: finishedAt.getTime() - startedAt.getTime(), result, leaseBackend: lease.backend };
     lastRuns.set(name, status);
     logger.debug('Scheduled job completed', status);
     return status;
   } catch (error) {
     const failedAt = new Date();
-    const status = {
-      name,
-      ok: false,
-      startedAt: startedAt.toISOString(),
-      finishedAt: failedAt.toISOString(),
-      durationMs: failedAt.getTime() - startedAt.getTime(),
-      error: error.message,
-    };
+    const status = { name, ok: false, startedAt: startedAt.toISOString(), finishedAt: failedAt.toISOString(), durationMs: failedAt.getTime() - startedAt.getTime(), error: error.message };
     lastRuns.set(name, status);
     logger.error('Scheduled job failed', status);
     return status;
   } finally {
+    if (slowTimer) clearTimeout(slowTimer);
     stopLeaseHeartbeat();
     if (lease?.acquired) await lease.release().catch(() => {});
     runningJobs.delete(name);
+  }
+}
+
+function scheduleQueueDrain() {
+  if (queueDrainScheduled) return;
+  queueDrainScheduled = true;
+  setImmediate(async () => {
+    queueDrainScheduled = false;
+    if (activeJobName || !queuedJobs.size) return;
+    const name = queuedJobs.values().next().value;
+    queuedJobs.delete(name);
+    await runJob(name);
+  });
+}
+
+async function runJob(name) {
+  if (!jobs[name]) {
+    const error = new Error(`Unknown job: ${name}`);
+    error.status = 404;
+    throw error;
+  }
+  if (activeJobName) {
+    queuedJobs.add(name);
+    const status = { name, ok: true, skipped: true, queued: true, reason: `worker_busy:${activeJobName}` };
+    lastRuns.set(name, status);
+    return status;
+  }
+  activeJobName = name;
+  try {
+    return await executeJob(name);
+  } finally {
+    activeJobName = null;
+    scheduleQueueDrain();
   }
 }
 
@@ -206,14 +188,9 @@ function startScheduledJobs({ force = false, active = true } = {}) {
       timer.unref?.();
       pendingLaunchTimers.add(timer);
     };
-    const taskOptions = { noOverlap: true };
     const task = active
-      ? cron.schedule(expression, launch, taskOptions)
-      : cron.createTask(expression, launch, taskOptions);
-    // node-cron logs once for every missed minute when a development laptop or
-    // container resumes. Registering this listener suppresses that flood and
-    // emits one bounded Classic Trip summary instead.
-    task.on?.('execution:missed', (context) => recordMissedExecution(name, context));
+      ? cron.schedule(expression, launch)
+      : cron.createTask(expression, launch);
     scheduledTasks.set(name, { expression, task, active });
     logger.debug('Scheduled job registered', { name, expression, active });
   });
@@ -229,9 +206,7 @@ function stopScheduledJobs() {
   scheduledTasks.clear();
   pendingLaunchTimers.forEach((timer) => clearTimeout(timer));
   pendingLaunchTimers.clear();
-  if (missedExecutionFlushTimer) clearTimeout(missedExecutionFlushTimer);
-  missedExecutionFlushTimer = null;
-  missedExecutionSummary = { total: 0, byJob: {}, lastScheduledAt: null };
+  queuedJobs.clear();
 }
 
 function jobStatus() {

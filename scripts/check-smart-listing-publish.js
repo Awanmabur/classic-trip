@@ -26,7 +26,7 @@ check(setup.includes('async function smartPreparePublishedDeparture'), 'Smart pu
 check(setup.includes('Driver assignment is optional'), 'Smart publishing must explicitly keep driver assignment optional.');
 check(!setup.includes('await assignableDrivers(companyId)'), 'Smart publishing must not block or auto-assign a driver when none is selected.');
 check(!setup.includes('More than one driver is available'), 'The obsolete multi-driver publication blocker must be removed.');
-check(setup.includes('departureService.generateInventory'), 'Smart publishing must rebuild missing seat-segment inventory from canonical records.');
+check(setup.includes('departureService.repairScheduleInventory') || setup.includes('departureService.generateInventory'), 'Smart publishing must rebuild missing seat-segment inventory from canonical records.');
 check(setup.includes('departureService.publishSchedule'), 'Smart publishing must publish the dated departure before listing activation.');
 check(setup.includes("failure !== 'Publish at least one dated departure'"), 'Smart repair must not bypass unrelated listing readiness failures.');
 check(company.includes('busSetupService.smartPublishBusListing'), 'Company listing publish dispatch must use the smart bus publisher.');

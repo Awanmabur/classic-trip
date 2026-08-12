@@ -65,7 +65,7 @@
       <div class="sheetBody" id="sheetBody">
         <div class="visual">
           <div class="visualHero">
-            <img id="modalImg" src="<%= listing.img || listing.media?.[0]?.url %>" alt="<%= listing.title %>">
+            <img id="modalImg" src="<%= resolveMediaUrl(listing.img, listing.image, listing.coverImage, listing.media) %>" alt="<%= listing.title %>">
             <div class="visualText">
               <h3 id="modalHeroTitle">View structure</h3>
               <p id="modalHeroSub"><%= listing.sub || 'Select available seats, rooms, units, or slots before checkout.' %></p>

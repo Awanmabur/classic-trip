@@ -32,10 +32,10 @@ check('listing schedule query is bounded and date-scoped', snapshot.includes("pa
 check('seat-map inventory limit scales with loaded departures', snapshot.includes('Math.max(1800') && snapshot.includes('scheduleIds.length') && snapshot.includes('* 120'));
 check('listing projection emits partner, inventory, route, badge and price cells', projection.includes("company?.name || listing.partner || '-'") && projection.includes('inventoryLabel') && projection.includes('routeOrLocation') && projection.includes('formatMoney(listingFareFrom'));
 check('legacy schedule listing ownership can be resolved safely', scope.includes('routeListingById') && scope.includes('vehicleListingById') && scope.includes('resolvedListingId'));
-check('vehicle conflicts require operator action instead of timed hot retries', model.includes('materializationRequiresAction') && materializer.includes('requiresAction') && materializer.includes('materializationRequiresAction: true'));
+check('historical vehicle conflict blockers remain model-compatible but are automatically retried', model.includes('materializationRequiresAction') && materializer.includes("startsWith('vehicle_schedule_conflict')") && materializer.includes('blocked: false'));
 check('editing or resuming clears the action blocker', departureService.includes("materializationRequiresAction: ''") && departureService.includes('clearScheduleRuleMaterializationBlocker'));
 check('Mongo outage pauses one global rolling queue', materializer.includes('pauseMongoQueue') && materializer.includes('Rolling departure queue paused because MongoDB is unavailable') && materializer.includes('backgroundQueue.set(key, job)'));
-check('rolling repair scans are no longer five-minute hot scans', materializer.includes('BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000'));
+check('rolling repair scan provides a five-minute safety fallback', materializer.includes('BACKGROUND_REPAIR_INTERVAL_MS = 5 * 60 * 1000'));
 check('scheduled jobs are staggered instead of launching together', scheduler.includes('staggerMs: 4200') && scheduler.includes('pendingLaunchTimers') && scheduler.includes('const launch = () =>'));
 check('seat inventory warning explains missing persisted rows', seatMaps.includes('persisted seat rows are missing') && seatMaps.includes('rebuild only the missing inventory'));
 if (!process.exitCode) console.log(`v1.6.16 preview/worker/listing checks passed (${passed}/18).`);

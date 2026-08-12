@@ -98,8 +98,8 @@ check('Unknown outbox topics still fail visibly', read('src/services/shared/outb
 check('Outbox work uses short pool-friendly batches', outboxJob.includes('env.jobs.outboxBatchSize') && env.includes("number('OUTBOX_BATCH_SIZE', 8)"));
 check('Cron jobs cannot overlap themselves', scheduler.includes('runningJobs.has(name)')
   && scheduler.includes("reason: 'previous_run_still_active'"));
-check('Worker owns the delayed rolling repair queue after deploy', worker.includes('scheduleMaterializer.startWebFallback')
-  && worker.includes('startupDelayMs: 10000')
+check('Worker uses one scheduler without a second private rolling queue', !worker.includes('scheduleMaterializer.startWebFallback')
+  && worker.includes('startScheduledJobs')
   && worker.includes('restoreLegacyDemotedBusListings')
   && worker.includes('setImmediate')
   && !server.includes('restoreLegacyDemotedBusListings'));
@@ -115,9 +115,8 @@ check('Atlas startup and pool queue tolerate transient topology changes', db.inc
   && db.includes('retryAttempts')
   && env.includes('MONGO_SERVER_SELECTION_TIMEOUT_MS')
   && env.includes("Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS'"));
-check('Web process starts no jobs and warms public discovery only after listening', !server.includes('startScheduledJobs')
-  && server.includes('schedulePublicCatalogWarmup')
-  && server.indexOf('app.listen') < server.indexOf('schedulePublicCatalogWarmup();')
+check('Web process does not start jobs or read-model maintenance', !server.includes('startScheduledJobs')
+  && !server.includes('prewarmHome')
   && !server.includes('runStartupReadMaintenance'));
 check('Reverse discovery ignores outbound chronology but rejects departed services',
   !returnSearch.includes('afterDate')

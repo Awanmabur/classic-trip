@@ -12,8 +12,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_VERSION
-        value: 24
       - key: APP_NAME
         value: Classic Trip
       - key: APP_URL
@@ -51,7 +49,7 @@ services:
       - key: MONGO_CONNECT_TIMEOUT_MS
         value: "5000"
       - key: MONGO_SOCKET_TIMEOUT_MS
-        value: "8000"
+        value: "15000"
       - key: MONGO_QUERY_MAX_TIME_MS
         value: "5000"
       - key: MONGO_CONNECT_RETRY_ATTEMPTS
@@ -76,12 +74,6 @@ services:
         value: "300000"
       - key: LISTING_SNAPSHOT_STALE_MS
         value: "1800000"
-      - key: PUBLIC_CATALOG_DB_DEADLINE_MS
-        value: "6500"
-      - key: HOME_BOOTSTRAP_DEADLINE_MS
-        value: "2500"
-      - key: PUBLIC_CATALOG_EMERGENCY_STALE_MS
-        value: "86400000"
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -195,8 +187,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_VERSION
-        value: 24
       - key: APP_URL
         fromService:
           type: web
@@ -229,11 +219,9 @@ services:
       - key: MONGO_CONNECT_TIMEOUT_MS
         value: "5000"
       - key: MONGO_SOCKET_TIMEOUT_MS
-        value: "8000"
+        value: "15000"
       - key: MONGO_QUERY_MAX_TIME_MS
         value: "5000"
-      - key: PUBLIC_CATALOG_EMERGENCY_STALE_MS
-        value: "86400000"
       - key: MONGO_CONNECT_RETRY_ATTEMPTS
         value: "5"
       - key: MONGO_CONNECT_RETRY_DELAY_MS
@@ -283,7 +271,7 @@ services:
       - key: ENABLE_JOBS
         value: "true"
       - key: JOB_PROCESS_OUTBOX
-        value: "*/30 * * * * *"
+        value: "* * * * *"
       - key: JOB_MAX_RUN_MS
         value: "45000"
       - key: OUTBOX_BATCH_SIZE

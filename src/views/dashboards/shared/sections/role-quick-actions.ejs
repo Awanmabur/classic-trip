@@ -1,15 +1,15 @@
 <% if(isDriverDashboard){ %>
-<% if(shellHasRealPage('driver-ops')){ %><a class="quickCard" href="<%= shellActionHref('driver-ops', 'driver trip update', 'create') %>"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Log trip update</strong><span>Update only a trip assigned to you or your assigned vehicle.</span></a><% } %>
+<button class="quickCard" data-modal="create" data-type="driver trip update"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Log trip update</strong><span>Update only a trip assigned to you or your assigned vehicle.</span></button>
 <a class="quickCard" href="/driver/dashboard/driver-manifest"><div class="quickIcon"><i class="fa-solid fa-list-check"></i></div><strong>Open manifest</strong><span>Review passengers and seat state for assigned trips.</span></a>
-<% if(shellHasRealPage('driver-incidents')){ %><a class="quickCard" href="<%= shellActionHref('driver-incidents', 'driver incident', 'create') %>"><div class="quickIcon"><i class="fa-solid fa-triangle-exclamation"></i></div><strong>Report incident</strong><span>Create a protected safety or operational report.</span></a><% } %>
-<% if(shellHasRealPage('handover')){ %><a class="quickCard" href="<%= shellActionHref('handover', 'handover', 'create') %>"><div class="quickIcon"><i class="fa-solid fa-clipboard-list"></i></div><strong>Shift handover</strong><span>Leave vehicle, route and passenger notes for the next shift.</span></a><% } %>
+<button class="quickCard" data-modal="create" data-type="driver incident"><div class="quickIcon"><i class="fa-solid fa-triangle-exclamation"></i></div><strong>Report incident</strong><span>Create a protected safety or operational report.</span></button>
+<button class="quickCard" data-modal="create" data-type="handover"><div class="quickIcon"><i class="fa-solid fa-clipboard-list"></i></div><strong>Shift handover</strong><span>Leave vehicle, route and passenger notes for the next shift.</span></button>
 <% } else if(isCustomerDashboard){ %>
 <a class="quickCard" href="/search"><div class="quickIcon"><i class="fa-solid fa-magnifying-glass"></i></div><strong>Book a trip</strong><span>Search every live Classic Trip service.</span></a>
 <a class="quickCard" href="/account/bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>My bookings</strong><span>Review tickets, stays and travel status.</span></a>
 <a class="quickCard" href="/account/support"><div class="quickIcon"><i class="fa-solid fa-headset"></i></div><strong>Get support</strong><span>Open or follow a travel support case.</span></a>
 <a class="quickCard" href="/account/profile"><div class="quickIcon"><i class="fa-solid fa-user-gear"></i></div><strong>Traveler profile</strong><span>Keep contact and passenger details current.</span></a>
 <% } else if(isPromoterDashboard){ %>
-<a class="quickCard" href="<%= shellActionHref('links', 'promoter link', 'create') %>"><div class="quickIcon"><i class="fa-solid fa-link"></i></div><strong>Create referral link</strong><span>Choose a published listing and generate tracked sharing assets.</span></a>
+<button class="quickCard" data-modal="create" data-type="promoter link"><div class="quickIcon"><i class="fa-solid fa-link"></i></div><strong>Create referral link</strong><span>Choose a published listing and generate tracked sharing assets.</span></button>
 <a class="quickCard" href="/promoter/share"><div class="quickIcon"><i class="fa-solid fa-share-nodes"></i></div><strong>Share listings</strong><span>Browse services available for promotion.</span></a>
 <a class="quickCard" href="/promoter/commissions"><div class="quickIcon"><i class="fa-solid fa-coins"></i></div><strong>Commissions</strong><span>Review attributed bookings and earnings.</span></a>
 <a class="quickCard" href="/promoter/withdrawals"><div class="quickIcon"><i class="fa-solid fa-wallet"></i></div><strong>Withdrawals</strong><span>Request or review a payout.</span></a>
@@ -24,7 +24,7 @@
 <a class="quickCard" href="/finance/dashboard/refunds"><div class="quickIcon"><i class="fa-solid fa-rotate-left"></i></div><strong>Refunds</strong><span>Review financial reversals and risk.</span></a>
 <a class="quickCard" href="/finance/dashboard/reports"><div class="quickIcon"><i class="fa-solid fa-chart-pie"></i></div><strong>Finance reports</strong><span>Export scoped financial summaries.</span></a>
 <% } else if(isOperationsDashboard){ %>
-<a class="quickCard" href="<%= shellActionHref('bookings', 'booking', 'create') %>"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Create an assisted booking from live inventory.</span></a>
+<button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Create an assisted booking from live inventory.</span></button>
 <a class="quickCard" href="/operations/dashboard/schedules"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Schedules</strong><span>Review current departure operations.</span></a>
 <a class="quickCard" href="/operations/dashboard/inventory"><div class="quickIcon"><i class="fa-solid fa-boxes-stacked"></i></div><strong>Inventory</strong><span>Review operational inventory state.</span></a>
 <a class="quickCard" href="/operations/dashboard/support"><div class="quickIcon"><i class="fa-solid fa-triangle-exclamation"></i></div><strong>Escalations</strong><span>Open operational support follow-up.</span></a>

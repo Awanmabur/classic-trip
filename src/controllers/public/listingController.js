@@ -10,6 +10,7 @@ const busBookingDraftService = require('../../modules/bus/services/busBookingDra
 const { SERVICE_REGISTRY, COMING_SOON_SERVICE_TYPES } = require('../../config/serviceRegistry');
 const hotelInventoryService = require('../../services/hotel/hotelInventoryService');
 const seoService = require('../../services/seo/seoService');
+const { resolveMediaUrl, mediaUrl } = require('../../utils/mediaUrl');
 
 function normalize(value) { return String(value || '').toLowerCase().trim(); }
 function seoText(value, max = 160) {
@@ -22,7 +23,7 @@ function listingSeo(context = {}) {
   const canonicalUrl = seoService.absoluteUrl(publicPath);
   const title = `${listing.title || listing.name || 'Travel service'} | Classic Trip`;
   const description = seoText(listing.shortDescription || listing.description || listing.sub || `${listing.typeLabel || 'Travel service'} from ${company.name || listing.companyName || 'a verified Classic Trip partner'}${listing.routeLabel ? ` on ${listing.routeLabel}` : ''}. Check live availability and book securely.`, 165);
-  const image = listing.img || listing.image || listing.media?.[0]?.url || company.coverImage?.url || company.logo?.url || '';
+  const image = resolveMediaUrl(listing.img, listing.image, listing.coverImage, listing.media, company.coverImage, company.logo);
   const price = Number(listing.priceFrom || listing.price || 0);
   const currency = String(listing.currency || '').toUpperCase();
   const provider = { '@type': 'Organization', name: company.name || listing.companyName || listing.partner || 'Classic Trip partner' };
@@ -64,7 +65,7 @@ function listingSeo(context = {}) {
 }
 function companySeo(company = {}) {
   const path = `/companies/${company.slug || company.id}`;
-  const image = company.coverImage?.url || company.logo?.url || '';
+  const image = resolveMediaUrl(company.coverImage, company.logo);
   const description = seoText(company.description || `Explore verified travel services, routes and booking options from ${company.name || 'this Classic Trip partner'} on Classic Trip.`, 165);
   return {
     title: `${company.name || 'Verified travel partner'} | Classic Trip`,
@@ -78,7 +79,7 @@ function companySeo(company = {}) {
       url: seoService.absoluteUrl(path),
       description,
       image: image || undefined,
-      logo: company.logo?.url || undefined,
+      logo: mediaUrl(company.logo) || undefined,
       telephone: company.supportContacts?.phone || undefined,
       email: company.supportContacts?.email || undefined,
       areaServed: [company.city, company.country].filter(Boolean),
@@ -396,7 +397,16 @@ async function bookingForm(req, res, next) {
       selectedOriginStopId: source.originStopId || context.availability?.journey?.originStopId || '',
       selectedDestinationStopId: source.destinationStopId || context.availability?.journey?.destinationStopId || '',
     });
-  } catch (error) { return next(error); }
+  } catch (error) {
+    if (String(error?.code || '') === 'booking_draft_expired') {
+      if (req.flash) req.flash('warning', 'Your secure seat hold expired. Please choose the journey and seats again.');
+      const serviceType = encodeURIComponent(String(req.params.serviceType || 'bus'));
+      const slug = encodeURIComponent(String(req.params.slug || ''));
+      const ref = String(req.query?.ref || req.cookies?.ct_ref || '').trim();
+      return res.redirect(303, `/listings/${serviceType}/${slug}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`);
+    }
+    return next(error);
+  }
 }
 
 function ticketIsReady(booking = {}) {

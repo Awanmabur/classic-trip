@@ -5,7 +5,7 @@
   <section class="card profileHero">
     <div>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <% if (company.logo.url) { %><img class="profileLogo" src="<%= company.logo.url %>" alt="<%= company.name %> logo"><% } else { %><span class="profileLogo" style="display:grid;place-items:center"><i class="fa-solid fa-building"></i></span><% } %>
+        <% const companyLogoUrl = mediaUrl(company.logo); if (companyLogoUrl) { %><img class="profileLogo" src="<%= companyLogoUrl %>" alt="<%= company.name %> logo"><% } else { %><span class="profileLogo" style="display:grid;place-items:center"><i class="fa-solid fa-building"></i></span><% } %>
         <div>
           <span class="badge <%= company.verificationStatus === 'verified' ? 'badgeOk' : 'badgeWarn' %>"><i class="fa-solid fa-shield-halved"></i> <%= company.verificationStatus %></span>
           <h1 class="heroTitle" style="margin-top:8px"><%= company.name %></h1>

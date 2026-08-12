@@ -25,7 +25,7 @@
         <p class="muted">Approved partners will appear here as soon as their public services are ready for booking.</p>
       </article>
     <% } %>
-    <% companies.forEach(company => { const coverUrl = company.coverImage && company.coverImage.url; const logoUrl = company.logo && company.logo.url; %>
+    <% companies.forEach(company => { const coverUrl = mediaUrl(company.coverImage); const logoUrl = mediaUrl(company.logo); %>
       <article class="listing marketplaceListingCard partnerDirectoryCard">
         <a class="listingThumbLink" href="/companies/<%= company.slug %>" aria-label="View <%= company.name %>">
           <div class="thumb">

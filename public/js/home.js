@@ -237,7 +237,7 @@
     const isCargo = type === 'cargo';
     const icon = serviceIcons[type] || 'fa-ticket';
     const badge = availabilityBadge(item);
-    const image = safeImageUrl(item.img || item.image || item.media?.[0]?.url || '');
+    const image = safeImageUrl(item.img || item.image || item.media?.[0]?.secureUrl || item.media?.[0]?.url || '');
     const route = routeDisplay(item.from, item.to, item.routeLabel);
     const place = (isBus || isFlight || isCargo) ? (route || item.location || item.city || 'Route information') : (item.location || item.city || route || (isTaxi ? 'Service zone' : isTour ? 'Meeting area' : isRental ? 'Pickup location' : 'Property location'));
     const rating = Number(item.ratingAverage || item.rating);
@@ -258,7 +258,7 @@
     return `<article class="listing marketplaceListingCard serviceCard serviceCard--${escapeHtml(type)}${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-catalog-key="${escapeHtml(key)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
       <a class="listingThumbLink" href="${escapeHtml(listingUrl(item))}" aria-label="View ${escapeHtml(item.title || 'service')}">
         <div class="thumb">
-          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.imageAlt || item.title || 'Service image')}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || 'Service image')}" loading="lazy" decoding="async">` : '<div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div>'}
           <div class="thumbBadges"><span class="badge badgeOk"><i class="fa-solid fa-star"></i> ${escapeHtml(ratingText)}</span><span class="badge badgeInfo"><i class="fa-solid ${escapeHtml(icon)}"></i> ${escapeHtml(item.typeLabel || (isBus ? 'Bus' : isHotel ? 'Stay' : isFlight ? 'Flight' : isTaxi ? 'Local taxi' : isTour ? 'Tour' : isRental ? 'Car rental' : isCargo ? 'Cargo' : 'Service'))}</span></div>
         </div>
       </a>

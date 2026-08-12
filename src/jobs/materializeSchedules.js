@@ -2,8 +2,10 @@ const busOperationsRepository = require('../repositories/domain/busOperationsRep
 const repositories = require('../repositories');
 const companyService = require('../services/company/companyService');
 const busDepartureService = require('../modules/bus/services/busDepartureService');
+const { parseDurationMinutes } = require('../modules/bus/domain/busDomain');
 const jobLeaseService = require('../services/shared/jobLeaseService');
 const logger = require('../config/logger');
+const { env } = require('../config/env');
 
 // Keep exactly one rolling month of dated departures. Today plus the following
 // 29 calendar days is a 30-day window; tomorrow's run adds one new far-end day.
@@ -11,13 +13,12 @@ const ROLLING_WINDOW_DAYS = 30;
 const HORIZON_DAYS = ROLLING_WINDOW_DAYS - 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RULE_LEASE_TTL_MS = 20 * 60 * 1000;
-const BACKGROUND_BATCH_SIZE = 1;
-const BACKGROUND_REPAIR_INTERVAL_MS = 30 * 60 * 1000;
-const BACKGROUND_BATCH_PAUSE_MS = 2000;
+const BACKGROUND_BATCH_SIZE = ROLLING_WINDOW_DAYS;
+const BACKGROUND_REPAIR_INTERVAL_MS = 60 * 60 * 1000;
+const BACKGROUND_BATCH_PAUSE_MS = 50;
 const PUBLICATION_BLOCKER_COOLDOWN_MS = 5 * 60 * 1000;
 const VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS = 15 * 60 * 1000;
-const FULL_WINDOW_CONFLICT_RECHECK_MS = 6 * 60 * 60 * 1000;
-const ROLLING_CONFLICT_LOG_COOLDOWN_MS = 30 * 60 * 1000;
+const ROLLING_CONFLICT_LOG_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const backgroundQueue = new Map();
 const rollingCacheInvalidationTimers = new Map();
 const publicationBlockerCooldown = new Map();
@@ -34,6 +35,226 @@ let mongoQueuePauseLoggedUntil = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+
+function dateKey(value) {
+  const parsed = value ? new Date(value) : null;
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : '';
+}
+
+function normalizedRuleList(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))].sort();
+}
+
+function exactRollingRuleSignature(rule = {}) {
+  return JSON.stringify({
+    companyId: String(rule.companyId || ''),
+    listingId: String(rule.listingId || ''),
+    routeId: String(rule.routeId || ''),
+    vehicleId: String(rule.vehicleId || ''),
+    seatMapVersionId: String(rule.seatMapVersionId || ''),
+    fareProductId: String(rule.fareProductId || ''),
+    departureTime: String(rule.departureTime || ''),
+    daysOfWeek: normalizedRuleList(rule.daysOfWeek).map(Number).sort((a, b) => a - b),
+    startDate: dateKey(rule.startDate),
+    endDate: dateKey(rule.endDate),
+    durationMinutes: Number(rule.durationMinutes || 0),
+    fareClass: String(rule.fareClass || ''),
+    blockedSeats: normalizedRuleList(rule.blockedSeats),
+    driverIds: normalizedRuleList(rule.driverIds),
+  });
+}
+
+function rollingRuleCreatedTime(rule = {}) {
+  const value = new Date(rule.createdAt || 0).getTime();
+  return Number.isFinite(value) ? value : 0;
+}
+
+function recurringMinutes(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+  return (hour * 60) + minute;
+}
+
+function recurringDaysOverlap(left = {}, right = {}) {
+  const a = Array.isArray(left.daysOfWeek) && left.daysOfWeek.length ? new Set(left.daysOfWeek.map(Number)) : new Set([0,1,2,3,4,5,6]);
+  const b = Array.isArray(right.daysOfWeek) && right.daysOfWeek.length ? new Set(right.daysOfWeek.map(Number)) : new Set([0,1,2,3,4,5,6]);
+  return [...a].some((day) => b.has(day));
+}
+
+function recurringDateRangesOverlap(left = {}, right = {}) {
+  const aStart = startOfDay(left.startDate || 0).getTime();
+  const bStart = startOfDay(right.startDate || 0).getTime();
+  const aEnd = left.endDate ? startOfDay(left.endDate).getTime() : Number.POSITIVE_INFINITY;
+  const bEnd = right.endDate ? startOfDay(right.endDate).getTime() : Number.POSITIVE_INFINITY;
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+function recurringTimesOverlap(left = {}, right = {}) {
+  const aStart = recurringMinutes(left.departureTime);
+  const bStart = recurringMinutes(right.departureTime);
+  if (aStart === null || bStart === null) return false;
+  const aDuration = Math.max(1, Number(left.durationMinutes || 0));
+  const bDuration = Math.max(1, Number(right.durationMinutes || 0));
+  for (const shiftedB of [bStart - 1440, bStart, bStart + 1440]) {
+    if (aStart < shiftedB + bDuration && shiftedB < aStart + aDuration) return true;
+  }
+  return false;
+}
+
+function sameRecurringService(left = {}, right = {}) {
+  return String(left.companyId || '') === String(right.companyId || '')
+    && String(left.listingId || '') === String(right.listingId || '')
+    && String(left.routeId || '') === String(right.routeId || '')
+    && String(left.vehicleId || '') === String(right.vehicleId || '');
+}
+
+async function pauseDormantOverlappingRules(activeRules = [], now = new Date()) {
+  // A partner can accidentally create a second rolling rule a few minutes away
+  // from an existing rule for the same route and physical vehicle. If the newer
+  // rule owns no future departures, it is redundant setup noise, not a second
+  // service. Pause it once instead of scanning/conflicting against all 30 dates.
+  const rules = [...(activeRules || [])];
+  for (const rule of rules) {
+    // eslint-disable-next-line no-await-in-loop
+    await hydrateLegacyRuleDuration(rule);
+  }
+  rules.sort((a, b) => rollingRuleCreatedTime(a) - rollingRuleCreatedTime(b) || String(a.id || '').localeCompare(String(b.id || '')));
+  const kept = [];
+  const pausedIds = new Set();
+  for (const candidate of rules) {
+    const canonical = kept.find((existing) => sameRecurringService(existing, candidate)
+      && recurringDaysOverlap(existing, candidate)
+      && recurringDateRangesOverlap(existing, candidate)
+      && recurringTimesOverlap(existing, candidate));
+    if (!canonical) {
+      kept.push(candidate);
+      continue;
+    }
+    // Never auto-pause a rule that already owns future inventory. That may carry
+    // bookings and requires an operator decision. The repair only removes a
+    // dormant duplicate that has not created a real future trip.
+    // eslint-disable-next-line no-await-in-loop
+    const futureCount = await busOperationsRepository.schedules.count({
+      companyId: candidate.companyId,
+      scheduleRuleId: candidate.id,
+      status: { $nin: ['archived', 'cancelled', 'completed'] },
+      departAt: { $gt: now },
+    });
+    if (Number(futureCount || 0) > 0) {
+      kept.push(candidate);
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await busOperationsRepository.scheduleRules.updateOne({ id: candidate.id, companyId: candidate.companyId, status: 'active' }, {
+      $set: {
+        status: 'paused',
+        statusReason: `Automatically paused because it overlaps recurring rule ${canonical.id} for the same route and vehicle`,
+        updatedBy: 'rolling-rule-normalizer',
+        updatedAt: new Date().toISOString(),
+        materializationStateUpdatedAt: new Date().toISOString(),
+      },
+      $unset: {
+        materializationBlockedAt: '',
+        materializationBlockedUntil: '',
+        materializationBlockerCode: '',
+        materializationBlockerReason: '',
+        materializationBlockerFailures: '',
+        materializationBlockerRuleIds: '',
+        materializationRequiresAction: '',
+      },
+    });
+    pausedIds.add(String(candidate.id || ''));
+    logger.warn('Paused redundant overlapping recurring rule', {
+      companyId: candidate.companyId,
+      pausedRuleId: candidate.id,
+      canonicalRuleId: canonical.id,
+      routeId: candidate.routeId,
+      vehicleId: candidate.vehicleId,
+    });
+  }
+  return rules.filter((rule) => !pausedIds.has(String(rule.id || '')));
+}
+
+async function hydrateLegacyRuleDuration(rule = {}) {
+  const currentDuration = Number(rule.durationMinutes || 0);
+  if (currentDuration > 0 || !rule.routeId || !rule.companyId) return rule;
+  const route = await busOperationsRepository.routes.findOne({ id: rule.routeId, companyId: rule.companyId });
+  if (!route) return rule;
+  const routeDuration = Number(route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0);
+  if (!(routeDuration > 0)) return rule;
+  await busOperationsRepository.scheduleRules.updateOne({ id: rule.id, companyId: rule.companyId }, {
+    $set: {
+      durationMinutes: routeDuration,
+      materializationStateUpdatedAt: new Date().toISOString(),
+    },
+  });
+  rule.durationMinutes = routeDuration;
+  return rule;
+}
+
+async function pauseDormantExactDuplicateRules(activeRules = [], now = new Date()) {
+  const groups = new Map();
+  (activeRules || []).forEach((rule) => {
+    const signature = exactRollingRuleSignature(rule);
+    if (!groups.has(signature)) groups.set(signature, []);
+    groups.get(signature).push(rule);
+  });
+  const pausedIds = new Set();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => rollingRuleCreatedTime(a) - rollingRuleCreatedTime(b) || String(a.id || '').localeCompare(String(b.id || '')));
+    const canonical = group[0];
+    for (const duplicate of group.slice(1)) {
+      // Only auto-pause a provably redundant legacy rule that owns no live
+      // future departures. Anything with its own dated inventory is left for an
+      // operator because moving/deleting booked schedules automatically is unsafe.
+      // eslint-disable-next-line no-await-in-loop
+      const futureCount = await busOperationsRepository.schedules.count({
+        companyId: duplicate.companyId,
+        scheduleRuleId: duplicate.id,
+        status: { $nin: ['archived', 'cancelled', 'completed'] },
+        departAt: { $gt: now },
+      });
+      if (Number(futureCount || 0) > 0) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await busOperationsRepository.scheduleRules.updateOne({ id: duplicate.id, companyId: duplicate.companyId, status: 'active' }, {
+        $set: {
+          status: 'paused',
+          updatedBy: 'rolling-rule-normalizer',
+          updatedAt: new Date().toISOString(),
+          materializationStateUpdatedAt: new Date().toISOString(),
+        },
+        $unset: {
+          materializationBlockedAt: '',
+          materializationBlockedUntil: '',
+          materializationBlockerCode: '',
+          materializationBlockerReason: '',
+          materializationBlockerFailures: '',
+          materializationBlockerRuleIds: '',
+          materializationRequiresAction: '',
+        },
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await busOperationsRepository.audit({
+        actorId: 'rolling-rule-normalizer',
+        action: 'bus.schedule_rule.legacy_duplicate_paused',
+        targetId: duplicate.id,
+        meta: { companyId: duplicate.companyId, canonicalRuleId: canonical.id },
+      }).catch(() => null);
+      pausedIds.add(String(duplicate.id || ''));
+      logger.warn('Paused dormant duplicate recurring rule; canonical rolling rule remains active', {
+        companyId: duplicate.companyId,
+        duplicateRuleId: duplicate.id,
+        canonicalRuleId: canonical.id,
+      });
+    }
+  }
+  return (activeRules || []).filter((rule) => !pausedIds.has(String(rule.id || '')));
 }
 
 function invalidateRollingDashboardCaches(companyId) {
@@ -68,69 +289,24 @@ function invalidateRollingDashboardCaches(companyId) {
 
 function startOfDay(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return date;
-  const literal = typeof value === 'string' ? String(value).match(/^(\d{4})-(\d{2})-(\d{2})/) : null;
-  if (literal) return new Date(Date.UTC(Number(literal[1]), Number(literal[2]) - 1, Number(literal[3])));
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 
-function safeTimeZone(value) {
-  const requested = String(value || '').trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Kampala';
-  try {
-    new Intl.DateTimeFormat('en-CA', { timeZone: requested }).format(new Date());
-    return requested;
-  } catch (_) {
-    return 'Africa/Kampala';
-  }
-}
-
-function zonedParts(value, timeZone) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: safeTimeZone(timeZone),
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(value));
-  return Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, Number(part.value)]));
-}
-
-function calendarDateKey(value, timeZone) {
-  const parts = zonedParts(value, timeZone);
-  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
-}
-
-function calendarDate(value) {
-  const key = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)
-    ? value.slice(0, 10)
-    : new Date(value).toISOString().slice(0, 10);
-  return new Date(`${key}T00:00:00.000Z`);
-}
-
-function combineDateAndTime(date, timeString, timeZone) {
+function combineDateAndTime(date, timeString) {
   const [hours, minutes] = String(timeString || '00:00').split(':').map(Number);
-  const [year, month, day] = calendarDate(date).toISOString().slice(0, 10).split('-').map(Number);
-  const requestedUtc = Date.UTC(year, month - 1, day, Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
-  const zone = safeTimeZone(timeZone);
-  let candidate = requestedUtc;
-  // Derive the IANA offset at the requested wall-clock time. A second pass
-  // handles offset boundaries without binding recurrence dates to server TZ.
-  for (let pass = 0; pass < 2; pass += 1) {
-    const parts = zonedParts(candidate, zone);
-    const representedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0);
-    candidate += requestedUtc - representedUtc;
-  }
-  return new Date(candidate);
+  const combined = new Date(date);
+  combined.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return combined;
 }
 
 function isMongoUnavailable(error = {}) {
   const status = Number(error.status || 0);
   const code = String(error.code || '').toLowerCase();
-  const name = String(error.name || '').toLowerCase();
   const message = String(error.message || error || '');
   return code === 'mongodb_unavailable'
     || status === 503
-    || /mongonetwork|mongoserverselection|mongowaitqueue/i.test(name)
-    || /mongodb is unavailable|server selection|getaddrinfo|enotfound|connection pool|wait queue|connection \d+ to [^ ]+:\d+ timed out|socket timed out/i.test(message);
+    || /mongodb is unavailable|server selection|getaddrinfo|enotfound|connection pool|wait queue/i.test(message);
 }
 
 function isTransientFailure(error = {}) {
@@ -147,7 +323,6 @@ function pauseMongoQueue(error = {}) {
   if (mongoQueuePauseLoggedUntil < mongoQueuePauseUntil) {
     mongoQueuePauseLoggedUntil = mongoQueuePauseUntil;
     logger.warn('Rolling departure queue paused because MongoDB is unavailable', {
-      process: process.env.CLASSIC_TRIP_PROCESS_ROLE || 'app',
       queuedRules: backgroundQueue.size,
       retryAt: new Date(mongoQueuePauseUntil).toISOString(),
       error: String(error.message || error || 'MongoDB unavailable'),
@@ -187,7 +362,7 @@ function activePersistentBlocker(rule = {}, now = new Date()) {
   // the whole 30-day rolling window; the materializer rechecks each date and
   // continues to later dates that are free. Older persisted vehicle blockers
   // from v1.6.32 are therefore treated as advisory only.
-  if (rule.materializationBlockerCode === 'vehicle_schedule_conflict') return null;
+  if (String(rule.materializationBlockerCode || '').startsWith('vehicle_schedule_conflict')) return null;
   const requiresAction = rule.materializationRequiresAction === true;
   if (!rule.materializationBlockerCode) return null;
   // Every persisted rolling blocker is time-bounded. A vehicle overlap may be
@@ -205,87 +380,6 @@ function activePersistentBlocker(rule = {}, now = new Date()) {
     requiresAction,
     ruleIds: Array.isArray(rule.materializationBlockerRuleIds) ? rule.materializationBlockerRuleIds.filter(Boolean) : [],
   };
-}
-
-async function persistVehicleConflictBlocker(rule, failures = []) {
-  const conflicts = vehicleConflictFailures(failures);
-  if (!conflicts.length) return { blocked: false, persisted: false };
-  // Re-read before writing because the queue and cron can discover the same rule.
-  // Never extend an existing active blocker: one deterministic overlap gets one
-  // cooldown window until the operator edits/resumes the rule.
-  const current = await busOperationsRepository.scheduleRules.findOne({ id: rule.id, companyId: rule.companyId });
-  const existingBlocker = activePersistentBlocker(current || rule, new Date());
-  if (existingBlocker) {
-    return {
-      blocked: true,
-      persisted: false,
-      blockedUntil: existingBlocker.until.toISOString(),
-      failures: existingBlocker.failures.length ? existingBlocker.failures : conflicts.slice(0, 8),
-    };
-  }
-  const blockedUntil = new Date(Date.now() + VEHICLE_CONFLICT_BLOCKER_COOLDOWN_MS).toISOString();
-  const updateResult = await busOperationsRepository.scheduleRules.updateOne({
-    id: rule.id,
-    companyId: rule.companyId,
-    $or: [
-      { materializationBlockedUntil: { $exists: false } },
-      { materializationBlockedUntil: null },
-      { materializationBlockedUntil: { $lte: new Date() } },
-    ],
-  }, {
-    $set: {
-      materializationBlockedAt: new Date().toISOString(),
-      materializationBlockedUntil: blockedUntil,
-      materializationBlockerCode: 'vehicle_schedule_conflict',
-      materializationBlockerReason: conflicts[0],
-      materializationBlockerFailures: conflicts.slice(0, 8),
-      materializationRequiresAction: true,
-      materializationStateUpdatedAt: new Date().toISOString(),
-    },
-  });
-  if (!Number(updateResult?.matchedCount || updateResult?.n || 0)) {
-    const winner = await busOperationsRepository.scheduleRules.findOne({ id: rule.id, companyId: rule.companyId });
-    const winnerBlocker = activePersistentBlocker(winner || {}, new Date());
-    if (winnerBlocker) return {
-      blocked: true,
-      persisted: false,
-      blockedUntil: winnerBlocker.until.toISOString(),
-      failures: winnerBlocker.failures.length ? winnerBlocker.failures : conflicts.slice(0, 8),
-    };
-  }
-  return { blocked: true, persisted: true, blockedUntil, failures: conflicts.slice(0, 8) };
-}
-
-
-async function persistFullWindowVehicleConflictBlocker(rule, { conflictRuleIds = [], failures = [], scannedMissingDates = 0 } = {}) {
-  const blockerRuleIds = [...new Set((conflictRuleIds || []).map((value) => String(value || '').trim()).filter(Boolean))];
-  if (!blockerRuleIds.length || !scannedMissingDates) return { blocked: false, persisted: false };
-  const blockedUntil = new Date(Date.now() + FULL_WINDOW_CONFLICT_RECHECK_MS).toISOString();
-  const reason = blockerRuleIds.length === 1
-    ? `Every missing rolling departure conflicts with departures generated by recurring rule ${blockerRuleIds[0]}. Assign another vehicle, move this departure time, or resolve the blocking rule and its already-created departures.`
-    : `Every missing rolling departure conflicts with departures generated by recurring rules ${blockerRuleIds.join(', ')}. Resolve the vehicle/time overlap and any already-created departures before this rule can materialize.`;
-  await busOperationsRepository.scheduleRules.updateOne(
-    { id: rule.id, companyId: rule.companyId },
-    {
-      $set: {
-        materializationBlockedAt: new Date().toISOString(),
-        materializationBlockedUntil: blockedUntil,
-        materializationBlockerCode: 'vehicle_schedule_conflict_window',
-        materializationBlockerReason: reason,
-        materializationBlockerFailures: (failures || []).slice(0, 8),
-        materializationBlockerRuleIds: blockerRuleIds,
-        materializationRequiresAction: true,
-        materializationStateUpdatedAt: new Date().toISOString(),
-      },
-    },
-  );
-  rule.materializationBlockedUntil = blockedUntil;
-  rule.materializationBlockerCode = 'vehicle_schedule_conflict_window';
-  rule.materializationBlockerReason = reason;
-  rule.materializationBlockerFailures = (failures || []).slice(0, 8);
-  rule.materializationBlockerRuleIds = blockerRuleIds;
-  rule.materializationRequiresAction = true;
-  return { blocked: true, persisted: true, blockedUntil, failures: (failures || []).slice(0, 8), reason, blockerRuleIds };
 }
 
 async function clearExpiredOrResolvedBlocker(rule) {
@@ -306,13 +400,11 @@ async function clearExpiredOrResolvedBlocker(rule) {
 
 function matchingFutureDates(rule, cursor, windowEnd, now) {
   const dates = [];
-  let day = calendarDate(cursor);
-  const end = calendarDate(windowEnd);
-  const timeZone = safeTimeZone(rule.timezone);
-  while (day <= end) {
-    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getUTCDay());
+  let day = new Date(cursor);
+  while (day <= windowEnd) {
+    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getDay());
     if (matchesWeekday) {
-      const departAt = combineDateAndTime(day, rule.departureTime, timeZone);
+      const departAt = combineDateAndTime(day, rule.departureTime);
       if (departAt.getTime() > now.getTime()) dates.push(departAt);
     }
     day = new Date(day.getTime() + DAY_MS);
@@ -335,7 +427,7 @@ function rollingTargetDepartureCount(rule = {}) {
   let count = 0;
   let day = new Date(ruleStart);
   while (day <= cappedEnd) {
-    if (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getUTCDay())) count += 1;
+    if (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(day.getDay())) count += 1;
     day = new Date(day.getTime() + DAY_MS);
   }
   return Math.max(0, Math.min(ROLLING_WINDOW_DAYS, count));
@@ -344,16 +436,15 @@ function rollingTargetDepartureCount(rule = {}) {
 function rollingWindowBounds(rule, horizonEnd, now) {
   const ruleStart = startOfDay(rule.startDate);
   const ruleEnd = rule.endDate ? startOfDay(rule.endDate) : null;
-  const timeZone = safeTimeZone(rule.timezone);
-  const today = calendarDate(calendarDateKey(now, timeZone));
+  const today = startOfDay(now);
   let cursor = ruleStart > today ? new Date(ruleStart) : today;
   let effectiveHorizonEnd = startOfDay(horizonEnd);
   let replacedDepartedDate = false;
   const todayMatchesRule = ruleStart <= today
     && (!ruleEnd || ruleEnd >= today)
-    && (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(today.getUTCDay()));
+    && (!rule.daysOfWeek?.length || rule.daysOfWeek.includes(today.getDay()));
   if (cursor.getTime() === today.getTime() && todayMatchesRule) {
-    const todayDeparture = combineDateAndTime(today, rule.departureTime, timeZone);
+    const todayDeparture = combineDateAndTime(today, rule.departureTime);
     if (todayDeparture.getTime() <= now.getTime()) {
       cursor = new Date(today.getTime() + DAY_MS);
       effectiveHorizonEnd = new Date(effectiveHorizonEnd.getTime() + DAY_MS);
@@ -373,8 +464,8 @@ function rollingWindowBounds(rule, horizonEnd, now) {
     const nextEnd = new Date(windowEnd.getTime() + DAY_MS);
     windowEnd = ruleEnd && ruleEnd < nextEnd ? ruleEnd : nextEnd;
     extensionDays += 1;
-    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(windowEnd.getUTCDay());
-    if (matchesWeekday && combineDateAndTime(windowEnd, rule.departureTime, timeZone).getTime() > now.getTime()) futureCount += 1;
+    const matchesWeekday = !rule.daysOfWeek?.length || rule.daysOfWeek.includes(windowEnd.getDay());
+    if (matchesWeekday && combineDateAndTime(windowEnd, rule.departureTime).getTime() > now.getTime()) futureCount += 1;
     if (ruleEnd && windowEnd.getTime() >= ruleEnd.getTime()) break;
   }
   return { cursor, windowEnd, replacedDepartedDate, targetDepartureCount, extensionDays };
@@ -400,7 +491,6 @@ function schedulePayload(rule, departAt) {
     // checks pass. createSchedule safely retains it as Draft otherwise.
     status: 'published',
     scheduleRuleId: rule.id,
-    timezone: safeTimeZone(rule.timezone),
   };
 }
 
@@ -502,7 +592,7 @@ function rollingConflictSignature(result = {}) {
     pending: Number(result.pending || 0),
     skipped: Number(result.skipped || 0),
     noFreeDateFound: result.noFreeDateFound === true,
-    conflicts: details.slice(0, 8).map((item) => [item.requestedDepartAt, item.conflictingScheduleId, item.conflictingRuleId]),
+    conflicts: details.slice(0, 2).map((item) => [item.requestedDepartAt, item.conflictingScheduleId, item.conflictingRuleId]),
   });
 }
 
@@ -519,12 +609,13 @@ function shouldLogRollingConflict(ruleKey, result = {}) {
 }
 
 async function materializeRule(rule, horizonEnd, now, options = {}) {
+  await hydrateLegacyRuleDuration(rule);
   // Re-evaluate the complete live window on every run. A watermark-only cursor
   // cannot repair a date that was deleted, cancelled, or skipped after a
   // transient setup conflict. If today's matching departure already left, the
   // far edge also advances one day immediately.
   const { cursor, windowEnd } = rollingWindowBounds(rule, horizonEnd, now);
-  if (rule.materializationBlockerCode === 'vehicle_schedule_conflict'
+  if (String(rule.materializationBlockerCode || '').startsWith('vehicle_schedule_conflict')
       || (rule.materializationBlockerCode && !activePersistentBlocker(rule, now))) {
     await clearExpiredOrResolvedBlocker(rule);
     rule.materializationBlockerCode = '';
@@ -628,13 +719,13 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     }
     if (conflicts.length) {
       skipped += 1;
-      failures.add(`vehicle_time_conflict:${departAt.toISOString()}`);
+      failures.add('vehicle_time_conflict');
       const recurringConflict = conflicts.find((schedule) => String(schedule.scheduleRuleId || '').trim());
       if (recurringConflict) {
         recurringConflictDates += 1;
         recurringConflictRuleIds.add(String(recurringConflict.scheduleRuleId || '').trim());
       }
-      if (conflictDetails.length < 8) {
+      if (conflictDetails.length < 2) {
         const conflict = recurringConflict || conflicts[0];
         conflictDetails.push({
           requestedDepartAt: departAt.toISOString(),
@@ -668,7 +759,7 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
       // repeated relationship reads that used to exhaust the MongoDB pool.
       const result = await companyService.createScheduleBatch(rule.companyId, {
         ...schedulePayload(rule, dates[0]),
-        repeatUntil: calendarDateKey(dates[dates.length - 1], rule.timezone),
+        repeatUntil: dates[dates.length - 1].toISOString().slice(0, 10),
         repeatDays: Array.isArray(rule.daysOfWeek) ? rule.daysOfWeek.map(String) : [],
       });
       created = Number(result.count || 0);
@@ -717,8 +808,8 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
         // eslint-disable-next-line no-await-in-loop
         const result = await companyService.createScheduleBatch(rule.companyId, {
           ...schedulePayload(rule, departAt),
-          repeatUntil: calendarDateKey(departAt, rule.timezone),
-          repeatDays: [String(calendarDate(calendarDateKey(departAt, rule.timezone)).getUTCDay())],
+          repeatUntil: departAt.toISOString().slice(0, 10),
+          repeatDays: [String(departAt.getDay())],
         });
         const batchCreated = Number(result.count || 0);
         if (batchCreated < 1) {
@@ -752,23 +843,14 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
   } else if (!finalFailures.length && published > 0) {
     publicationBlockerCooldown.delete(ruleKey);
   }
-  // A conflict on only some dates remains date-specific and never freezes the
-  // rolling window. If every missing date is blocked by active recurring rules,
-  // however, repeatedly scanning the same 30 dates cannot make progress. Persist
-  // a rule-wide action state and automatically clear it when a blocking rule is
-  // edited/paused; a six-hour safety expiry also forces a periodic re-check.
+  // Vehicle overlaps remain date-specific. Never freeze the recurring rule for
+  // hours: a blocking departure can pass, be edited, or be reassigned at any
+  // time. The one-minute scheduler plus five-minute repair scan re-evaluates the
+  // gap automatically, while a real overlap is still rejected for safety.
   const noFreeDateFound = missingDates.length > 0
     && dates.length === 0
     && skipped > 0
     && scannedMissingDates >= missingDates.length;
-  let blockerResult = { blocked: false, persisted: false };
-  if (noFreeDateFound && recurringConflictDates === skipped && recurringConflictRuleIds.size > 0) {
-    blockerResult = await persistFullWindowVehicleConflictBlocker(rule, {
-      conflictRuleIds: [...recurringConflictRuleIds],
-      failures: finalFailures,
-      scannedMissingDates,
-    });
-  }
   await companyService.recordScheduleRuleMaterialization(rule.companyId, rule.id, windowEnd.toISOString());
   return {
     created,
@@ -780,12 +862,12 @@ async function materializeRule(rule, horizonEnd, now, options = {}) {
     pending: unresolvedPending,
     failures: finalFailures,
     reconciled: reconciled.published + reconciled.draft + draftReconciliation.published,
-    blocked: blockerResult.blocked,
-    blockerPersisted: blockerResult.persisted,
-    blockedUntil: blockerResult.blockedUntil || '',
-    blockerCode: blockerResult.blocked ? 'vehicle_schedule_conflict_window' : '',
-    blockerReason: blockerResult.reason || '',
-    blockerRuleIds: blockerResult.blockerRuleIds || [],
+    blocked: false,
+    blockerPersisted: false,
+    blockedUntil: '',
+    blockerCode: '',
+    blockerReason: '',
+    blockerRuleIds: [...recurringConflictRuleIds],
     conflictDetails,
     scannedMissingDates,
     noFreeDateFound,
@@ -827,9 +909,22 @@ async function materializeRuleWithLease(rule, horizonEnd, now, options = {}) {
   }
 }
 
+async function normalizeActiveRules(now = new Date()) {
+  const before = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
+  let activeRules = await pauseDormantExactDuplicateRules(before, now);
+  activeRules = await pauseDormantOverlappingRules(activeRules, now);
+  return {
+    activeRules,
+    activeBefore: before.length,
+    activeAfter: activeRules.length,
+    paused: Math.max(0, before.length - activeRules.length),
+  };
+}
+
 async function run(now = new Date()) {
   const horizonEnd = startOfDay(new Date(now.getTime() + HORIZON_DAYS * DAY_MS));
-  const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
+  const normalized = await normalizeActiveRules(now);
+  const activeRules = normalized.activeRules;
   const blockedRules = activeRules.filter((rule) => activePersistentBlocker(rule, now));
   const eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now));
 
@@ -863,10 +958,10 @@ async function run(now = new Date()) {
   let totalSkipped = 0;
   let totalReconciled = 0;
   const results = [];
-  for (const rule of eligibleRules) {
+  for (const rule of eligibleRules.slice(0, env.jobs.materializeRuleBatchSize)) {
     if (Date.now() >= deadline) break;
     // eslint-disable-next-line no-await-in-loop
-    const result = await materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: BACKGROUND_BATCH_SIZE });
+    const result = await materializeRuleWithLease(rule, horizonEnd, now, { maxCreates: 2 });
     const { created = 0, published = 0, draft = 0, skipped = 0, reconciled = 0, pending = 0 } = result;
     totalCreated += created;
     totalPublished += published;
@@ -958,7 +1053,6 @@ async function drainBackgroundQueue() {
         }
         job.attempts += 1;
         logger.warn('Rolling departure batch failed and will retry', {
-          process: process.env.CLASSIC_TRIP_PROCESS_ROLE || 'app',
           companyId: job.companyId,
           ruleId: job.ruleId,
           attempts: job.attempts,
@@ -985,23 +1079,13 @@ async function drainBackgroundQueue() {
       }
       if (result?.blocked) {
         if (result.blockerPersisted) {
-          const fullWindowConflict = result.blockerCode === 'vehicle_schedule_conflict_window';
-          logger.warn(
-            fullWindowConflict
-              ? 'Recurring departure rule needs action; repeated full-window conflict scans are paused'
-              : 'Rolling departure rule temporarily paused by a rule-wide blocker',
-            {
-              companyId: job.companyId,
-              ruleId: job.ruleId,
-              blockedUntil: result.blockedUntil || '',
-              blockingRuleIds: result.blockerRuleIds || [],
-              reason: result.blockerReason || '',
-              failures: fullWindowConflict ? (result.failures || []).slice(0, 2) : (result.failures || []),
-              action: fullWindowConflict
-                ? 'Change this vehicle/time, or resolve the blocking recurring rule and its already-created departures; the worker will then retry automatically.'
-                : undefined,
-            },
-          );
+          logger.warn('Rolling departure rule temporarily paused by a non-vehicle rule-wide blocker', {
+            companyId: job.companyId,
+            ruleId: job.ruleId,
+            blockedUntil: result.blockedUntil || '',
+            reason: result.blockerReason || '',
+            failures: result.failures || [],
+          });
         }
         continue;
       }
@@ -1049,9 +1133,9 @@ async function drainBackgroundQueue() {
         job.attempts = 0;
         backgroundQueue.set(key, job);
       } else if (pending > 0 && skipped > 0) {
-        // Permanent validation failures do not hot-loop. Deterministic vehicle
-        // overlaps are persisted above and skipped by all repair scans. Other
-        // configuration errors wait for the next bounded scan without log spam.
+        // A real vehicle overlap cannot be auto-created safely. Do not hot-loop,
+        // but do not freeze the rule either: the five-minute recovery scan will
+        // re-evaluate it after the conflicting trip passes or is edited.
       } else if (pending > 0) {
         // Never silently abandon an incomplete window when a repository/batch
         // returns no progress and no permanent validation error. Retry a bounded
@@ -1085,8 +1169,10 @@ async function queueAllActiveRules() {
     scheduleBackgroundDrain(mongoQueuePauseUntil - Date.now());
     return 0;
   }
-  const activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
   const now = new Date();
+  let activeRules = await busOperationsRepository.scheduleRules.list({ status: 'active' }, { limit: 1000 });
+  activeRules = await pauseDormantExactDuplicateRules(activeRules, now);
+  activeRules = await pauseDormantOverlappingRules(activeRules, now);
   const eligibleRules = activeRules.filter((rule) => !activePersistentBlocker(rule, now));
   eligibleRules.forEach((rule) => queueRuleMaterialization(rule.companyId, rule.id));
   return eligibleRules.length;
@@ -1135,9 +1221,12 @@ module.exports = {
   matchingFutureDates,
   rollingTargetDepartureCount,
   rollingWindowBounds,
+  exactRollingRuleSignature,
+  pauseDormantExactDuplicateRules,
+  pauseDormantOverlappingRules,
+  normalizeActiveRules,
   queueRuleMaterialization,
   queueAllActiveRules,
   startWebFallback,
-  isMongoUnavailable,
   stopWebFallback,
 };

@@ -40,11 +40,8 @@ expect('MongoDB uses an explicit pool', db.includes('minPoolSize: env.mongoPool.
 expect('runtime auto-indexing is disabled by default', db.includes('autoIndex: env.mongoConnection.autoIndex') && env.includes("booleanFlag('MONGO_AUTO_INDEX', false)"));
 expect('index deployment command exists', pkg.scripts['db:indexes'] && fs.existsSync(path.join(root, 'scripts/ensure-production-indexes.js')));
 expect('production doctor command exists', pkg.scripts.doctor && fs.existsSync(path.join(root, 'scripts/production-doctor.js')));
-expect('homepage catalogue has fresh TTL and durable emergency stale cache', catalog.includes('snapshotCache')
-  && catalog.includes('CATALOG_EMERGENCY_STALE_MS')
-  && catalog.includes('hydrateSnapshotFromSharedCache'));
-expect('homepage cache warms only after the HTTP port opens', server.includes('schedulePublicCatalogWarmup')
-  && server.indexOf('app.listen') < server.indexOf('schedulePublicCatalogWarmup();'));
+expect('homepage catalogue has TTL and stale cache', catalog.includes('snapshotCache') && catalog.includes('homeCacheStaleMs'));
+expect('homepage cache does not compete with web startup', !server.includes('catalogService.prewarmHome()'));
 expect('all seven services are in the public catalogue', catalog.includes("TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo']") && grouping.includes("'tour', 'car_rental', 'cargo'"));
 expect('successful writes invalidate public and dashboard caches', flash.includes('invalidateMarketplaceCache') && flash.includes('dashboardSnapshotService'));
 expect('dashboard cache defaults are production-friendly', dashboardSnapshot.includes('dashboardCacheTtlMs') && dashboardSnapshot.includes('dashboardCacheStaleMs'));

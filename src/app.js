@@ -9,6 +9,7 @@ const passport = require('./config/passport');
 const { env } = require('./config/env');
 const { getCachedPlatformConfig } = require('./services/platform/platformConfigService');
 const { formatRouteLabel } = require('./utils/routeLabel');
+const { mediaUrl, resolveMediaUrl } = require('./utils/mediaUrl');
 const { SERVICE_REGISTRY, ACTIVE_SERVICE_TYPES, COMING_SOON_SERVICE_TYPES } = require('./config/serviceRegistry');
 const { publicMarkets } = require('./config/countryMarkets');
 const { attachUser } = require('./middlewares/auth');
@@ -67,25 +68,7 @@ const cspDirectives = {
   scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
-  imgSrc: [
-    "'self'",
-    'data:',
-    'https://res.cloudinary.com',
-    'https://*.cloudinary.com',
-    'https://cdn.jsdelivr.net',
-    'https://tile.openstreetmap.org',
-    'https://*.tile.openstreetmap.org',
-    // Launch content uses genuine operator/route photography instead of the
-    // Classic Trip logo. Keep this list explicit rather than opening img-src
-    // to every HTTPS host.
-    'https://bebetocoachservices.com',
-    'https://zawadigroups.com',
-    'https://trinityexpress.rw',
-    'https://pbs.twimg.com',
-    'https://cdn.bookaway.com',
-    'https://booking.ttta.co.ug',
-    ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : []),
-  ],
+  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
   connectSrc: ["'self'"],
   frameSrc: ["'none'"],
   objectSrc: ["'none'"],
@@ -157,6 +140,8 @@ app.use((req, res, next) => {
   res.locals.countryMarkets = PUBLIC_MARKETS;
   res.locals.money = (amount, currency = platformConfig.defaultCurrency) => `${String(currency || platformConfig.defaultCurrency).toUpperCase()} ${Math.round(Number(amount) || 0).toLocaleString('en-GB')}`;
   res.locals.routeDisplay = (origin, destination, fallback = '') => formatRouteLabel(origin, destination, fallback);
+  res.locals.mediaUrl = mediaUrl;
+  res.locals.resolveMediaUrl = resolveMediaUrl;
   // Escapes `<` so JSON embedded inside <script> tags (via <%- %>) can't be broken out of
   // with a `</script>` payload in user-controlled data.
   res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/</g, '\\u003c');

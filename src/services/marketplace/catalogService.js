@@ -5,24 +5,21 @@ const { publicCatalogGroup } = require('./catalogGrouping');
 const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPublicListing: publicListingVisible } = require('./catalogVisibility');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const { formatRouteLabel } = require('../../utils/routeLabel');
+const { resolveBlogImage } = require('../../utils/blogImage');
+const { SEEDED_OPERATOR_IMAGES, isLegacySeedOperatorUrl } = require('../../utils/seedMedia');
+const { resolveMediaUrl, mediaUrl } = require('../../utils/mediaUrl');
 const { priceBusTicket } = require('../../utils/busCustomerPricing');
-const { getPlatformConfig, getCachedPlatformConfig } = require('../platform/platformConfigService');
+const { getPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
-const { withDeadline } = require('../shared/deadline');
 const redisRuntime = require('../../config/redis');
 const flightSearchService = require('../../modules/flight/services/flightSearchService');
-const { blogPresentation, listingPresentationMedia } = require('../../config/launchMedia');
-const { promisify } = require('util');
-const { gzip, gunzip } = require('zlib');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
 const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
-const gzipAsync = promisify(gzip);
-const gunzipAsync = promisify(gunzip);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
 function canonicalPublicServiceType(value) { const key = normalize(value); return ['stay','stays','home','homes','accommodation','accommodations'].includes(key) ? 'hotel' : key; }
@@ -37,29 +34,14 @@ function isPublicListing(row, data = {}) { return publicListingVisible(row, data
 let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
-let snapshotSharedHydrated = false;
-let snapshotSharedHydration = null;
 let homeBootstrapCache = null;
 let homeBootstrapCachedAt = 0;
 let homeBootstrapInflight = null;
-let homeBootstrapSharedHydrated = false;
-let homeBootstrapSharedHydration = null;
-let degradedHomeBootstrapCache = null;
-let degradedHomeBootstrapRetryAt = 0;
 const listingSnapshotCache = new Map();
 const listingSnapshotInflight = new Map();
 const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
 const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
-const CATALOG_EMERGENCY_STALE_MS = env.performance.publicCatalogEmergencyStaleMs;
-
-function publicCatalogDeadlineError(resource = 'catalog') {
-  const error = new Error(`Public ${resource} data exceeded its database response deadline`);
-  error.status = 503;
-  error.code = 'public_catalog_temporarily_unavailable';
-  error.publicMessage = 'Live travel information is taking longer than expected. Please retry in a moment.';
-  return error;
-}
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
@@ -136,115 +118,6 @@ async function loadSnapshotFresh() {
   ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
-}
-
-function sharedCatalogSnapshotKey() {
-  return redisRuntime.key('catalog-snapshot', 'public');
-}
-
-async function readSharedCatalogSnapshot() {
-  const client = redisRuntime.activeClient();
-  if (!client) return null;
-  try {
-    const encoded = await client.get(sharedCatalogSnapshotKey());
-    if (!encoded) return null;
-    let parsed;
-    if (encoded.startsWith('ctz1:')) {
-      const compressed = Buffer.from(encoded.slice(5), 'base64');
-      parsed = JSON.parse((await gunzipAsync(compressed)).toString('utf8'));
-    } else {
-      parsed = JSON.parse(encoded);
-    }
-    if (!parsed?.value || !Number(parsed.createdAt)) return null;
-    return parsed;
-  } catch (_) {
-    return null;
-  }
-}
-
-async function writeSharedCatalogSnapshot(value, createdAt = Date.now()) {
-  const client = redisRuntime.activeClient();
-  if (!client || !value) return;
-  try {
-    const compressed = await gzipAsync(Buffer.from(JSON.stringify({ createdAt, value }), 'utf8'));
-    await client.set(sharedCatalogSnapshotKey(), `ctz1:${compressed.toString('base64')}`, { PX: CATALOG_EMERGENCY_STALE_MS });
-  } catch (_) {
-    // Redis cache persistence is an availability optimization. MongoDB remains
-    // authoritative and a cache write must never fail a marketplace request.
-  }
-}
-
-function sharedHomeBootstrapKey() {
-  return redisRuntime.key('home-bootstrap', 'public');
-}
-
-async function readSharedHomeBootstrap() {
-  const client = redisRuntime.activeClient();
-  if (!client) return null;
-  try {
-    const encoded = await client.get(sharedHomeBootstrapKey());
-    if (!encoded) return null;
-    let parsed;
-    if (encoded.startsWith('ctz1:')) {
-      const compressed = Buffer.from(encoded.slice(5), 'base64');
-      parsed = JSON.parse((await gunzipAsync(compressed)).toString('utf8'));
-    } else {
-      parsed = JSON.parse(encoded);
-    }
-    if (!parsed?.value || !Number(parsed.createdAt)) return null;
-    return parsed;
-  } catch (_) {
-    return null;
-  }
-}
-
-async function writeSharedHomeBootstrap(value, createdAt = Date.now()) {
-  const client = redisRuntime.activeClient();
-  if (!client || !value) return;
-  try {
-    const compressed = await gzipAsync(Buffer.from(JSON.stringify({ createdAt, value }), 'utf8'));
-    await client.set(sharedHomeBootstrapKey(), `ctz1:${compressed.toString('base64')}`, { PX: env.performance.homeViewCacheStaleMs });
-  } catch (_) {
-    // The homepage Redis snapshot is a latency/availability optimization only.
-    // A cache persistence failure must never turn a successful catalog refresh
-    // into a failed public request.
-  }
-}
-
-async function hydrateHomeBootstrapFromSharedCache() {
-  if (homeBootstrapSharedHydrated) return homeBootstrapCache;
-  if (!homeBootstrapSharedHydration) {
-    homeBootstrapSharedHydration = readSharedHomeBootstrap()
-      .then((shared) => {
-        homeBootstrapSharedHydrated = true;
-        const age = shared ? Date.now() - shared.createdAt : Infinity;
-        if (shared && age <= env.performance.homeViewCacheStaleMs && (!homeBootstrapCache || shared.createdAt > homeBootstrapCachedAt)) {
-          homeBootstrapCache = shared.value;
-          homeBootstrapCachedAt = shared.createdAt;
-        }
-        return homeBootstrapCache;
-      })
-      .finally(() => { homeBootstrapSharedHydration = null; });
-  }
-  return homeBootstrapSharedHydration;
-}
-
-async function hydrateSnapshotFromSharedCache() {
-  if (snapshotSharedHydrated) return snapshotCache;
-  if (!snapshotSharedHydration) {
-    snapshotSharedHydration = readSharedCatalogSnapshot()
-      .then((shared) => {
-        snapshotSharedHydrated = true;
-        const age = shared ? Date.now() - shared.createdAt : Infinity;
-        if (shared && age <= CATALOG_EMERGENCY_STALE_MS && (!snapshotCache || shared.createdAt > snapshotCachedAt)) {
-          snapshotCache = shared.value;
-          snapshotCachedAt = shared.createdAt;
-        }
-        return snapshotCache;
-      })
-      .finally(() => { snapshotSharedHydration = null; });
-  }
-  return snapshotSharedHydration;
 }
 
 
@@ -448,11 +321,7 @@ async function snapshotForListing(identifier, serviceType = '', options = {}) {
     listingSnapshotInflight.set(key, inflight);
   }
   try {
-    return await withDeadline(
-      inflight,
-      env.performance.publicCatalogDeadlineMs,
-      () => publicCatalogDeadlineError('listing'),
-    );
+    return await inflight;
   } catch (error) {
     if (cached) return cached.value;
     throw error;
@@ -462,12 +331,9 @@ async function snapshotForListing(identifier, serviceType = '', options = {}) {
 async function refreshSnapshot() {
   if (snapshotInflight) return snapshotInflight;
   snapshotInflight = loadSnapshotFresh()
-    .then(async (value) => {
-      const createdAt = Date.now();
+    .then((value) => {
       snapshotCache = value;
-      snapshotCachedAt = createdAt;
-      snapshotSharedHydrated = true;
-      await writeSharedCatalogSnapshot(value, createdAt);
+      snapshotCachedAt = Date.now();
       return value;
     })
     .finally(() => { snapshotInflight = null; });
@@ -475,23 +341,18 @@ async function refreshSnapshot() {
 }
 
 async function snapshot(options = {}) {
-  if (!options.force && !snapshotCache) await hydrateSnapshotFromSharedCache();
   const age = snapshotCache ? Date.now() - snapshotCachedAt : Infinity;
   if (!options.force && snapshotCache && age <= env.performance.homeCacheTtlMs) return snapshotCache;
-  if (!options.force && snapshotCache && age <= CATALOG_EMERGENCY_STALE_MS) {
+  if (!options.force && snapshotCache && age <= env.performance.homeCacheStaleMs) {
     refreshSnapshot().catch(() => {});
     return snapshotCache;
   }
   try {
-    return await withDeadline(
-      refreshSnapshot(),
-      env.performance.publicCatalogDeadlineMs,
-      () => publicCatalogDeadlineError('catalog'),
-    );
+    return await refreshSnapshot();
   } catch (error) {
     // A previously completed catalog is safer than replacing the marketplace
     // with a 500 page during a brief Atlas pool/network incident.
-    if (snapshotCache && age <= CATALOG_EMERGENCY_STALE_MS) return snapshotCache;
+    if (snapshotCache) return snapshotCache;
     throw error;
   }
 }
@@ -503,36 +364,12 @@ function invalidateMarketplaceCache() {
   snapshotCachedAt = 0;
   homeBootstrapCache = null;
   homeBootstrapCachedAt = 0;
-  degradedHomeBootstrapCache = null;
-  degradedHomeBootstrapRetryAt = 0;
   listingSnapshotCache.clear();
 }
 
 async function prewarmHome() {
-  // Prime the rendered homepage from its compact Redis snapshot first. This is
-  // intentionally separate from the much larger raw catalog snapshot: after a
-  // Render deploy the first visitor must not wait for MongoDB catalog warmup.
-  await hydrateHomeBootstrapFromSharedCache();
-  if (homeBootstrapCache) {
-    refreshHomeBootstrap().catch(() => {});
-    return homeBootstrapCache;
-  }
-
-  // During the first deploy that introduces the compact Home snapshot, v1.6.49
-  // may already have a last-known-good full catalog in Redis. Project Home from
-  // that catalog immediately (airports can refresh moments later) instead of
-  // making the first visitor spend the 2.5 second cold database deadline.
-  await hydrateSnapshotFromSharedCache();
-  if (snapshotCache) {
-    const primed = primeHomeBootstrapFromCatalogCache();
-    refreshHomeBootstrap().catch(() => {});
-    return primed;
-  }
-
-  // True first-ever cache miss: build the catalog once. Future deploys then
-  // inherit both the raw catalog and the compact rendered Home handoff.
-  await refreshSnapshot();
-  return refreshHomeBootstrap();
+  await snapshot({ force: true });
+  return homeBootstrap({ force: true });
 }
 
 function companyFor(data, identifier) {
@@ -636,6 +473,17 @@ function liveCampaignFor(data, listingId, now = new Date()) {
     && (!campaign.endsAt || new Date(campaign.endsAt) >= now));
 }
 
+function seededOperatorKey(listing = {}, company = {}) {
+  return String(listing.companySlug || company.slug || '').trim();
+}
+function resolveListingImage(listing = {}, company = {}, candidate = '') {
+  const key = seededOperatorKey(listing, company);
+  const current = resolveMediaUrl(candidate, listing.img, listing.image, listing.coverImage, listing.media);
+  const fallback = SEEDED_OPERATOR_IMAGES[key] || '';
+  if (fallback && (!current || isLegacySeedOperatorUrl(key, current) || /^\/images\/operators\//i.test(current))) return fallback;
+  return current || fallback;
+}
+
 function catalogItem(data, listing, preferredRoute = null) {
   const stableId = entityId(listing);
   const company = companyFor(data, listing.companyId || listing.companySlug);
@@ -724,14 +572,6 @@ function catalogItem(data, listing, preferredRoute = null) {
   const bookableReason = bookable
     ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : serviceType === 'tour' ? 'Tour capacity available' : serviceType === 'car_rental' ? 'Vehicle available' : serviceType === 'cargo' ? 'Cargo booking available' : 'Live inventory available')
     : serviceType === 'bus' && !nextSchedule ? 'No upcoming departure' : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
-  // Existing production rows can contain a non-empty company/platform logo in
-  // the listing image field. For the six researched launch operators, project
-  // the identified coach photograph whenever the current value is missing or
-  // logo-like. Real photos uploaded later by an operator always win.
-  const presentationMedia = serviceType === 'bus' ? listingPresentationMedia(listing, company || {}) : null;
-  const projectedMedia = presentationMedia?.media?.length
-    ? presentationMedia.media
-    : (Array.isArray(listing.media) ? listing.media : []);
   const enriched = {
     id: stableId,
     slug: listing.slug || stableId,
@@ -764,13 +604,13 @@ function catalogItem(data, listing, preferredRoute = null) {
     branchName: listing.branchName || '',
     address: listing.address || '',
     location: listing.location || listing.address || '',
-    media: projectedMedia.map((item) => ({
-      url: item.url || item.secureUrl || '',
-      secureUrl: item.secureUrl || item.url || '',
+    media: Array.isArray(listing.media) ? listing.media.map((item) => ({
+      url: resolveListingImage(listing, company, item),
+      secureUrl: resolveListingImage(listing, company, item),
       alt: item.alt || item.label || listing.title || '',
       label: item.label || item.alt || '',
       resourceType: item.resourceType || 'image',
-    })),
+    })) : [],
     serviceType,
     type: listing.type || serviceType,
     internalGroup: listing.group || '',
@@ -808,8 +648,7 @@ function catalogItem(data, listing, preferredRoute = null) {
     ratingAverage: number(listing.ratingAverage || listing.rating),
     rating: String(listing.ratingAverage || listing.rating || ''),
     reviewCount: number(listing.reviewCount || listing.reviewsCount),
-    img: presentationMedia?.image || listing.img || listing.image || listing.coverImage || listing.media?.[0]?.url || '',
-    imageAlt: presentationMedia?.imageAlt || listing.imageAlt || listing.title || '',
+    img: resolveListingImage(listing, company),
     bookable,
     bookableReason,
     instantConfirmation: listing.instantConfirmation !== false && bookable,
@@ -998,8 +837,8 @@ function publicCompany(data, company) {
     country: company.country || '',
     city: company.city || '',
     description: company.description || '',
-    logo: { url: company.logo?.url || company.logo?.secureUrl || '' },
-    coverImage: { url: company.coverImage?.url || company.coverImage?.secureUrl || '' },
+    logo: { url: mediaUrl(company.logo) },
+    coverImage: { url: mediaUrl(company.coverImage) },
     supportContacts: {
       phone: company.supportContacts?.phone || '',
       email: company.supportContacts?.email || '',
@@ -1164,10 +1003,7 @@ function buildHomeBootstrap(data, airports = []) {
     companies: data.companies.map((row) => publicCompany(data, row)).filter((row) => row.verificationStatus === 'verified' && row.activeListingsCount > 0),
     routes: data.routes.filter((row) => active(row) && listings.some((listing) => sameId(listing.id, row.listingId))).map((row) => publicRoute(data, row)),
     campaigns,
-    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 7).map((row) => {
-      const presented = blogPresentation(row);
-      return { id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: presented.image || '', imageAlt: presented.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` };
-    }),
+    blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 3).map((row) => ({ id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: resolveBlogImage(row), imageAlt: row.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` })),
     serviceStats: data.categories.map((category) => { const rows = listings.filter((item) => item.serviceType === category.key); return { ...category, count: rows.length, available: rows.reduce((sum, row) => sum + row.remainingInventory, 0) }; }),
     corridorStats: routeHighlights(listings),
     marketplace,
@@ -1176,81 +1012,23 @@ function buildHomeBootstrap(data, airports = []) {
   };
 }
 
-function degradedHomeBootstrap(error) {
-  const categories = TYPE_ORDER.map((key, index) => ({
-    ...SERVICE_REGISTRY[key],
-    order: index + 1,
-  }));
-  const value = buildHomeBootstrap({
-    categories,
-    listings: [],
-    companies: [],
-    routes: [],
-    routeStops: [],
-    fareProducts: [],
-    segmentFares: [],
-    serviceAddons: [],
-    schedules: [],
-    seats: [],
-    vehicles: [],
-    roomTypes: [],
-    roomUnits: [],
-    roomNights: [],
-    links: [],
-    campaigns: [],
-    blogs: [],
-    platformConfig: getCachedPlatformConfig(),
-  }, []);
-  value.degraded = true;
-  const errorName = String(error?.name || '').toLowerCase();
-  const errorMessage = String(error?.message || '').toLowerCase();
-  const confirmedDatabaseOutage = /mongo|database/.test(`${errorName} ${errorMessage}`)
-    && !/response deadline/.test(errorMessage);
-  value.degradedReason = confirmedDatabaseOutage ? 'database_temporarily_unavailable' : 'catalog_warming';
-  value.degradedMessage = confirmedDatabaseOutage
-    ? 'Live marketplace inventory is temporarily unavailable. Please try again shortly.'
-    : 'Live marketplace inventory is loading. Please refresh in a moment.';
-  return value;
-}
-
-function rememberHomeBootstrap(value, createdAt = Date.now()) {
-  if (!value) return value;
-  homeBootstrapCache = value;
-  homeBootstrapCachedAt = createdAt;
-  homeBootstrapSharedHydrated = true;
-  degradedHomeBootstrapCache = null;
-  degradedHomeBootstrapRetryAt = 0;
-  writeSharedHomeBootstrap(value, createdAt).catch(() => {});
-  return value;
-}
-
-function primeHomeBootstrapFromCatalogCache() {
-  if (!snapshotCache) return null;
-  return rememberHomeBootstrap(buildHomeBootstrap(snapshotCache, []));
-}
-
 async function refreshHomeBootstrap() {
   if (homeBootstrapInflight) return homeBootstrapInflight;
   homeBootstrapInflight = Promise.all([
     snapshot(),
     flightSearchService.listAirports().catch(() => []),
   ])
-    .then(([data, airports]) => rememberHomeBootstrap(buildHomeBootstrap(data, airports)))
+    .then(([data, airports]) => buildHomeBootstrap(data, airports))
+    .then((value) => {
+      homeBootstrapCache = value;
+      homeBootstrapCachedAt = Date.now();
+      return value;
+    })
     .finally(() => { homeBootstrapInflight = null; });
   return homeBootstrapInflight;
 }
 
 async function homeBootstrap(options = {}) {
-  if (!options.force && !homeBootstrapCache) await hydrateHomeBootstrapFromSharedCache();
-  if (!options.force && !homeBootstrapCache) {
-    await hydrateSnapshotFromSharedCache();
-    if (snapshotCache) {
-      const primed = primeHomeBootstrapFromCatalogCache();
-      refreshHomeBootstrap().catch(() => {});
-      return primed;
-    }
-  }
-  if (!options.force && !homeBootstrapCache && degradedHomeBootstrapCache && Date.now() < degradedHomeBootstrapRetryAt) return degradedHomeBootstrapCache;
   const age = homeBootstrapCache ? Date.now() - homeBootstrapCachedAt : Infinity;
   if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheTtlMs) return homeBootstrapCache;
   if (!options.force && homeBootstrapCache && age <= env.performance.homeViewCacheStaleMs) {
@@ -1258,16 +1036,10 @@ async function homeBootstrap(options = {}) {
     return homeBootstrapCache;
   }
   try {
-    return await withDeadline(
-      refreshHomeBootstrap(),
-      env.performance.homeBootstrapDeadlineMs,
-      () => publicCatalogDeadlineError('Home'),
-    );
+    return await refreshHomeBootstrap();
   } catch (error) {
     if (homeBootstrapCache) return homeBootstrapCache;
-    degradedHomeBootstrapCache = degradedHomeBootstrap(error);
-    degradedHomeBootstrapRetryAt = Date.now() + 5000;
-    return degradedHomeBootstrapCache;
+    throw error;
   }
 }
 

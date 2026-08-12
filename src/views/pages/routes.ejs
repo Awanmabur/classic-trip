@@ -13,7 +13,7 @@
         <div class="field"><label for="routeSearchDestination">To</label><div class="control"><i class="fa-solid fa-route"></i><select id="routeSearchDestination" name="destination" data-route-destination-select><option value="">All destinations</option><% (routeSearchOptions?.destinations || []).forEach((value) => { %><option value="<%= value %>" <%= query.destination === value ? 'selected' : '' %>><%= value %></option><% }) %></select></div></div>
         <div class="field"><label for="routeSearchCorridor">Corridor</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select id="routeSearchCorridor" name="corridor" class="selectLike"><option value="">All</option><% corridorStats.forEach(stat => { %><option value="<%= stat.corridor %>" <%= query.corridor === stat.corridor ? 'selected' : '' %>><%= stat.corridor %></option><% }) %></select></div></div>
       </div>
-      <script type="application/json" data-route-pairs-json><%- toScriptJson(routeSearchOptions?.pairs || []) %></script>
+      <script type="application/json" nonce="<%= cspNonce %>" data-route-pairs-json><%- toScriptJson(routeSearchOptions?.pairs || []) %></script>
       <button class="btn btnPrimary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Find routes</button>
     </form>
   </section>
@@ -57,5 +57,5 @@
     </div>
   </section>
 </main>
-<script src="/js/route-pair-select.js?v=1.6.50" defer></script>
+<script src="/js/route-pair-select.js?v=1.6.52" defer></script>
 <%- include('../partials/site-footer') %>
