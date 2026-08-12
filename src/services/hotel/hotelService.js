@@ -160,7 +160,7 @@ async function createProperty(companyId, payload = {}, actorId = 'company-admin'
   const listing = await hotelRepository.listingOrThrow(companyId, payload.listingId || payload.slug);
   const propertyName = clean(payload.propertyName || payload.name || listing.title);
   if (!propertyName) throw Object.assign(new Error('Property name is required'), { status: 422 });
-  const existingProperty = await hotelRepository.hotelProperties.findOne({ companyId, listingId: listing.id });
+  const existingProperty = await hotelRepository.hotelProperties.findOne({ companyId, listingId: listing.id, status: { $ne: 'archived' } });
   if (existingProperty) {
     const error = new Error(existingProperty.status === 'archived'
       ? 'This hotel listing already has an archived property. Restore or edit that property instead of creating a duplicate.'
@@ -229,7 +229,7 @@ async function updateProperty(companyId, propertyId, payload = {}, actorId = 'co
   if (payload.propertyName || payload.name) {
     const propertyName = clean(payload.propertyName || payload.name);
     const normalizedName = normalizedKey(propertyName);
-    const duplicate = await hotelRepository.hotelProperties.findOne({ companyId, listingId: property.listingId, normalizedName, id: { $ne: property.id } });
+    const duplicate = await hotelRepository.hotelProperties.findOne({ companyId, listingId: property.listingId, normalizedName, status: { $ne: 'archived' }, id: { $ne: property.id } });
     if (duplicate) throw Object.assign(new Error('A property with this name already exists under the selected listing'), { status: 409 });
     property.propertyName = propertyName; property.normalizedName = normalizedName;
   }
@@ -311,7 +311,7 @@ async function createRoomType(companyId, payload = {}, actorId = 'company-admin'
   const property = await propertyForListingOrThrow(companyId, listing.id, payload.propertyId);
   const name = clean(payload.name || payload.roomType || 'Standard Room');
   const normalizedName = normalizedKey(name);
-  const existing = await hotelRepository.roomTypes.findOne({ companyId, propertyId: property.id, normalizedName });
+  const existing = await hotelRepository.roomTypes.findOne({ companyId, propertyId: property.id, normalizedName, status: { $ne: 'archived' } });
   if (existing) throw Object.assign(new Error(`Room type ${name} already exists for this property`), { status: 409 });
   const capacity = Math.max(1, Math.round(num(payload.capacity, 2)));
   const maxAdults = Math.max(1, Math.min(capacity, Math.round(num(payload.maxAdults, capacity))));
@@ -371,7 +371,7 @@ async function updateRoomType(companyId, roomTypeId, payload = {}, actorId = 'co
   }
   if (payload.name || payload.roomType) {
     const name = clean(payload.name || payload.roomType); const normalizedName = normalizedKey(name);
-    const duplicate = await hotelRepository.roomTypes.findOne({ companyId, propertyId: roomType.propertyId, normalizedName, id: { $ne: roomType.id } });
+    const duplicate = await hotelRepository.roomTypes.findOne({ companyId, propertyId: roomType.propertyId, normalizedName, status: { $ne: 'archived' }, id: { $ne: roomType.id } });
     if (duplicate) throw Object.assign(new Error(`Room type ${name} already exists for this property`), { status: 409 });
     roomType.name = name; roomType.normalizedName = normalizedName;
   }
@@ -441,7 +441,7 @@ async function createRoomUnits(companyId, payload = {}, actorId = 'company-admin
   const unitNumbers = [...new Set(list(payload.unitNumbers || payload.units || payload.roomNumbers).map((value) => clean(value)))];
   if (!unitNumbers.length) throw Object.assign(new Error('At least one room number is required'), { status: 422 });
   const normalizedNumbers = unitNumbers.map(normalizedKey);
-  const existing = await hotelRepository.roomUnits.list({ companyId, propertyId: roomType.propertyId, normalizedUnitNumber: { $in: normalizedNumbers } });
+  const existing = await hotelRepository.roomUnits.list({ companyId, propertyId: roomType.propertyId, normalizedUnitNumber: { $in: normalizedNumbers }, status: { $ne: 'archived' } });
   if (existing.length) throw Object.assign(new Error(`Room unit ${existing[0].unitNumber} already exists in this property`), { status: 409 });
   const now = new Date().toISOString();
   const units = await Promise.all(unitNumbers.map(async (unitNumber) => ({ id: await hotelRepository.nextId('room-unit'), companyId, listingId: roomType.listingId, propertyId: roomType.propertyId, roomTypeId: roomType.id, unitNumber, normalizedUnitNumber: normalizedKey(unitNumber), floor: clean(payload.floor), wing: clean(payload.wing), viewType: clean(payload.viewType), accessible: bool(payload.accessible), smokingAllowed: bool(payload.smokingAllowed), connectingRoom: bool(payload.connectingRoom), status: enumValue(payload.status, new Set(['available', 'maintenance', 'cleaning']), 'available', 'room status'), housekeepingStatus: enumValue(payload.housekeepingStatus, HOUSEKEEPING_STATUSES, 'clean', 'housekeeping status'), notes: clean(payload.notes), createdBy: actorId, createdAt: now })));
@@ -466,7 +466,7 @@ async function updateRoomUnit(companyId, unitId, payload = {}, actorId = 'compan
   }
   if (payload.unitNumber || payload.roomNumber) {
     const unitNumber = clean(payload.unitNumber || payload.roomNumber); const normalizedUnitNumber = normalizedKey(unitNumber);
-    const duplicate = await hotelRepository.roomUnits.findOne({ companyId, propertyId: unit.propertyId, normalizedUnitNumber, id: { $ne: unit.id } });
+    const duplicate = await hotelRepository.roomUnits.findOne({ companyId, propertyId: unit.propertyId, normalizedUnitNumber, status: { $ne: 'archived' }, id: { $ne: unit.id } });
     if (duplicate) throw Object.assign(new Error(`Room unit ${unitNumber} already exists in this property`), { status: 409 });
     unit.unitNumber = unitNumber; unit.normalizedUnitNumber = normalizedUnitNumber;
   }
@@ -764,7 +764,7 @@ async function createRatePlan(companyId, payload = {}, actorId = 'company-admin'
   const roomType = await hotelRepository.roomTypeOrThrow(companyId, payload.roomTypeId);
   const listing = await hotelRepository.listingOrThrow(companyId, roomType.listingId);
   const code = clean(payload.code || payload.name || 'RATE').toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 40);
-  const duplicate = await hotelRepository.ratePlans.findOne({ companyId, roomTypeId: roomType.id, code });
+  const duplicate = await hotelRepository.ratePlans.findOne({ companyId, roomTypeId: roomType.id, code, status: { $ne: 'archived' } });
   if (duplicate) throw Object.assign(new Error('This rate-plan code already exists for the selected room type'), { status: 409 });
   const row = { id: await hotelRepository.nextId('rate-plan'), companyId, listingId: roomType.listingId, propertyId: roomType.propertyId, roomTypeId: roomType.id, name: clean(payload.name || 'Flexible rate'), code, currency: clean(listing.currency || platformCurrency()).toUpperCase(), pricingMode: enumValue(payload.pricingMode, RATE_PRICING_MODES, 'nightly_inventory', 'pricing mode'), basePrice: Math.max(0, num(payload.basePrice, roomType.basePrice || 0)), mealPlan: enumValue(payload.mealPlan, MEAL_PLANS, roomType.mealPlan || 'room_only', 'meal plan'), refundable: bool(payload.refundable, true), cancellationDeadlineHours: Math.max(0, num(payload.cancellationDeadlineHours, 24)), cancellationPenaltyType: enumValue(payload.cancellationPenaltyType, CANCELLATION_PENALTY_TYPES, 'first_night', 'cancellation penalty'), cancellationPenaltyValue: Math.max(0, num(payload.cancellationPenaltyValue, 0)), paymentTiming: enumValue(payload.paymentTiming, PAYMENT_TIMINGS, 'pay_now', 'payment timing'), depositType: 'none', depositAmount: 0, minStay: Math.max(1, Math.round(num(payload.minStay, roomType.minStay || 1))), maxStay: Math.max(1, Math.round(num(payload.maxStay, roomType.maxStay || 90))), extraAdultFee: Math.max(0, num(payload.extraAdultFee, roomType.extraAdultFee || 0)), extraChildFee: Math.max(0, num(payload.extraChildFee, roomType.extraChildFee || 0)), includedAdults: Math.max(1, Math.round(num(payload.includedAdults, roomType.maxAdults || 1))), includedChildren: Math.max(0, Math.round(num(payload.includedChildren, roomType.maxChildren || 0))), policySnapshot: { roomPolicies: roomType.policies || [] }, status: enumValue(payload.status, new Set(['active', 'paused']), 'active', 'rate-plan status'), createdBy: actorId, createdAt: new Date().toISOString() };
   if (row.maxStay < row.minStay) throw Object.assign(new Error('Maximum stay must be greater than or equal to minimum stay'), { status: 422 });

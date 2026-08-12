@@ -357,14 +357,31 @@ async function snapshot(options = {}) {
   }
 }
 
+async function invalidateSharedListingSnapshots() {
+  const client = redisRuntime.activeClient();
+  if (!client) return;
+  try {
+    const pattern = `${redisRuntime.key('listing-snapshot', '')}*`;
+    const keys = [];
+    for await (const found of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+      if (Array.isArray(found)) keys.push(...found);
+      else keys.push(found);
+      if (keys.length >= 100) await client.sendCommand(['UNLINK', ...keys.splice(0, keys.length)]);
+    }
+    if (keys.length) await client.sendCommand(['UNLINK', ...keys]);
+  } catch (_) {}
+}
+
 function invalidateMarketplaceCache() {
   // Keep the last known-good global catalog as an emergency fallback while
-  // forcing a refresh. Listing-scoped snapshots are small enough to clear and
-  // must not retain an unpublished schedule/listing after an operator change.
+  // forcing a refresh. Listing-scoped snapshots are cleared locally and in
+  // Redis so a successful dashboard mutation cannot redirect into stale public
+  // inventory or a stale departure badge.
   snapshotCachedAt = 0;
   homeBootstrapCache = null;
   homeBootstrapCachedAt = 0;
   listingSnapshotCache.clear();
+  invalidateSharedListingSnapshots();
 }
 
 async function prewarmHome() {
@@ -489,11 +506,12 @@ function catalogItem(data, listing, preferredRoute = null) {
   const company = companyFor(data, listing.companyId || listing.companySlug);
   const schedules = listingSchedules(data, stableId).filter((row) => active(row));
   const now = new Date();
-  const nextSchedule = schedules.filter((row) => {
+  const futureSchedules = schedules.filter((row) => {
     const status = normalize(row.status);
     if (status === 'boarding' || status === 'delayed') return !asDate(row.arriveAt || row.departAt) || asDate(row.arriveAt || row.departAt) >= now;
     return asDate(row.departAt) && asDate(row.departAt) >= now;
-  }).sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0))[0] || null;
+  }).sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0));
+  const nextSchedule = futureSchedules[0] || null;
   const seats = nextSchedule ? scheduleSeats(data, entityId(nextSchedule)) : [];
   const rooms = listingRooms(data, stableId);
   const availableSeats = seats.filter((row) => normalize(row.status) === 'available').length;
@@ -511,7 +529,7 @@ function catalogItem(data, listing, preferredRoute = null) {
   const fareCatalog = serviceType === 'bus' ? fareCatalogForListing(data, stableId) : { products: [], priceFrom: 0, fullRoutePrice: 0, currency: '' };
   const routeSummaries = serviceType === 'bus' ? activeRoutes.map((routeRow) => {
     const routeId = entityId(routeRow);
-    const routeSchedules = schedules
+    const routeSchedules = futureSchedules
       .filter((schedule) => sameId(schedule.routeId || schedule.routeSnapshot?.routeId, routeId))
       .sort((a, b) => (asDate(a.departAt)?.getTime() || 0) - (asDate(b.departAt)?.getTime() || 0));
     const routeProducts = fareCatalog.products.filter((product) => sameId(product.routeId, routeId));
@@ -553,7 +571,10 @@ function catalogItem(data, listing, preferredRoute = null) {
   }) : [];
   const from = listing.from || route.origin || route.from || listing.city || '';
   const to = listing.to || route.destination || route.to || listing.location || '';
-  const priceFrom = number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
+  const publishedRoutePrices = serviceType === 'bus' ? routeSummaries.map((item) => number(item.priceFrom)).filter((amount) => amount > 0) : [];
+  const priceFrom = serviceType === 'bus' && publishedRoutePrices.length
+    ? Math.min(...publishedRoutePrices)
+    : number(fareCatalog.priceFrom || listing.priceFrom || listing.price || nextSchedule?.basePrice || nextSchedule?.price || rooms[0]?.price);
   const inventoryRequired = ['bus', 'hotel', 'flight', 'tour', 'car_rental'].includes(serviceType);
   const hasRequiredDatedInventory = serviceType !== 'bus' || Boolean(nextSchedule);
   // A published bus departure with live inventory is the source of truth for
@@ -628,6 +649,8 @@ function catalogItem(data, listing, preferredRoute = null) {
     routeLabel: formatRouteLabel(from, to, listing.routeLabel) || listing.title,
     routes: routeSummaries,
     routeCount: routeSummaries.length,
+    departureCount: serviceType === 'bus' ? futureSchedules.length : 0,
+    publishedDepartureCount: serviceType === 'bus' ? futureSchedules.length : 0,
     nextDepartAt,
     nextDepartLabel,
     time: nextDepartLabel,
@@ -712,6 +735,8 @@ function withMatchedBusRoute(item = {}, query = {}) {
     corridor: route.corridor || item.corridor,
     nextDepartAt: departure?.departAt || route.nextDepartAt || item.nextDepartAt,
     nextDepartLabel: departure?.departAt ? new Date(departure.departAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: route.timezone || 'Africa/Kampala' }) : item.nextDepartLabel,
+    departureCount: departure ? 1 : Math.max(0, number(route.scheduleCount || item.departureCount)),
+    publishedDepartureCount: departure ? 1 : Math.max(0, number(route.scheduleCount || item.publishedDepartureCount)),
     remainingInventory: departure ? Math.max(0, number(departure.availableSeats)) : Math.max(0, number(route.availableSeats || item.remainingInventory)),
     availableSeats: departure ? Math.max(0, number(departure.availableSeats)) : Math.max(0, number(route.availableSeats || item.availableSeats)),
     priceFrom: number(route.priceFrom || item.priceFrom),

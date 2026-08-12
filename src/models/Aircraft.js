@@ -14,5 +14,5 @@ const aircraftSchema = new Schema({
   insuranceExpiresAt: Date,
   status: { type: String, enum: ['draft', 'active', 'maintenance', 'grounded', 'archived'], default: 'draft', index: true },
 }, { timestamps: true });
-aircraftSchema.index({ companyId: 1, registration: 1 }, { unique: true });
+aircraftSchema.index({ companyId: 1, registration: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['draft', 'active', 'maintenance', 'grounded'] } } });
 module.exports = model('Aircraft', aircraftSchema);

@@ -6,6 +6,7 @@ const { env } = require('../../../config/env');
 const { cleanText, locationMatches, validationError, conflictError } = require('../domain/busDomain');
 
 const SESSION_KEY = 'busBookingDrafts';
+const ACTIVE_DRAFT_KEY = 'busBookingActiveDrafts';
 const MAX_SESSION_DRAFTS = 8;
 const DRAFT_GRACE_MS = 30_000;
 const DRAFT_LIFETIME_MS = 60 * 60 * 1000;
@@ -112,12 +113,13 @@ async function reusableDraft(req, { listing, payload, outboundInput, returnInput
       const resolved = await resolveDraft(req, { draftId: draft.id, listing });
       resolved.referralCode = cleanText(payload.ref || resolved.referralCode, 180);
       resolved.addonIds = listValues(payload.addons);
+      setActiveDraft(req, listing, resolved.id);
       await saveSession(req);
       return {
         id: resolved.id,
         expiresAt: resolved.expiresAt,
         inventoryExpiresAt: resolved.inventoryExpiresAt,
-        redirectUrl: `/book/bus/${encodeURIComponent(listing.slug)}?draft=${encodeURIComponent(resolved.id)}`,
+        redirectUrl: `/book/bus/${encodeURIComponent(listing.slug)}`,
         reused: true,
       };
     } catch (error) {
@@ -139,6 +141,39 @@ function sessionDrafts(req) {
     session[SESSION_KEY] = {};
   }
   return session[SESSION_KEY];
+}
+
+function activeDrafts(req) {
+  const session = requireSession(req);
+  if (!session[ACTIVE_DRAFT_KEY] || typeof session[ACTIVE_DRAFT_KEY] !== 'object' || Array.isArray(session[ACTIVE_DRAFT_KEY])) {
+    session[ACTIVE_DRAFT_KEY] = {};
+  }
+  return session[ACTIVE_DRAFT_KEY];
+}
+
+function activeDraftKey(listing = {}) {
+  return cleanText(listing.id || listing.slug, 180);
+}
+
+function setActiveDraft(req, listing, draftId) {
+  const key = activeDraftKey(listing);
+  const id = cleanText(draftId, 80);
+  if (!key || !id) return;
+  activeDrafts(req)[key] = { id, listingSlug: cleanText(listing.slug, 180), updatedAt: new Date().toISOString() };
+}
+
+function getActiveDraftId(req, listing) {
+  const key = activeDraftKey(listing);
+  if (!key) return '';
+  const active = activeDrafts(req);
+  const id = cleanText(active[key]?.id, 80);
+  if (!id) return '';
+  const draft = sessionDrafts(req)[id];
+  if (!draft || String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug)) {
+    delete active[key];
+    return '';
+  }
+  return id;
 }
 
 function purgeExpired(req) {
@@ -342,23 +377,25 @@ async function createDraft(req, { listing, payload = {} } = {}) {
   const drafts = purgeExpired(req);
   drafts[id] = draft;
   purgeExpired(req);
+  setActiveDraft(req, listing, id);
   await saveSession(req);
   return {
     id,
     expiresAt,
     inventoryExpiresAt,
-    redirectUrl: `/book/bus/${encodeURIComponent(listing.slug)}?draft=${encodeURIComponent(id)}`,
+    redirectUrl: `/book/bus/${encodeURIComponent(listing.slug)}`,
   };
 }
 
 async function resolveDraft(req, { draftId, listing } = {}) {
-  const id = cleanText(draftId, 80);
+  const id = cleanText(draftId, 80) || getActiveDraftId(req, listing);
   if (!id) throw conflictError('Choose your journey and seats before opening checkout', 'booking_draft_required');
   const draft = purgeExpired(req)[id];
   if (!draft) throw conflictError('The secure booking draft expired. Select the seats again.', 'booking_draft_expired');
   if (!listing || String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug)) {
     throw validationError('Booking draft belongs to another listing', 403);
   }
+  setActiveDraft(req, listing, id);
   const outboundResult = await resolveOrReacquireLeg(req, draft, 'outbound', listing);
   try {
     if (draft.return) await resolveOrReacquireLeg(req, draft, 'return', listing, outboundResult.hold);
@@ -400,8 +437,13 @@ async function applyDraftToPayload(req, payload = {}, listing = null) {
 
 async function discardDraft(req, draftId) {
   if (!req?.session) return;
+  const id = cleanText(draftId, 80);
   const drafts = purgeExpired(req);
-  delete drafts[cleanText(draftId, 80)];
+  delete drafts[id];
+  const active = activeDrafts(req);
+  for (const [key, pointer] of Object.entries(active)) {
+    if (String(pointer?.id || '') === id) delete active[key];
+  }
   await saveSession(req);
 }
 

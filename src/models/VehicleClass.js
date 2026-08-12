@@ -12,5 +12,5 @@ const vehicleClassSchema = new Schema({
   sortOrder: { type: Number, default: 0 },
   status: { type: String, enum: ['active', 'paused', 'archived'], default: 'active', index: true },
 }, { timestamps: true });
-vehicleClassSchema.index({ companyId: 1, key: 1 }, { unique: true });
+vehicleClassSchema.index({ companyId: 1, key: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 module.exports = model('VehicleClass', vehicleClassSchema);

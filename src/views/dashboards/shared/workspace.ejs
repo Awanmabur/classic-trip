@@ -6,7 +6,7 @@
 <link rel="icon" type="image/png" href="/images/favicon-48.png" />
 <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
-<link rel="stylesheet" href="/css/pwa.css?v=1.6.52" />
+<link rel="stylesheet" href="/css/pwa.css?v=1.6.62" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,12 +17,12 @@
 <meta name="theme-color" content="#070a12" />
 <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
 <script src="/js/csrf.js?v=20260722-3" defer></script>
-<link rel="preload" href="/js/dashboard-workspace.js?v=1.6.52" as="script" fetchpriority="low">
-<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.52">
+<link rel="preload" href="/js/dashboard-workspace.js?v=1.6.62" as="script" fetchpriority="low">
+<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.62">
 <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.52">
+<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.62">
 <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.52" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.62" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="dashboardBody">
 <%
@@ -543,19 +543,19 @@ heroStatCards = [
 <div class="cardPad">
 <div class="quickGrid">
 <% if(isCompanyDashboard && companySupportsBus){ %>
-<button class="quickCard" data-modal="create" data-type="branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add terminal first</strong><span>Create the operating terminal required by the guided bus-service setup.</span></button>
-<button class="quickCard" data-modal="create" data-type="bus service"><div class="quickIcon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><strong>Create bus service</strong><span>One screen: listing, vehicle, route, and first departure together. Recommended for new services.</span></button>
-<button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Add bus service profile before routes, vehicles, and schedules.</span></button>
-<button class="quickCard" data-modal="create" data-type="route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Add route, stops, and operating details.</span></button>
-<button class="quickCard" data-modal="create" data-type="vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Add bus, capacity, amenities, and seat layout.</span></button>
-<button class="quickCard" data-modal="create" data-type="schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create rolling departures</strong><span>Create once for the next 30 days; the window automatically adds one new day every day.</span></button>
+<a class="quickCard" href="/company/profile?create=branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add terminal first</strong><span>Open the real company profile form with all current terminal options loaded.</span></a>
+<a class="quickCard" href="/company/listings?create=bus%20service"><div class="quickIcon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><strong>Create bus service</strong><span>Open the real guided Bus Setup flow with its complete service data.</span></a>
+<a class="quickCard" href="/company/listings?create=listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create bus listing</strong><span>Open the real Bus Listing page and its full Create form.</span></a>
+<a class="quickCard" href="/company/routes?create=route"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Create route</strong><span>Open Routes and use the same full Create form as the page action.</span></a>
+<a class="quickCard" href="/company/vehicles?create=vehicle"><div class="quickIcon"><i class="fa-solid fa-bus-simple"></i></div><strong>Create vehicle</strong><span>Open Vehicles with the complete vehicle and seat-layout Create form.</span></a>
+<a class="quickCard" href="/company/schedules?create=schedule"><div class="quickIcon"><i class="fa-solid fa-calendar-days"></i></div><strong>Create rolling departures</strong><span>Open Departures and use the real schedule form with current routes, vehicles and fares.</span></a>
 <a class="quickCard" href="/company/manifests"><div class="quickIcon"><i class="fa-solid fa-file-lines"></i></div><strong>Open manifest</strong><span>Review, print, and export passengers and boarding check-ins.</span></a>
 <% } else if(isCompanyDashboard && companySupportsHotel){ %>
-<button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create stay listing first</strong><span>Create the public stay listing that each hotel property must connect to.</span></button>
-<button class="quickCard" data-modal="create" data-type="hotel property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Add a hotel, home, apartment or room profile with location, amenities and policies.</span></button>
-<button class="quickCard" data-modal="create" data-type="room type"><div class="quickIcon"><i class="fa-solid fa-bed"></i></div><strong>Add room type</strong><span>Create a room type, then add room units and dated night inventory.</span></button>
-<button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Hotel bookings</strong><span>Review stays, holds, guests, and payment status.</span></button>
-<button class="quickCard" data-jump="checkins"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Guest check-ins</strong><span>Open arrival and in-house guest workflow.</span></button>
+<a class="quickCard" href="/company/listings?create=listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create stay listing first</strong><span>Open Listings and use the full Stay Listing Create form.</span></a>
+<a class="quickCard" href="/company/hotel-properties?create=hotel%20property"><div class="quickIcon"><i class="fa-solid fa-hotel"></i></div><strong>Add property</strong><span>Open Properties and use the same full property form as the page action.</span></a>
+<a class="quickCard" href="/company/room-types?create=room%20type"><div class="quickIcon"><i class="fa-solid fa-bed"></i></div><strong>Add room type</strong><span>Open Room Types with the real current property and listing selections.</span></a>
+<a class="quickCard" href="/company/bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Hotel bookings</strong><span>Open the real Bookings page with its complete actions and current records.</span></a>
+<a class="quickCard" href="/company/checkins"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Guest check-ins</strong><span>Open the real Check-ins page and its current guest workflow.</span></a>
 <% } else if(isCompanyDashboard && companySupportsFlight){ %>
 <a class="quickCard" href="/company/dashboard/flight-search"><div class="quickIcon"><i class="fa-solid fa-magnifying-glass"></i></div><strong>Search flights</strong><span>Search live platform-approved supplier offers for a customer.</span></a>
 <a class="quickCard" href="/company/dashboard/flight-quotes"><div class="quickIcon"><i class="fa-solid fa-file-invoice-dollar"></i></div><strong>Customer quotes</strong><span>Prepare protected flight quotes without changing supplier prices.</span></a>
@@ -569,10 +569,10 @@ heroStatCards = [
 <a class="quickCard" href="/company/dashboard/taxi-operations"><div class="quickIcon"><i class="fa-solid fa-route"></i></div><strong>Assigned rides</strong><span>View platform-dispatched trips assigned to your verified team.</span></a>
 <a class="quickCard" href="/company/dashboard/taxi-incidents"><div class="quickIcon"><i class="fa-solid fa-shield-halved"></i></div><strong>Safety</strong><span>Report an incident without exposing restricted safety records.</span></a>
 <% } else if(isCompanyDashboard){ %>
-<button class="quickCard" data-modal="create" data-type="listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create service listing</strong><span>Add the public service, pricing, capacity, location, policies and media in one guided form.</span></button>
-<button class="quickCard" data-modal="create" data-type="add-on"><div class="quickIcon"><i class="fa-solid fa-puzzle-piece"></i></div><strong>Add optional extra</strong><span>Attach a clearly priced extra to this service type.</span></button>
-<button class="quickCard" data-modal="create" data-type="branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add operating location</strong><span>Create a branch, desk, pickup point or service location.</span></button>
-<button class="quickCard" data-jump="bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Open bookings</strong><span>Review customer orders, status and payment progress for this service.</span></button>
+<a class="quickCard" href="/company/listings?create=listing"><div class="quickIcon"><i class="fa-solid fa-layer-group"></i></div><strong>Create service listing</strong><span>Open the real Listings page and its complete service Create form.</span></a>
+<a class="quickCard" href="/company/listings?create=add-on"><div class="quickIcon"><i class="fa-solid fa-puzzle-piece"></i></div><strong>Add optional extra</strong><span>Open Listings first so the extra uses the same current service selections as the real page.</span></a>
+<a class="quickCard" href="/company/profile?create=branch"><div class="quickIcon"><i class="fa-solid fa-building"></i></div><strong>Add operating location</strong><span>Open Company Profile and its complete operating-location form.</span></a>
+<a class="quickCard" href="/company/bookings"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Open bookings</strong><span>Open the real Bookings page with full service-specific actions.</span></a>
 <% } else if(isEmployeeDashboard){ %>
 <button class="quickCard" data-jump="checkin"><div class="quickIcon"><i class="fa-solid fa-qrcode"></i></div><strong>Check in ticket</strong><span>Open the shared check-in workspace for manual or QR validation.</span></button>
 <button class="quickCard" data-modal="create" data-type="booking"><div class="quickIcon"><i class="fa-solid fa-ticket"></i></div><strong>Create booking</strong><span>Record a desk booking for the assigned company.</span></button>
@@ -769,9 +769,9 @@ return '#'+page;
 <%- include('sections/dynamic-page', Object.assign({}, sectionLocals, { item, employeeDynamicAction, employeeDynamicLabel, dynamicActionHref })) %>
 <% }) %>
 <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: browserDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
-<script src="/js/dashboard-shell.js?v=1.6.52" defer></script>
-<script src="/js/contact-hub.js?v=1.6.52" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.52" data-start="paint" data-modules="/js/dashboard-workspace.js?v=1.6.52" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.52" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.52" defer></script>
+<script src="/js/dashboard-shell.js?v=1.6.62" defer></script>
+<script src="/js/contact-hub.js?v=1.6.62" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.62" data-start="paint" data-modules="/js/dashboard-workspace.js?v=1.6.62" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.62" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.62" defer></script>
 </body>
 </html>

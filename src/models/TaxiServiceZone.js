@@ -15,5 +15,5 @@ const taxiServiceZoneSchema = new Schema({
   supportedServiceTypes: [{ type: String, enum: ['instant', 'scheduled', 'airport', 'intercity', 'hourly', 'corporate'] }],
   status: { type: String, enum: ['active', 'paused', 'archived'], default: 'active', index: true },
 }, { timestamps: true });
-taxiServiceZoneSchema.index({ companyId: 1, name: 1 }, { unique: true });
+taxiServiceZoneSchema.index({ companyId: 1, name: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 module.exports = model('TaxiServiceZone', taxiServiceZoneSchema);

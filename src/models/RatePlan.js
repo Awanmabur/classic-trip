@@ -30,5 +30,5 @@ const ratePlanSchema = new Schema({
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });
-ratePlanSchema.index({ companyId: 1, roomTypeId: 1, code: 1 }, { unique: true });
+ratePlanSchema.index({ companyId: 1, roomTypeId: 1, code: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 module.exports = model('RatePlan', ratePlanSchema);

@@ -1,19 +1,65 @@
 # Classic Trip — Complete East Africa Travel and Service Marketplace
 
+### v1.6.60 — Badge sizing
+- Slightly larger image badges and inventory/departure badges on cards and bars.
+- All v1.6.59 price hierarchy and v1.6.58 clipping fixes remain unchanged.
+
+
 Production-oriented Node.js, Express and MongoDB marketplace for **bus travel, verified stays and Airbnb-style homes, flights, platform-dispatched boda and car rides, tours and activities, car rentals, and cargo or parcel delivery**. The operational service registry exposes seven active, bookable services: `bus`, `hotel`, `flight`, `local_transport`, `tour`, `car_rental` and `cargo`.
 
 The existing visual design is preserved across public pages, authentication, partner dashboards, employee dashboards and operational documents. Shared components, spacing, forms, tables, tabs and action patterns are reused rather than duplicated.
 
 
-## Current release — version 1.6.52
+## Current release — version 1.6.59
 
-### v1.6.52 — Seed media repair + freely selectable Edit relationships
+
+### v1.6.58 — Card badge / overlay / preview cleanup
+- Smaller type/rating badges on card and bar images.
+- Smaller top-right availability/departure badge in bar view with clear route spacing.
+- Fixes card body clipping that could hide amenities, price hint and View/Book actions.
+- Preview hero images no longer render text over the photo.
+
+### v1.6.57 — Restore price/actions + amenity route-flow
+
+- Restores the full bus price block: `From UGX amount`, `Cheapest route fare`, View and Book actions.
+- Keeps only `From` and the currency slightly smaller than the amount; they are no longer visually disappearing.
+- Amenities now use two independent horizontal swipe lanes, balanced like bus routes, with natural-width chips and no squeezing.
+
+### v1.6.56 — Marketplace card/bar rhythm
+
+- Two route lines on both cards and bars.
+- Two reserved amenity lines.
+- Marketplace descriptions removed.
+- Smaller/lighter route text and de-emphasised From/currency.
+- Natural equal-height grid rows; bar images fill the row without setting its height.
+
+### v1.6.55 — Dashboard state + public departure consistency
+
+- Dashboard mutations preserve the current page and invalidate cached dashboard/public read models immediately after a successful write.
+- Archived operational records are excluded from live uniqueness constraints where replacement creation is expected.
+- Bus cards, listing previews and dashboard listing rows use the same future public departure count.
+- Published departure creation is strict and never silently becomes Draft; publication blockers are shown to the operator.
+- Existing future drafts can be retried with **Publish ready drafts** after compliance is corrected.
+
+Database upgrade for installations created before v1.6.55:
+
+```bash
+npm run repair:archive-uniqueness
+```
+
+Run the focused release gate with:
+
+```bash
+npm run check:v1655-dashboard-state-departures
+```
+
+### v1.6.53 — Seed media repair + freely selectable Edit relationships
 
 - Known launch-seed hotlink URLs for the seven seeded blogs and six seeded bus operators are now treated as repairable seed media, not protected custom media. Public rendering immediately falls back to same-origin `/media/...` URLs, and `npm run migrate:seeded-media` can upload the bundled images into the configured Cloudinary account.
 - Launch seeding is idempotent against canonical seed IDs and handles an existing seeded route without crashing on duplicate `id` indexes.
 - Edit relationship controls are selectable like Create. Route/Vehicle/Fare/Seat Template and Stay Property/Room Type/Rate Plan/Room Unit/Room-night relationships remain visible and can be changed.
 - Backend update services validate ownership and dependent records before persisting a relationship change; unsafe moves with committed live inventory/reservations are rejected with an actionable conflict rather than disabling the selector.
-- Service-worker/asset version is 1.6.52 and seeded `/media/...` endpoints remain outside the precache.
+- Service-worker/asset version is 1.6.53 and seeded `/media/...` endpoints remain outside the precache.
 
 ## Seven-service marketplace completion
 

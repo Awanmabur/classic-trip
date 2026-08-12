@@ -27,6 +27,6 @@ const roomUnitSchema = new Schema({
   media: [mediaSchema],
   documents: [mediaSchema],
 }, { timestamps: true });
-roomUnitSchema.index({ companyId: 1, propertyId: 1, normalizedUnitNumber: 1 }, { unique: true });
+roomUnitSchema.index({ companyId: 1, propertyId: 1, normalizedUnitNumber: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['available', 'occupied', 'maintenance', 'cleaning', 'reserved'] } } });
 roomUnitSchema.index({ listingId: 1, status: 1 });
 module.exports = model('RoomUnit', roomUnitSchema);

@@ -15,7 +15,7 @@ const busSegmentFareSchema = new Schema({
   status: { type: String, enum: ['active', 'paused', 'archived'], default: 'active', index: true },
 }, { timestamps: true });
 
-busSegmentFareSchema.index({ fareProductId: 1, fromStopId: 1, toStopId: 1 }, { unique: true });
+busSegmentFareSchema.index({ fareProductId: 1, fromStopId: 1, toStopId: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 busSegmentFareSchema.index({ routeId: 1, fromOrder: 1, toOrder: 1, status: 1 });
 busSegmentFareSchema.index({ companyId: 1, fareProductId: 1, status: 1, fromOrder: 1, toOrder: 1 });
 module.exports = model('BusSegmentFare', busSegmentFareSchema);

@@ -15,6 +15,10 @@
           <button class="btn" data-modal="create" data-type="segment fare"><i class="fa-solid fa-route"></i> Stop-to-stop price</button>
           <button class="btn" data-modal="create" data-type="add-on"><i class="fa-solid fa-circle-plus"></i> Add-on</button>
           <button class="btn" data-modal="create" data-type="schedule rule"><i class="fa-solid fa-repeat"></i> Recurring rule</button>
+          <form method="POST" action="/company/schedules/publish-ready-drafts" class="inlineActionForm">
+            <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+            <button class="btn" type="submit"><i class="fa-solid fa-cloud-arrow-up"></i> Publish ready drafts</button>
+          </form>
           <button class="btn btnBlue" data-modal="create" data-type="schedule"><i class="fa-solid fa-plus"></i> Create 30-day departures</button>
         </div>
       <% } else { %>

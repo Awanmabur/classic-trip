@@ -1,4 +1,4 @@
-## v1.6.52 Media/Edit repair gate
+## v1.6.53 Media/Edit repair gate
 
 - [x] Known legacy seeded blog hotlinks are repairable media.
 - [x] Known legacy seeded operator/listing hotlinks are repairable media.
@@ -7,7 +7,7 @@
 - [x] Edit relationship selects are not disabled or hidden.
 - [x] Bus relationship reassignment is ownership/dependency validated server-side.
 - [x] Stay relationship reassignment is ownership/dependency validated server-side.
-- [x] Current asset/service-worker version is 1.6.52.
+- [x] Current asset/service-worker version is 1.6.53.
 
 Run before launch:
 
@@ -23,7 +23,7 @@ npm start
 
 ---
 
-## v1.6.52 Media + selectable Edit gate
+## v1.6.53 Media + selectable Edit gate
 
 ```bash
 npm ci
@@ -56,7 +56,26 @@ Confirm Route Edit visibly shows its saved Bus listing and that relationship sel
 
 # Classic Trip Final Release Checklist
 
-Use this checklist for version 1.6.52.
+Use this checklist for version 1.6.55.
+
+## v1.6.55 dashboard state + departures
+
+- [ ] Run `npm run repair:archive-uniqueness` once on an existing database.
+- [ ] Archive an operational record and confirm a new live replacement can be created.
+- [ ] Create/edit/archive/publish from a dashboard page and confirm the browser remains on that page with fresh data.
+- [ ] Confirm Bus dashboard/listing/card departure counts agree.
+- [ ] Published-intent creation with missing readiness must show blockers instead of silently creating Drafts.
+- [ ] After fixing readiness, use **Publish ready drafts** and confirm those departures appear publicly.
+
+
+## v1.6.55 dashboard state + departures
+
+- [ ] Run `npm run repair:archive-uniqueness` once on an existing database before testing replacement creation after archive.
+- [ ] Archive a Hotel/Stay, Taxi, Flight or Bus operational child record and confirm a new live replacement can be created without the archived row reserving its live unique key.
+- [ ] Create/edit/archive/publish from a dashboard section and confirm the browser returns to the same page with fresh data.
+- [ ] Confirm the Bus listing badge, dashboard listing row and listing preview show the same future public departure count.
+- [ ] Create a departure with status Published while compliance is intentionally incomplete: no silent Draft batch should be created; the same page must show the blockers.
+- [ ] Correct compliance and use **Publish ready drafts**; confirm successfully published dates appear in the customer listing preview.
 
 
 

@@ -121,6 +121,7 @@ router.post('/company/schedule-rules/:id', requireCompanyService('bus'), schedul
 router.post('/company/schedule-rules/:id/pause', requireCompanyService('bus'), scheduleController.pauseRule);
 router.post('/company/schedule-rules/:id/resume', requireCompanyService('bus'), scheduleController.resumeRule);
 router.post('/company/schedule-rules/:id/cancel', requireCompanyService('bus'), scheduleController.cancelRule);
+router.post('/company/schedules/publish-ready-drafts', requireCompanyService('bus'), scheduleController.publishReadyDrafts);
 router.post('/company/schedules/:id', requireCompanyService('bus'), scheduleController.update);
 router.post('/company/schedules/:id/publish', requireCompanyService('bus'), scheduleController.publish);
 router.post('/company/schedules/:id/repair-inventory', requireCompanyService('bus'), scheduleController.repairInventory);

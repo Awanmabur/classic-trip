@@ -5,6 +5,10 @@
   var state = { config: null, notifications: [], open: false, subscription: null, syncing: false, initialized: false, seenIds: {}, audioContext: null, audioArmed: false, pollTimer: null };
 
   function csrfToken() {
+    var cookie = String(document.cookie || '').split(';').map(function (part) { return part.trim(); }).find(function (part) { return part.indexOf('XSRF-TOKEN=') === 0; });
+    if (cookie) {
+      try { return decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)); } catch (_) { return cookie.slice('XSRF-TOKEN='.length); }
+    }
     var meta = document.querySelector('meta[name="csrf-token"]');
     return meta ? meta.getAttribute('content') : '';
   }

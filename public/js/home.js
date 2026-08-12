@@ -209,21 +209,39 @@
 
   function availabilityBadge(item) {
     const remaining = Number(item?.remainingInventory ?? item?.availability);
+    const departureCount = Number(item?.departureCount ?? item?.publishedDepartureCount);
+    const isBus = String(item?.serviceType || item?.type || '').toLowerCase() === 'bus';
     if (item?.isSponsored) return { className: 'promo', icon: 'fa-bullhorn', text: 'Sponsored' };
+    if (isBus) {
+      if (Number.isFinite(departureCount) && departureCount > 0) return { className: 'available', icon: 'fa-calendar-check', text: `${departureCount} departure${departureCount === 1 ? '' : 's'}` };
+      return { className: 'full', icon: 'fa-calendar-xmark', text: 'No departures' };
+    }
     if (item?.bookable) return { className: 'available', icon: 'fa-circle-check', text: Number.isFinite(remaining) ? `${remaining} available` : 'Available' };
     if (Number.isFinite(remaining) && remaining <= 0) return { className: 'full', icon: 'fa-circle-xmark', text: 'No inventory' };
     return { className: 'promo', icon: 'fa-clock', text: 'View service' };
   }
 
-  function companyRoutesHtml(item, isBus) {
-    if (!isBus || !Array.isArray(item.routes) || !item.routes.length) return '';
-    return `<div class="companyRouteList" aria-label="All company routes">${item.routes.map((route) => {
+  function companyRoutesHtml(item, isBus, view = 'cards') {
+    if (!isBus) return '';
+    if (!Array.isArray(item.routes) || !item.routes.length) return '<div class="companyRouteList is-empty" aria-label="Routes"><span class="companyRoutePlaceholder" aria-hidden="true">Routes</span></div>';
+    const routeRows = 2;
+    const laneCount = Math.min(routeRows, item.routes.length);
+    const lanes = Array.from({ length: laneCount }, () => []);
+    const laneWeights = Array.from({ length: laneCount }, () => 0);
+    item.routes.forEach((route) => {
       const label = routeDisplay(route.origin, route.destination, route.label) || 'Bus route';
-      return `<span class="companyRouteChip" title="${escapeHtml(label)}"><i class="fa-solid fa-route"></i> ${escapeHtml(label)}</span>`;
-    }).join('')}</div>`;
+      let laneIndex = 0;
+      for (let index = 1; index < laneWeights.length; index += 1) {
+        if (laneWeights[index] < laneWeights[laneIndex]) laneIndex = index;
+      }
+      lanes[laneIndex].push(label);
+      laneWeights[laneIndex] += Math.max(10, label.length) + 5;
+    });
+    const laneHtml = lanes.map((lane) => `<div class="companyRouteLane">${lane.map((label) => `<span class="companyRouteChip" title="${escapeHtml(label)}"><i class="fa-solid fa-route"></i> ${escapeHtml(label)}</span>`).join('')}</div>`).join('');
+    return `<div class="companyRouteList" aria-label="All company routes" tabindex="0"><div class="companyRouteTrack">${laneHtml}</div></div>`;
   }
 
-  function cardHtml(item) {
+  function cardHtml(item, view = 'cards') {
     const id = listingId(item);
     const key = catalogKey(item);
     const group = String(item.group || item.serviceType || 'more');
@@ -243,16 +261,31 @@
     const rating = Number(item.ratingAverage || item.rating);
     const ratingText = Number.isFinite(rating) && rating > 0 ? rating.toFixed(1) : 'New';
     const partner = item.partner || item.companyName || 'Service partner';
+    const partnerRepeatsTitle = String(partner).trim().toLowerCase() === String(item.title || '').trim().toLowerCase();
     const amount = Number(item.priceFrom ?? item.price ?? 0);
-    const price = amount > 0 ? money(amount, item.currency) : 'Price pending';
-    const description = item.sub || item.shortDescription || item.description || (isBus
-      ? 'Public bus service with live departure and seat availability.'
-      : isHotel ? 'Verified stay with dated availability and secure booking.'
-        : isFlight ? 'Published flight inventory with fare families, baggage and live seats.'
-          : isTaxi ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : isTour ? 'Verified activity with published capacity, guide details and secure booking.' : isRental ? 'Verified vehicle rental with pickup, return and live availability.' : isCargo ? 'Verified parcel and freight movement with pickup and delivery details.' : 'Verified travel service.');
-    const routeList = companyRoutesHtml(item, isBus);
+    const currencyCode = String(item.currency || '').toUpperCase();
+    const amountText = Math.round(amount || 0).toLocaleString('en-GB');
+    const price = amount > 0 ? `${isBus ? '<span class=\"pricePrefix\">From</span> ' : ''}<span class=\"priceCurrency\">${escapeHtml(currencyCode)}</span> <span class=\"priceAmount\">${escapeHtml(amountText)}</span>` : 'Price pending';
+    const amenities = Array.isArray(item.amenities) ? item.amenities.map((value) => typeof value === 'string' ? value : (value?.name || value?.label || '')).map((value) => String(value || '').trim()).filter(Boolean) : [];
+    const amenityList = (() => {
+      if (!amenities.length) return '<div class="listingAmenityList is-empty" aria-label="Amenities"><span class="listingAmenityPlaceholder" aria-hidden="true">Amenities</span></div>';
+      const laneCount = Math.min(2, amenities.length);
+      const lanes = Array.from({ length: laneCount }, () => []);
+      const laneWeights = Array.from({ length: laneCount }, () => 0);
+      amenities.forEach((amenity) => {
+        let laneIndex = 0;
+        for (let index = 1; index < laneWeights.length; index += 1) {
+          if (laneWeights[index] < laneWeights[laneIndex]) laneIndex = index;
+        }
+        lanes[laneIndex].push(amenity);
+        laneWeights[laneIndex] += Math.max(8, amenity.length) + 4;
+      });
+      const rows = lanes.map((lane) => `<div class="listingAmenityLane">${lane.map((amenity) => `<span class="listingAmenityChip" title="${escapeHtml(amenity)}"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(amenity)}</span>`).join('')}</div>`).join('');
+      return `<div class="listingAmenityList" aria-label="Amenities" tabindex="0"><div class="listingAmenityTrack">${rows}</div></div>`;
+    })();
+    const routeList = companyRoutesHtml(item, isBus, view);
     const priceHint = item.bookable
-      ? (isBus ? 'Fare by stops' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
+      ? (isBus ? 'Cheapest route fare' : isHotel ? 'Starting price · per available night' : isFlight ? 'Starting airfare · live dated departure' : isTaxi ? 'Estimated fare · request an exact quote' : isTour ? 'Per participant · choose activity date' : isRental ? 'Per day · choose pickup and return' : isCargo ? 'Shipment price · add cargo details' : 'Starting price')
       : 'Open service details';
 
     return `<article class="listing marketplaceListingCard serviceCard serviceCard--${escapeHtml(type)}${isBus ? ' referenceBusCard' : ''}" data-id="${escapeHtml(id)}" data-catalog-key="${escapeHtml(key)}" data-group="${escapeHtml(group)}" data-service-type="${escapeHtml(type)}" data-stay-type="${escapeHtml(item.stayType || '')}" data-corridor="${escapeHtml(item.corridor || 'regional')}">
@@ -265,9 +298,9 @@
       <div class="cornerBadge ${escapeHtml(badge.className)}"><i class="fa-solid ${escapeHtml(badge.icon)}"></i> ${escapeHtml(badge.text)}</div>
       <div class="listingBody">
         <h3 class="listingTitle"><a href="${escapeHtml(listingUrl(item))}">${escapeHtml(item.title || 'Untitled service')}</a></h3>
-        <div class="meta"><span><i class="fa-solid ${(isBus || isFlight) ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span></div>
+        ${(!isBus || !partnerRepeatsTitle) ? `<div class="meta">${!isBus ? `<span><i class="fa-solid ${(isFlight || isCargo) ? 'fa-route' : 'fa-location-dot'}"></i> ${escapeHtml(place)}</span>` : ''}${!partnerRepeatsTitle ? `<span><i class="fa-solid fa-building"></i> ${escapeHtml(partner)}</span>` : ''}</div>` : ''}
         ${routeList}
-        <p class="desc">${escapeHtml(description)}</p>
+        ${amenityList}
         <div class="priceRow"><div><div class="price">${price}</div><div class="small">${escapeHtml(priceHint)}</div></div><div class="actions"><a class="btn btnGhost" href="${escapeHtml(listingUrl(item))}"><i class="fa-regular fa-eye"></i> View</a>${item.bookable ? `<a class="btn btnPrimary" href="${escapeHtml(bookingUrl(item))}"><i class="fa-solid fa-ticket"></i> Book</a>` : ''}</div></div>
       </div>
     </article>`;
@@ -279,10 +312,11 @@
     if (!container) return;
     const rows = listings.filter((item) => String(item.group || 'more') === group);
     const shown = rows.slice(0, visibleCounts[group]);
+    const view = sectionViews[group] || 'cards';
+    container.dataset.view = view;
     container.innerHTML = shown.length
-      ? shown.map(cardHtml).join('')
+      ? shown.map((item) => cardHtml(item, view)).join('')
       : `<div class="card marketplaceEmptyCard" data-home-empty="${escapeHtml(group)}"><strong>No published ${escapeHtml(config.label)} yet</strong><p class="muted">Services will appear after their complete records and bookable inventory are published.</p></div>`;
-    container.dataset.view = sectionViews[group] || 'cards';
     const section = document.querySelector(`[data-marketplace-section="${group}"]`);
     section?.querySelectorAll('[data-home-action="set-section-view"]').forEach((toggle) => {
       const active = toggle.dataset.view === container.dataset.view;
@@ -332,8 +366,9 @@
     const normalized = view === 'bars' ? 'bars' : 'cards';
     sectionViews[group] = normalized;
     try { localStorage.setItem(`classicTripSectionView:${group}`, normalized); } catch (_) {}
-    const container = document.getElementById(groupConfig[group].container);
-    if (container) container.dataset.view = normalized;
+    renderGroup(group);
+    updateSavedButtons();
+    applyCorridorHighlight();
     const section = document.querySelector(`[data-marketplace-section="${group}"]`);
     section?.querySelectorAll('[data-home-action="set-section-view"]').forEach((button) => {
       const active = button.dataset.view === normalized;

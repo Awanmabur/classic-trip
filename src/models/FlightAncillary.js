@@ -11,5 +11,5 @@ const flightAncillarySchema = new Schema({
   metadata: Schema.Types.Mixed,
   status: { type: String, enum: ['active', 'paused', 'archived'], default: 'active', index: true },
 }, { timestamps: true });
-flightAncillarySchema.index({ companyId: 1, code: 1 }, { unique: true });
+flightAncillarySchema.index({ companyId: 1, code: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 module.exports = model('FlightAncillary', flightAncillarySchema);

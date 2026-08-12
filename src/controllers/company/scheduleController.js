@@ -87,7 +87,11 @@ function flashMaterialization(req, label, materialized) {
 
 function handleRuleError(req, res, next, error) {
   if ([422, 503].includes(Number(error?.status)) && req.flash) {
-    req.flash(Number(error.status) === 503 ? 'warning' : 'error', error.message);
+    const failures = error?.validation?.failures || [];
+    const message = failures.length
+      ? `Published departure was not created. Fix these items first: ${readinessText(failures)}.`
+      : error.message;
+    req.flash(Number(error.status) === 503 ? 'warning' : 'error', message);
     return res.redirect('/company/schedules-fares');
   }
   return next(error);
@@ -131,6 +135,15 @@ function rollingSchedulePayload(payload = {}) {
 async function create(req, res, next) {
   try {
     if (String(req.body?.departureMode || 'rolling_30_days') !== 'one_off') {
+      if (String(req.body?.status || 'published').toLowerCase() !== 'draft') {
+        const preflight = await companyService.preflightSchedulePublication(companyId(req), req.body);
+        if (!preflight.validation.ok) {
+          const error = new Error(`Published rolling departures are not ready: ${readinessText(preflight.validation.failures)}`);
+          error.status = 422;
+          error.validation = preflight.validation;
+          throw error;
+        }
+      }
       const rule = await companyService.createScheduleRule(
         companyId(req),
         rollingSchedulePayload(req.body),
@@ -143,7 +156,10 @@ async function create(req, res, next) {
       return res.redirect('/company/schedules-fares');
     }
 
-    const result = await companyService.createScheduleBatch(companyId(req), req.body);
+    const result = await companyService.createScheduleBatch(companyId(req), {
+      ...req.body,
+      strictPublishIntent: String(req.body?.status || '').toLowerCase() === 'published',
+    });
     if (result.publicationDeferred?.length && req.flash) {
       const failures = [...new Set(result.publicationDeferred.flatMap((item) => item.failures || []))];
       req.flash(
@@ -187,6 +203,27 @@ async function publish(req, res, next) {
       return res.redirect('/company/schedules-fares');
     }
     next(error);
+  }
+}
+
+async function publishReadyDrafts(req, res, next) {
+  try {
+    const result = await companyService.publishReadyDraftSchedules(
+      companyId(req),
+      req.body || {},
+      req.session?.user?.id || 'company-admin',
+    );
+    if (req.flash) {
+      if (result.published.length) req.flash('success', `${result.published.length} ready draft departure${result.published.length === 1 ? '' : 's'} published.`);
+      if (result.skipped.length) {
+        const blockers = [...new Set(result.skipped.flatMap((item) => item.failures || []))];
+        req.flash('warning', `${result.skipped.length} draft departure${result.skipped.length === 1 ? '' : 's'} still need attention${blockers.length ? `: ${readinessText(blockers)}` : ''}.`);
+      }
+      if (!result.candidates) req.flash('success', 'There are no future Draft departures waiting to be published.');
+    }
+    return res.redirect('/company/schedules');
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -300,7 +337,7 @@ async function cancelRule(req, res, next) {
 }
 
 module.exports = {
-  create, update, archive, publish, repairInventory, updateSeat, transition, duplicate, complete,
+  create, update, archive, publish, publishReadyDrafts, repairInventory, updateSeat, transition, duplicate, complete,
   createRule, updateRule, pauseRule, resumeRule, cancelRule, rollingSchedulePayload,
   materializationSummary,
 };

@@ -277,8 +277,8 @@ function validateEnv() {
   if (env.isProduction && missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
+  let appUrl = null;
   if (env.isProduction) {
-    let appUrl;
     try { appUrl = new URL(env.appUrl); } catch (error) { throw new Error('APP_URL must be a valid absolute URL'); }
     if (appUrl.protocol !== 'https:') throw new Error('APP_URL must use HTTPS in production');
     let siteUrl;

@@ -162,7 +162,26 @@
 
   document.addEventListener('submit', (event) => {
     const form = event.target;
-    if (!validateActionForm(form)) event.preventDefault();
+    if (!validateActionForm(form)) {
+      event.preventDefault();
+      return;
+    }
+    const method = String(form.getAttribute('method') || 'GET').toUpperCase();
+    if (method !== 'GET') {
+      const action = String(form.getAttribute('action') || window.location.pathname);
+      let actionPath = action;
+      try { actionPath = new URL(action, window.location.origin).pathname; } catch (_) {}
+      if (/^\/(?:company|employee|driver|promoter|admin|operations|support|finance|content|account)(?:\/|$)/.test(actionPath)) {
+        let returnField = form.querySelector('input[name="_returnTo"]');
+        if (!returnField) {
+          returnField = document.createElement('input');
+          returnField.type = 'hidden';
+          returnField.name = '_returnTo';
+          form.appendChild(returnField);
+        }
+        returnField.value = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      }
+    }
   }, true);
 
   initializeCharacterCounts(document);
@@ -566,16 +585,19 @@
         scopedActions += `<form method="POST" action="/company/policies/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive policy"><i class="fa-solid fa-box-archive"></i></button></form>`;
       }
       if (entity === 'schedule') {
+        const scheduleStatus = String(meta?.status || meta?.detail?.schedule?.status || meta?.detail?.status || '').toLowerCase();
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest" title="Open printable manifest"><i class="fa-solid fa-file-lines"></i></a>`;
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest.pdf" title="Download manifest PDF"><i class="fa-solid fa-file-pdf"></i></a>`;
         scopedActions += `<a class="tinyBtn" href="/company/schedules/${id}/manifest.csv" title="Download manifest CSV"><i class="fa-solid fa-file-csv"></i></a>`;
         scopedActions += `<button class="tinyBtn" data-modal="view" data-type="publish readiness" data-label="${safeLabel}"${detailAttr}${idAttr} title="Check publish readiness"><i class="fa-solid fa-list-check"></i></button>`;
-        scopedActions += `<form method="POST" action="/company/schedules/${id}/repair-inventory" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Repair legacy seat-map link and live inventory"><i class="fa-solid fa-screwdriver-wrench"></i></button></form>`;
-        scopedActions += `<form method="POST" action="/company/schedules/${id}/publish" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Publish schedule"><i class="fa-solid fa-upload"></i></button></form>`;
+        if (['draft','active'].includes(scheduleStatus)) {
+          scopedActions += `<form method="POST" action="/company/schedules/${id}/repair-inventory" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Repair legacy seat-map link and live inventory"><i class="fa-solid fa-screwdriver-wrench"></i></button></form>`;
+          scopedActions += `<form method="POST" action="/company/schedules/${id}/publish" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Publish schedule"><i class="fa-solid fa-upload"></i></button></form>`;
+        }
         scopedActions += `<button class="tinyBtn" data-modal="edit" data-type="schedule status" data-label="${safeLabel}"${detailAttr}${idAttr} title="Update trip status"><i class="fa-solid fa-road-circle-check"></i></button>`;
-        scopedActions += `<form method="POST" action="/company/schedules/${id}/complete" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Complete trip and release eligible earnings"><i class="fa-solid fa-flag-checkered"></i></button></form>`;
+        if (scheduleStatus === 'arrived') scopedActions += `<form method="POST" action="/company/schedules/${id}/complete" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn" type="submit" title="Complete trip and release eligible earnings"><i class="fa-solid fa-flag-checkered"></i></button></form>`;
         scopedActions += `<button class="tinyBtn" data-modal="create" data-type="duplicate schedule" data-label="${safeLabel}"${detailAttr}${idAttr} title="Duplicate schedule"><i class="fa-regular fa-copy"></i></button>`;
-        scopedActions += `<form method="POST" action="/company/schedules/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive schedule"><i class="fa-solid fa-box-archive"></i></button></form>`;
+        if (['draft','active','published','delayed','cancelled','completed'].includes(scheduleStatus)) scopedActions += `<form method="POST" action="/company/schedules/${id}/archive" style="margin:0"><input type="hidden" name="_csrf" value="${csrfToken}"><button class="tinyBtn danger" type="submit" title="Archive schedule"><i class="fa-solid fa-box-archive"></i></button></form>`;
       }
       if (entity === 'schedule_rule') {
         const ruleStatus = String(meta?.status || meta?.detail?.scheduleRule?.status || '').toLowerCase();
@@ -4781,6 +4803,15 @@
     const crudBody = document.getElementById('crudBody');
     if (crudBody) new MutationObserver(() => enhanceFormLabels(crudBody)).observe(crudBody, { childList: true, subtree: true });
     bindEvents();
+    const createFromPage = String(new URLSearchParams(window.location.search).get('create') || '').trim();
+    if (createFromPage) {
+      window.requestAnimationFrame(() => {
+        openCrud('create', createFromPage, '', {});
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('create');
+        window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : '') + cleanUrl.hash);
+      });
+    }
     window.addEventListener('popstate', function () {
       const fromPath = String(window.location.pathname || '').split('/').filter(Boolean).pop();
       const page = String(window.location.hash || '').replace('#', '') || (fromPath === 'dashboard' ? 'overview' : fromPath) || 'overview';

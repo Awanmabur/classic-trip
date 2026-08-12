@@ -13,25 +13,34 @@
   const bookingHref = isFlightListing ? `/flights?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : isTaxiListing ? `/taxi?listingId=${encodeURIComponent(listing.id || listingIdentifier)}` : (listing.bookingUrl || listingHref);
   const listingImage = resolveMediaUrl(listing.img, listing.image, listing.coverImage, listing.media);
   const listingPartner = listing.partner || listing.companyName || 'Service partner';
+  const listingTitleText = String(listing.title || 'Untitled service').trim();
+  const partnerRepeatsTitle = listingPartner.trim().toLowerCase() === listingTitleText.toLowerCase();
   const listingRoute = ctRoute(listing.from, listing.to, listing.routeLabel);
   const companyRoutes = isBusListing && Array.isArray(listing.routes) ? listing.routes : [];
   const stayTypeLabels = {hotel:'Hotel',lodge:'Lodge',resort:'Resort',guest_house:'Guest house',serviced_apartment:'Serviced apartment',apartment:'Apartment',entire_home:'Entire home',private_room:'Private room',shared_room:'Shared room',villa:'Villa',cottage:'Cottage',cabin:'Cabin',bungalow:'Bungalow',homestay:'Homestay',holiday_home:'Holiday home',farm_stay:'Farm stay',bed_and_breakfast:'Bed & breakfast',hostel:'Hostel',camp:'Camp'};
   const stayTypeLabel = isHotelListing ? (stayTypeLabels[String(listing.stayType || listing.type || '').toLowerCase()] || 'Stay') : '';
   const listingPlace = (isBusListing || isFlightListing || isCargoListing) ? (listingRoute || listing.location || (isCargoListing ? 'Pickup and delivery area' : 'Route information')) : (listing.location || listing.city || listingRoute || (isTaxiListing ? 'Service zone' : isTourListing ? 'Tour location' : isRentalListing ? 'Pickup location' : 'Property location'));
-  const listingDescription = listing.sub || listing.shortDescription || listing.description || (isBusListing ? 'Public bus service with live departure and seat availability.' : isHotelListing ? 'Verified stay, Airbnb-style home or room with dated availability and secure booking.' : isFlightListing ? 'Published flight offer with baggage, seat options and verified agent support.' : isTaxiListing ? 'Verified boda and car rides with upfront platform pricing and automatic dispatch.' : isTourListing ? 'Guided experience with live participant capacity and secure booking.' : isRentalListing ? 'Verified rental vehicle with dated availability, self-drive or driver options.' : isCargoListing ? 'Secure pickup and delivery service for parcels, documents and freight.' : 'Verified travel service.');
+  const listingAmenities = Array.isArray(listing.amenities) ? listing.amenities.map((value) => typeof value === 'string' ? value : (value?.name || value?.label || '')).map((value) => String(value || '').trim()).filter(Boolean) : [];
   const listingAmount = Number(listing.priceFrom ?? listing.price ?? 0);
+  const listingCurrencyCode = String(listing.currency || platformConfig?.defaultCurrency || '').toUpperCase();
+  const listingAmountText = Math.round(listingAmount || 0).toLocaleString('en-GB');
   const listingRating = Number(listing.ratingAverage || listing.rating || 0);
   const listingRatingLabel = listingRating > 0 ? listingRating.toFixed(1) : 'New';
   const listingIcon = isBusListing ? 'fa-bus' : isHotelListing ? 'fa-hotel' : isFlightListing ? 'fa-plane' : isTaxiListing ? 'fa-taxi' : isTourListing ? 'fa-map-location-dot' : isRentalListing ? 'fa-car-side' : isCargoListing ? 'fa-boxes-stacked' : 'fa-ticket';
   const listingTypeLabel = listing.typeLabel || (isBusListing ? 'Bus' : isHotelListing ? stayTypeLabel : isFlightListing ? 'Flight' : isTaxiListing ? 'Local ride' : isTourListing ? 'Tour' : isRentalListing ? 'Car rental' : isCargoListing ? 'Cargo' : 'Service');
   const remaining = Number(listing.remainingInventory ?? listing.availability);
+  const departureCount = Number(listing.departureCount ?? listing.publishedDepartureCount);
   const numericAvailabilityApplies = !isTaxiListing && !isCargoListing;
-  const availabilityText = listing.isSponsored ? 'Sponsored' : listing.bookable ? (numericAvailabilityApplies && Number.isFinite(remaining) ? `${remaining} available` : 'Available') : remaining <= 0 && numericAvailabilityApplies ? 'No inventory' : 'View service';
-  const availabilityClass = listing.isSponsored ? 'promo' : listing.bookable ? 'available' : remaining <= 0 && numericAvailabilityApplies ? 'full' : 'promo';
-  const availabilityIcon = listing.isSponsored ? 'fa-bullhorn' : listing.bookable ? 'fa-circle-check' : remaining <= 0 && numericAvailabilityApplies ? 'fa-circle-xmark' : 'fa-clock';
-  const priceUnit = isBusListing ? 'Fare by stops' : isHotelListing ? `Starting price · per available night${stayTypeLabel ? ` · ${stayTypeLabel}` : ''}` : isFlightListing ? 'Starting airfare · live dated departure' : isTaxiListing ? 'Estimated fare · request an exact quote' : isTourListing ? 'Starting price · per participant' : isRentalListing ? 'Starting price · per rental day' : isCargoListing ? (listing.pricingUnit === 'per_kg' ? 'Starting price · per kilogram' : listing.pricingUnit === 'per_package' ? 'Starting price · per package' : 'Starting price · per shipment') : 'Starting price';
+  const availabilityText = listing.isSponsored
+    ? 'Sponsored'
+    : isBusListing
+      ? (Number.isFinite(departureCount) && departureCount > 0 ? `${departureCount} departure${departureCount === 1 ? '' : 's'}` : 'No departures')
+      : listing.bookable ? (numericAvailabilityApplies && Number.isFinite(remaining) ? `${remaining} available` : 'Available') : remaining <= 0 && numericAvailabilityApplies ? 'No inventory' : 'View service';
+  const availabilityClass = listing.isSponsored ? 'promo' : isBusListing ? (departureCount > 0 ? 'available' : 'full') : listing.bookable ? 'available' : remaining <= 0 && numericAvailabilityApplies ? 'full' : 'promo';
+  const availabilityIcon = listing.isSponsored ? 'fa-bullhorn' : isBusListing ? (departureCount > 0 ? 'fa-calendar-check' : 'fa-calendar-xmark') : listing.bookable ? 'fa-circle-check' : remaining <= 0 && numericAvailabilityApplies ? 'fa-circle-xmark' : 'fa-clock';
+  const priceUnit = isBusListing ? 'Cheapest route fare' : isHotelListing ? `Starting price · per available night${stayTypeLabel ? ` · ${stayTypeLabel}` : ''}` : isFlightListing ? 'Starting airfare · live dated departure' : isTaxiListing ? 'Estimated fare · request an exact quote' : isTourListing ? 'Starting price · per participant' : isRentalListing ? 'Starting price · per rental day' : isCargoListing ? (listing.pricingUnit === 'per_kg' ? 'Starting price · per kilogram' : listing.pricingUnit === 'per_package' ? 'Starting price · per package' : 'Starting price · per shipment') : 'Starting price';
 %>
-<article class="listing marketplaceListingCard <%= isBusListing ? 'referenceBusCard' : '' %>" data-id="<%= listing.listingId || listing.id || listingIdentifier %>" data-catalog-key="<%= listing.catalogKey || listing.id || listingIdentifier %>" data-group="<%= listing.group || listingType %>" data-service-type="<%= listingType %>" data-stay-type="<%= listing.stayType || '' %>" data-corridor="<%= listing.corridor || 'regional' %>">
+<article class="listing marketplaceListingCard serviceCard serviceCard--<%= listingType %> <%= isBusListing ? 'referenceBusCard' : '' %>" data-id="<%= listing.listingId || listing.id || listingIdentifier %>" data-catalog-key="<%= listing.catalogKey || listing.id || listingIdentifier %>" data-group="<%= listing.group || listingType %>" data-service-type="<%= listingType %>" data-stay-type="<%= listing.stayType || '' %>" data-corridor="<%= listing.corridor || 'regional' %>">
   <a class="listingThumbLink" href="<%= listingHref %>" aria-label="View <%= listing.title || 'service' %>">
     <div class="thumb">
       <% if (listingImage) { %><img src="<%= listingImage %>" alt="<%= listing.title || 'Service image' %>" loading="lazy" decoding="async" width="640" height="420"><% } else { %><div class="listingImageEmpty"><i class="fa-solid fa-image"></i></div><% } %>
@@ -41,20 +50,64 @@
   <div class="cornerBadge <%= availabilityClass %>"><i class="fa-solid <%= availabilityIcon %>"></i> <%= availabilityText %></div>
   <div class="listingBody">
     <h3 class="listingTitle"><a href="<%= listingHref %>"><%= listing.title || 'Untitled service' %></a></h3>
-    <div class="meta">
-      <span><i class="fa-solid <%= (isBusListing || isFlightListing || isCargoListing) ? 'fa-route' : 'fa-location-dot' %>"></i> <%= listingPlace %></span>
-      <span><i class="fa-solid fa-building"></i> <%= listingPartner %></span>
-    </div>
-    <% if (companyRoutes.length) { %>
-      <div class="companyRouteList" aria-label="All company routes">
-        <% companyRoutes.forEach((route) => { const routeText = ctRoute(route.origin, route.destination, route.label); %>
-          <span class="companyRouteChip" title="<%= routeText %>"><i class="fa-solid fa-route"></i> <%= routeText %></span>
-        <% }) %>
+    <% if (!isBusListing || !partnerRepeatsTitle) { %>
+      <div class="meta">
+        <% if (!isBusListing) { %><span><i class="fa-solid <%= (isFlightListing || isCargoListing) ? 'fa-route' : 'fa-location-dot' %>"></i> <%= listingPlace %></span><% } %>
+        <% if (!partnerRepeatsTitle) { %><span><i class="fa-solid fa-building"></i> <%= listingPartner %></span><% } %>
       </div>
     <% } %>
-    <p class="desc"><%= listingDescription %></p>
+    <% if (companyRoutes.length) {
+      const routeLaneCount = Math.min(2, companyRoutes.length);
+      const routeLanes = Array.from({ length: routeLaneCount }, () => []);
+      const routeLaneWeights = Array.from({ length: routeLaneCount }, () => 0);
+      companyRoutes.forEach((route) => {
+        const routeText = ctRoute(route.origin, route.destination, route.label);
+        let laneIndex = 0;
+        for (let i = 1; i < routeLaneWeights.length; i += 1) if (routeLaneWeights[i] < routeLaneWeights[laneIndex]) laneIndex = i;
+        routeLanes[laneIndex].push({ route, routeText });
+        routeLaneWeights[laneIndex] += Math.max(10, routeText.length) + 5;
+      });
+    %>
+      <div class="companyRouteList" aria-label="All company routes" tabindex="0">
+        <div class="companyRouteTrack">
+          <% routeLanes.forEach((lane) => { %>
+            <div class="companyRouteLane">
+              <% lane.forEach(({ routeText }) => { %>
+                <span class="companyRouteChip" title="<%= routeText %>"><i class="fa-solid fa-route"></i> <%= routeText %></span>
+              <% }) %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } else if (isBusListing) { %>
+      <div class="companyRouteList is-empty" aria-label="Routes"><span class="companyRoutePlaceholder" aria-hidden="true">Routes</span></div>
+    <% } %>
+    <%
+      const amenityLaneCount = Math.min(2, Math.max(1, listingAmenities.length));
+      const amenityLanes = Array.from({ length: amenityLaneCount }, () => []);
+      const amenityLaneWeights = Array.from({ length: amenityLaneCount }, () => 0);
+      listingAmenities.forEach((amenity) => {
+        let laneIndex = 0;
+        for (let index = 1; index < amenityLaneWeights.length; index += 1) {
+          if (amenityLaneWeights[index] < amenityLaneWeights[laneIndex]) laneIndex = index;
+        }
+        amenityLanes[laneIndex].push(amenity);
+        amenityLaneWeights[laneIndex] += Math.max(8, amenity.length) + 4;
+      });
+    %>
+    <div class="listingAmenityList <%= listingAmenities.length ? '' : 'is-empty' %>" aria-label="Amenities" tabindex="0">
+      <% if (listingAmenities.length) { %>
+        <div class="listingAmenityTrack">
+          <% amenityLanes.forEach((lane) => { %>
+            <div class="listingAmenityLane">
+              <% lane.forEach((amenity) => { %><span class="listingAmenityChip" title="<%= amenity %>"><i class="fa-solid fa-circle-check"></i> <%= amenity %></span><% }); %>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %><span class="listingAmenityPlaceholder" aria-hidden="true">Amenities</span><% } %>
+    </div>
     <div class="priceRow">
-      <div><div class="price"><%= listingAmount > 0 ? money(listingAmount, listing.currency) : 'Price pending' %></div><div class="small"><%= listing.bookable ? priceUnit : 'Open service details' %></div></div>
+      <div><div class="price"><% if (listingAmount > 0) { %><% if (isBusListing) { %><span class="pricePrefix">From</span> <% } %><span class="priceCurrency"><%= listingCurrencyCode %></span> <span class="priceAmount"><%= listingAmountText %></span><% } else { %>Price pending<% } %></div><div class="small"><%= listing.bookable ? priceUnit : 'Open service details' %></div></div>
       <div class="actions"><a class="btn btnGhost" href="<%= listingHref %>"><i class="fa-regular fa-eye"></i> View</a><% if (listing.bookable) { %><a class="btn btnPrimary" href="<%= bookingHref %>"><i class="fa-solid fa-ticket"></i> Book</a><% } %></div>
     </div>
   </div>

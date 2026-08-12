@@ -57,7 +57,7 @@ async function createVehicleClass(payload, actor = {}) {
     createdAt: now(), updatedAt: now(),
   };
   if (!row.name || !row.key) throw validationError('Ride class name is required');
-  await repo.vehicleClasses.save(row, { companyId: row.companyId, key: row.key });
+  await repo.vehicleClasses.save(row, { companyId: row.companyId, key: row.key, status: { $ne: 'archived' } });
   await repo.audit({ actorId: actorId(actor), action: 'mobility.platform.vehicle_class.saved', targetType: 'vehicle_class', targetId: row.id, companyId: PLATFORM_MOBILITY_OWNER });
   return row;
 }
@@ -83,7 +83,7 @@ async function createZone(payload, actor = {}) {
   };
   if (!row.name || !row.country || !row.countryCode) throw validationError('Zone name, country and country code are required');
   if (zoneType === 'airport' && !row.airportId) throw validationError('Airport zones require an airport');
-  await repo.zones.save(row, { companyId: row.companyId, name: row.name });
+  await repo.zones.save(row, { companyId: row.companyId, name: row.name, status: { $ne: 'archived' } });
   await repo.audit({ actorId: actorId(actor), action: 'mobility.platform.zone.saved', targetType: 'taxi_zone', targetId: row.id, companyId: PLATFORM_MOBILITY_OWNER });
   return row;
 }
@@ -117,7 +117,7 @@ async function createFareRule(payload, actor = {}) {
     createdAt: now(), updatedAt: now(),
   };
   if (row.surgeMax < row.surgeMin) throw validationError('Maximum demand multiplier cannot be below the minimum');
-  await repo.fareRules.save(row, { companyId: row.companyId, vehicleClassId: row.vehicleClassId, serviceZoneId: row.serviceZoneId, serviceType: row.serviceType });
+  await repo.fareRules.save(row, { companyId: row.companyId, vehicleClassId: row.vehicleClassId, serviceZoneId: row.serviceZoneId, serviceType: row.serviceType, status: { $ne: 'archived' } });
   await repo.audit({ actorId: actorId(actor), action: 'mobility.platform.fare_rule.saved', targetType: 'taxi_fare_rule', targetId: row.id, companyId: PLATFORM_MOBILITY_OWNER });
   return row;
 }
@@ -158,7 +158,7 @@ async function createVehicle(payload, actor = {}) {
     verificationStatus: 'pending', operationalStatus: 'offline', createdAt: now(), updatedAt: now(),
   };
   if (!row.registrationNumber || !row.make || !row.model) throw validationError('Registration, make and model are required');
-  await repo.vehicles.save(row, { companyId: row.companyId, registrationNumber: row.registrationNumber });
+  await repo.vehicles.save(row, { companyId: row.companyId, registrationNumber: row.registrationNumber, operationalStatus: { $ne: 'archived' } });
   await repo.audit({ actorId: actorId(actor), action: 'mobility.partner.vehicle.submitted', targetType: 'taxi_vehicle', targetId: row.id, companyId: partner.id, metadata: { partnerCategory: partnerCategory(partner) } });
   return row;
 }

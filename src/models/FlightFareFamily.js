@@ -21,5 +21,5 @@ const flightFareFamilySchema = new Schema({
   policySnapshot: Schema.Types.Mixed,
   status: { type: String, enum: ['draft', 'active', 'paused', 'archived'], default: 'draft', index: true },
 }, { timestamps: true });
-flightFareFamilySchema.index({ companyId: 1, airlineId: 1, code: 1 }, { unique: true });
+flightFareFamilySchema.index({ companyId: 1, airlineId: 1, code: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['draft', 'active', 'paused'] } } });
 module.exports = model('FlightFareFamily', flightFareFamilySchema);

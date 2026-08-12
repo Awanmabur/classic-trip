@@ -18,6 +18,7 @@ const { csrfToken } = require('./middlewares/csrf');
 const flashMiddleware = require('./middlewares/flash');
 const publicPerformance = require('./middlewares/publicPerformance');
 const searchIndexing = require('./middlewares/searchIndexing');
+const dashboardMutationState = require('./middlewares/dashboardMutationState');
 const platformMonitoring = require('./middlewares/platformMonitoring');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
@@ -124,6 +125,7 @@ app.use(csrfToken);
 app.use(flashMiddleware);
 app.use(publicPerformance);
 app.use(searchIndexing);
+app.use(dashboardMutationState);
 app.use((req, res, next) => {
   res.locals.appName = env.appName;
   res.locals.currentPath = req.path;

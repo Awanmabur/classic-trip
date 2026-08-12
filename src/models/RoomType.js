@@ -30,6 +30,6 @@ const roomTypeSchema = new Schema({
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });
-roomTypeSchema.index({ companyId: 1, propertyId: 1, normalizedName: 1 }, { unique: true });
+roomTypeSchema.index({ companyId: 1, propertyId: 1, normalizedName: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 roomTypeSchema.index({ listingId: 1, status: 1 });
 module.exports = model('RoomType', roomTypeSchema);

@@ -50,6 +50,6 @@ const hotelPropertySchema = new Schema({
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });
-hotelPropertySchema.index({ companyId: 1, listingId: 1 }, { unique: true });
+hotelPropertySchema.index({ companyId: 1, listingId: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 hotelPropertySchema.index({ country: 1, city: 1, status: 1 });
 module.exports = model('HotelProperty', hotelPropertySchema);

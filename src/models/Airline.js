@@ -12,5 +12,5 @@ const airlineSchema = new Schema({
   supplierMode: { type: String, enum: ['native_inventory', 'external_certified', 'referral_only'], default: 'native_inventory', index: true },
   status: { type: String, enum: ['draft', 'active', 'suspended', 'archived'], default: 'draft', index: true },
 }, { timestamps: true });
-airlineSchema.index({ companyId: 1, iataCode: 1 }, { unique: true, sparse: true });
+airlineSchema.index({ companyId: 1, iataCode: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['draft', 'active', 'suspended'] }, iataCode: { $exists: true } } });
 module.exports = model('Airline', airlineSchema);

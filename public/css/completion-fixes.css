@@ -2553,3 +2553,772 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
 /* v1.6.36 — archive restore is an accessible icon-only action. */
 .archiveRestoreIconBtn{width:36px!important;height:36px!important;min-width:36px!important;padding:0!important;border-radius:999px!important;display:inline-grid!important;place-items:center!important;}
 .archiveRestoreIconBtn i{margin:0!important;}
+
+
+/* v1.6.53 — marketplace card parity, readable swipeable route matrix, and cheapest-fare emphasis. */
+.companyRouteList{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-template-rows:repeat(3,max-content)!important;
+  grid-auto-columns:max-content!important;
+  justify-content:start!important;
+  align-content:start!important;
+  gap:6px!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:2px 0 5px!important;
+  scrollbar-width:none!important;
+  scroll-snap-type:x proximity!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.companyRouteList::-webkit-scrollbar{display:none!important}
+.companyRouteChip{
+  flex:none!important;
+  max-width:245px!important;
+  min-height:27px!important;
+  padding:5px 8px!important;
+  font-size:11.5px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  scroll-snap-align:start!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+  grid-template-rows:repeat(2,max-content)!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:max-content!important;
+  flex-wrap:unset!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  max-height:none!important;
+  gap:5px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{
+  max-width:210px!important;
+  min-height:25px!important;
+  padding:4px 7px!important;
+  font-size:10.5px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Keep service identity from the approved home cards on search and service landing pages. */
+.sitePage .marketplaceListingCard.serviceCard{border-radius:24px;overflow:hidden}
+.sitePage .marketplaceListingCard.serviceCard--bus .priceRow{border-top:1px dashed var(--line);padding-top:10px}
+.sitePage .marketplaceListingCard.serviceCard--hotel .thumb{aspect-ratio:4/3}
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody{border-top:1px dashed var(--line)}
+.sitePage .marketplaceListingCard.serviceCard--local_transport .priceRow{background:var(--soft);border-radius:14px;padding:9px}
+.sitePage .marketplaceListingCard.serviceCard--tour .thumb{aspect-ratio:4/3}
+.sitePage .marketplaceListingCard.serviceCard--car_rental .thumb{aspect-ratio:16/9}
+.sitePage .marketplaceListingCard.serviceCard--cargo .listingBody{border-top:2px solid color-mix(in srgb,var(--brand) 30%,transparent)}
+
+@media(max-width:680px){
+  .companyRouteChip{font-size:11px!important;max-width:210px!important}
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:10px!important;max-width:185px!important}
+}
+
+/* v1.6.53 — exact service-card identity follows listings beyond the home page. */
+.sitePage .marketplaceListingCard.serviceCard--hotel .thumb{aspect-ratio:16/10!important}
+.sitePage .marketplaceListingCard.serviceCard--flight{border-style:dashed!important}
+.sitePage .marketplaceListingCard.serviceCard--flight .thumb{aspect-ratio:16/7!important}
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody{position:relative!important}
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody::before,
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody::after{content:"";position:absolute;top:-9px;width:18px;height:18px;border-radius:50%;background:var(--bg0);border:1px solid var(--line)}
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody::before{left:-9px}
+.sitePage .marketplaceListingCard.serviceCard--flight .listingBody::after{right:-9px}
+.sitePage .marketplaceListingCard.serviceCard--local_transport .thumb{aspect-ratio:16/8!important}
+.sitePage .marketplaceListingCard.serviceCard--local_transport .priceRow{background:var(--field)!important;border-radius:16px!important;padding:9px!important}
+.sitePage .marketplaceListingCard.serviceCard--car_rental .meta{display:grid;grid-template-columns:1fr 1fr}
+.sitePage .marketplaceListingCard.serviceCard--cargo{display:grid;grid-template-columns:132px minmax(0,1fr);min-height:170px}
+.sitePage .marketplaceListingCard.serviceCard--cargo .listingThumbLink,
+.sitePage .marketplaceListingCard.serviceCard--cargo .thumb{height:100%;min-height:170px}
+.sitePage .marketplaceListingCard.serviceCard--cargo .thumb{border-radius:0}
+@media(max-width:680px){
+  .sitePage .marketplaceListingCard.serviceCard--cargo{grid-template-columns:104px minmax(0,1fr);min-height:142px}
+  .sitePage .marketplaceListingCard.serviceCard--cargo .listingThumbLink,
+  .sitePage .marketplaceListingCard.serviceCard--cargo .thumb{min-height:142px}
+}
+
+/* v1.6.53 — blog directory only; approved home.css remains untouched. */
+.blogsPage .blogDirectoryGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.blogsPage .blogDirectoryCard{grid-column:auto!important;grid-template-columns:1fr!important;grid-template-rows:auto 1fr!important}
+.blogsPage .blogDirectoryMedia{height:190px!important;min-height:0!important}
+.blogsPage .blogDirectoryBody{padding:14px!important}
+.blogsPage .blogDirectoryBody h2{font-size:17px!important}
+@media(max-width:1100px){.blogsPage .blogDirectoryGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:680px){.blogsPage .blogDirectoryGrid{grid-template-columns:1fr!important}}
+
+
+/* v1.6.55 — route text only: staggered free-flow lanes with native left/right swipe. */
+.companyRouteList{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:2px 0 5px!important;
+  scrollbar-width:none!important;
+  scroll-snap-type:x proximity!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.companyRouteList::-webkit-scrollbar{display:none!important}
+.companyRouteTrack{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  gap:6px!important;
+  width:max-content!important;
+  min-width:100%!important;
+}
+.companyRouteLane{
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+  width:max-content!important;
+  min-width:max-content!important;
+}
+.companyRouteChip{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:4px!important;
+  flex:0 0 auto!important;
+  width:max-content!important;
+  max-width:none!important;
+  min-height:28px!important;
+  padding:5px 8px!important;
+  font-size:12.5px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  scroll-snap-align:start!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+  display:block!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  max-height:none!important;
+  padding:1px 0 4px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteTrack{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:5px!important;
+  width:max-content!important;
+  min-width:100%!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteLane{
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  gap:5px!important;
+  width:max-content!important;
+  min-width:max-content!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{
+  width:max-content!important;
+  max-width:none!important;
+  min-height:27px!important;
+  padding:4px 7px!important;
+  font-size:12px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+@media(max-width:680px){
+  .companyRouteChip{font-size:12px!important;max-width:none!important}
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:11.75px!important;max-width:none!important}
+}
+
+/* v1.6.56 — marketplace card rhythm: two route rows, two amenity rows, no descriptions, natural equal-height rows. */
+.marketplaceListingCard{
+  height:100%;
+}
+.marketplaceListingCard .listingBody{
+  min-width:0;
+}
+.gridCards,
+.homePage .sectionListingCollection[data-view="cards"],
+.homePage .sectionListingCollection[data-view="bars"]{
+  align-items:stretch!important;
+}
+.gridCards>.marketplaceListingCard,
+.homePage .sectionListingCollection>.marketplaceListingCard{
+  height:100%;
+  align-self:stretch;
+}
+
+/* Routes: exactly two independent lanes, compact type, no squeezing, left/right native swipe. */
+.companyRouteList{
+  min-height:58px!important;
+  max-height:58px!important;
+  padding:2px 0 4px!important;
+}
+.companyRouteTrack{
+  gap:4px!important;
+}
+.companyRouteLane{
+  gap:5px!important;
+  min-height:25px!important;
+}
+.companyRouteChip{
+  min-height:25px!important;
+  padding:4px 7px!important;
+  font-size:11.25px!important;
+  font-weight:700!important;
+  line-height:1.15!important;
+  letter-spacing:0!important;
+}
+.companyRouteChip i{font-size:.86em!important;opacity:.8}
+.companyRouteList.is-empty{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.companyRoutePlaceholder{display:block;width:1px;height:54px;overflow:hidden}
+
+/* Amenities: reserve two lines so cards with fewer facilities do not collapse shorter. */
+.listingAmenityList{
+  display:grid!important;
+  grid-template-rows:repeat(2,25px)!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:max-content!important;
+  align-items:center!important;
+  align-content:start!important;
+  gap:4px 5px!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:54px!important;
+  max-height:54px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:2px 0!important;
+  scrollbar-width:none!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.listingAmenityList::-webkit-scrollbar{display:none!important}
+.listingAmenityChip{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:4px!important;
+  width:max-content!important;
+  max-width:210px!important;
+  min-height:25px!important;
+  padding:4px 7px!important;
+  border:1px solid var(--line)!important;
+  border-radius:999px!important;
+  background:var(--field)!important;
+  color:var(--muted)!important;
+  font-size:10.5px!important;
+  font-weight:750!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.listingAmenityChip i{font-size:.82em!important;color:var(--muted)!important}
+.listingAmenityList.is-empty{visibility:hidden!important;pointer-events:none!important}
+.listingAmenityPlaceholder{display:block;width:1px;height:50px;overflow:hidden}
+
+/* Descriptions are intentionally removed from marketplace cards/bars. */
+.marketplaceListingCard .desc{display:none!important}
+
+/* Keep amount prominent while de-emphasising only the prefix and currency. */
+.marketplaceListingCard .pricePrefix,
+.marketplaceListingCard .priceCurrency{
+  font-size:.68em!important;
+  font-weight:750!important;
+  color:var(--muted)!important;
+  letter-spacing:.01em!important;
+  vertical-align:.12em!important;
+}
+.marketplaceListingCard .priceAmount{font:inherit;color:inherit}
+
+/* Natural equal-height bars: body content sets row height; the image only fills it. */
+.homePage .sectionListingCollection[data-view="bars"]{
+  grid-auto-rows:1fr!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
+  height:100%!important;
+  min-height:0!important;
+  align-self:stretch!important;
+  overflow:hidden!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingThumbLink{
+  position:relative!important;
+  height:auto!important;
+  min-height:0!important;
+  align-self:stretch!important;
+  overflow:hidden!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumb{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  border-radius:0!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumb img{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingBody{
+  grid-template-rows:auto auto auto auto auto!important;
+  align-content:start!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+  min-height:54px!important;
+  max-height:54px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{
+  min-height:24px!important;
+  padding:4px 6px!important;
+  font-size:10.75px!important;
+  font-weight:700!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingAmenityList{
+  grid-template-rows:repeat(2,24px)!important;
+  min-height:52px!important;
+  max-height:52px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingAmenityChip{
+  min-height:24px!important;
+  padding:4px 6px!important;
+  font-size:10px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .priceRow{margin-top:0!important}
+
+/* Search/service grids inherit the tallest natural card in each grid row. */
+.sitePage .gridCards{align-items:stretch!important;grid-auto-rows:1fr}
+.sitePage .gridCards>.marketplaceListingCard{height:100%!important}
+
+@media(max-width:680px){
+  .companyRouteChip{font-size:10.75px!important;font-weight:700!important}
+  .listingAmenityChip{font-size:10px!important;max-width:185px!important}
+  .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:10.25px!important}
+  .homePage .sectionListingCollection[data-view="bars"] .listingAmenityChip{font-size:9.75px!important}
+}
+
+/* v1.6.56 — let the tallest natural card define each grid row; shorter cards stretch to it. */
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .listingBody,
+.sitePage .gridCards .marketplaceListingCard .listingBody{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  height:100%!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .priceRow,
+.sitePage .gridCards .marketplaceListingCard .priceRow{
+  margin-top:auto!important;
+}
+
+/* v1.6.57 — restore full price/actions and make amenities flow exactly like routes. */
+.marketplaceListingCard .priceRow{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:end!important;
+  gap:10px!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.marketplaceListingCard .price{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.marketplaceListingCard .pricePrefix,
+.marketplaceListingCard .priceCurrency{
+  font-size:.82em!important;
+  font-weight:800!important;
+  color:var(--muted)!important;
+  vertical-align:.06em!important;
+}
+.marketplaceListingCard .priceAmount{
+  font:inherit!important;
+  font-weight:1100!important;
+  color:inherit!important;
+}
+.marketplaceListingCard .priceRow .small{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  margin-top:2px!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.marketplaceListingCard .actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:7px!important;
+  flex-wrap:nowrap!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.marketplaceListingCard .actions .btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  white-space:nowrap!important;
+}
+
+/* Amenities use the same two independent, natural-width swipe lanes as routes. */
+.listingAmenityList{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:54px!important;
+  max-height:54px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:2px 0!important;
+  scrollbar-width:none!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-x!important;
+}
+.listingAmenityTrack{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  gap:4px!important;
+  width:max-content!important;
+  min-width:100%!important;
+}
+.listingAmenityLane{
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  width:max-content!important;
+  min-width:100%!important;
+  min-height:25px!important;
+  flex-wrap:nowrap!important;
+}
+.listingAmenityChip{
+  flex:0 0 auto!important;
+  width:max-content!important;
+  max-width:none!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingAmenityList{
+  min-height:52px!important;
+  max-height:52px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingAmenityLane{
+  min-height:24px!important;
+}
+
+@media(max-width:680px){
+  .marketplaceListingCard .priceRow{gap:7px!important}
+  .marketplaceListingCard .actions{gap:5px!important}
+  .marketplaceListingCard .actions .btn{padding-inline:8px!important}
+}
+
+
+/* v1.6.59 — compact image badges, clean bar inventory spacing, and repair card-body clipping. */
+/* The two image badges stay readable but take less visual space on both cards and bars. */
+.marketplaceListingCard .thumbBadges{
+  left:8px!important;
+  right:72px!important;
+  bottom:8px!important;
+  gap:4px!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+}
+.marketplaceListingCard .thumbBadges .badge{
+  min-height:20px!important;
+  padding:3px 6px!important;
+  gap:3px!important;
+  border-radius:999px!important;
+  font-size:8.75px!important;
+  line-height:1.05!important;
+  font-weight:850!important;
+  white-space:nowrap!important;
+}
+.marketplaceListingCard .thumbBadges .badge i{font-size:.86em!important}
+
+/* Availability / departure-count badge is smaller too. */
+.marketplaceListingCard>.cornerBadge{
+  top:8px!important;
+  right:8px!important;
+  gap:4px!important;
+  padding:4px 7px!important;
+  font-size:9px!important;
+  line-height:1.05!important;
+  box-shadow:0 6px 16px rgba(0,0,0,.14)!important;
+}
+
+/*
+ * Card clipping repair:
+ * v1.6.56 gave listingBody height:100% while the image still occupied its own
+ * height. Because .listing itself clips overflow, amenities/price/actions could
+ * be pushed beyond the card. The card is now a real column: image + flexible body.
+ */
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard:not(.serviceCard--cargo),
+.sitePage .gridCards .marketplaceListingCard:not(.serviceCard--cargo){
+  display:flex!important;
+  flex-direction:column!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard:not(.serviceCard--cargo)>.listingThumbLink,
+.sitePage .gridCards .marketplaceListingCard:not(.serviceCard--cargo)>.listingThumbLink{
+  flex:0 0 auto!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .listingBody,
+.sitePage .gridCards .marketplaceListingCard .listingBody{
+  height:auto!important;
+  min-height:0!important;
+  flex:1 1 auto!important;
+  overflow:visible!important;
+  padding-bottom:12px!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .companyRouteList,
+.sitePage .gridCards .marketplaceListingCard .companyRouteList{
+  flex:0 0 58px!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .listingAmenityList,
+.sitePage .gridCards .marketplaceListingCard .listingAmenityList{
+  position:relative!important;
+  z-index:1!important;
+  flex:0 0 54px!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .priceRow,
+.sitePage .gridCards .marketplaceListingCard .priceRow{
+  position:relative!important;
+  z-index:2!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  min-height:44px!important;
+  margin-top:auto!important;
+  overflow:visible!important;
+}
+.marketplaceListingCard.serviceCard--bus .priceRow{
+  background:transparent!important;
+  background-image:none!important;
+}
+
+/* Bar badges stay inside the top edge and leave the two route lanes clear below. */
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges{
+  left:6px!important;
+  right:6px!important;
+  bottom:6px!important;
+  gap:3px!important;
+  max-width:calc(100% - 12px)!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+  min-height:18px!important;
+  padding:2.5px 5px!important;
+  font-size:8px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+  top:5px!important;
+  right:7px!important;
+  max-width:86px!important;
+  padding:3px 5px!important;
+  gap:3px!important;
+  font-size:8.25px!important;
+  line-height:1!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingTitle{
+  padding-right:82px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .listingBody{
+  height:auto!important;
+  min-height:0!important;
+  overflow:visible!important;
+  padding-top:9px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .companyRouteList{
+  position:relative!important;
+  z-index:1!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .priceRow{
+  position:relative!important;
+  z-index:2!important;
+  overflow:visible!important;
+}
+
+/* Preview hero is image-only; no copy is drawn over the photo. */
+.listingPreviewPage .visualHero .visualText{display:none!important}
+
+@media(max-width:680px){
+  .marketplaceListingCard .thumbBadges{left:7px!important;right:64px!important;bottom:7px!important}
+  .marketplaceListingCard .thumbBadges .badge{font-size:8.25px!important;padding:3px 5px!important;min-height:19px!important}
+  .marketplaceListingCard>.cornerBadge{top:7px!important;right:7px!important;font-size:8.5px!important;padding:3.5px 6px!important}
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{top:4px!important;right:6px!important;font-size:7.8px!important;padding:3px 5px!important;max-width:78px!important}
+}
+
+/* v1.6.59 — fine-tune price hierarchy and image badges only. */
+.marketplaceListingCard.serviceCard--bus .pricePrefix,
+.marketplaceListingCard.serviceCard--bus .priceCurrency{
+  font-size:.72em!important;
+  font-weight:700!important;
+  color:var(--muted)!important;
+  vertical-align:.08em!important;
+}
+.marketplaceListingCard.serviceCard--bus .priceAmount{
+  font-weight:900!important;
+  letter-spacing:-.01em!important;
+}
+.marketplaceListingCard.serviceCard--bus .priceRow .small{
+  font-size:9px!important;
+  font-weight:600!important;
+  line-height:1.15!important;
+  color:var(--muted)!important;
+  margin-top:1px!important;
+}
+
+/* Bring the two photo badges back up slightly from v1.6.59. */
+.marketplaceListingCard .thumbBadges .badge{
+  min-height:22px!important;
+  padding:4px 7px!important;
+  font-size:9.5px!important;
+}
+.marketplaceListingCard>.cornerBadge{
+  padding:4.5px 8px!important;
+  font-size:9.75px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+  min-height:20px!important;
+  padding:3px 6px!important;
+  font-size:8.75px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+  padding:3.5px 6px!important;
+  font-size:8.75px!important;
+}
+@media(max-width:680px){
+  .marketplaceListingCard .thumbBadges .badge{
+    min-height:21px!important;
+    padding:3.5px 6px!important;
+    font-size:9px!important;
+  }
+  .marketplaceListingCard>.cornerBadge{
+    font-size:9.25px!important;
+    padding:4px 7px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+    min-height:19px!important;
+    font-size:8.5px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+    font-size:8.4px!important;
+    padding:3px 5.5px!important;
+  }
+}
+
+
+/* v1.6.60 — increase marketplace image/count badges slightly only. */
+.marketplaceListingCard .thumbBadges .badge{
+  min-height:24px!important;
+  padding:4.5px 8px!important;
+  font-size:10.25px!important;
+}
+.marketplaceListingCard>.cornerBadge{
+  padding:5px 9px!important;
+  font-size:10.5px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+  min-height:22px!important;
+  padding:3.5px 7px!important;
+  font-size:9.5px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+  padding:4px 7px!important;
+  font-size:9.5px!important;
+}
+@media(max-width:680px){
+  .marketplaceListingCard .thumbBadges .badge{
+    min-height:23px!important;
+    padding:4px 7px!important;
+    font-size:9.75px!important;
+  }
+  .marketplaceListingCard>.cornerBadge{
+    font-size:10px!important;
+    padding:4.5px 8px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+    min-height:21px!important;
+    font-size:9.25px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+    font-size:9.1px!important;
+    padding:3.5px 6.5px!important;
+  }
+}
+
+/* v1.6.61 — one more small marketplace badge increase; no other card geometry changes. */
+.marketplaceListingCard .thumbBadges .badge{
+  min-height:25px!important;
+  padding:5px 8.5px!important;
+  font-size:10.75px!important;
+}
+.marketplaceListingCard>.cornerBadge{
+  padding:5.25px 9.5px!important;
+  font-size:11px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+  min-height:23px!important;
+  padding:4px 7.5px!important;
+  font-size:10px!important;
+}
+.homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+  padding:4.25px 7.5px!important;
+  font-size:10px!important;
+}
+@media(max-width:680px){
+  .marketplaceListingCard .thumbBadges .badge{
+    min-height:24px!important;
+    padding:4.25px 7.5px!important;
+    font-size:10.25px!important;
+  }
+  .marketplaceListingCard>.cornerBadge{
+    font-size:10.5px!important;
+    padding:4.75px 8.5px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+    min-height:22px!important;
+    font-size:9.75px!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+    font-size:9.5px!important;
+    padding:3.75px 7px!important;
+  }
+}
+
+/* v1.6.62 — final desktop bar badge sizing. Keep card and phone bar geometry unchanged. */
+@media(min-width:681px){
+  .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
+    min-height:25px!important;
+    padding:4.5px 8.5px!important;
+    font-size:10.75px!important;
+    line-height:1.05!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{
+    max-width:102px!important;
+    padding:5px 8.5px!important;
+    gap:4px!important;
+    font-size:10.75px!important;
+    line-height:1.05!important;
+  }
+  .homePage .sectionListingCollection[data-view="bars"] .listingTitle{
+    padding-right:98px!important;
+  }
+}

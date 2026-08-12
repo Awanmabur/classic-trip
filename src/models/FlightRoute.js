@@ -11,5 +11,5 @@ const flightRouteSchema = new Schema({
   international: { type: Boolean, default: false },
   status: { type: String, enum: ['draft', 'active', 'paused', 'archived'], default: 'draft', index: true },
 }, { timestamps: true });
-flightRouteSchema.index({ companyId: 1, originAirportId: 1, destinationAirportId: 1, listingId: 1 }, { unique: true });
+flightRouteSchema.index({ companyId: 1, originAirportId: 1, destinationAirportId: 1, listingId: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['draft', 'active', 'paused'] } } });
 module.exports = model('FlightRoute', flightRouteSchema);

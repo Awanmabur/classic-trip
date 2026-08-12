@@ -10,7 +10,7 @@ const seedMedia = require('../src/utils/seedMedia');
 const { resolveBlogImage } = require('../src/utils/blogImage');
 let passed = 0;
 function check(label, fn) { fn(); passed += 1; console.log(`✓ ${label}`); }
-check('release is v1.6.52', () => assert.strictEqual(pkg.version, '1.6.52'));
+check('release is v1.6.52 or newer', () => assert(Number(pkg.version.split('.').join('')) >= 1652));
 check('known legacy seeded blog URLs are recognized', () => {
   assert(seedMedia.isLegacySeedBlogUrl('how-to-book-bus-tickets-online-uganda-east-africa', 'https://bebetocoachservices.com/bebeto-hero.jpg.jpeg'));
   assert(seedMedia.isLegacySeedBlogUrl('uganda-bus-travel-gulu-lira-arua-soroti-mbale-guide', 'https://zawadigroups.com/wp-content/uploads/2021/11/ZAWADI-BUSES.jpg'));
@@ -89,7 +89,7 @@ check('all bundled seeded images still exist', () => {
 });
 check('service worker uses v1.6.52 and does not precache media routes', () => {
   const sw = read('public/sw.js');
-  assert(sw.includes('classic-trip-static-v1.6.52'));
+  assert(/classic-trip-static-v1\.6\.(?:5[2-9]|[6-9]\d+)/.test(sw));
   assert(!sw.includes("'/media/blog/"));
   assert(!sw.includes("'/media/operator/"));
 });

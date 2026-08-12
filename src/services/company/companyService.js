@@ -1132,10 +1132,12 @@ async function updateVehicleSeatTemplateDispatch(companyId, vehicleId, payload =
 async function updateVehicleStatusDispatch(companyId, vehicleId, payload = {}, actor = 'company-admin') { await assertBusVehicle(companyId, vehicleId); return busSetupService.updateVehicleStatus(companyId, vehicleId, payload, actor); }
 
 async function createScheduleBatchDispatch(companyId, payload = {}) { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); return busDepartureService.createScheduleBatch(companyId, payload, payload.actorId || payload.createdBy || 'company-admin'); }
+async function preflightSchedulePublicationDispatch(companyId, payload = {}) { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); if (payload.routeId) await assertBusRoute(companyId, payload.routeId); return busDepartureService.preflightSchedulePublication(companyId, payload); }
 async function createScheduleDispatch(companyId, payload = {}) { await assertBusCompany(companyId); if (payload.listingId) await assertBusListing(companyId, payload.listingId); if (payload.routeId) await assertBusRoute(companyId, payload.routeId); return busDepartureService.createSchedule(companyId, payload, payload.actorId || payload.createdBy || 'company-admin'); }
 async function repairScheduleInventoryDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.repairScheduleInventory(companyId, scheduleId, actor); }
 async function updateScheduleDispatch(companyId, scheduleId, payload = {}) { await assertBusSchedule(companyId, scheduleId); return busDepartureService.updateSchedule(companyId, scheduleId, payload, payload.actorId || payload.updatedBy || 'company-admin'); }
 async function publishScheduleDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.publishSchedule(companyId, scheduleId, actor); }
+async function publishReadyDraftSchedulesDispatch(companyId, payload = {}, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.publishReadyDraftSchedules(companyId, payload, actor); }
 async function archiveScheduleDispatch(companyId, scheduleId, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.archiveSchedule(companyId, scheduleId, actor); }
 async function transitionScheduleDispatch(companyId, scheduleId, payload = {}, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.transitionSchedule(companyId, scheduleId, payload, actor); }
 async function completeScheduleDispatch(companyId, scheduleId, payload = {}, actor = 'company-admin') { await assertBusSchedule(companyId, scheduleId); return busDepartureService.completeSchedule(companyId, scheduleId, payload, actor); }
@@ -1153,10 +1155,10 @@ module.exports = {
   createRouteStop: createRouteStopDispatch, updateRouteStop: updateRouteStopDispatch, archiveRouteStop: archiveRouteStopDispatch, moveRouteStop: moveRouteStopDispatch,
   createVehicle: createVehicleDispatch, updateVehicle: updateVehicleDispatch, archiveVehicle: archiveVehicleDispatch,
   updateVehicleSeatTemplate: updateVehicleSeatTemplateDispatch, updateVehicleStatus: updateVehicleStatusDispatch,
-  createSchedule: createScheduleDispatch, createScheduleBatch: createScheduleBatchDispatch, createScheduleRule: createScheduleRuleDispatch, updateScheduleRule: updateScheduleRuleDispatch,
+  createSchedule: createScheduleDispatch, createScheduleBatch: createScheduleBatchDispatch, preflightSchedulePublication: preflightSchedulePublicationDispatch, createScheduleRule: createScheduleRuleDispatch, updateScheduleRule: updateScheduleRuleDispatch,
   pauseScheduleRule: pauseScheduleRuleDispatch, resumeScheduleRule: resumeScheduleRuleDispatch, cancelScheduleRule: cancelScheduleRuleDispatch,
   recordScheduleRuleMaterialization: busDepartureService.recordScheduleRuleMaterialization, repairScheduleInventory: repairScheduleInventoryDispatch, updateSchedule: updateScheduleDispatch,
-  publishSchedule: publishScheduleDispatch, archiveSchedule: archiveScheduleDispatch, transitionSchedule: transitionScheduleDispatch,
+  publishSchedule: publishScheduleDispatch, publishReadyDraftSchedules: publishReadyDraftSchedulesDispatch, archiveSchedule: archiveScheduleDispatch, transitionSchedule: transitionScheduleDispatch,
   completeSchedule: completeScheduleDispatch, duplicateSchedule: duplicateScheduleDispatch, updateSeatStatus: updateSeatStatusDispatch,
   createFareProduct: busSetupService.createFareProduct, updateFareProduct: busSetupService.updateFareProduct, archiveFareProduct: busSetupService.archiveFareProduct,
   upsertSegmentFare: busSetupService.upsertSegmentFare, archiveSegmentFare: busSetupService.archiveSegmentFare,

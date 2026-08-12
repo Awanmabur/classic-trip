@@ -23,5 +23,5 @@ const taxiFareRuleSchema = new Schema({
   taxPercent: { type: Number, min: 0, max: 100, default: 0 },
   status: { type: String, enum: ['active', 'paused', 'archived'], default: 'active', index: true },
 }, { timestamps: true });
-taxiFareRuleSchema.index({ companyId: 1, vehicleClassId: 1, serviceZoneId: 1, serviceType: 1 }, { unique: true });
+taxiFareRuleSchema.index({ companyId: 1, vehicleClassId: 1, serviceZoneId: 1, serviceType: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['active', 'paused'] } } });
 module.exports = model('TaxiFareRule', taxiFareRuleSchema);

@@ -1,6 +1,6 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.6.52",
+  "version": "1.6.62",
   "private": true,
   "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
@@ -27,7 +27,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "node scripts/run-unit-tests.js",
-    "verify": "npm run check:v1652-media-edit-repair && npm run check:v1651-media-cloudinary-pdfkit && npm run check && npm run check:v1650-edit-form-parity && npm run check:v1649-edit-activation-integrity && npm run check:v1648-runtime-isolation && npm run check:v1647-clean-rolling-blog-media && npm run check:v1646-final-launch && npm run check:v1645-blog-images && npm run check:v1644-home-blogs-bus-departures && npm run check:v1643-blogs-partner-accounts && npm run check:v1642-seo-operators-pesapal && npm run check:lockfile && npm run check:release-consistency && npm run check:frontend-complete && npm run check:auth-service-ui && npm run check:seo && npm run check:pesapal-security && npm run check:release-cleanup && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:dashboard-completeness && npm run check:dashboard-repository && npm run check:dashboard-service-coverage && npm run check:dashboard-workflows && npm run check:dashboard-runtime-repair && npm run check:dashboards && npm run check:backend-end-to-end && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:partner-registration && npm run check:commission-only && npm run check:stays && npm run check:flight-taxi && npm run check:launch-lifecycle && npm run check:runtime-resilience && npm run check:performance-architecture && npm run check:performance-edit-payment-repair && npm run check:dashboard-root-performance-seatmap-rolling && npm run check:root-performance-current-fare-rolling-ui && npm run check:rolling-worker-findone && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-experience && npm run check:marketing-mobile && npm run check:mobile-pwa && npm run check:pwa-install && npm run check:final-home-payment && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
+    "verify": "npm run check:v1662-final-bar-badges && npm run check:v1658-card-overlay-fix && npm run check:v1657-price-amenities && npm run check:v1656-card-rhythm && npm run check:v1655-dashboard-state-departures && npm run check:v1654-route-flow && npm run check:v1653-marketplace-actions && npm run check:v1652-media-edit-repair && npm run check:v1651-media-cloudinary-pdfkit && npm run check && npm run check:v1650-edit-form-parity && npm run check:v1649-edit-activation-integrity && npm run check:v1648-runtime-isolation && npm run check:v1647-clean-rolling-blog-media && npm run check:v1646-final-launch && npm run check:v1645-blog-images && npm run check:v1644-home-blogs-bus-departures && npm run check:v1643-blogs-partner-accounts && npm run check:v1642-seo-operators-pesapal && npm run check:lockfile && npm run check:release-consistency && npm run check:frontend-complete && npm run check:auth-service-ui && npm run check:seo && npm run check:pesapal-security && npm run check:release-cleanup && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:entity-relations && npm run check:dashboard-completeness && npm run check:dashboard-repository && npm run check:dashboard-service-coverage && npm run check:dashboard-workflows && npm run check:dashboard-runtime-repair && npm run check:dashboards && npm run check:backend-end-to-end && npm run check:bus && npm run check:bus-forms && npm run check:smart-bus-forms && npm run check:smart-publish && npm run check:driver-assignment && npm run check:driver-ui && npm run check:driver-materialization && npm run check:staff-driver && npm run check:partner-ownership && npm run check:partner-registration && npm run check:commission-only && npm run check:stays && npm run check:flight-taxi && npm run check:launch-lifecycle && npm run check:runtime-resilience && npm run check:performance-architecture && npm run check:performance-edit-payment-repair && npm run check:dashboard-root-performance-seatmap-rolling && npm run check:root-performance-current-fare-rolling-ui && npm run check:rolling-worker-findone && npm run check:system-completion && npm run check:production-readiness-final && npm run check:platform-final && npm run check:platform-experience && npm run check:marketing-mobile && npm run check:mobile-pwa && npm run check:pwa-install && npm run check:final-home-payment && npm run check:end-to-end-final && npm run check:bus-hotel-final && npm run check:bus-hotel-conclusion && npm run check:hotel-operations-final && npm run check:ui-final && npm run check:final-regression && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -154,7 +154,18 @@
     "check:v1651-media-cloudinary-pdfkit": "node scripts/check-v1651-media-cloudinary-pdfkit.js",
     "doctor:media": "node scripts/doctor-media.js",
     "doctor:media:db": "node scripts/doctor-media.js --db",
-    "check:v1652-media-edit-repair": "node scripts/check-v1652-media-edit-repair.js"
+    "check:v1652-media-edit-repair": "node scripts/check-v1652-media-edit-repair.js",
+    "check:v1653-marketplace-actions": "node scripts/check-v1653-marketplace-actions.js",
+    "check:v1654-route-flow": "node scripts/check-v1654-route-flow.js",
+    "repair:archive-uniqueness": "node scripts/repair-archive-uniqueness.js",
+    "check:v1655-dashboard-state-departures": "node scripts/check-v1655-dashboard-state-departures.js",
+    "check:v1656-card-rhythm": "node scripts/check-v1656-card-rhythm.js",
+    "check:v1657-price-amenities": "node scripts/check-v1657-price-amenities.js",
+    "check:v1658-card-overlay-fix": "node scripts/check-v1658-card-overlay-fix.js",
+    "check:v1659-price-badges": "node scripts/check-v1659-price-badges.js",
+    "check:v1660-badges": "node scripts/check-v1660-badges.js",
+    "check:v1661-clean-booking-url-badges": "node scripts/check-v1661-clean-booking-url-badges.js",
+    "check:v1662-final-bar-badges": "node scripts/check-v1662-final-bar-badges.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

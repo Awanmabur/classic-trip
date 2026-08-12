@@ -66,10 +66,6 @@
         <div class="visual">
           <div class="visualHero">
             <img id="modalImg" src="<%= resolveMediaUrl(listing.img, listing.image, listing.coverImage, listing.media) %>" alt="<%= listing.title %>">
-            <div class="visualText">
-              <h3 id="modalHeroTitle">View structure</h3>
-              <p id="modalHeroSub"><%= listing.sub || 'Select available seats, rooms, units, or slots before checkout.' %></p>
-            </div>
           </div>
 
           <% if (listing.serviceType === 'bus') { %>

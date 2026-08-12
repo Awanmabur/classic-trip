@@ -52,7 +52,7 @@ check('Hotel cancellation does not automatically full-refund penalty-window or n
 
 check('Normalized hotel entities are independent and linked', reservation.includes('bookingRef') && guest.includes('reservationId') && assignment.includes('roomUnitId') && item.includes('domainReservationId'));
 check('Dated room inventory links booking, reservation and assignment', roomNight.includes('bookingRef') && roomNight.includes('reservationId') && roomNight.includes('assignmentId'));
-check('One property per company listing is the only property uniqueness rule', property.includes("hotelPropertySchema.index({ companyId: 1, listingId: 1 }, { unique: true })") && !property.includes('normalizedName: 1 }, { unique: true }'));
+check('One live property per company listing is the only property uniqueness rule', property.includes("hotelPropertySchema.index({ companyId: 1, listingId: 1 }, { unique: true, partialFilterExpression:") && property.includes("status: { $in: ['active', 'paused'] }") && !property.includes('normalizedName: 1 }, { unique: true }'));
 check('Hotel manifests are canonical, company/listing/date scoped', hotelService.includes('async function manifestRecords(companyId, listingId') && hotelService.includes('reservationFilter'));
 check('Manifest UI includes no-show filtering and history', manifests.includes('value="no_show"') && manifests.includes('History / no-shows') && manifests.includes('companyHotelHistoryTable'));
 check('Dashboard projection includes hotel history rows', dashboardProjection.includes('hotelHistoryRows') && dashboardProjection.includes('hotelManifestHistory'));

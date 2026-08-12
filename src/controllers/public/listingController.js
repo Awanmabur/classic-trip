@@ -332,9 +332,13 @@ async function bookingForm(req, res, next) {
     let context;
     let returnAvailability = null;
     if (normalizedServiceType === 'bus') {
-      bookingDraftId = String(req.query.draft || '').trim();
-      if (!bookingDraftId) return res.redirect(303, `/listings/bus/${encodeURIComponent(publicContext.listing.slug)}`);
-      const draft = await busBookingDraftService.resolveDraft(req, { draftId: bookingDraftId, listing: publicContext.listing });
+      const legacyDraftId = String(req.query.draft || '').trim();
+      if (legacyDraftId) {
+        await busBookingDraftService.resolveDraft(req, { draftId: legacyDraftId, listing: publicContext.listing });
+        return res.redirect(303, `/book/bus/${encodeURIComponent(publicContext.listing.slug)}`);
+      }
+      const draft = await busBookingDraftService.resolveDraft(req, { draftId: '', listing: publicContext.listing });
+      bookingDraftId = draft.id;
       source = {
         ref: draft.referralCode,
         addons: draft.addonIds,
@@ -398,7 +402,7 @@ async function bookingForm(req, res, next) {
       selectedDestinationStopId: source.destinationStopId || context.availability?.journey?.destinationStopId || '',
     });
   } catch (error) {
-    if (String(error?.code || '') === 'booking_draft_expired') {
+    if (['booking_draft_expired', 'booking_draft_required'].includes(String(error?.code || ''))) {
       if (req.flash) req.flash('warning', 'Your secure seat hold expired. Please choose the journey and seats again.');
       const serviceType = encodeURIComponent(String(req.params.serviceType || 'bus'));
       const slug = encodeURIComponent(String(req.params.slug || ''));

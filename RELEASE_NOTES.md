@@ -1,4 +1,64 @@
-# Classic Trip v1.6.52 — Seed Media Repair + Free Edit Selectors
+## v1.6.62
+
+- Increased the two desktop bar image badges.
+- Increased and widened the desktop bar departure/availability count badge while keeping title clearance.
+- Preserved card badge sizing and compact phone bar sizing.
+- Browser/service-worker assets bumped to v1.6.62.
+
+# v1.6.60 — Slight badge increase
+
+- Increased the two image badges slightly on marketplace cards and bars.
+- Increased the inventory/departure-count badge slightly.
+- Mobile badges remain proportionally compact.
+- No route, amenity, price, card-height, preview, backend, or database behavior changed.
+
+# v1.6.59 — Price hierarchy and badge sizing
+
+- Reduced only `From`, the currency code, and the `Cheapest route fare` hint.
+- Increased numeric fare weight slightly.
+- Increased the two image badges and the availability/departure badge slightly.
+- No functional or database changes.
+
+# v1.6.58 — Card badge and lower-content visibility repair
+
+- Reduced both image badges on marketplace cards/bars.
+- Reduced and lifted the bar availability/departure badge so route lanes remain clear.
+- Removed preview-image overlay text.
+- Repaired the equal-height card layout so amenities, From/currency/amount, Cheapest route fare and buttons remain fully visible.
+
+# v1.6.57 — Price/actions restored + amenity flow
+
+- Restores readable `From UGX amount` pricing and `Cheapest route fare`.
+- Keeps View/Book buttons visible on cards and bars.
+- Amenities now flow in two independent swipeable lanes like routes, without squeezing or ellipsis.
+- Keeps the v1.6.56 two-route-line card/bar rhythm and equal-height behavior.
+
+# v1.6.56 — Marketplace card/bar rhythm
+
+Two route rows, two amenity rows, no descriptions, lighter route typography, smaller From/currency labels, and natural equal-height cards/bars across marketplace pages. Bar images now fill the content-defined row instead of increasing its height.
+
+# v1.6.55 — Dashboard state, archives and public departures
+
+- Dashboard create/edit/delete/archive/publish actions now return to the exact dashboard page that initiated the action instead of jumping to another section.
+- Successful dashboard mutations invalidate dashboard and marketplace caches immediately so counts, badges and public preview do not show stale values after a write.
+- Archived operational records no longer reserve live uniqueness for replacement Hotel/Stay, Taxi, Flight, Bus fare and seat-template records. Existing databases can be reconciled with `npm run repair:archive-uniqueness`.
+- Bus listing badges, dashboard listing counts and public preview now use the same future public departure set (`published`, `boarding`, `delayed`). Seat availability is no longer displayed as if it were a departure count.
+- Creating a departure with Published intent is strict: it either passes publication readiness and becomes Published, or no Published-intent batch is silently saved as Draft. The operator stays on the same page and sees the exact readiness blockers.
+- Added **Publish ready drafts** for existing future Draft departures after compliance/seat-map/fare requirements are corrected. Draft departures remain private until publication succeeds.
+- Rolling Published creation performs a publication preflight before creating the recurring rule, preventing a clearly unpublishable rolling window from being silently materialized as Draft.
+
+# v1.6.53 — Marketplace Cards & Dashboard Actions
+
+- Removed repeated operator/route text from bus cards.
+- Bus routes now use three swipe rows on cards and two on homepage bars with larger text.
+- Bus card prices now show **From** using the cheapest full-route customer fare.
+- Search and service landing pages reuse the approved service-specific homepage card identities.
+- Blog directory is four cards per desktop row without modifying the approved homepage stylesheet.
+- Company Quick Actions now open the real operational pages and their full Create forms.
+- Departure archive actions are lifecycle-aware and safely support published/delayed departures with no passenger activity.
+- Fixed the production `appUrl is not defined` startup crash and current-cookie notification CSRF handling.
+
+# Classic Trip v1.6.53 — Seed Media Repair + Free Edit Selectors
 
 ## Fixed
 
@@ -10,7 +70,7 @@
 - Bus Route, Vehicle and Fare Plan reassignments are persisted after company ownership and live-dependency validation. Related draft/paused operational records are moved safely; live/in-progress dependencies block unsafe moves with a clear error.
 - Stay Property, Room Type, Room Unit, Rate Plan and Room-night parent selections now persist validated relationship changes.
 - Seat Template keeps Vehicle visible/selectable.
-- Asset/cache version bumped to 1.6.52.
+- Asset/cache version bumped to 1.6.53.
 
 ## Existing database repair
 
@@ -25,7 +85,7 @@ After migration, the known seeded blog/bus rows should report Cloudinary URLs ra
 
 ## Validation
 
-- v1.6.52 media + selectable edit repair: 18/18
+- v1.6.53 media + selectable edit repair: 18/18
 - v1.6.51 media/Cloudinary/PDFKit regression: 18/18
 - v1.6.50+ selectable edit parity: 21/21
 - v1.6.49+ edit/activation: 22/22
@@ -49,7 +109,7 @@ After migration, the known seeded blog/bus rows should report Cloudinary URLs ra
 
 ---
 
-# Classic Trip v1.6.52 — Seed Media Repair + Selectable Edit Relationships
+# Classic Trip v1.6.53 — Seed Media Repair + Selectable Edit Relationships
 
 ## Fixed
 
@@ -62,7 +122,7 @@ After migration, the known seeded blog/bus rows should report Cloudinary URLs ra
 
 ## Verification
 
-- v1.6.52 media/edit repair: 18/18
+- v1.6.53 media/edit repair: 18/18
 - selectable edit-form parity: 21/21
 - Bus form contracts: 45/45
 - Hotel operations: 27/27
@@ -164,3 +224,9 @@ Security invariants remain unchanged: company ownership is enforced server-side,
 # Classic Trip v1.6.48 — Runtime isolation and Atlas protection
 
 This release isolates request serving from background maintenance, serializes worker jobs, caps worker MongoDB usage, bounds commission and rolling-repair batches, prevents fake timeout cancellation, and keeps the web process online when a worker fails. Blog media and rolling-rule repairs from v1.6.47 remain included.
+
+## v1.6.61
+- Clean bus checkout URLs: internal booking draft UUID moved out of the visible query string and into server-session active draft state.
+- Legacy `?draft=` checkout URLs self-clean after validation.
+- One more small marketplace image/count badge increase with mobile bounds preserved.
+- Browser/service-worker assets bumped to v1.6.61.

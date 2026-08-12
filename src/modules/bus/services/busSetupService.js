@@ -1433,7 +1433,7 @@ async function upsertSegmentFare(companyId, fareProductId, payload = {}, actor =
   const to = stops.find((stop) => String(stop.id) === String(payload.toStopId));
   if (!from || !to) throw validationError('Select fare endpoints from this route');
   if (Number(to.stopOrder) <= Number(from.stopOrder)) throw validationError('Fare destination must come after its origin');
-  const existing = await repository.segmentFares.findOne({ fareProductId: product.id, fromStopId: from.id, toStopId: to.id });
+  const existing = await repository.segmentFares.findOne({ fareProductId: product.id, fromStopId: from.id, toStopId: to.id, status: { $ne: 'archived' } });
   const row = {
     ...(existing || {}),
     id: existing?.id || await repository.nextId('segment-fare'),

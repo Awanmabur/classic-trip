@@ -2441,9 +2441,15 @@ function createDashboardProjection(initialState = {}) {
       bookedRoomGroups,
       listings: listings.map((listing) => {
         const isStayListing = listing.serviceType === 'hotel';
+        const publicBusDepartures = busSchedules.filter((schedule) => {
+          if (String(schedule.listingId || '') !== String(listing.id || '')) return false;
+          if (!['published', 'boarding', 'delayed'].includes(normalize(schedule.status))) return false;
+          const time = new Date(schedule.status === 'boarding' || schedule.status === 'delayed' ? (schedule.arriveAt || schedule.departAt) : schedule.departAt).getTime();
+          return Number.isFinite(time) && time >= Date.now();
+        });
         const inventoryLabel = isStayListing
           ? `${roomsForListing(listing.id).length} room types`
-          : `${busSchedules.filter((schedule) => String(schedule.listingId || '') === String(listing.id || '')).length} schedules`;
+          : `${publicBusDepartures.length} public departure${publicBusDepartures.length === 1 ? '' : 's'}`;
         const routeOrLocation = isStayListing
           ? [listing.city, listing.country].filter(Boolean).join(', ')
           : formatRouteLabel(listing.from, listing.to, listing.routeLabel);

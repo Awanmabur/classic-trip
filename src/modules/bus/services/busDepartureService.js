@@ -652,6 +652,36 @@ async function validateSchedulePublish(companyId, schedule = {}, known = {}) {
   };
 }
 
+async function preflightSchedulePublication(companyId, payload = {}, options = {}) {
+  const context = options.context || await scheduleCreationContext(companyId, payload);
+  const { company, route, listing, stops, segments, vehicle, seatMapVersion, fareProduct, fares, driver } = context;
+  const departAt = parseDate(payload.departAt, 'Departure time', { future: true });
+  const routeDurationMinutes = Number(route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0);
+  const arriveAt = payload.arriveAt
+    ? parseDate(payload.arriveAt, 'Arrival time')
+    : routeDurationMinutes > 0
+      ? new Date(departAt.getTime() + (routeDurationMinutes * 60_000))
+      : null;
+  if (arriveAt && arriveAt <= departAt) throw validationError('Arrival time must be after departure time');
+  const conflicts = options.conflictsChecked
+    ? []
+    : await findVehicleConflicts(companyId, vehicle.id, departAt, arriveAt, cleanText(payload.replacesScheduleId, 180));
+  const range = routeRange(stops, route.originStopId || stops[0].id, route.destinationStopId || stops[stops.length - 1].id);
+  const fare = calculateFare({ fares, originStopId: range.origin.id, destinationStopId: range.destination.id, segments, range });
+  const schedule = {
+    id: '', companyId, listingId: listing.id, routeId: route.id, vehicleId: vehicle.id,
+    seatMapVersionId: seatMapVersion.id, fareProductId: fareProduct.id,
+    departAt: departAt.toISOString(), arriveAt: arriveAt?.toISOString() || null,
+    basePrice: fare.amount, currency: fareProduct.currency,
+    driverEmployeeId: driver?.employee?.id || '',
+  };
+  const inventoryCount = Math.max(0, (seatMapVersion.seats || []).filter((seat) => seat.enabled !== false).length * segments.length);
+  const validation = await validateSchedulePublish(companyId, schedule, {
+    company, route, listing, stops, segments, vehicle, seatMapVersion, fareProduct, driver, conflicts, inventoryCount,
+  });
+  return { validation, context, departAt, arriveAt };
+}
+
 async function createSchedule(companyId, payload = {}, actor = 'company-admin', options = {}) {
   const context = options.context || await scheduleCreationContext(companyId, payload);
   const {
@@ -806,6 +836,11 @@ async function createSchedule(companyId, payload = {}, actor = 'company-admin', 
       conflicts,
       inventoryCount: generated.inventory.length,
     });
+    if (requestedStatus === 'published' && !schedule.publishValidation.ok && options.strictPublish) {
+      const error = validationError(`Published departure was not created because it still requires: ${schedule.publishValidation.failures.join(', ')}`);
+      error.validation = schedule.publishValidation;
+      throw error;
+    }
     if (requestedStatus === 'published' && schedule.publishValidation.ok) {
       schedule.status = 'published';
       schedule.publishedAt = nowIso();
@@ -919,6 +954,28 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
     }
   }
 
+  const strictPublish = normalize(payload.status) === 'published' && ['1', 'true', 'yes', 'on'].includes(normalize(payload.strictPublishIntent));
+  if (strictPublish) {
+    const failures = new Set();
+    for (const item of proposed) {
+      // No writes happen during this pass. Validate every requested date first so
+      // an expiring permit/insurance cannot leave half a batch Published and the
+      // other half silently Draft.
+      // eslint-disable-next-line no-await-in-loop
+      const preflight = await preflightSchedulePublication(companyId, {
+        ...payload,
+        departAt: item.departAt.toISOString(),
+        arriveAt: item.arriveAt?.toISOString(),
+      }, { context, conflictsChecked: true });
+      preflight.validation.failures.forEach((failure) => failures.add(failure));
+    }
+    if (failures.size) {
+      const error = validationError(`Published departures were not created because publication still requires: ${[...failures].join(', ')}`);
+      error.validation = { ok: false, failures: [...failures] };
+      throw error;
+    }
+  }
+
   const results = new Array(proposed.length);
   let cursor = 0;
   async function createNext() {
@@ -932,7 +989,7 @@ async function createScheduleBatch(companyId, payload = {}, actor = 'company-adm
         arriveAt: item.arriveAt?.toISOString(),
         repeatUntil: undefined,
         repeatDays: undefined,
-      }, actor, { context, conflictsChecked: true, deferListingSync: true, auditInventory: false });
+      }, actor, { context, conflictsChecked: true, deferListingSync: true, auditInventory: false, strictPublish });
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, proposed.length) }, createNext));
@@ -1360,6 +1417,40 @@ async function publishSchedule(companyId, scheduleId, actor = 'company-admin', o
   return schedule;
 }
 
+async function publishReadyDraftSchedules(companyId, payload = {}, actor = 'company-admin') {
+  const filter = {
+    companyId,
+    serviceType: 'bus',
+    status: { $in: ['draft', 'active'] },
+    departAt: { $gt: new Date() },
+    ...(cleanText(payload.listingId, 180) ? { listingId: cleanText(payload.listingId, 180) } : {}),
+  };
+  const rows = await repository.schedules.list(filter, { sort: { departAt: 1 }, limit: 120 });
+  const published = [];
+  const skipped = [];
+  const touchedListings = new Set();
+  for (const row of rows) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const schedule = await publishSchedule(companyId, row.id, actor, { schedule: row, deferListingSync: true });
+      published.push(schedule.id);
+      if (schedule.listingId) touchedListings.add(schedule.listingId);
+    } catch (error) {
+      skipped.push({ id: row.id, failures: error?.validation?.failures || [], message: error.message || 'Not ready to publish' });
+    }
+  }
+  for (const listingId of touchedListings) {
+    // eslint-disable-next-line no-await-in-loop
+    await synchronizeListingPublicationAfterDeparture(companyId, listingId, actor);
+  }
+  await repository.audit({
+    actorId: actorId(actor), action: 'bus.departure.publish_ready_drafts', targetType: 'trip_schedule',
+    targetId: published[0] || 'none', companyId,
+    metadata: { candidates: rows.length, published: published.length, skipped: skipped.length },
+  });
+  return { candidates: rows.length, published, skipped };
+}
+
 async function transitionSchedule(companyId, scheduleId, payload = {}, actor = 'company-admin') {
   const schedule = await repository.scheduleOrThrow(companyId, scheduleId);
   const next = normalize(payload.status || payload.nextStatus);
@@ -1424,15 +1515,48 @@ async function completeSchedule(companyId, scheduleId, payload = {}, actor = 'co
 
 async function archiveSchedule(companyId, scheduleId, actor = 'company-admin') {
   const schedule = await repository.scheduleOrThrow(companyId, scheduleId);
-  if (!['draft', 'active', 'cancelled', 'completed'].includes(schedule.status)) throw conflictError('Only draft, cancelled or completed departures can be archived');
-  if (schedule.status !== 'archived') {
-    if (!['cancelled', 'completed'].includes(schedule.status)) schedule.status = 'archived';
-    else assertDepartureTransition(schedule.status, 'archived');
-    schedule.status = 'archived';
+  const current = normalize(schedule.status);
+  const immediatelyArchivable = ['draft', 'active', 'cancelled', 'completed'];
+  const safelyArchivablePublic = ['published', 'delayed'];
+  if (!immediatelyArchivable.includes(current) && !safelyArchivablePublic.includes(current)) {
+    throw conflictError('This departure is already in an active trip lifecycle. Finish or cancel the trip before archiving it.');
   }
+  if (safelyArchivablePublic.includes(current)) {
+    const hasPassengerActivity = await departureHasPassengerActivity(companyId, schedule.id);
+    if (hasPassengerActivity) {
+      throw conflictError('This published departure has active bookings, tickets, holds or seat assignments. Cancel or resolve those passengers before archiving the departure.');
+    }
+  }
+  if (current === 'archived') return schedule;
+  const timestamp = nowIso();
+  schedule.status = 'archived';
+  schedule.statusReason = schedule.statusReason || 'Archived by Partner Admin';
   schedule.updatedBy = actorId(actor);
-  schedule.updatedAt = nowIso();
-  await repository.schedules.save(schedule, { id: schedule.id });
+  schedule.updatedAt = timestamp;
+  await repository.withTransaction(async (session) => {
+    await repository.schedules.save(schedule, { id: schedule.id }, { session });
+    await repository.outbox({
+      eventType: 'BusDepartureArchived',
+      aggregateType: 'trip_schedule',
+      aggregateId: schedule.id,
+      companyId,
+      payload: { scheduleId: schedule.id, status: 'archived', reason: schedule.statusReason },
+      dedupeKey: `BusDepartureArchived:${schedule.id}:${timestamp}`,
+      session,
+    });
+    if (schedule.scheduleRuleId) {
+      await repository.outbox({
+        eventType: 'ScheduleRuleMaterializationRequested',
+        aggregateType: 'schedule_rule',
+        aggregateId: schedule.scheduleRuleId,
+        companyId,
+        payload: { companyId, ruleId: schedule.scheduleRuleId },
+        dedupeKey: `ScheduleRuleMaterializationRequested:${schedule.scheduleRuleId}:departure-${schedule.id}:archived:${timestamp}`,
+        session,
+      });
+    }
+    await repository.audit({ actorId: actorId(actor), action: 'bus.departure.archived', targetType: 'trip_schedule', targetId: schedule.id, companyId, metadata: { previousStatus: current }, session });
+  });
   return schedule;
 }
 
@@ -1509,6 +1633,7 @@ module.exports = {
   generateInventory,
   repairScheduleInventory,
   validateSchedulePublish,
+  preflightSchedulePublication,
   createSchedule,
   createScheduleBatch,
   createScheduleSeries,
@@ -1520,6 +1645,7 @@ module.exports = {
   recordScheduleRuleMaterialization,
   updateSchedule,
   publishSchedule,
+  publishReadyDraftSchedules,
   transitionSchedule,
   completeSchedule,
   archiveSchedule,

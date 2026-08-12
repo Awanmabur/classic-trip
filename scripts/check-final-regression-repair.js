@@ -32,8 +32,8 @@ assert(commerce.includes("fareProducts: new MongoCollection('fareProducts')"), '
 assert(commerce.includes("segmentFares: new MongoCollection('busSegmentFares')"), 'Segment fares must be loaded from MongoDB');
 assert(catalog.includes('fareCatalogForListing') && catalog.includes('priceFrom'), 'Public catalog must derive fare summaries');
 assert(busSetup.includes('syncListingFareSummary'), 'Fare changes must synchronize listing starting price');
-assert(home.includes("include('../partials/listing-card'") && listingCard.includes('referenceBusCard') && listingCard.includes('Fare by stops') && !listingCard.includes('fareProductName'), 'Server-rendered marketplace pages must use the approved shared reference card without internal fare-plan names');
-assert(homeJs.includes('referenceBusCard') && homeJs.includes('Fare by stops') && !homeJs.includes('fareProductName'), 'Dynamic homepage bus cards must use the approved reference layout without internal fare-plan names');
+assert(home.includes("include('../partials/listing-card'") && listingCard.includes('referenceBusCard') && listingCard.includes('Cheapest route fare') && !listingCard.includes('fareProductName'), 'Server-rendered marketplace pages must use the approved shared reference card without internal fare-plan names');
+assert(homeJs.includes('referenceBusCard') && homeJs.includes('Cheapest route fare') && !homeJs.includes('fareProductName'), 'Dynamic homepage bus cards must use the approved reference layout without internal fare-plan names');
 assert(!details.includes('Selected journey fare') && details.includes('Fare updates instantly for the selected boarding and drop-off stops.') && !details.includes('Fare product</th>'), 'Listing details must omit the removed fare strip while explaining stop-based pricing');
 assert(schedules.includes('Fare plans') && schedules.includes('Stop-to-stop prices'), 'Partner dashboard must retain internal fare-plan and stop-to-stop price management');
 assert(projection.includes('fareProductRows') && projection.includes('segmentFareRows'), 'Dashboard projection must return saved fare records');

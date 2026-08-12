@@ -20,7 +20,7 @@
     </div>
     <div class="blogDirectoryGrid">
       <% blogs.forEach(function(blog, index) { %>
-        <article class="blogDirectoryCard <%= index === 0 ? 'blogDirectoryCard--featured' : '' %>">
+        <article class="blogDirectoryCard">
           <a class="blogDirectoryMedia" href="/blogs/<%= blog.slug %>" aria-label="Read <%= blog.title %>">
             <% if (blog.image) { %><img src="<%= blog.image %>" alt="<%= blog.imageAlt || blog.title %>" width="640" height="360" loading="<%= index < 2 ? 'eager' : 'lazy' %>" decoding="async"><% } else { %><span class="blogDirectoryPlaceholder"><i class="fa-solid fa-route"></i></span><% } %>
             <span class="badge badgeInfo blogDirectoryTag"><%= blog.tag || 'Travel guide' %></span>

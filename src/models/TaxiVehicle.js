@@ -17,5 +17,5 @@ const taxiVehicleSchema = new Schema({
   verificationStatus: { type: String, enum: ['pending', 'verified', 'rejected', 'expired'], default: 'pending', index: true },
   operationalStatus: { type: String, enum: ['offline', 'available', 'assigned', 'on_trip', 'maintenance', 'suspended', 'archived'], default: 'offline', index: true },
 }, { timestamps: true });
-taxiVehicleSchema.index({ companyId: 1, registrationNumber: 1 }, { unique: true });
+taxiVehicleSchema.index({ companyId: 1, registrationNumber: 1 }, { unique: true, partialFilterExpression: { operationalStatus: { $in: ['offline', 'available', 'assigned', 'on_trip', 'maintenance', 'suspended'] } } });
 module.exports = model('TaxiVehicle', taxiVehicleSchema);
