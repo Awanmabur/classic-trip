@@ -58,7 +58,7 @@ async function searchPage(req, res, next) {
       results,
       companies: data.companies,
       searchLanding: landing,
-      searchOptions: catalogService.searchOptions(data),
+      searchOptions: meta.searchOptions || catalogService.searchOptions(data, null, data.airports || []),
     });
   } catch (error) { return next(error); }
 }

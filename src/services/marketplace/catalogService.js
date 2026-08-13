@@ -15,11 +15,15 @@ const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
 const redisRuntime = require('../../config/redis');
 const flightSearchService = require('../../modules/flight/services/flightSearchService');
+const zlib = require('zlib');
+const { promisify } = require('util');
 
 const { SERVICE_REGISTRY } = require('../../config/serviceRegistry');
 const SERVICE_LABELS = Object.freeze(Object.fromEntries(Object.entries(SERVICE_REGISTRY).map(([key, value]) => [key, value.singular])));
 const TYPE_ORDER = ['bus', 'hotel', 'flight', 'local_transport', 'tour', 'car_rental', 'cargo'];
 const PRODUCTION_SERVICE_TYPES = new Set(TYPE_ORDER);
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
 function canonicalPublicServiceType(value) { const key = normalize(value); return ['stay','stays','home','homes','accommodation','accommodations'].includes(key) ? 'hotel' : key; }
@@ -34,6 +38,13 @@ function isPublicListing(row, data = {}) { return publicListingVisible(row, data
 let snapshotCache = null;
 let snapshotCachedAt = 0;
 let snapshotInflight = null;
+let discoverySnapshotCache = null;
+let discoverySnapshotCachedAt = 0;
+let discoverySnapshotInflight = null;
+let discoverySnapshotSharedRead = null;
+let discoveryGeneration = 0;
+let discoveryCatalogItemsCache = null;
+let discoveryCatalogItemsSource = null;
 let homeBootstrapCache = null;
 let homeBootstrapCachedAt = 0;
 let homeBootstrapInflight = null;
@@ -42,6 +53,9 @@ const listingSnapshotInflight = new Map();
 const LISTING_SNAPSHOT_TTL_MS = env.performance.listingCacheTtlMs;
 const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
+const DISCOVERY_CACHE_TTL_MS = env.performance.discoveryCacheTtlMs;
+const DISCOVERY_CACHE_STALE_MS = env.performance.discoveryCacheStaleMs;
+const DISCOVERY_SHARED_KEY = redisRuntime.key('public-discovery', 'v1');
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
@@ -56,6 +70,52 @@ async function runCatalogTasks(tasks = []) {
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
   return values;
+}
+
+
+function pushIndex(map, key, value) {
+  const normalizedKey = String(key || '');
+  if (!normalizedKey) return;
+  if (!map.has(normalizedKey)) map.set(normalizedKey, []);
+  map.get(normalizedKey).push(value);
+}
+
+function attachDiscoveryIndexes(data) {
+  if (!data || data.__catalogIndexes) return data;
+  const indexes = {
+    companyLookup: new Map(),
+    listingLookup: new Map(),
+    routesByListing: new Map(),
+    schedulesByListing: new Map(),
+    stopsByRoute: new Map(),
+    fareProductsByListing: new Map(),
+    segmentFaresByProduct: new Map(),
+    campaignsByListing: new Map(),
+  };
+  for (const company of (data.companies || [])) {
+    for (const key of [entityId(company), company.slug, company.name]) {
+      const normalizedKey = normalize(key);
+      if (normalizedKey && !indexes.companyLookup.has(normalizedKey)) indexes.companyLookup.set(normalizedKey, company);
+    }
+  }
+  for (const listing of (data.listings || [])) {
+    const type = canonicalPublicServiceType(canonicalServiceType(listing, data));
+    for (const key of [entityId(listing), listing.slug, listing.title]) {
+      const normalizedKey = normalize(key);
+      if (!normalizedKey) continue;
+      if (!indexes.listingLookup.has(`*:${normalizedKey}`)) indexes.listingLookup.set(`*:${normalizedKey}`, listing);
+      if (!indexes.listingLookup.has(`${type}:${normalizedKey}`)) indexes.listingLookup.set(`${type}:${normalizedKey}`, listing);
+    }
+  }
+  for (const row of (data.routes || [])) pushIndex(indexes.routesByListing, row.listingId, row);
+  for (const row of (data.schedules || [])) pushIndex(indexes.schedulesByListing, row.listingId, row);
+  for (const row of (data.routeStops || [])) pushIndex(indexes.stopsByRoute, row.routeId, row);
+  for (const row of (data.fareProducts || [])) pushIndex(indexes.fareProductsByListing, row.listingId, row);
+  for (const row of (data.segmentFares || [])) pushIndex(indexes.segmentFaresByProduct, row.fareProductId, row);
+  for (const row of (data.campaigns || [])) pushIndex(indexes.campaignsByListing, row.listingId, row);
+  for (const rows of indexes.stopsByRoute.values()) rows.sort((a, b) => number(a.stopOrder) - number(b.stopOrder));
+  Object.defineProperty(data, '__catalogIndexes', { value: indexes, enumerable: false, configurable: true });
+  return data;
 }
 
 async function loadSnapshotFresh() {
@@ -91,6 +151,7 @@ async function loadSnapshotFresh() {
     () => commerceRepository.roomUnits.list({ ...listingFilter, status: { $nin: ['archived', 'maintenance'] } }, { limit: 20000 }),
     () => promoterRepository.links.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
     () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+    () => commerceRepository.serviceAddons.list({ ...listingFilter, status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
   ]);
   const routeIds = unique(routes.map(entityId));
   const scheduleIds = unique(schedules.map(entityId));
@@ -118,6 +179,262 @@ async function loadSnapshotFresh() {
   ]);
   const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
   return { categories: productionCategories, listings: productionListings, companies, routes, routeStops, fareProducts, segmentFares, serviceAddons, schedules, seats, vehicles, roomTypes, roomUnits, roomNights, links, campaigns, blogs, platformConfig };
+}
+
+
+// Public discovery pages never need seat-row, vehicle, room-unit or room-night
+// collections. Loading those collections on Home/Search made a cold anonymous
+// request pay for tens of thousands of booking-only records. This compact
+// snapshot keeps the fields required for cards, routes, prices, departures and
+// filters while live booking APIs remain authoritative after a departure/date is
+// selected.
+async function loadDiscoverySnapshotFresh() {
+  const [baseValues, airports] = await Promise.all([
+    runCatalogTasks([
+      () => commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
+      () => commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
+      () => contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 60 }),
+      () => getPlatformConfig(),
+    ]),
+    flightSearchService.listAirports().catch(() => []),
+  ]);
+  const [categories, listingRows, blogs, platformConfig] = baseValues;
+
+  const companyIds = unique(listingRows.map((row) => row.companyId).map(text));
+  const companies = companyIds.length
+    ? await runMongoRead(() => commerceRepository.companies.list({ id: { $in: companyIds } }, { sort: { name: 1 }, limit: 5000 }))
+    : [];
+  const listings = listingRows.filter((row) => PRODUCTION_SERVICE_TYPES.has(canonicalServiceType(row, { listings: listingRows, companies })));
+  const listingIds = unique(listings.map(entityId));
+  const now = new Date();
+  const none = { id: '__no_public_inventory__' };
+  const listingFilter = listingIds.length ? { listingId: { $in: listingIds } } : none;
+
+  const [routes, schedules, campaigns, serviceAddons] = await runCatalogTasks([
+    () => commerceRepository.routes.list({ ...listingFilter, status: { $ne: 'archived' } }, { sort: { createdAt: -1 }, limit: 10000 }),
+    () => commerceRepository.schedules.list({
+      ...listingFilter,
+      status: { $in: ['published', 'boarding', 'delayed'] },
+      $or: [
+        { departAt: { $gte: now } },
+        { status: 'boarding' },
+        { status: 'delayed', arriveAt: { $gte: now } },
+      ],
+    }, { sort: { departAt: 1 }, limit: 10000 }),
+    () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
+    () => commerceRepository.serviceAddons.list({ ...listingFilter, status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
+  ]);
+
+  // Current bus departures contain immutable route/fare snapshots. Prefer those
+  // snapshots and query only routes that are not covered by them. This removes
+  // another three full-collection reads from the normal launch dataset.
+  const snapshotStops = [];
+  const seenStops = new Set();
+  const snapshotFareProducts = new Map();
+  const snapshotSegmentFares = new Map();
+  for (const schedule of schedules) {
+    const listingId = text(schedule.listingId);
+    const companyId = text(schedule.companyId);
+    const routeId = text(schedule.routeId || schedule.routeSnapshot?.routeId);
+    if (!routeId) continue;
+    for (const stop of (schedule.routeSnapshot?.stops || [])) {
+      const stopId = entityId(stop);
+      if (!stopId) continue;
+      const stopKey = `${routeId}:${stopId}`;
+      if (seenStops.has(stopKey)) continue;
+      seenStops.add(stopKey);
+      snapshotStops.push({ ...stop, id: stopId, routeId, listingId, companyId, status: stop.status || 'active' });
+    }
+    const fareSnapshot = schedule.fareSnapshot || {};
+    const fareProductId = text(fareSnapshot.fareProductId || schedule.fareProductId);
+    if (fareProductId && !snapshotFareProducts.has(fareProductId)) {
+      snapshotFareProducts.set(fareProductId, {
+        id: fareProductId,
+        listingId,
+        companyId,
+        routeId,
+        name: fareSnapshot.name || schedule.fareClass || 'Standard fare',
+        fareClass: fareSnapshot.fareClass || schedule.fareClass || 'standard',
+        currency: fareSnapshot.currency || schedule.currency,
+        refundable: !!fareSnapshot.refundable,
+        changeable: !!fareSnapshot.changeable,
+        baggageAllowanceKg: number(fareSnapshot.baggageAllowanceKg),
+        status: 'active',
+      });
+    }
+    for (const fare of (fareSnapshot.fares || [])) {
+      const fareId = entityId(fare) || `${fareProductId}:${fare.fromStopId}:${fare.toStopId}`;
+      if (!fareId || snapshotSegmentFares.has(fareId)) continue;
+      snapshotSegmentFares.set(fareId, {
+        ...fare,
+        id: fareId,
+        listingId,
+        companyId,
+        routeId,
+        fareProductId,
+        currency: fare.currency || fareSnapshot.currency || schedule.currency,
+        status: fare.status || 'active',
+      });
+    }
+  }
+
+  const routeIds = unique(routes.map(entityId));
+  const snapshotStopRouteIds = new Set(snapshotStops.map((row) => text(row.routeId)).filter(Boolean));
+  const snapshotFareRouteIds = new Set([...snapshotFareProducts.values()].map((row) => text(row.routeId)).filter(Boolean));
+  const missingStopRouteIds = routeIds.filter((routeId) => !snapshotStopRouteIds.has(String(routeId)));
+  const missingFareRouteIds = routeIds.filter((routeId) => !snapshotFareRouteIds.has(String(routeId)));
+  const [missingStops, missingFareProducts, missingSegmentFares] = await runCatalogTasks([
+    () => missingStopRouteIds.length ? commerceRepository.routeStops.list({ routeId: { $in: missingStopRouteIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 12000 }) : [],
+    () => missingFareRouteIds.length ? commerceRepository.fareProducts.list({ routeId: { $in: missingFareRouteIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 6000 }) : [],
+    () => missingFareRouteIds.length ? commerceRepository.segmentFares.list({ routeId: { $in: missingFareRouteIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 18000 }) : [],
+  ]);
+
+  const productionCategories = categories.filter((row) => PRODUCTION_SERVICE_TYPES.has(normalize(row.key || row.serviceType || row.slug || row.name)));
+  return {
+    categories: productionCategories,
+    listings,
+    companies,
+    routes,
+    routeStops: [...snapshotStops, ...missingStops],
+    fareProducts: [...snapshotFareProducts.values(), ...missingFareProducts],
+    segmentFares: [...snapshotSegmentFares.values(), ...missingSegmentFares],
+    serviceAddons,
+    schedules,
+    seats: [],
+    vehicles: [],
+    roomTypes: [],
+    roomUnits: [],
+    roomNights: [],
+    links: [],
+    campaigns,
+    blogs,
+    airports,
+    platformConfig,
+  };
+}
+
+async function readSharedDiscoverySnapshot() {
+  const client = redisRuntime.activeClient();
+  if (!client) return null;
+  if (discoverySnapshotSharedRead) return discoverySnapshotSharedRead;
+  discoverySnapshotSharedRead = (async () => {
+    try {
+      const encoded = await client.get(DISCOVERY_SHARED_KEY);
+      if (!encoded) return null;
+      const decoded = await gunzip(Buffer.from(encoded, 'base64'));
+      const parsed = JSON.parse(decoded.toString('utf8'));
+      if (!parsed?.value || !Number(parsed.createdAt)) return null;
+      return parsed;
+    } catch (_) {
+      return null;
+    } finally {
+      discoverySnapshotSharedRead = null;
+    }
+  })();
+  return discoverySnapshotSharedRead;
+}
+
+async function writeSharedDiscoverySnapshot(value, createdAt = Date.now()) {
+  const client = redisRuntime.activeClient();
+  if (!client || !value) return;
+  try {
+    const payload = Buffer.from(JSON.stringify({ createdAt, value }), 'utf8');
+    // Compression level 1 is intentionally chosen: public discovery values are
+    // very repetitive JSON and compress strongly without adding noticeable CPU.
+    const encoded = (await gzip(payload, { level: 1 })).toString('base64');
+    await client.set(DISCOVERY_SHARED_KEY, encoded, { PX: DISCOVERY_CACHE_STALE_MS });
+  } catch (_) {}
+}
+
+function rememberDiscoverySnapshot(value, createdAt = Date.now()) {
+  attachDiscoveryIndexes(value);
+  discoverySnapshotCache = value;
+  discoverySnapshotCachedAt = createdAt;
+  discoveryCatalogItemsCache = null;
+  discoveryCatalogItemsSource = null;
+  return value;
+}
+
+async function refreshDiscoverySnapshot() {
+  if (discoverySnapshotInflight) return discoverySnapshotInflight;
+  const generation = discoveryGeneration;
+  let task;
+  task = loadDiscoverySnapshotFresh()
+    .then(async (value) => {
+      if (generation !== discoveryGeneration) return value;
+      const createdAt = Date.now();
+      rememberDiscoverySnapshot(value, createdAt);
+      await writeSharedDiscoverySnapshot(value, createdAt);
+      return value;
+    })
+    .finally(() => { if (discoverySnapshotInflight === task) discoverySnapshotInflight = null; });
+  discoverySnapshotInflight = task;
+  return task;
+}
+
+async function discoverySnapshot(options = {}) {
+  const age = discoverySnapshotCache ? Date.now() - discoverySnapshotCachedAt : Infinity;
+  if (!options.force && discoverySnapshotCache && age <= DISCOVERY_CACHE_TTL_MS) return discoverySnapshotCache;
+
+  // Once this process has a known-good public index, never make an anonymous
+  // visitor wait for Atlas merely because the freshness window elapsed. Refresh
+  // in the background; booking/payment still use live authoritative reads.
+  if (!options.force && discoverySnapshotCache) {
+    refreshDiscoverySnapshot().catch(() => {});
+    return discoverySnapshotCache;
+  }
+
+  if (!options.force) {
+    const shared = await readSharedDiscoverySnapshot();
+    if (shared?.value) {
+      rememberDiscoverySnapshot(shared.value, shared.createdAt);
+      if (Date.now() - shared.createdAt > DISCOVERY_CACHE_TTL_MS) refreshDiscoverySnapshot().catch(() => {});
+      return discoverySnapshotCache;
+    }
+  }
+
+  try {
+    return await refreshDiscoverySnapshot();
+  } catch (error) {
+    if (discoverySnapshotCache) return discoverySnapshotCache;
+    throw error;
+  }
+}
+
+function discoverySnapshotForListingData(data, identifier, serviceType = '') {
+  if (!data) return null;
+  const listing = listingFor(data, identifier, serviceType);
+  if (!listing) return null;
+  const listingId = entityId(listing);
+  const companyId = text(listing.companyId);
+  const routes = (data.routes || []).filter((row) => sameId(row.listingId, listingId));
+  const routeIds = new Set(routes.map(entityId));
+  return {
+    categories: [],
+    listings: [listing],
+    companies: (data.companies || []).filter((row) => sameId(row, companyId)),
+    routes,
+    routeStops: (data.routeStops || []).filter((row) => routeIds.has(String(row.routeId || ''))),
+    fareProducts: (data.fareProducts || []).filter((row) => sameId(row.listingId, listingId) || routeIds.has(String(row.routeId || ''))),
+    segmentFares: (data.segmentFares || []).filter((row) => sameId(row.listingId, listingId) || routeIds.has(String(row.routeId || ''))),
+    serviceAddons: (data.serviceAddons || []).filter((row) => sameId(row.listingId, listingId)),
+    schedules: (data.schedules || []).filter((row) => sameId(row.listingId, listingId)),
+    seats: [],
+    vehicles: [],
+    roomTypes: [],
+    roomUnits: [],
+    roomNights: [],
+    links: [],
+    campaigns: (data.campaigns || []).filter((row) => sameId(row.listingId, listingId)),
+    blogs: [],
+    airports: data.airports || [],
+    platformConfig: data.platformConfig || {},
+  };
+}
+
+async function discoverySnapshotForListing(identifier, serviceType = '') {
+  const data = await discoverySnapshot();
+  return discoverySnapshotForListingData(data, identifier, serviceType);
 }
 
 
@@ -357,6 +674,12 @@ async function snapshot(options = {}) {
   }
 }
 
+async function invalidateSharedDiscoverySnapshot() {
+  const client = redisRuntime.activeClient();
+  if (!client) return;
+  try { await client.unlink(DISCOVERY_SHARED_KEY); } catch (_) {}
+}
+
 async function invalidateSharedListingSnapshots() {
   const client = redisRuntime.activeClient();
   if (!client) return;
@@ -373,51 +696,72 @@ async function invalidateSharedListingSnapshots() {
 }
 
 function invalidateMarketplaceCache() {
-  // Keep the last known-good global catalog as an emergency fallback while
-  // forcing a refresh. Listing-scoped snapshots are cleared locally and in
-  // Redis so a successful dashboard mutation cannot redirect into stale public
-  // inventory or a stale departure badge.
+  // Dashboard writes must evict both the full operational snapshot and the
+  // lightweight anonymous discovery snapshot. A generation guard prevents an
+  // older in-flight refresh from repopulating Redis after the mutation.
   snapshotCachedAt = 0;
+  discoveryGeneration += 1;
+  discoverySnapshotCache = null;
+  discoverySnapshotCachedAt = 0;
+  discoverySnapshotInflight = null;
+  discoveryCatalogItemsCache = null;
+  discoveryCatalogItemsSource = null;
   homeBootstrapCache = null;
   homeBootstrapCachedAt = 0;
   listingSnapshotCache.clear();
+  invalidateSharedDiscoverySnapshot();
   invalidateSharedListingSnapshots();
 }
 
 async function prewarmHome() {
-  await snapshot({ force: true });
+  await discoverySnapshot({ force: true });
   return homeBootstrap({ force: true });
 }
 
 function companyFor(data, identifier) {
   const key = normalize(identifier);
+  const indexed = data?.__catalogIndexes?.companyLookup?.get(key);
+  if (indexed) return indexed;
   return data.companies.find((row) => [entityId(row), row.slug, row.name].some((value) => normalize(value) === key)) || null;
 }
 
 function listingFor(data, identifier, serviceType = '') {
   const key = normalize(identifier);
   const type = canonicalPublicServiceType(serviceType);
+  const indexed = data?.__catalogIndexes?.listingLookup?.get(`${type || '*'}:${key}`);
+  if (indexed) return indexed;
   return data.listings.find((row) => (!type || canonicalServiceType(row, data) === type)
     && [entityId(row), row.slug, row.title].some((value) => normalize(value) === key)) || null;
 }
 
 function listingSchedules(data, listingId) {
+  const key = typeof listingId === 'object' ? entityId(listingId) : String(listingId || '');
+  const indexed = data?.__catalogIndexes?.schedulesByListing?.get(key);
+  if (indexed) return indexed;
   const listing = data.listings.find((row) => sameId(row, listingId)) || { id: listingId };
   return relatedSchedulesForListing(listing, data);
 }
-function listingRoutes(data, listingId) { return data.routes.filter((row) => sameId(row.listingId, listingId)); }
+function listingRoutes(data, listingId) {
+  const key = typeof listingId === 'object' ? entityId(listingId) : String(listingId || '');
+  return data?.__catalogIndexes?.routesByListing?.get(key) || data.routes.filter((row) => sameId(row.listingId, listingId));
+}
 function routeStopsFor(data, routeId) {
+  const key = typeof routeId === 'object' ? entityId(routeId) : String(routeId || '');
+  const indexed = data?.__catalogIndexes?.stopsByRoute?.get(key);
+  if (indexed) return indexed.filter((row) => normalize(row.status) !== 'archived');
   return (data.routeStops || []).filter((row) => sameId(row.routeId, routeId) && normalize(row.status) !== 'archived').sort((a, b) => number(a.stopOrder) - number(b.stopOrder));
 }
 function fareCatalogForListing(data, listingId) {
   const routes = listingRoutes(data, listingId).filter((row) => normalize(row.status) !== 'archived');
   const routeIds = new Set(routes.map((row) => entityId(row)));
-  const products = (data.fareProducts || []).filter((row) => sameId(row.listingId, listingId) && routeIds.has(String(row.routeId || '')) && normalize(row.status) === 'active');
+  const productSource = data?.__catalogIndexes?.fareProductsByListing?.get(String(listingId || '')) || (data.fareProducts || []);
+  const products = productSource.filter((row) => sameId(row.listingId, listingId) && routeIds.has(String(row.routeId || '')) && normalize(row.status) === 'active');
   const rows = products.map((product) => {
     const route = routes.find((item) => sameId(item, product.routeId)) || {};
     const stops = routeStopsFor(data, entityId(route));
     const stopIndex = new Map(stops.map((stop) => [String(entityId(stop)), stop]));
-    const segments = (data.segmentFares || [])
+    const segmentSource = data?.__catalogIndexes?.segmentFaresByProduct?.get(String(entityId(product) || '')) || (data.segmentFares || []);
+    const segments = segmentSource
       .filter((fare) => sameId(fare.fareProductId, product) && normalize(fare.status) === 'active' && number(fare.amount) > 0)
       .sort((a, b) => number(a.fromOrder) - number(b.fromOrder) || number(a.toOrder) - number(b.toOrder))
       .map((fare) => ({
@@ -485,7 +829,9 @@ function listingRooms(data, listingId) {
 }
 
 function liveCampaignFor(data, listingId, now = new Date()) {
-  return data.campaigns.find((campaign) => sameId(campaign.listingId, listingId) && normalize(campaign.status) === 'active'
+  const key = typeof listingId === 'object' ? entityId(listingId) : String(listingId || '');
+  const source = data?.__catalogIndexes?.campaignsByListing?.get(key) || data.campaigns || [];
+  return source.find((campaign) => sameId(campaign.listingId, listingId) && normalize(campaign.status) === 'active'
     && (!campaign.startsAt || new Date(campaign.startsAt) <= now)
     && (!campaign.endsAt || new Date(campaign.endsAt) >= now));
 }
@@ -939,16 +1285,26 @@ function listingPreview(data, listing, currentAvailability, company) {
   };
 }
 
+function discoveryCatalogItems(data) {
+  if (data === discoveryCatalogItemsSource && Array.isArray(discoveryCatalogItemsCache)) return discoveryCatalogItemsCache;
+  const items = (data.listings || []).filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
+  if (data === discoverySnapshotCache) {
+    discoveryCatalogItemsSource = data;
+    discoveryCatalogItemsCache = items;
+  }
+  return items;
+}
+
 async function search(query = {}) {
-  const data = await snapshot();
-  const items = data.listings.filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
-  return { data, results: applySearch(items, query) };
+  const data = await discoverySnapshot();
+  const items = discoveryCatalogItems(data);
+  return { data, items, results: applySearch(items, query) };
 }
 
 async function searchWithMeta(query = {}) {
-  const { data, results } = await search(query);
+  const { data, items, results } = await search(query);
   const marketplace = marketplaceInfo(results);
-  return { data, results, meta: { total: results.length, marketplace, typeStats: marketplace.typeStats, routeHighlights: marketplace.routeHighlights, query } };
+  return { data, results, meta: { total: results.length, marketplace, typeStats: marketplace.typeStats, routeHighlights: marketplace.routeHighlights, searchOptions: searchOptions(data, items, data.airports || []), query } };
 }
 
 function searchOptionValues(values = []) {
@@ -1015,18 +1371,55 @@ function searchOptions(data, prebuiltListings = null, airports = []) {
   };
 }
 
-function buildHomeBootstrap(data, airports = []) {
-  const listings = data.listings.filter((row) => isPublicListing(row, data)).map((row) => catalogItem(data, row));
+function buildHomeBootstrap(data, airports = data.airports || []) {
+  // Build every enriched listing exactly once. The previous Home bootstrap
+  // re-ran catalogItem while building companies and again for every route,
+  // turning one snapshot into an avoidable O(listings × routes × schedules)
+  // CPU spike on the request thread.
+  const listings = discoveryCatalogItems(data);
+  const listingById = new Map(listings.map((row) => [String(row.id || ''), row]));
+  const listingsByCompany = new Map();
+  for (const listing of listings) {
+    const key = String(listing.companyId || '');
+    if (!listingsByCompany.has(key)) listingsByCompany.set(key, []);
+    listingsByCompany.get(key).push(listing);
+  }
   const marketplace = marketplaceInfo(listings);
-  const campaigns = data.campaigns
-    .filter((campaign) => normalize(campaign.status) === 'active' && listings.some((listing) => sameId(listing.id, campaign.listingId)))
-    .map((campaign) => ({ id: entityId(campaign), name: campaign.name || '', listingId: campaign.listingId || '', companyId: campaign.companyId || '', placement: campaign.placement || '', startsAt: campaign.startsAt || null, endsAt: campaign.endsAt || null }));
+  const publicListingIds = new Set(listings.map((listing) => String(listing.id || '')));
+  const liveCampaigns = (data.campaigns || [])
+    .filter((campaign) => normalize(campaign.status) === 'active' && publicListingIds.has(String(campaign.listingId || '')));
+  const campaignListingIds = new Set(liveCampaigns.map((campaign) => String(campaign.listingId || '')));
+  const campaigns = liveCampaigns.map((campaign) => ({
+    id: entityId(campaign), name: campaign.name || '', listingId: campaign.listingId || '', companyId: campaign.companyId || '', placement: campaign.placement || '', startsAt: campaign.startsAt || null, endsAt: campaign.endsAt || null,
+  }));
+  const companies = (data.companies || []).map((company) => {
+    const rows = listingsByCompany.get(String(entityId(company))) || [];
+    return {
+      id: entityId(company), slug: company.slug || entityId(company), name: company.name || '', companyType: normalize(company.companyType),
+      country: company.country || '', city: company.city || '', description: company.description || '',
+      logo: { url: mediaUrl(company.logo) }, coverImage: { url: mediaUrl(company.coverImage) },
+      supportContacts: { phone: company.supportContacts?.phone || '', email: company.supportContacts?.email || '', whatsapp: company.supportContacts?.whatsapp || '' },
+      verificationStatus: company.verificationStatus || 'pending', ratingAverage: number(company.ratingAverage), reviewCount: number(company.reviewCount),
+      activeListingsCount: rows.length, bookableListingsCount: rows.filter((row) => row.bookable).length,
+      sponsoredListingsCount: rows.filter((row) => campaignListingIds.has(String(row.id || ''))).length,
+      campaignCount: rows.filter((row) => campaignListingIds.has(String(row.id || ''))).length,
+    };
+  }).filter((row) => normalize(row.verificationStatus) === 'verified' && row.activeListingsCount > 0);
+  const routes = (data.routes || []).filter((row) => active(row) && publicListingIds.has(String(row.listingId || ''))).map((row) => {
+    const item = listingById.get(String(row.listingId || '')) || null;
+    const routeSummary = item?.routes?.find((candidate) => sameId(candidate.id || candidate.routeId, entityId(row))) || null;
+    return {
+      id: entityId(row), listingId: row.listingId || '', routeName: row.routeName || '', origin: row.origin || '', destination: row.destination || '', corridor: row.corridor || '',
+      boardingPoints: Array.isArray(row.boardingPoints) ? row.boardingPoints : [], scheduleCount: number(routeSummary?.scheduleCount), availableSeats: number(routeSummary?.availableSeats),
+      nextDepartAt: routeSummary?.nextDepartAt || null, bookingUrl: item?.bookingUrl || '', listingUrl: item?.url || '', listing: item,
+    };
+  });
   return {
     generatedAt: new Date().toISOString(),
     listings,
     categories: data.categories,
-    companies: data.companies.map((row) => publicCompany(data, row)).filter((row) => row.verificationStatus === 'verified' && row.activeListingsCount > 0),
-    routes: data.routes.filter((row) => active(row) && listings.some((listing) => sameId(listing.id, row.listingId))).map((row) => publicRoute(data, row)),
+    companies,
+    routes,
     campaigns,
     blogs: data.blogs.filter((row) => normalize(row.status) === 'published').slice(0, 3).map((row) => ({ id: entityId(row), slug: row.slug || entityId(row), title: row.title || '', excerpt: row.excerpt || '', image: resolveBlogImage(row), imageAlt: row.imageAlt || row.title || 'Classic Trip travel guide', tag: row.tag || '', publishedAt: row.publishedAt || row.createdAt || null, url: `/blogs/${row.slug || entityId(row)}` })),
     serviceStats: data.categories.map((category) => { const rows = listings.filter((item) => item.serviceType === category.key); return { ...category, count: rows.length, available: rows.reduce((sum, row) => sum + row.remainingInventory, 0) }; }),
@@ -1034,16 +1427,14 @@ function buildHomeBootstrap(data, airports = []) {
     marketplace,
     heroStats: { liveRoutes: marketplace.routeHighlights.length, verifiedPartners: marketplace.stats.partners, bookableInventory: listings.filter((row) => row.bookable).length, totalServices: marketplace.stats.liveListings, availableNow: marketplace.stats.availableNow, departuresNext24h: marketplace.stats.departuresNext24h },
     searchOptions: searchOptions(data, listings, airports),
+    platformConfig: data.platformConfig || {},
   };
 }
 
 async function refreshHomeBootstrap() {
   if (homeBootstrapInflight) return homeBootstrapInflight;
-  homeBootstrapInflight = Promise.all([
-    snapshot(),
-    flightSearchService.listAirports().catch(() => []),
-  ])
-    .then(([data, airports]) => buildHomeBootstrap(data, airports))
+  homeBootstrapInflight = discoverySnapshot()
+    .then((data) => buildHomeBootstrap(data, data.airports || []))
     .then((value) => {
       homeBootstrapCache = value;
       homeBootstrapCachedAt = Date.now();
@@ -1077,4 +1468,4 @@ async function recordReferralClick(code, listingId, request = {}) {
   return click;
 }
 
-module.exports = { snapshot, snapshotForListing, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, searchOptions, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };
+module.exports = { snapshot, snapshotForListing, discoverySnapshot, discoverySnapshotForListing, prewarmHome, invalidateMarketplaceCache, companyFor, listingFor, isPublicListing, catalogItem, publicCompany, publicRoute, availability, listingPreview, marketplaceInfo, routeHighlights, searchOptions, applySearch, search, searchWithMeta, homeBootstrap, recordReferralClick, fareCatalogForListing, entityId, sameId, canonicalServiceType, relatedSchedulesForListing };

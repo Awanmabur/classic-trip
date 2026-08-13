@@ -27,7 +27,7 @@ check('release and service worker use the current package version', sw.includes(
 check('Mongo connection and queue timeouts are fail-fast', env.includes("MONGO_SERVER_SELECTION_TIMEOUT_MS', 4000") && env.includes("MONGO_WAIT_QUEUE_TIMEOUT_MS', 2500") && env.includes('queryMaxTimeMs'));
 check('repository applies maxTimeMS to reads and writes', repo.includes('applyReadDeadline') && repo.includes('aggregate.option({ maxTimeMS') && repo.includes('findOneAndUpdate') && repo.includes('maxTimeMS: queryMaxTime(options)'));
 check('bulk Mongo reads have a bounded admission queue', gate.includes('READ_QUEUE_TIMEOUT_MS') && gate.includes('mongodb_read_queue_busy'));
-check('scheduled jobs skip disconnected Mongo and have hard deadlines', scheduler.includes("reason: 'mongodb_unavailable'") && scheduler.includes('withTimeout('));
+check('scheduled jobs skip disconnected Mongo and have bounded slow-run monitoring without unsafe lease release', scheduler.includes("reason: 'mongodb_unavailable'") && scheduler.includes('jobTimeoutMs(') && scheduler.includes('slowTimer = setTimeout('));
 check('anonymous CSRF uses a signed stateless token', csrf.includes('signedAnonymousToken') && csrf.includes("createHmac('sha256'"));
 check('listing snapshots have long SWR and Redis sharing', catalog.includes('sharedListingSnapshotKey') && catalog.includes('listingCacheStaleMs'));
 check('dashboard browser data is active-page scoped and options bounded', workspace.includes('allowedBrowserObjects') && workspace.includes('slice(0,120)'));

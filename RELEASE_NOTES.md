@@ -1,3 +1,16 @@
+## v1.6.63
+
+- Rebuilt anonymous Home/Search discovery around a lightweight marketplace snapshot that excludes booking-only seat rows, vehicles, room units and room-night inventory.
+- Added gzip-compressed Redis sharing for public discovery so fresh Render processes can reuse the last known-good public index instead of making the first visitor rebuild it.
+- Added stale-while-revalidate discovery behavior: once a valid public snapshot exists, anonymous requests are served immediately while Atlas refreshes in the background.
+- Reused immutable departure route/fare snapshots and queries only route/fare records that are not covered by current departures.
+- Cached enriched catalog cards per discovery snapshot to stop repeated route/fare recomputation on every search query.
+- Home now enriches each listing once rather than repeatedly rebuilding listings while deriving companies and routes.
+- Bus listing previews reuse the lightweight discovery snapshot while live selected-departure seat/fare APIs remain authoritative.
+- Routes, Companies, Company Profile and Promoters now use the lightweight public discovery snapshot instead of the full operational inventory snapshot.
+- WordPress/PHP scanner probes such as `/xmlrpc.php` are rejected before sessions, monitoring and CSRF middleware.
+- Added dedicated v1.6.63 public-performance regression checks and production cache settings.
+
 ## v1.6.62
 
 - Increased the two desktop bar image badges.
@@ -230,3 +243,13 @@ This release isolates request serving from background maintenance, serializes wo
 - Legacy `?draft=` checkout URLs self-clean after validation.
 - One more small marketplace image/count badge increase with mobile bounds preserved.
 - Browser/service-worker assets bumped to v1.6.61.
+
+## v1.6.64 — Redis runtime recovery + restored network tooling
+
+- Restores `npm run doctor:network` with MongoDB SRV/member TCP diagnostics and Redis DNS/TCP/PING checks.
+- Restores `npm run redis:local` to create/start `classic-trip-redis` on loopback-only `127.0.0.1:6379` and verify `PONG`.
+- Redis startup remains bounded when it has never connected, preserving the existing MongoDB fallback behavior when Redis is optional.
+- After Redis has connected once, transient runtime socket failures such as `ECONNRESET` now reconnect indefinitely using bounded exponential backoff plus jitter instead of permanently stopping after three attempts.
+- Adds periodic Redis PINGs and explicit TCP keepalive to detect/recover dead idle sockets before they affect user requests.
+- Redis connection-error and reconnect warnings are throttled to prevent log floods during a network flap.
+- No dependency versions, database schema, seed data, booking rules, payment logic, v1.6.63 public-discovery performance work, or v1.6.62 bar badge sizing were changed.

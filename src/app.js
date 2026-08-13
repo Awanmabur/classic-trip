@@ -93,6 +93,18 @@ app.use((req, res, next) => {
   if (requestHost !== 'classictrip.org') return next();
   return res.redirect(308, `https://www.classictrip.org${req.originalUrl}`);
 });
+
+// Internet scanners routinely probe WordPress/PHP endpoints such as
+// /xmlrpc.php. Reject them before body parsing, sessions, monitoring and CSRF
+// middleware so bot noise cannot consume Redis/Mongo capacity or generate
+// misleading CSRF warnings.
+const HOSTILE_PROBE_PATHS = new Set(['/xmlrpc.php', '/wp-login.php', '/wp-config.php', '/.env']);
+app.use((req, res, next) => {
+  const pathname = String(req.path || '').toLowerCase();
+  if (!HOSTILE_PROBE_PATHS.has(pathname) && !pathname.startsWith('/wp-admin') && !pathname.startsWith('/.git/')) return next();
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.status(404).type('text/plain').send('Not Found');
+});
 app.get('/site.webmanifest', (req, res) => {
   res.type('application/manifest+json');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

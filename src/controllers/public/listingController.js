@@ -241,7 +241,7 @@ async function servicesPage(req, res, next) {
 
 async function routesPage(req, res, next) {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.discoverySnapshot();
     const q = normalize(req.query.q); const corridor = normalize(req.query.corridor); const origin = normalize(req.query.origin); const destination = normalize(req.query.destination);
     const publicListings = data.listings.filter((row) => catalogService.isPublicListing(row, data));
     let routes = data.routes.filter((row) => (!row.status || ['active', 'published'].includes(normalize(row.status))) && publicListings.some((listing) => catalogService.sameId(catalogService.entityId(listing), row.listingId))).map((row) => catalogService.publicRoute(data, row));
@@ -257,7 +257,7 @@ async function routesPage(req, res, next) {
 
 async function companiesPage(req, res, next) {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.discoverySnapshot();
     const companies = data.companies
       .map((row) => catalogService.publicCompany(data, row))
       .filter((company) => normalize(company.verificationStatus) === 'verified' && company.activeListingsCount > 0);
@@ -267,7 +267,7 @@ async function companiesPage(req, res, next) {
 
 async function companyProfile(req, res, next) {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.discoverySnapshot();
     const companyRow = catalogService.companyFor(data, req.params.slug || req.params.companySlug || '');
     if (!companyRow) return next();
     const company = catalogService.publicCompany(data, companyRow);
@@ -284,7 +284,7 @@ async function companyProfile(req, res, next) {
 
 async function promotersPage(req, res, next) {
   try {
-    const data = await catalogService.snapshot();
+    const data = await catalogService.discoverySnapshot();
     const listings = data.listings.filter((row) => catalogService.isPublicListing(row, data)).map((row) => catalogService.catalogItem(data, row));
     const topListings = listings.filter((row) => row.bookable).sort((a, b) => b.ratingAverage - a.ratingAverage).slice(0, 9);
     const campaigns = data.campaigns
@@ -296,7 +296,17 @@ async function promotersPage(req, res, next) {
 
 async function listingDetails(req, res, next) {
   try {
-    const context = await catalogContext(req.params.slug, req.params.serviceType, req.query); if (!context.listing) return next();
+    // Bus preview pages need routes, fare snapshots and upcoming departures, not
+    // the booking-only seat-row collections. Reuse the same lightweight public
+    // discovery snapshot that powers Home/Search; the selected-departure API
+    // remains authoritative for live seats and exact journey pricing.
+    let prefetched = {};
+    if (normalize(req.params.serviceType) === 'bus') {
+      const data = await catalogService.discoverySnapshotForListing(req.params.slug, req.params.serviceType);
+      const raw = data ? catalogService.listingFor(data, req.params.slug, req.params.serviceType) : null;
+      if (data && raw) prefetched = { data, raw };
+    }
+    const context = await catalogContext(req.params.slug, req.params.serviceType, req.query, prefetched); if (!context.listing) return next();
     if (req.query.ref) await catalogService.recordReferralClick(req.query.ref, context.listing.id, req);
     return res.render('pages/listing-details', { seo: listingSeo(context), listing: context.listing, company: context.company, availability: context.availability, preview: context.preview, referralCode: req.query.ref || req.cookies?.ct_ref || '' });
   } catch (error) { return next(error); }

@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+const root = path.join(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+let passed = 0;
+function check(label, fn) { try { fn(); passed += 1; console.log(`✓ ${label}`); } catch (error) { console.error(`✗ ${label}: ${error.message}`); process.exitCode = 1; } }
+const pkg = JSON.parse(read('package.json'));
+const catalog = read('src/services/marketplace/catalogService.js');
+const listing = read('src/controllers/public/listingController.js');
+const search = read('src/controllers/public/searchController.js');
+const app = read('src/app.js');
+const env = read('src/config/env.js');
+const render = read('render.yaml');
+const sw = read('public/sw.js');
+const discoveryStart = catalog.indexOf('async function loadDiscoverySnapshotFresh()');
+const discoveryEnd = catalog.indexOf('async function readSharedDiscoverySnapshot()', discoveryStart);
+const discovery = catalog.slice(discoveryStart, discoveryEnd);
+const homeStart = catalog.indexOf('async function refreshHomeBootstrap()');
+const homeEnd = catalog.indexOf('async function homeBootstrap(', homeStart);
+const home = catalog.slice(homeStart, homeEnd);
+check('release preserves v1.6.63+ public performance architecture', () => { const parts = pkg.version.split('.').map(Number); assert(parts[0] > 1 || (parts[0] === 1 && (parts[1] > 6 || (parts[1] === 6 && parts[2] >= 63)))); });
+check('public discovery is separate from full operational snapshot', () => assert(discovery.includes('loadDiscoverySnapshotFresh') && catalog.includes('async function discoverySnapshot(options = {})')));
+check('Home/Search discovery does not bulk-read seat rows', () => assert(!discovery.includes('commerceRepository.seats.list')));
+check('Home/Search discovery does not bulk-read room nights', () => assert(!discovery.includes('commerceRepository.roomNights.list')));
+check('Home/Search discovery does not bulk-read room units', () => assert(!discovery.includes('commerceRepository.roomUnits.list')));
+check('Home/Search discovery does not bulk-read vehicle rows', () => assert(!discovery.includes('commerceRepository.vehicles.list')));
+check('departure route/fare snapshots are reused before fallback queries', () => assert(discovery.includes('snapshotStops') && discovery.includes('missingStopRouteIds') && discovery.includes('missingFareRouteIds')));
+check('public discovery is gzip-shared through Redis', () => assert(catalog.includes("redisRuntime.key('public-discovery', 'v1')") && catalog.includes('await gzip(payload, { level: 1 })') && catalog.includes('await gunzip')));
+check('stale public discovery is served while refresh runs in background', () => assert(catalog.includes('if (!options.force && discoverySnapshotCache)') && catalog.includes('refreshDiscoverySnapshot().catch(() => {})')));
+check('derived listing cards are cached per discovery snapshot', () => assert(catalog.includes('discoveryCatalogItemsCache') && catalog.includes('function discoveryCatalogItems(data)')));
+check('search uses the lightweight discovery cache and prebuilt filters', () => assert(catalog.includes('const data = await discoverySnapshot();') && search.includes('meta.searchOptions ||')));
+check('Home refresh no longer waits on full snapshot or a separate airport query', () => assert(home.includes('discoverySnapshot()') && !home.includes('snapshot()') && !home.includes('listAirports')));
+check('other public discovery pages avoid the full operational snapshot', () => {
+  const publicPagesStart = listing.indexOf('async function routesPage');
+  const publicPagesEnd = listing.indexOf('async function listingDetails', publicPagesStart);
+  const publicPages = listing.slice(publicPagesStart, publicPagesEnd);
+  assert(publicPages.includes('catalogService.discoverySnapshot()'));
+  assert(!publicPages.includes('catalogService.snapshot()'));
+});
+check('bus preview reuses public discovery but booking context still uses scoped authoritative snapshot', () => assert(listing.includes('discoverySnapshotForListing') && listing.includes('catalogService.snapshotForListing(identifier, serviceType)')));
+check('xmlrpc and WordPress probes are blocked before session and CSRF middleware', () => {
+  const guard = app.indexOf('HOSTILE_PROBE_PATHS');
+  assert(guard > -1 && guard < app.indexOf('app.use(sessionConfig())') && guard < app.indexOf('app.use(csrfToken)'));
+  assert(app.includes("'/xmlrpc.php'"));
+});
+check('Render exposes dedicated discovery cache controls', () => assert(render.includes('DISCOVERY_CACHE_TTL_MS') && render.includes('DISCOVERY_CACHE_STALE_MS') && env.includes('discoveryCacheTtlMs')));
+check('service worker cache matches current release', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`)));
+if (!process.exitCode) console.log(`\n${passed}/17 v1.6.63+ public performance checks passed.`);

@@ -6,7 +6,7 @@
 <link rel="icon" type="image/png" href="/images/favicon-48.png" />
 <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
-<link rel="stylesheet" href="/css/pwa.css?v=1.6.62" />
+<link rel="stylesheet" href="/css/pwa.css?v=1.6.64" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,12 +17,12 @@
 <meta name="theme-color" content="#070a12" />
 <script nonce="<%= cspNonce %>">try{const t=localStorage.getItem('classicTripTheme')||localStorage.getItem('ct-theme')||localStorage.getItem('ct_auth_theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(_){}</script>
 <script src="/js/csrf.js?v=20260722-3" defer></script>
-<link rel="preload" href="/js/dashboard-workspace.js?v=1.6.62" as="script" fetchpriority="low">
-<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.62">
+<link rel="preload" href="/js/dashboard-workspace.js?v=1.6.64" as="script" fetchpriority="low">
+<link rel="stylesheet" href="/css/dashboard-workspace.css?v=1.6.64">
 <link rel="stylesheet" href="/css/dashboard-service-additions.css?v=20260726-reference-merge-1">
-<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.62">
+<link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.64">
 <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.62" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.64" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="dashboardBody">
 <%
@@ -769,9 +769,9 @@ return '#'+page;
 <%- include('sections/dynamic-page', Object.assign({}, sectionLocals, { item, employeeDynamicAction, employeeDynamicLabel, dynamicActionHref })) %>
 <% }) %>
 <script nonce="<%= cspNonce %>" id="dashboardWorkspaceBootstrap" type="application/json"><%- toScriptJson({ dashboardData: browserDashboardData || {}, shell: dashboardShell || {}, csrfToken: csrfToken || '', flashMessages: flashMessages || [], platformConfig: platformConfig || {}, countryMarkets: countryMarkets || [] }) %></script>
-<script src="/js/dashboard-shell.js?v=1.6.62" defer></script>
-<script src="/js/contact-hub.js?v=1.6.62" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.62" data-start="paint" data-modules="/js/dashboard-workspace.js?v=1.6.62" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.62" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.62" defer></script>
+<script src="/js/dashboard-shell.js?v=1.6.64" defer></script>
+<script src="/js/contact-hub.js?v=1.6.64" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.64" data-start="paint" data-modules="/js/dashboard-workspace.js?v=1.6.64" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.64" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.64" defer></script>
 </body>
 </html>

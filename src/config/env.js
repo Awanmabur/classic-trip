@@ -85,6 +85,9 @@ const env = {
     prefix: process.env.REDIS_PREFIX || 'classic-trip:',
     required: booleanFlag('REDIS_REQUIRED', false),
     connectTimeoutMs: Math.max(500, number('REDIS_CONNECT_TIMEOUT_MS', 4000)),
+    pingIntervalMs: Math.max(5000, number('REDIS_PING_INTERVAL_MS', 30000)),
+    reconnectMaxDelayMs: Math.max(500, number('REDIS_RECONNECT_MAX_DELAY_MS', 3000)),
+    errorLogThrottleMs: Math.max(5000, number('REDIS_ERROR_LOG_THROTTLE_MS', 30000)),
   },
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
   mfaEncryptionKey: configuredValue('MFA_ENCRYPTION_KEY') || (process.env.NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_mfa_key')),
@@ -221,6 +224,11 @@ const env = {
     homeCacheStaleMs: number('HOME_CACHE_STALE_MS', 1800000),
     homeViewCacheTtlMs: number('HOME_VIEW_CACHE_TTL_MS', 60000),
     homeViewCacheStaleMs: number('HOME_VIEW_CACHE_STALE_MS', 600000),
+    // Lightweight Home/Search/listing-preview data is shared through Redis so a
+    // fresh Render process does not rebuild the marketplace before serving its
+    // first visitor. Booking/payment data is intentionally excluded.
+    discoveryCacheTtlMs: Math.max(60000, number('DISCOVERY_CACHE_TTL_MS', 300000)),
+    discoveryCacheStaleMs: Math.max(600000, number('DISCOVERY_CACHE_STALE_MS', 21600000)),
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 10),

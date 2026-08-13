@@ -74,6 +74,10 @@ services:
         value: "300000"
       - key: LISTING_SNAPSHOT_STALE_MS
         value: "1800000"
+      - key: DISCOVERY_CACHE_TTL_MS
+        value: "300000"
+      - key: DISCOVERY_CACHE_STALE_MS
+        value: "21600000"
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -83,6 +87,12 @@ services:
         value: "true"
       - key: REDIS_PREFIX
         value: "classic-trip:"
+      - key: REDIS_PING_INTERVAL_MS
+        value: "30000"
+      - key: REDIS_RECONNECT_MAX_DELAY_MS
+        value: "3000"
+      - key: REDIS_ERROR_LOG_THROTTLE_MS
+        value: "30000"
       - key: SESSION_SECRET
         generateValue: true
       - key: PLATFORM_MFA_ENABLED
@@ -244,6 +254,12 @@ services:
         value: "true"
       - key: REDIS_PREFIX
         value: "classic-trip:"
+      - key: REDIS_PING_INTERVAL_MS
+        value: "30000"
+      - key: REDIS_RECONNECT_MAX_DELAY_MS
+        value: "3000"
+      - key: REDIS_ERROR_LOG_THROTTLE_MS
+        value: "30000"
       - key: TAXI_ROUTING_API_URL
         fromService:
           type: web
