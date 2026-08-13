@@ -25,7 +25,7 @@ function source(relative) {
 }
 
 const forbiddenPaths = [
-  '.env', '.claude', 'coverage',
+  '.claude', 'coverage',
   'src/repositories/memoryDatabase.js',
   'src/services/data/persistentStore.js',
   'src/repositories/domain/hybridCollection.js',
@@ -34,6 +34,9 @@ const forbiddenPaths = [
   'src/controllers/admin/masterImplementationController.js',
 ];
 for (const item of forbiddenPaths) check(!fs.existsSync(path.join(root, item)), `Forbidden release artifact remains: ${item}`);
+const gitignore = fs.existsSync(path.join(root, '.gitignore')) ? source('.gitignore') : '';
+check(/(?:^|\n)\.env(?:\r?$|\n|\*)/m.test(gitignore), 'Local .env must be excluded by .gitignore');
+check(fs.existsSync(path.join(root, '.env.example')), '.env.example must ship as the safe production configuration template');
 const rootReports = fs.readdirSync(root).filter((name) => /(?:HOTFIX|IMPLEMENTATION_REPORT|RECOVERY|VISIBILITY_FIX|PERSISTENCE_FIX|SMART_BUS_FORMS)/i.test(name));
 check(rootReports.length === 0, `Historical patch reports must not ship: ${rootReports.join(', ')}`);
 

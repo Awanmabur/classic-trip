@@ -1,0 +1,77 @@
+<%
+  const footerSocials = [
+    { label: 'WhatsApp', icon: 'fa-brands fa-whatsapp', url: supportContacts && supportContacts.whatsappGroupUrl ? supportContacts.whatsappGroupUrl : '' },
+    { label: 'Email', icon: 'fa-solid fa-envelope', url: supportContacts && supportContacts.email ? `mailto:${supportContacts.email}` : '' },
+    { label: 'Phone', icon: 'fa-solid fa-phone', url: supportContacts && supportContacts.phone ? `tel:${supportContacts.phone}` : '' },
+    { label: 'Facebook', icon: 'fa-brands fa-facebook-f', url: supportContacts && supportContacts.socials ? supportContacts.socials.facebook : '' },
+    { label: 'Instagram', icon: 'fa-brands fa-instagram', url: supportContacts && supportContacts.socials ? supportContacts.socials.instagram : '' },
+    { label: 'X', icon: 'fa-brands fa-x-twitter', url: supportContacts && supportContacts.socials ? supportContacts.socials.x : '' },
+    { label: 'TikTok', icon: 'fa-brands fa-tiktok', url: supportContacts && supportContacts.socials ? supportContacts.socials.tiktok : '' },
+    { label: 'YouTube', icon: 'fa-brands fa-youtube', url: supportContacts && supportContacts.socials ? supportContacts.socials.youtube : '' },
+    { label: 'LinkedIn', icon: 'fa-brands fa-linkedin-in', url: supportContacts && supportContacts.socials ? supportContacts.socials.linkedin : '' },
+  ].filter(function(item){ return item.url; });
+%>
+<footer class="siteFooter">
+  <div class="footerGrid">
+    <div class="footerBrand">
+      <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
+      <p>Book verified buses, stays, flights, local rides, tours, car rentals and cargo across East Africa through one secure, transparent booking experience.</p>
+      <span><i class="fa-solid fa-shield-halved"></i> Secure checkout &amp; payment</span>
+      <span><i class="fa-solid fa-clock"></i> Protected live inventory holds</span>
+      <span><i class="fa-solid fa-headset"></i> Customer support</span>
+      <% if (footerSocials.length) { %>
+      <div class="footerSocialBlock">
+        <h3>Connect</h3>
+        <div class="footerSocials" aria-label="Classic Trip contact and social links">
+          <% footerSocials.forEach(function(item){ %><a class="footerSocialIcon" href="<%= item.url %>" aria-label="<%= item.label %>" title="<%= item.label %>" <% if (/^https?:\/\//i.test(item.url)) { %>target="_blank" rel="noopener noreferrer"<% } %>><i class="<%= item.icon %>"></i></a><% }) %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+
+    <div class="footerCol">
+      <h3>Explore</h3>
+      <a href="/buses"><i class="fa-solid fa-bus"></i> Buses</a>
+      <a href="/stays"><i class="fa-solid fa-house"></i> Stays</a>
+      <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
+      <a href="/taxi"><i class="fa-solid fa-taxi"></i> Local taxi</a>
+      <a href="/tours"><i class="fa-solid fa-map-location-dot"></i> Tours &amp; activities</a>
+      <a href="/car-rentals"><i class="fa-solid fa-car-side"></i> Car rentals</a>
+      <a href="/cargo"><i class="fa-solid fa-boxes-stacked"></i> Cargo &amp; parcels</a>
+      <a href="/blogs"><i class="fa-regular fa-newspaper"></i> Travel guides</a>
+    </div>
+
+    <div class="footerCol">
+      <h3>Bookings &amp; account</h3>
+      <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
+      <a href="/booking"><i class="fa-solid fa-bookmark"></i> My bookings</a>
+      <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
+      <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
+      <a href="/routes"><i class="fa-solid fa-route"></i> Routes</a>
+      <a href="/companies"><i class="fa-solid fa-building"></i> Companies</a>
+    </div>
+
+    <div class="footerCol">
+      <h3>Partners</h3>
+      <a href="/login?role=partner#partner"><i class="fa-solid fa-store"></i> Become a partner</a>
+      <a href="/partner-commission"><i class="fa-solid fa-percent"></i> Commission model</a>
+      <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
+      <a href="/companies"><i class="fa-solid fa-building-circle-check"></i> Verified partners</a>
+      <a href="/company/dashboard"><i class="fa-solid fa-chart-line"></i> Partner dashboard</a>
+    </div>
+
+    <div class="footerCol">
+      <h3>Help &amp; legal</h3>
+      <a href="/how-it-works"><i class="fa-solid fa-circle-info"></i> How Classic Trip works</a>
+      <a href="/support"><i class="fa-solid fa-headset"></i> Contact support</a>
+      <a href="/terms"><i class="fa-solid fa-file-contract"></i> Terms &amp; conditions</a>
+      <a href="/privacy"><i class="fa-solid fa-user-shield"></i> Privacy policy</a>
+      <a href="/terms#refunds"><i class="fa-solid fa-rotate-left"></i> Refund policy</a>
+      <a href="/terms#cancellation"><i class="fa-solid fa-triangle-exclamation"></i> Cancellation rules</a>
+    </div>
+  </div>
+  <div class="footerBottom">
+    <span>&copy; <%= new Date().getFullYear() %> Classic Trip. Marketplace for East Africa bookings.</span>
+    <span>Secure payments &bull; Transparent pricing &bull; Partner payouts &bull; Ticket delivery</span>
+  </div>
+</footer>

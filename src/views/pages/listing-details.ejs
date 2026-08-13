@@ -50,16 +50,16 @@
   <div class="modal open previewModal" id="viewModal">
     <div class="sheet">
       <div class="sheetTop">
-        <div>
+        <div class="sheetTopPrimary">
           <div class="badge badgeInfo" id="modalType"><i class="fa-solid <%= serviceIcon %>"></i> <%= listing.type || listing.serviceType %></div>
           <div class="sheetTitle" id="modalTitle"><%= listing.title %></div>
-          <div class="sheetSub" id="modalSub"><%= [partnerName, ctRoute(listing.from, listing.to, listing.routeLabel), scheduleLabel].filter(Boolean).join(' · ') %></div>
         </div>
         <div class="sheetTopActions">
           <a class="iconbtn" title="Partner profile" href="/companies/<%= listing.companySlug %>"><i class="fa-solid fa-building"></i></a>
           <button class="iconbtn" title="Share" type="button" data-listing-action="share"><i class="fa-solid fa-share-nodes"></i></button>
           <a class="iconbtn" title="Close preview" href="/search"><i class="fa-solid fa-xmark"></i></a>
         </div>
+        <div class="sheetSub" id="modalSub"><%= [partnerName, ctRoute(listing.from, listing.to, listing.routeLabel), scheduleLabel].filter(Boolean).join(' · ') %></div>
       </div>
 
       <div class="sheetBody" id="sheetBody">

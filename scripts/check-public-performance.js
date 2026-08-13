@@ -26,9 +26,10 @@ check('public discovery is separate from full operational snapshot', () => asser
 check('Home/Search discovery does not bulk-read seat rows', () => assert(!discovery.includes('commerceRepository.seats.list')));
 check('Home/Search discovery does not bulk-read room nights', () => assert(!discovery.includes('commerceRepository.roomNights.list')));
 check('Home/Search discovery does not bulk-read room units', () => assert(!discovery.includes('commerceRepository.roomUnits.list')));
-check('Home/Search discovery does not bulk-read vehicle rows', () => assert(!discovery.includes('commerceRepository.vehicles.list')));
+check('Home/Search only reads scoped vehicle amenity projections', () => assert(discovery.includes('publicVehicleIds') && discovery.includes("select: 'id listingId amenities status'") && !discovery.includes('seatMapTemplateId vehicleClass registrationNumber')));
+check('country-route enrichment reads only lightweight terminal branch fields', () => assert(discovery.includes('companyOperationsRepository.branches.list') && discovery.includes("select: 'id country city name status'") && catalog.includes("redisRuntime.key('public-discovery', 'v2-country-routes')")));
 check('departure route/fare snapshots are reused before fallback queries', () => assert(discovery.includes('snapshotStops') && discovery.includes('missingStopRouteIds') && discovery.includes('missingFareRouteIds')));
-check('public discovery is gzip-shared through Redis', () => assert(catalog.includes("redisRuntime.key('public-discovery', 'v1')") && catalog.includes('await gzip(payload, { level: 1 })') && catalog.includes('await gunzip')));
+check('public discovery is gzip-shared through Redis', () => assert(catalog.includes("redisRuntime.key('public-discovery', 'v2-country-routes')") && catalog.includes('await gzip(payload, { level: 1 })') && catalog.includes('await gunzip')));
 check('stale public discovery is served while refresh runs in background', () => assert(catalog.includes('if (!options.force && discoverySnapshotCache)') && catalog.includes('refreshDiscoverySnapshot().catch(() => {})')));
 check('derived listing cards are cached per discovery snapshot', () => assert(catalog.includes('discoveryCatalogItemsCache') && catalog.includes('function discoveryCatalogItems(data)')));
 check('search uses the lightweight discovery cache and prebuilt filters', () => assert(catalog.includes('const data = await discoverySnapshot();') && search.includes('meta.searchOptions ||')));
@@ -48,4 +49,4 @@ check('xmlrpc and WordPress probes are blocked before session and CSRF middlewar
 });
 check('Render exposes dedicated discovery cache controls', () => assert(render.includes('DISCOVERY_CACHE_TTL_MS') && render.includes('DISCOVERY_CACHE_STALE_MS') && env.includes('discoveryCacheTtlMs')));
 check('service worker cache matches current release', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`)));
-if (!process.exitCode) console.log(`\n${passed}/17 public performance checks passed.`);
+if (!process.exitCode) console.log(`\n${passed}/${passed} public performance checks passed.`);

@@ -32,6 +32,29 @@ const {
 function actorId(value) { return cleanText(value || 'company-admin', 180); }
 function nowIso() { return new Date().toISOString(); }
 
+
+const COUNTRY_CODE_ALIASES = Object.freeze({
+  ug: 'ug', uganda: 'ug',
+  ke: 'ke', kenya: 'ke',
+  rw: 'rw', rwanda: 'rw',
+  tz: 'tz', tanzania: 'tz',
+  ss: 'ss', south_sudan: 'ss', southsudan: 'ss',
+  bi: 'bi', burundi: 'bi',
+  so: 'so', somalia: 'so',
+  cd: 'drc', drc: 'drc', dr_congo: 'drc', drcongo: 'drc', democratic_republic_of_the_congo: 'drc',
+  et: 'et', ethiopia: 'et',
+  dj: 'dj', djibouti: 'dj',
+  er: 'er', eritrea: 'er',
+});
+function countryCode(value = '') {
+  const key = normalize(value).replace(/^the_/, '');
+  return COUNTRY_CODE_ALIASES[key] || COUNTRY_CODE_ALIASES[key.replace(/_/g, '')] || '';
+}
+function countryCorridor(originCountry = '', destinationCountry = '') {
+  const countries = [countryCode(originCountry), countryCode(destinationCountry)].filter(Boolean);
+  return countries.length === 2 && countries[0] !== countries[1] ? countries.sort().join('-') : '';
+}
+
 function normalizeVehicleClass(value = '') {
   return ['vip', 'premium', 'business', 'executive'].includes(normalize(value)) ? 'vip' : 'standard';
 }
@@ -650,6 +673,9 @@ async function createRoute(companyId, payload = {}, actor = 'company-admin') {
     version: 1,
     origin: origin.name,
     destination: destination.name,
+    originCountry: cleanText(origin.branch?.country, 120),
+    destinationCountry: cleanText(destination.branch?.country, 120),
+    countryCorridor: countryCorridor(origin.branch?.country, destination.branch?.country),
     originTerminalId: origin.branchId,
     destinationTerminalId: destination.branchId,
     distanceKm: payload.distanceKm === '' || payload.distanceKm == null ? undefined : numberValue(payload.distanceKm, { field: 'Distance', min: 0, max: 20000 }),
@@ -794,6 +820,11 @@ async function updateRoute(companyId, routeId, payload = {}, actor = 'company-ad
   if (originBranch) Object.assign(originStop, { branchId: originBranch.id, name: branchLabel(originBranch), updatedBy: actorId(actor), updatedAt: nowIso() });
   if (destinationBranch) Object.assign(destinationStop, { branchId: destinationBranch.id, name: branchLabel(destinationBranch), updatedBy: actorId(actor), updatedAt: nowIso() });
   if (originChanged || destinationChanged) route.corridor = cleanText(`${toSlug(originStop.name)}-${toSlug(destinationStop.name)}`, 180);
+  const originCountryBranch = originBranch || (!route.originCountry && nextOriginId ? await repository.branches.findOne({ id: nextOriginId, companyId, status: { $ne: 'archived' } }) : null);
+  const destinationCountryBranch = destinationBranch || (!route.destinationCountry && nextDestinationId ? await repository.branches.findOne({ id: nextDestinationId, companyId, status: { $ne: 'archived' } }) : null);
+  route.originCountry = cleanText(originCountryBranch?.country || route.originCountry, 120);
+  route.destinationCountry = cleanText(destinationCountryBranch?.country || route.destinationCountry, 120);
+  route.countryCorridor = countryCorridor(route.originCountry, route.destinationCountry);
 
   if (payload.status && normalize(payload.status) === 'archived') {
     const future = await repository.schedules.count({ companyId, routeId, departAt: { $gt: new Date() }, status: { $in: ['published', 'boarding', 'delayed', 'departed'] } });

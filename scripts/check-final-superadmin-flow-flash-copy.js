@@ -23,7 +23,7 @@ const home = read('src/views/pages/home.ejs');
 const companies = read('src/views/pages/companies.ejs');
 const promoters = read('src/views/pages/promoters.ejs');
 const support = read('src/views/pages/support.ejs');
-const footer = read('src/views/partials/site-footer.ejs');
+const footer = read('src/views/partials/site-footer-markup.ejs');
 
 check('Overview uses stable dashboard flow page', workspace.includes('dashboardFlowPage dashboardOverviewPage'));
 check('Schedule uses stable dashboard flow page', schedules.includes('dashboardFlowPage dashboardSchedulePage'));

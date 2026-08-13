@@ -1,58 +1,10 @@
-<footer class="siteFooter">
-  <div class="footerGrid">
-    <div class="footerBrand">
-      <div class="brand"><img class="mark" src="/images/logo-symbol-128.png" alt="Classic Trip"><span>Classic Trip</span></div>
-      <p>Classic Trip connects travellers with verified bus, accommodation, flight-agent and local-mobility services across East Africa—through one secure, transparent booking experience.</p>
-      <span><i class="fa-solid fa-shield-halved"></i> Secure checkout &amp; payment</span>
-      <span><i class="fa-solid fa-clock"></i> Protected seat, room and inventory holds</span>
-      <span><i class="fa-solid fa-headset"></i> 24/7 customer support</span>
-    </div>
-
-    <div class="footerCol">
-      <h3>Book &amp; manage</h3>
-      <a href="/buses"><i class="fa-solid fa-bus"></i> Buses</a>
-      <a href="/stays"><i class="fa-solid fa-hotel"></i> Stays</a>
-      <a href="/flights"><i class="fa-solid fa-plane"></i> Flights</a>
-      <a href="/taxi"><i class="fa-solid fa-taxi"></i> Local taxi</a>
-      <a href="/tickets"><i class="fa-solid fa-ticket"></i> Find my ticket</a>
-      <a href="/my-bookings"><i class="fa-solid fa-bookmark"></i> My bookings</a>
-      <a href="/saved"><i class="fa-regular fa-heart"></i> Saved trips</a>
-      <% if (currentUser) { %><a href="<%= dashboardUrl %>"><i class="fa-regular fa-user"></i> My account</a><% } else { %><a href="/login"><i class="fa-regular fa-user"></i> Login / Sign up</a><% } %>
-    </div>
-
-    <div class="footerCol">
-      <h3>Partners &amp; promoters</h3>
-      <a href="/partner-commission"><i class="fa-solid fa-percent"></i> Partner commission</a>
-      <a href="/login?role=partner#partner"><i class="fa-solid fa-arrow-right"></i> Become a partner</a>
-      <a href="/promoters"><i class="fa-solid fa-users"></i> Promoter program</a>
-      <a href="/companies"><i class="fa-solid fa-building"></i> Browse partners</a>
-      <a href="/how-it-works"><i class="fa-solid fa-circle-question"></i> How it works</a>
-      <a href="/company/dashboard"><i class="fa-solid fa-chart-line"></i> Partner dashboard</a>
-    </div>
-
-    <div class="footerCol">
-      <h3>Legal &amp; help</h3>
-      <a href="/how-it-works"><i class="fa-solid fa-circle-info"></i> About Classic Trip</a>
-      <a href="/terms"><i class="fa-solid fa-file-contract"></i> Terms &amp; conditions</a>
-      <a href="/privacy"><i class="fa-solid fa-user-shield"></i> Privacy policy</a>
-      <a href="/terms#refunds"><i class="fa-solid fa-rotate-left"></i> Refund policy</a>
-      <a href="/terms#cancellation"><i class="fa-solid fa-triangle-exclamation"></i> Cancellation rules</a>
-      <a href="/support"><i class="fa-solid fa-envelope"></i> Contact support</a>
-      <a href="tel:<%= supportContacts.phone %>"><i class="fa-solid fa-phone"></i> <%= supportContacts.phone %></a>
-      <a href="<%= supportContacts.whatsappGroupUrl %>" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> Join WhatsApp group</a>
-    </div>
-  </div>
-  <div class="footerBottom">
-    <span>&copy; 2026 Classic Trip. Marketplace for East Africa bookings.</span>
-    <span>Secure payments &bull; Transparent pricing &bull; Partner payouts &bull; Ticket delivery</span>
-  </div>
-</footer>
+<%- include('site-footer-markup') %>
 <%- include('contact-hub') %>
 <div class="toast" id="toast">Ready</div>
-<script src="/js/main.js?v=1.6.65" defer></script>
-<script src="/js/contact-hub.js?v=1.6.65" defer></script>
-<script src="/js/navigation-prefetch.js?v=1.6.65" defer></script>
-<script src="/js/runtime-idle.js?v=1.6.65" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.65" defer></script>
+<script src="/js/main.js?v=1.6.68" defer></script>
+<script src="/js/contact-hub.js?v=1.6.68" defer></script>
+<script src="/js/navigation-prefetch.js?v=1.6.68" defer></script>
+<script src="/js/runtime-idle.js?v=1.6.68" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.68" defer></script>
 </body>
 </html>
 

@@ -55,7 +55,7 @@ async function show(req, res, next) {
         ],
       },
       blog: resolvedBlog,
-      relatedBlogs: (await contentRepository.blogs.list({ status: 'published', slug: { $ne: blog.slug } }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 3 })).map((row) => ({ ...withResolvedBlogImage(row), url: `/blogs/${row.slug}` })),
+      relatedBlogs: (await contentRepository.blogs.list({ status: 'published', slug: { $ne: blog.slug } }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 4 })).map((row) => ({ ...withResolvedBlogImage(row), url: `/blogs/${row.slug}` })),
     });
   } catch (error) { return next(error); }
 }

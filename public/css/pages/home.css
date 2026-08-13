@@ -377,3 +377,27 @@ html[data-theme="light"] .heroCard::after{display:none}
 .blogPostLayout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}.blogPostContent{padding:26px;display:grid;gap:18px}.blogPostContent>p{margin:0;color:var(--text);font-size:16px;font-weight:610;line-height:1.85}.blogPostFirst::first-letter{font-size:42px;line-height:.9;font-weight:1000;color:var(--accent);float:left;margin:7px 7px 0 0}.blogPostAside{position:sticky;top:92px}.blogPostExplore{padding:14px;display:grid;gap:8px}.blogPostExplore>.eyebrow{margin:2px 4px 5px}.blogPostExplore a{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;padding:10px;border-radius:16px;border:1px solid var(--line);background:var(--field);text-decoration:none;color:var(--text)}.blogPostExplore a>i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,183,3,.12);color:var(--accent)}.blogPostExplore strong,.blogPostExplore small{display:block}.blogPostExplore small{color:var(--muted);margin-top:2px}.blogPostCta{margin-top:6px;padding:15px;border-radius:20px;background:var(--field);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.blogPostCta div{display:grid;gap:4px}.blogPostCta span{color:var(--muted);font-size:12px;font-weight:760}.blogRelatedSection{margin-top:16px}.blogDirectoryGrid--related .blogDirectoryCard--featured{grid-column:auto}
 @media(max-width:1000px){.blogHomeGrid,.blogDirectoryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.blogPostHeader{grid-template-columns:1fr}.blogPostHeroMedia{min-height:280px}.blogPostLayout{grid-template-columns:1fr}.blogPostAside{position:static}.blogDirectoryCard--featured{grid-column:span 2}}
 @media(max-width:680px){.blogHomeGrid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding:0 2px 5px;scrollbar-width:none}.blogHomeGrid::-webkit-scrollbar{display:none}.blogHomeGrid .blogCard{flex:0 0 min(84vw,330px);scroll-snap-align:start}.blogDirectoryPage,.blogPostShell{padding:12px 0 78px}.blogDirectoryHero{padding:15px;display:grid}.blogDirectoryActions{display:grid;grid-template-columns:1fr 1fr}.blogDirectoryGrid{grid-template-columns:1fr}.blogDirectoryCard--featured{grid-column:auto;grid-template-columns:1fr}.blogDirectoryCard--featured .blogDirectoryMedia{height:210px;min-height:0}.blogDirectoryCard--featured .blogDirectoryBody{padding:14px}.blogDirectoryCard--featured .blogDirectoryBody h2{font-size:18px}.blogPostHeaderCopy{padding:18px}.blogPostHeader h1{font-size:32px}.blogPostHeroMedia{min-height:220px}.blogPostContent{padding:17px}.blogPostContent>p{font-size:15px;line-height:1.78}.blogPostCta{align-items:stretch;display:grid}.blogPostCta .btn{width:100%;justify-content:center}}
+
+/* Shared public footer: equal top alignment with grouped links and social/contact icons. */
+.siteFooter .footerGrid{grid-template-columns:minmax(220px,1.35fr) repeat(4,minmax(145px,1fr));align-items:start}
+.siteFooter .footerBrand,.siteFooter .footerCol{align-self:start;align-content:start}
+.siteFooter .footerCol h3,.siteFooter .footerSocialBlock h3{min-height:20px;display:flex;align-items:center}
+.footerSocialBlock{display:grid;gap:8px;margin-top:2px}
+.footerSocialBlock h3{margin:0;font-size:12px;letter-spacing:-.1px}
+.footerSocials{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.footerSocialIcon{width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:var(--field);display:inline-grid!important;place-items:center;color:var(--text)!important;font-size:14px!important;transition:.15s ease}
+.footerSocialIcon:hover{transform:translateY(-1px);border-color:rgba(79,140,255,.34);background:rgba(79,140,255,.10);color:var(--primary)!important}
+@media(max-width:1120px){.siteFooter .footerGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.siteFooter .footerBrand{grid-column:span 3}}
+@media(max-width:760px){.siteFooter .footerGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.siteFooter .footerBrand{grid-column:1/-1}}
+@media(max-width:420px){.siteFooter .footerGrid{grid-template-columns:1fr!important}.siteFooter .footerBrand{grid-column:auto}}
+
+/* Blog preview keeps the original split layout. The copy defines the desktop
+   header height; the image is cropped inside that height and cannot stretch it. */
+.blogPostHeader{grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);min-height:0;align-items:stretch}
+.blogPostHeaderCopy{padding:28px}
+.blogPostHeroMedia{min-height:0;height:auto;position:relative;overflow:hidden;background:var(--field)}
+.blogPostHeroMedia img,.blogPostHeroMedia .blogDirectoryPlaceholder{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.blogDirectoryGrid--related{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.blogDirectoryGrid--related{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1000px){.blogPostHeader{grid-template-columns:1fr}.blogPostHeroMedia{height:clamp(220px,46vw,320px)}}
+@media(max-width:680px){.blogDirectoryGrid--related{grid-template-columns:1fr}.blogPostHeaderCopy{padding:18px}.blogPostHeroMedia{height:220px;min-height:0}}

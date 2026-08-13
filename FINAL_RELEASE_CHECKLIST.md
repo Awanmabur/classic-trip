@@ -1,19 +1,27 @@
-# Classic Trip v1.6.65 Production Release Checklist
+# Classic Trip v1.6.68 Production Release Checklist
 
 - [ ] `npm ci` completes successfully.
-- [ ] `npm run check:production-cleanup` passes.
-- [ ] `npm run check:runtime-network` passes.
-- [ ] `npm run check:public-performance` passes.
+- [ ] `npm run check:public-layout-content` passes 18/18.
+- [ ] `npm run check:public-performance` passes 18/18.
+- [ ] `npm run check:production-cleanup` passes 17/17.
+- [ ] `npm run check:runtime-network` passes 15/15.
+- [ ] `npm run check:index-reconciliation` passes 4/4.
 - [ ] `npm run doctor:network` confirms usable MongoDB and Redis connectivity.
-- [ ] `npm run check:index-reconciliation` passes.
 - [ ] `npm run db:indexes -- --dry-run` shows only expected index changes.
 - [ ] `npm run db:indexes` completes successfully against production Atlas.
 - [ ] `npm run verify` passes.
 - [ ] `npm run audit:production` reports no high/critical production vulnerabilities.
 - [ ] Production `.env`/Render secrets are configured outside source control.
+- [ ] Optional official social URLs are set only for profiles that actually exist.
 - [ ] Redis is connected for production sessions/cache/rate limits.
 - [ ] MongoDB transaction support is available.
 - [ ] Web process starts and listens on the assigned port.
 - [ ] Worker process starts separately when enabled.
-- [ ] Home, Search and a bus listing preview are smoke-tested after deployment.
+- [ ] Home Card view shows six items per populated service section and Bar view shows four.
+- [ ] Country-route filtering works on Home and `/search`.
+- [ ] Bus amenities match the unique amenities of assigned live vehicles.
+- [ ] Partner / Share / Close stay in the preview top-right; the context row remains full-width below.
+- [ ] Public marketplace pages have no noisy/shaded background texture.
+- [ ] Home and normal public pages show the same footer structure.
+- [ ] Blog preview keeps the original split desktop header, its container follows content height, tall source images stay cropped inside the media column, and four related guides appear on desktop.
 - [ ] A real booking flow verifies live departure/seat inventory remains authoritative.

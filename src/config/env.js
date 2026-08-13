@@ -159,6 +159,14 @@ const env = {
     whatsapp: process.env.SUPPORT_WHATSAPP || process.env.SUPPORT_PHONE || '+256781977217',
     whatsappGroupUrl: process.env.WHATSAPP_GROUP_URL || 'https://chat.whatsapp.com/LUcqaMgUlfBLDmE1GICVAI?s=cl&p=a&ilr=1',
     email: process.env.SUPPORT_EMAIL || 'support@classictrip.org',
+    socials: {
+      facebook: process.env.SOCIAL_FACEBOOK_URL || '',
+      instagram: process.env.SOCIAL_INSTAGRAM_URL || '',
+      x: process.env.SOCIAL_X_URL || '',
+      tiktok: process.env.SOCIAL_TIKTOK_URL || '',
+      youtube: process.env.SOCIAL_YOUTUBE_URL || '',
+      linkedin: process.env.SOCIAL_LINKEDIN_URL || '',
+    },
   },
   email: {
     from: process.env.EMAIL_FROM || 'no-reply@classictrip.org',

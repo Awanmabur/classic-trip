@@ -37,9 +37,9 @@
     cargo: 'fa-box',
   };
 
-  const initialLimits = Object.freeze({ bus: 4, hotel: 4, flight: 4, local_transport: 4, tour: 4, car_rental: 4, cargo: 4 });
-  const incrementFor = (group) => initialLimits[group] || 4;
-  const visibleCounts = Object.fromEntries(Object.keys(groupConfig).map((group) => [group, incrementFor(group)]));
+  const viewLimits = Object.freeze({ cards: 6, bars: 4 });
+  const incrementFor = (view) => viewLimits[view === 'bars' ? 'bars' : 'cards'];
+  const visibleCounts = Object.fromEntries(Object.keys(groupConfig).map((group) => [group, { cards: viewLimits.cards, bars: viewLimits.bars }]));
   const sectionViews = Object.fromEntries(Object.keys(groupConfig).map((group) => {
     let saved = 'cards';
     try { saved = localStorage.getItem(`classicTripSectionView:${group}`) || 'cards'; } catch (_) {}
@@ -306,13 +306,60 @@
     </article>`;
   }
 
+  const countryHints = Object.freeze({
+    ug: ['uganda','kampala','entebbe','jinja','gulu','mbarara','mbale','arua','fort portal','masaka'],
+    ke: ['kenya','nairobi','mombasa','kisumu','nakuru','eldoret','malaba'],
+    rw: ['rwanda','kigali','musanze','rubavu'],
+    tz: ['tanzania','dar es salaam','arusha','mwanza','dodoma','moshi'],
+    ss: ['south sudan','juba','nimule','yei','wau','bor','malakal','rumbek'],
+    bi: ['burundi','bujumbura'],
+    drc: ['dr congo','drc','goma','bukavu','kinshasa'],
+    so: ['somalia','mogadishu'],
+    et: ['ethiopia','addis ababa','gambela'],
+    dj: ['djibouti'],
+    er: ['eritrea','asmara'],
+  });
+  function countryCodeForLocation(value) {
+    const normalized = String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (!normalized) return '';
+    for (const [code, hints] of Object.entries(countryHints)) {
+      if (normalized === code || hints.some((hint) => normalized === hint || normalized.includes(` ${hint}`) || normalized.includes(`${hint} `))) return code;
+    }
+    return '';
+  }
+  function routeCountryCorridor(route = {}) {
+    if (route.countryCorridor) return equivalentCorridor(route.countryCorridor);
+    const origin = countryCodeForLocation(route.originCountry || route.origin || route.from);
+    const destination = countryCodeForLocation(route.destinationCountry || route.destination || route.to);
+    return origin && destination && origin !== destination ? [origin, destination].sort().join('-') : '';
+  }
+  function corridorMatchesItem(item, corridor) {
+    const selected = equivalentCorridor(corridor || 'all');
+    if (!selected || selected === 'all') return true;
+    const routes = Array.isArray(item?.routes) ? item.routes : [];
+    const candidates = [
+      item?.countryCorridor,
+      item?.corridor,
+      ...routes.flatMap((route) => [routeCountryCorridor(route), route?.countryCorridor, route?.corridor]),
+    ].map(equivalentCorridor).filter(Boolean);
+    if (candidates.includes(selected)) return true;
+    const itemCountryPair = routeCountryCorridor({ origin: item?.from, destination: item?.to });
+    return Boolean(itemCountryPair && itemCountryPair === selected);
+  }
+
+  function rowsForGroup(group) {
+    let rows = listings.filter((item) => String(item.group || 'more') === group);
+    if (group === 'bus' && activeCorridor !== 'all') rows = rows.filter((item) => corridorMatchesItem(item, activeCorridor));
+    return rows;
+  }
+
   function renderGroup(group) {
     const config = groupConfig[group];
     const container = document.getElementById(config.container);
     if (!container) return;
-    const rows = listings.filter((item) => String(item.group || 'more') === group);
-    const shown = rows.slice(0, visibleCounts[group]);
+    const rows = rowsForGroup(group);
     const view = sectionViews[group] || 'cards';
+    const shown = rows.slice(0, visibleCounts[group][view]);
     container.dataset.view = view;
     container.innerHTML = shown.length
       ? shown.map((item) => cardHtml(item, view)).join('')
@@ -330,7 +377,7 @@
       const remaining = rows.length - shown.length;
       button.classList.toggle('hide', remaining <= 0);
       button.disabled = remaining <= 0;
-      button.innerHTML = `<i class="fa-solid fa-plus"></i> More ${escapeHtml(config.label)}${remaining > 0 ? ` (${Math.min(incrementFor(group), remaining)})` : ''}`;
+      button.innerHTML = `<i class="fa-solid fa-plus"></i> More ${escapeHtml(config.label)}${remaining > 0 ? ` (${Math.min(incrementFor(view), remaining)})` : ''}`;
     }
   }
 
@@ -355,8 +402,9 @@
 
   function showMore(group) {
     if (!groupConfig[group]) return;
-    const rows = listings.filter((item) => String(item.group || 'more') === group);
-    visibleCounts[group] = Math.min(visibleCounts[group] + incrementFor(group), rows.length);
+    const view = sectionViews[group] || 'cards';
+    const rows = rowsForGroup(group);
+    visibleCounts[group][view] = Math.min(visibleCounts[group][view] + incrementFor(view), rows.length);
     renderGroup(group);
     updateSavedButtons();
   }
@@ -378,15 +426,17 @@
   }
 
   function equivalentCorridor(code) {
-    const reversePairs = { 'ke-ug': 'ug-ke', 'ug-ke': 'ug-ke' };
-    return reversePairs[code] || code;
+    const value = String(code || '').trim().toLowerCase().replace(/_/g, '-');
+    if (!value || value === 'all' || value === 'regional' || value.endsWith('-local')) return value;
+    const countries = value.split('-').filter(Boolean);
+    if (countries.length === 2 && countries.every((country) => /^[a-z]{2,3}$/.test(country))) return countries.sort().join('-');
+    return value;
   }
 
   function applyCorridorHighlight() {
     $$('.listing').forEach((card) => {
-      const cardCorridor = equivalentCorridor(card.dataset.corridor || '');
-      const selected = equivalentCorridor(activeCorridor);
-      card.classList.toggle('routeMatch', activeCorridor !== 'all' && cardCorridor === selected);
+      const item = listings.find((row) => catalogKey(row) === String(card.dataset.catalogKey || card.dataset.id || ''));
+      card.classList.toggle('routeMatch', activeCorridor !== 'all' && Boolean(item) && corridorMatchesItem(item, activeCorridor));
     });
   }
 
@@ -417,18 +467,15 @@
   function filterRoute(corridor) {
     activeCorridor = corridor || 'all';
     activateButtonSet('#routeFilters button, #drawerRouteFilters button', activeCorridor);
+    const matches = rowsForGroup('bus');
+    visibleCounts.bus.cards = viewLimits.cards;
+    visibleCounts.bus.bars = viewLimits.bars;
+    renderGroup('bus');
+    updateSavedButtons();
     applyCorridorHighlight();
-    const match = listings.find((item) => equivalentCorridor(item.corridor) === equivalentCorridor(activeCorridor));
-    if (match && groupConfig[match.group]) {
-      const rows = listings.filter((item) => item.group === match.group);
-      visibleCounts[match.group] = Math.max(visibleCounts[match.group], rows.findIndex((item) => catalogKey(item) === catalogKey(match)) + 1);
-      renderGroup(match.group);
-      updateSavedButtons();
-      applyCorridorHighlight();
-      scrollToSection(groupConfig[match.group].section);
-    } else {
-      scrollToSection('bus');
-      if (activeCorridor !== 'all') toast('No published service currently matches this corridor.');
+    scrollToSection('bus');
+    if (activeCorridor !== 'all') {
+      toast(matches.length ? `${matches.length} bus service${matches.length === 1 ? '' : 's'} match this country route.` : 'No published bus service currently matches this country route.');
     }
     setDrawer(false);
   }
@@ -446,7 +493,7 @@
     holder.appendChild(categoryTitle);
     if (categories) holder.appendChild(categories);
     const routeHolder = document.createElement('div');
-    routeHolder.innerHTML = '<div class="drawerFilterTitle">Country routes</div><div class="drawerFilterHint">Highlight an available corridor.</div>';
+    routeHolder.innerHTML = '<div class="drawerFilterTitle">Country routes</div><div class="drawerFilterHint">Filter available bus corridors.</div>';
     if (routes) routeHolder.appendChild(routes);
     holder.appendChild(routeHolder);
   }

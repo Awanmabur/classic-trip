@@ -1,6 +1,6 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.6.65",
+  "version": "1.6.68",
   "private": true,
   "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
@@ -27,7 +27,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "node scripts/run-unit-tests.js",
-    "verify": "npm run check && npm run check:lockfile && npm run check:release-consistency && npm run check:index-reconciliation && npm run check:production-cleanup && npm run check:runtime-network && npm run check:public-performance && npm run check:frontend-complete && npm run check:backend-end-to-end && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:dashboard-completeness && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:stays && npm test",
+    "verify": "npm run check && npm run check:lockfile && npm run check:release-consistency && npm run check:index-reconciliation && npm run check:production-cleanup && npm run check:runtime-network && npm run check:public-performance && npm run check:public-layout-content && npm run check:frontend-complete && npm run check:backend-end-to-end && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:dashboard-completeness && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:stays && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -127,7 +127,8 @@
     "doctor:network": "node scripts/doctor-network.js",
     "check:public-performance": "node scripts/check-public-performance.js",
     "check:runtime-network": "node scripts/check-runtime-network.js",
-    "check:production-cleanup": "node scripts/check-production-cleanup.js"
+    "check:production-cleanup": "node scripts/check-production-cleanup.js",
+    "check:public-layout-content": "node scripts/check-public-layout-content.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

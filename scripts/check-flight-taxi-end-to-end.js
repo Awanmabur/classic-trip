@@ -90,7 +90,7 @@ add('payment providers on taxi',has('public/js/taxi.js','mtn_momo','airtel_money
 add('rounded dashboard controls',has('public/css/dashboard-service-additions.css','.adminSupplyControl','.inlineReviewForm','border-radius:14px'));
 add('rounded public ride controls',has('public/css/pages/travel-booking.css','border-radius'));
 add('home four-service navigation',has('src/views/pages/home.ejs','/flights','/taxi'));
-add('footer four-service navigation',has('src/views/partials/site-footer.ejs','Flights','Local taxi'));
+add('footer four-service navigation',has('src/views/partials/site-footer-markup.ejs','Flights','Local taxi'));
 add('platform reference seed',has('scripts/seed-east-africa-travel-reference.js','PLATFORM','Boda Plus','Kampala city','Juba city','platformListings'));
 add('governance migration',has('scripts/migrate-flight-taxi-domain.js','archiveLegacyListings','moveFlightSupply','migrateFlightOrders','migrateTaxiRides','updateCompanyProfiles'));
 

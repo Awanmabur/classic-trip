@@ -3246,3 +3246,137 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
     padding-right:98px!important;
   }
 }
+
+/* Production marketplace layout: clean surfaces, right-aligned More actions, and full-width preview context. */
+.homePage,
+.sitePage{
+  background:linear-gradient(180deg,var(--bg0),var(--bg1))!important;
+}
+.homePage::before,
+.sitePage::before{
+  display:none!important;
+  content:none!important;
+}
+.homePage .marketplaceSection,
+.sitePage .marketingPage .section{
+  background:transparent!important;
+}
+.homePage .marketplaceSection .moreRow,
+.homePage .section .moreRow,
+.sitePage .marketingPage .moreRow{
+  display:flex!important;
+  justify-content:flex-end!important;
+  align-items:center;
+  width:100%;
+}
+.listingPreviewPage .sheetTop{
+  flex-wrap:wrap;
+}
+.listingPreviewPage .sheetTopPrimary{
+  min-width:0;
+  flex:1 1 360px;
+}
+.listingPreviewPage .sheetTop > .sheetSub{
+  flex:1 0 100%;
+  width:100%;
+  max-width:none;
+  margin-top:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+@media(max-width:680px){
+  .listingPreviewPage .sheetTop{
+    gap:8px 10px;
+  }
+  .listingPreviewPage .sheetTopPrimary{
+    flex:1 1 calc(100% - 132px);
+  }
+  .listingPreviewPage .sheetTopActions{
+    margin-left:auto;
+  }
+  .listingPreviewPage .sheetTop > .sheetSub{
+    flex-basis:100%;
+    font-size:12px;
+    line-height:1.45;
+  }
+}
+
+/* Public preview stability: actions stay at the top-right; source image aspect ratios never stretch the sheet. */
+.listingPreviewPage .sheetTop{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-rows:auto auto!important;
+  align-items:start!important;
+  gap:8px 10px!important;
+}
+.listingPreviewPage .sheetTopPrimary{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-width:0!important;
+  width:auto!important;
+}
+.listingPreviewPage .sheetTopActions{
+  grid-column:2!important;
+  grid-row:1!important;
+  align-self:start!important;
+  justify-self:end!important;
+  margin:0!important;
+  flex-wrap:nowrap!important;
+}
+.listingPreviewPage .sheetTop > .sheetSub{
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  min-width:0!important;
+  width:100%!important;
+  margin:0!important;
+}
+.listingPreviewPage .visualHero{
+  height:230px!important;
+  max-height:230px!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.listingPreviewPage .visualHero > img,
+.listingPreviewPage .visualHero #modalImg{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-height:230px!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+/* Public market pages use clean section surfaces without the hazy/glass shadow layer. */
+body.sitePage::before{display:none!important;content:none!important;background:none!important;opacity:0!important;}
+.sitePage .marketingPage > .section,
+.sitePage .marketingPage > section.section,
+.sitePage .pageGrid > section{
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+.sitePage .marketingPage > .card,
+.sitePage .searchHero > .card,
+.sitePage .pageGrid > .marketplaceAside .card{
+  box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+.sitePage .marketingPage > .section::before,
+.sitePage .marketingPage > .section::after,
+.sitePage .pageGrid > section::before,
+.sitePage .pageGrid > section::after{
+  content:none!important;
+  display:none!important;
+}
+@media(max-width:680px){
+  .listingPreviewPage .sheetTop{
+    grid-template-columns:minmax(0,1fr) auto!important;
+  }
+  .listingPreviewPage .sheetTopPrimary{
+    flex:none!important;
+  }
+}
+

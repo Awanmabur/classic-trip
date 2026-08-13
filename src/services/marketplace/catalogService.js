@@ -1,5 +1,6 @@
 const commerceRepository = require('../../repositories/domain/commerceRepository');
 const contentRepository = require('../../repositories/domain/contentRepository');
+const companyOperationsRepository = require('../../repositories/domain/companyOperationsRepository');
 const promoterRepository = require('../../repositories/domain/promoterRepository');
 const { publicCatalogGroup } = require('./catalogGrouping');
 const { entityId, sameId, canonicalServiceType, relatedSchedulesForListing, isPublicListing: publicListingVisible } = require('./catalogVisibility');
@@ -26,6 +27,67 @@ const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
 function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
+
+const COUNTRY_CODE_ALIASES = Object.freeze({
+  ug: 'ug', uganda: 'ug',
+  ke: 'ke', kenya: 'ke',
+  rw: 'rw', rwanda: 'rw',
+  tz: 'tz', tanzania: 'tz',
+  ss: 'ss', south_sudan: 'ss', southsudan: 'ss',
+  bi: 'bi', burundi: 'bi',
+  so: 'so', somalia: 'so',
+  cd: 'drc', drc: 'drc', dr_congo: 'drc', drcongo: 'drc', democratic_republic_of_the_congo: 'drc', congo_kinshasa: 'drc',
+  et: 'et', ethiopia: 'et',
+  dj: 'dj', djibouti: 'dj',
+  er: 'er', eritrea: 'er',
+});
+const LOCATION_COUNTRY_HINTS = Object.freeze([
+  ['south_sudan', 'ss'], ['juba', 'ss'], ['nimule', 'ss'], ['yei', 'ss'], ['wau', 'ss'], ['bor', 'ss'], ['malakal', 'ss'], ['rumbek', 'ss'],
+  ['uganda', 'ug'], ['kampala', 'ug'], ['entebbe', 'ug'], ['jinja', 'ug'], ['gulu', 'ug'], ['mbarara', 'ug'], ['mbale', 'ug'], ['arua', 'ug'], ['fort_portal', 'ug'], ['masaka', 'ug'],
+  ['kenya', 'ke'], ['nairobi', 'ke'], ['mombasa', 'ke'], ['kisumu', 'ke'], ['nakuru', 'ke'], ['eldoret', 'ke'], ['malaba', 'ke'],
+  ['rwanda', 'rw'], ['kigali', 'rw'], ['musanze', 'rw'], ['rubavu', 'rw'],
+  ['tanzania', 'tz'], ['dar_es_salaam', 'tz'], ['arusha', 'tz'], ['mwanza', 'tz'], ['dodoma', 'tz'], ['moshi', 'tz'],
+  ['burundi', 'bi'], ['bujumbura', 'bi'],
+  ['dr_congo', 'drc'], ['goma', 'drc'], ['bukavu', 'drc'], ['kinshasa', 'drc'],
+  ['somalia', 'so'], ['mogadishu', 'so'],
+  ['ethiopia', 'et'], ['addis_ababa', 'et'], ['gambela', 'et'],
+  ['djibouti', 'dj'], ['eritrea', 'er'], ['asmara', 'er'],
+]);
+function countryCode(value = '') {
+  const key = normalize(value).replace(/^the_/, '');
+  if (COUNTRY_CODE_ALIASES[key]) return COUNTRY_CODE_ALIASES[key];
+  const compact = key.replace(/_/g, '');
+  if (COUNTRY_CODE_ALIASES[compact]) return COUNTRY_CODE_ALIASES[compact];
+  const hint = LOCATION_COUNTRY_HINTS.find(([name]) => key === name || key.includes(`_${name}`) || key.includes(`${name}_`));
+  return hint?.[1] || '';
+}
+function countryCorridor(originCountry = '', destinationCountry = '') {
+  const pair = [countryCode(originCountry), countryCode(destinationCountry)].filter(Boolean);
+  return pair.length === 2 && pair[0] !== pair[1] ? pair.sort().join('-') : '';
+}
+function branchFor(data, id) {
+  const key = String(id || '');
+  if (!key) return null;
+  return data?.__catalogIndexes?.branchLookup?.get(key) || (data?.branches || []).find((branch) => sameId(branch, key)) || null;
+}
+function routeCountryMetadata(data, route = {}) {
+  const originBranch = branchFor(data, route.originTerminalId || route.originBranchId);
+  const destinationBranch = branchFor(data, route.destinationTerminalId || route.destinationBranchId);
+  const originCountry = text(route.originCountry || originBranch?.country) || route.origin || route.from || '';
+  const destinationCountry = text(route.destinationCountry || destinationBranch?.country) || route.destination || route.to || '';
+  return {
+    originCountry: text(route.originCountry || originBranch?.country),
+    destinationCountry: text(route.destinationCountry || destinationBranch?.country),
+    countryCorridor: canonicalCorridor(route.countryCorridor || countryCorridor(originCountry, destinationCountry)),
+  };
+}
+function canonicalCorridor(value) {
+  const raw = String(value || '').trim().toLowerCase().replace(/_/g, '-');
+  if (!raw || raw === 'all' || raw === 'regional' || raw.endsWith('-local')) return raw;
+  const countries = raw.split('-').filter(Boolean);
+  if (countries.length === 2 && countries.every((country) => /^[a-z]{2,3}$/.test(country))) return countries.sort().join('-');
+  return raw;
+}
 function canonicalPublicServiceType(value) { const key = normalize(value); return ['stay','stays','home','homes','accommodation','accommodations'].includes(key) ? 'hotel' : key; }
 function publicServiceSlug(value) { return canonicalPublicServiceType(value) === 'hotel' ? 'stays' : canonicalPublicServiceType(value); }
 function text(value) { return String(value || '').trim(); }
@@ -55,7 +117,7 @@ const LISTING_SNAPSHOT_STALE_MS = env.performance.listingCacheStaleMs;
 const LISTING_SNAPSHOT_CACHE_LIMIT = 240;
 const DISCOVERY_CACHE_TTL_MS = env.performance.discoveryCacheTtlMs;
 const DISCOVERY_CACHE_STALE_MS = env.performance.discoveryCacheStaleMs;
-const DISCOVERY_SHARED_KEY = redisRuntime.key('public-discovery', 'v1');
+const DISCOVERY_SHARED_KEY = redisRuntime.key('public-discovery', 'v2-country-routes');
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
@@ -84,9 +146,11 @@ function attachDiscoveryIndexes(data) {
   if (!data || data.__catalogIndexes) return data;
   const indexes = {
     companyLookup: new Map(),
+    branchLookup: new Map(),
     listingLookup: new Map(),
     routesByListing: new Map(),
     schedulesByListing: new Map(),
+    vehiclesByListing: new Map(),
     stopsByRoute: new Map(),
     fareProductsByListing: new Map(),
     segmentFaresByProduct: new Map(),
@@ -97,6 +161,10 @@ function attachDiscoveryIndexes(data) {
       const normalizedKey = normalize(key);
       if (normalizedKey && !indexes.companyLookup.has(normalizedKey)) indexes.companyLookup.set(normalizedKey, company);
     }
+  }
+  for (const branch of (data.branches || [])) {
+    const key = String(entityId(branch) || branch.id || '');
+    if (key && !indexes.branchLookup.has(key)) indexes.branchLookup.set(key, branch);
   }
   for (const listing of (data.listings || [])) {
     const type = canonicalPublicServiceType(canonicalServiceType(listing, data));
@@ -109,6 +177,7 @@ function attachDiscoveryIndexes(data) {
   }
   for (const row of (data.routes || [])) pushIndex(indexes.routesByListing, row.listingId, row);
   for (const row of (data.schedules || [])) pushIndex(indexes.schedulesByListing, row.listingId, row);
+  for (const row of (data.vehicles || [])) pushIndex(indexes.vehiclesByListing, row.listingId, row);
   for (const row of (data.routeStops || [])) pushIndex(indexes.stopsByRoute, row.routeId, row);
   for (const row of (data.fareProducts || [])) pushIndex(indexes.fareProductsByListing, row.listingId, row);
   for (const row of (data.segmentFares || [])) pushIndex(indexes.segmentFaresByProduct, row.fareProductId, row);
@@ -182,8 +251,8 @@ async function loadSnapshotFresh() {
 }
 
 
-// Public discovery pages never need seat-row, vehicle, room-unit or room-night
-// collections. Loading those collections on Home/Search made a cold anonymous
+// Public discovery pages never need seat-row, room-unit or room-night collections.
+// Bus cards do need the small amenity projection from vehicles assigned to live departures. Loading those collections on Home/Search made a cold anonymous
 // request pay for tens of thousands of booking-only records. This compact
 // snapshot keeps the fields required for cards, routes, prices, departures and
 // filters while live booking APIs remain authoritative after a departure/date is
@@ -224,6 +293,25 @@ async function loadDiscoverySnapshotFresh() {
     () => contentRepository.promotionCampaigns.list({ ...listingFilter, status: 'active' }, { sort: { createdAt: -1 }, limit: 5000 }),
     () => commerceRepository.serviceAddons.list({ ...listingFilter, status: 'active' }, { sort: { listingId: 1, sortOrder: 1, createdAt: 1 }, limit: 10000 }),
   ]);
+
+  const publicTerminalIds = unique(routes.flatMap((row) => [row.originTerminalId, row.destinationTerminalId]).map(text).filter(Boolean));
+  const branches = publicTerminalIds.length
+    ? await runMongoRead(() => companyOperationsRepository.branches.list(
+      { id: { $in: publicTerminalIds }, status: { $ne: 'archived' } },
+      { select: 'id country city name status', limit: Math.min(publicTerminalIds.length, 20000) },
+    ))
+    : [];
+
+  // Amenities shown on public bus cards come from the actual vehicles assigned
+  // to published departures. Read only the tiny public fields we need so Home
+  // and Search stay lightweight and never load seat maps or full vehicle rows.
+  const publicVehicleIds = unique(schedules.map((row) => text(row.vehicleId)).filter(Boolean));
+  const vehicles = publicVehicleIds.length
+    ? await runMongoRead(() => commerceRepository.vehicles.list(
+      { id: { $in: publicVehicleIds }, status: { $ne: 'archived' } },
+      { select: 'id listingId amenities status', limit: Math.min(publicVehicleIds.length, 10000) },
+    ))
+    : [];
 
   // Current bus departures contain immutable route/fare snapshots. Prefer those
   // snapshots and query only routes that are not covered by them. This removes
@@ -294,6 +382,7 @@ async function loadDiscoverySnapshotFresh() {
     categories: productionCategories,
     listings,
     companies,
+    branches,
     routes,
     routeStops: [...snapshotStops, ...missingStops],
     fareProducts: [...snapshotFareProducts.values(), ...missingFareProducts],
@@ -301,7 +390,7 @@ async function loadDiscoverySnapshotFresh() {
     serviceAddons,
     schedules,
     seats: [],
-    vehicles: [],
+    vehicles,
     roomTypes: [],
     roomUnits: [],
     roomNights: [],
@@ -409,10 +498,12 @@ function discoverySnapshotForListingData(data, identifier, serviceType = '') {
   const companyId = text(listing.companyId);
   const routes = (data.routes || []).filter((row) => sameId(row.listingId, listingId));
   const routeIds = new Set(routes.map(entityId));
+  const terminalIds = new Set(routes.flatMap((row) => [row.originTerminalId, row.destinationTerminalId]).map(String).filter(Boolean));
   return {
     categories: [],
     listings: [listing],
     companies: (data.companies || []).filter((row) => sameId(row, companyId)),
+    branches: (data.branches || []).filter((row) => terminalIds.has(String(entityId(row) || row.id || ''))),
     routes,
     routeStops: (data.routeStops || []).filter((row) => routeIds.has(String(row.routeId || ''))),
     fareProducts: (data.fareProducts || []).filter((row) => sameId(row.listingId, listingId) || routeIds.has(String(row.routeId || ''))),
@@ -888,6 +979,7 @@ function catalogItem(data, listing, preferredRoute = null) {
       .filter((amount) => amount > 0);
     const routeNext = routeSchedules[0] || null;
     const label = formatRouteLabel(routeRow.origin || routeRow.from, routeRow.destination || routeRow.to, routeRow.routeName) || 'Bus route';
+    const countryMeta = routeCountryMetadata(data, routeRow);
     return {
       id: routeId,
       routeId,
@@ -895,6 +987,9 @@ function catalogItem(data, listing, preferredRoute = null) {
       routeName: routeRow.routeName || label,
       origin: routeRow.origin || routeRow.from || '',
       destination: routeRow.destination || routeRow.to || '',
+      originCountry: countryMeta.originCountry,
+      destinationCountry: countryMeta.destinationCountry,
+      countryCorridor: countryMeta.countryCorridor,
       corridor: routeRow.corridor || normalize(`${routeRow.origin || routeRow.from || ''}-${routeRow.destination || routeRow.to || ''}`),
       timezone: routeRow.timezone || routeNext?.timezone || 'Africa/Kampala',
       scheduleCount: routeSchedules.length,
@@ -939,6 +1034,23 @@ function catalogItem(data, listing, preferredRoute = null) {
   const bookableReason = bookable
     ? (serviceType === 'bus' ? 'Published departure available' : serviceType === 'local_transport' ? 'Verified dispatch available' : serviceType === 'tour' ? 'Tour capacity available' : serviceType === 'car_rental' ? 'Vehicle available' : serviceType === 'cargo' ? 'Cargo booking available' : 'Live inventory available')
     : serviceType === 'bus' && !nextSchedule ? 'No upcoming departure' : remainingInventory <= 0 ? 'No inventory available' : 'Booking unavailable';
+  const vehicleRows = serviceType === 'bus'
+    ? (data?.__catalogIndexes?.vehiclesByListing?.get(stableId) || (data.vehicles || []).filter((vehicle) => sameId(vehicle.listingId, stableId)))
+    : [];
+  const vehicleAmenities = [];
+  const seenAmenityKeys = new Set();
+  for (const vehicle of vehicleRows) {
+    for (const amenity of (Array.isArray(vehicle.amenities) ? vehicle.amenities : [])) {
+      const label = text(amenity);
+      const key = normalize(label);
+      if (!label || !key || seenAmenityKeys.has(key)) continue;
+      seenAmenityKeys.add(key);
+      vehicleAmenities.push(label);
+    }
+  }
+  const publicAmenities = serviceType === 'bus' && vehicleAmenities.length
+    ? vehicleAmenities
+    : (Array.isArray(listing.amenities) ? listing.amenities : []);
   const enriched = {
     id: stableId,
     slug: listing.slug || stableId,
@@ -964,7 +1076,7 @@ function catalogItem(data, listing, preferredRoute = null) {
     weightLimitKg: number(listing.weightLimitKg),
     packageLimit: number(listing.packageLimit),
     serviceDetails: listing.serviceDetails || {},
-    amenities: Array.isArray(listing.amenities) ? listing.amenities : [],
+    amenities: publicAmenities,
     salesChannels: Array.isArray(listing.salesChannels) ? listing.salesChannels : [],
     baggageRules: listing.baggageRules || '',
     contactPhone: listing.contactPhone || '',
@@ -991,6 +1103,7 @@ function catalogItem(data, listing, preferredRoute = null) {
     from, to,
     city: listing.city || from || to,
     country: listing.country || company?.country || '',
+    countryCorridor: routeSummaries.find((row) => row.countryCorridor)?.countryCorridor || '',
     corridor: listing.corridor || route.corridor || normalize(`${from}-${to}`),
     routeLabel: formatRouteLabel(from, to, listing.routeLabel) || listing.title,
     routes: routeSummaries,
@@ -1078,6 +1191,7 @@ function withMatchedBusRoute(item = {}, query = {}) {
     from: route.origin || item.from,
     to: route.destination || item.to,
     routeLabel: route.label || item.routeLabel,
+    countryCorridor: route.countryCorridor || item.countryCorridor,
     corridor: route.corridor || item.corridor,
     nextDepartAt: departure?.departAt || route.nextDepartAt || item.nextDepartAt,
     nextDepartLabel: departure?.departAt ? new Date(departure.departAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: route.timezone || 'Africa/Kampala' }) : item.nextDepartLabel,
@@ -1097,6 +1211,7 @@ function applySearch(items, query = {}) {
   const serviceType = canonicalPublicServiceType(query.serviceType || query.type || '');
   const city = normalize(query.city);
   const country = normalize(query.country);
+  const corridor = canonicalCorridor(query.corridor || query.route || query.countryRoute);
   const origin = normalize(query.origin || query.from);
   const destination = normalize(query.destination || query.to);
   const partner = normalize(query.partner || query.company);
@@ -1113,6 +1228,15 @@ function applySearch(items, query = {}) {
     if (serviceType && serviceType !== 'all' && normalize(item.serviceType) !== serviceType && normalize(item.group) !== serviceType) return false;
     if (city && !normalize(`${item.city} ${item.from} ${item.to}`).includes(city)) return false;
     if (country && !normalize(item.country).includes(country)) return false;
+    if (corridor && corridor !== 'all') {
+      if (normalize(item.serviceType) !== 'bus') return false;
+      const itemCorridors = [
+        item.countryCorridor,
+        item.corridor,
+        ...(Array.isArray(item.routes) ? item.routes.flatMap((route) => [route.countryCorridor, route.corridor]) : []),
+      ].map(canonicalCorridor).filter(Boolean);
+      if (!itemCorridors.includes(corridor)) return false;
+    }
     if (normalize(item.serviceType) === 'bus' && (origin || destination || query.date || query.departureDate)) {
       if (!matchingBusRoute(item, query)) return false;
     } else {
@@ -1409,7 +1533,9 @@ function buildHomeBootstrap(data, airports = data.airports || []) {
     const item = listingById.get(String(row.listingId || '')) || null;
     const routeSummary = item?.routes?.find((candidate) => sameId(candidate.id || candidate.routeId, entityId(row))) || null;
     return {
-      id: entityId(row), listingId: row.listingId || '', routeName: row.routeName || '', origin: row.origin || '', destination: row.destination || '', corridor: row.corridor || '',
+      id: entityId(row), listingId: row.listingId || '', routeName: row.routeName || '', origin: row.origin || '', destination: row.destination || '',
+      originCountry: routeSummary?.originCountry || row.originCountry || '', destinationCountry: routeSummary?.destinationCountry || row.destinationCountry || '',
+      countryCorridor: routeSummary?.countryCorridor || row.countryCorridor || '', corridor: row.corridor || '',
       boardingPoints: Array.isArray(row.boardingPoints) ? row.boardingPoints : [], scheduleCount: number(routeSummary?.scheduleCount), availableSeats: number(routeSummary?.availableSeats),
       nextDepartAt: routeSummary?.nextDepartAt || null, bookingUrl: item?.bookingUrl || '', listingUrl: item?.url || '', listing: item,
     };
