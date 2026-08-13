@@ -10,7 +10,7 @@ const seatMapTemplateSchema = new Schema({
   id: { type: String, unique: true, required: true, index: true },
   companyId: { type: String, required: true, index: true },
   listingId: { type: String, required: true, index: true },
-  vehicleId: { type: String, required: true, index: true },
+  vehicleId: { type: String, required: true },
   name: { type: String, required: true, trim: true },
   vehicleClass: { type: String, enum: ['standard', 'vip'], default: 'standard' },
   layoutName: { type: String, required: true, default: '2x2' },

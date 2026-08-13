@@ -1234,8 +1234,6 @@ html[data-theme="dark"] .pwaInstallInstructions{
 .homePage .marketplaceSection--cargo .serviceCard--cargo{display:grid;grid-template-columns:132px minmax(0,1fr);min-height:170px}
 .homePage .marketplaceSection--cargo .serviceCard--cargo .listingThumbLink,.homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{height:100%;min-height:170px}
 .homePage .marketplaceSection--cargo .serviceCard--cargo .thumb{border-radius:0}
-
-/* v1.6.0 — make Standard, VIP, one-way and return choices explicit. */
 .listingPreviewPage .busTicketChooser{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
 .listingPreviewPage .busTicketChoiceGroup{min-width:0;padding:10px;border:1px solid var(--line);border-radius:20px;background:var(--field)}
 .listingPreviewPage .busTicketChoiceGroup>strong{display:block;margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -1249,8 +1247,6 @@ html[data-theme="dark"] .pwaInstallInstructions{
 .listingPreviewPage .ticketChoice>span{min-width:0;display:grid;gap:3px}
 .listingPreviewPage .ticketChoice b{font-size:12px;line-height:1.2}
 .listingPreviewPage .ticketChoice small{font-size:10px;line-height:1.25;color:var(--muted)}
-
-/* v1.6.0 — stays use readable option cards, never bus-seat tiles. */
 .listingPreviewPage .stayOptionLayoutBox{display:block;justify-content:stretch;padding:12px;background:var(--field);overflow:visible}
 .listingPreviewPage .stayOptionGrid{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .listingPreviewPage .stayOptionCard{position:relative;width:100%;min-width:0;min-height:108px;padding:13px 14px;border:1px solid var(--line);border-radius:20px;background:var(--cardA);color:var(--text);font:inherit;text-align:left;display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:11px;align-items:center;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
@@ -1329,8 +1325,6 @@ html[data-theme="dark"] .pwaInstallInstructions{
   .listingPreviewPage .stayOptionIcon{width:38px;height:38px;border-radius:13px}
   .listingPreviewPage .stayOptionMeta{min-width:82px}
 }
-
-/* v1.6.3 — light-theme contrast must remain WCAG AA across every public flow. */
 html[data-theme="light"] .badgeInfo{
   color:#1e40af!important;
   background:#eff6ff!important;
@@ -1402,9 +1396,6 @@ html[data-theme="light"] .btnBlue{
 html[data-theme="light"] .pwaInstallCopy b{
   color:#854d0e!important;
 }
-
-
-/* v1.6.7 — approved compact bars, aligned public shell, and instant fare feedback. */
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
   grid-template-columns:190px minmax(0,1fr)!important;
 }
@@ -1509,7 +1500,7 @@ body.sitePage > nav.nav,
   }
 }
 
-/* v1.6.7 root performance/UI final alignment. */
+/* Root performance/UI alignment. */
 body.homePage > .siteFooter,
 body.sitePage > .siteFooter{
   margin-left:auto!important;
@@ -1528,8 +1519,6 @@ body.sitePage > .siteFooter{
     margin-right:auto!important;
   }
 }
-
-/* v1.6.10-safe — all operator routes, stable preview controls, and aligned public navigation. */
 .companyRouteList{
   display:flex;
   align-items:center;
@@ -1688,9 +1677,6 @@ body.sitePage > .siteFooter{
     min-height:154px!important;
   }
 }
-
-
-/* v1.6.11 — speed-first public rendering and a clearly rounded phone navigation shell. */
 @supports (content-visibility:auto){
   body.homePage main > section:not(:first-child),
   body.sitePage main > section:not(:first-child),
@@ -1730,9 +1716,6 @@ body.sitePage > .siteFooter{
     border-radius:18px!important;
   }
 }
-
-
-/* v1.6.13 — desktop bars follow their content; phone bars remain on the approved v1.6.10 dimensions. */
 @media(min-width:681px){
   .homePage .sectionListingCollection[data-view="bars"]{
     align-items:start!important;
@@ -1873,8 +1856,6 @@ body.sitePage > .siteFooter{
   color:#fff!important;
   opacity:1!important;
 }
-
-/* v1.6.14 — Vision Coaches desktop-bar proportions, deterministic seat colours, and visible driver spacing. */
 @media(min-width:681px){
   .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard{
     grid-template-columns:190px minmax(0,1fr)!important;
@@ -1971,7 +1952,7 @@ body.sitePage > .siteFooter{
 }
 
 
-/* v1.6.14 final precision layer: fixed compact desktop image, centred aisle, and unmistakable driver gap. */
+/* Precision layer: fixed compact desktop image, centred aisle, and unmistakable driver gap. */
 @media(min-width:681px){
   .homePage .sectionListingCollection[data-view="bars"] .listingThumbLink,
   .homePage .sectionListingCollection[data-view="bars"] .thumb{
@@ -2021,9 +2002,6 @@ body.sitePage > .siteFooter{
   opacity:1!important;
   text-decoration:none!important;
 }
-
-
-/* v1.6.15 — preview hierarchy, readable controls, clean bar images, and scoped red flashes. */
 .listingPreviewPage .busJourneyStepGroup{
   min-width:0;
   margin-top:12px;
@@ -2112,8 +2090,6 @@ body.listingPreviewBody .siteFlash button{
   .listingPreviewPage .ticketChoice b{font-size:13px!important;}
   .listingPreviewPage .ticketChoice small{font-size:11px!important;}
 }
-
-/* v1.6.16 — orderly ticket choices, phone-only readability, balanced bar spacing, and light-mode badge contrast. */
 .listingPreviewPage .busTicketChooser{
   grid-template-columns:1fr!important;
   gap:10px!important;
@@ -2227,7 +2203,7 @@ html[data-theme="light"] .cornerBadge.available{
 }
 html[data-theme="light"] .cornerBadge.available i{color:#166534!important;}
 
-/* Final v1.6.16 bar rhythm: card-like spacing and smaller overlay badges. */
+/* Final bar rhythm: card-like spacing and smaller overlay badges. */
 @media(min-width:681px){
   .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .thumbBadge{
     padding:4px 6px!important;
@@ -2245,8 +2221,6 @@ html[data-theme="light"] .cornerBadge.available i{color:#166534!important;}
     gap:7px!important;
   }
 }
-
-/* v1.6.17 — restore desktop ticket-class/journey side-by-side layout while keeping phone stacked. */
 @media(min-width:681px){
   .listingPreviewPage .busTicketChooser{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
@@ -2259,20 +2233,14 @@ html[data-theme="light"] .cornerBadge.available i{color:#166534!important;}
     grid-template-columns:1fr!important;
   }
 }
-
-/* v1.6.19 — force Ticket class and Journey before Route & travel on bus preview. */
 .listingPreviewPage .scheduleSelector{display:flex;flex-direction:column;}
 .listingPreviewPage .scheduleSelector .busTicketChooser{order:1!important;}
 .listingPreviewPage .scheduleSelector .busJourneyStepGroup{order:2!important;}
-
-/* v1.6.22 — real ticket-first interaction: never hide the first two steps. */
 .listingPreviewPage .busTicketChooser{display:grid!important;visibility:visible!important;opacity:1!important;}
 .listingPreviewPage .busTicketChoiceGroup{display:block!important;visibility:visible!important;opacity:1!important;}
 .listingPreviewPage .ticketChoice{visibility:visible!important;}
 .listingPreviewPage .ticketChoice[data-ticket-class]:not(:disabled){pointer-events:auto!important;cursor:pointer!important;opacity:1!important;}
 .listingPreviewPage .ticketChoice[data-trip-type]:disabled{display:flex!important;opacity:.55!important;cursor:not-allowed!important;}
-
-/* v1.6.23 — clean preview defaults and phone toast/flash fix. */
 .listingPreviewPage .ticketChoice{
   background:var(--field)!important;
   box-shadow:none!important;
@@ -2321,8 +2289,6 @@ body.listingPreviewBody .toast.show{display:block!important;}
     font-size:13px!important;
   }
 }
-
-/* v1.6.24 — keep preview flash black, remove the added dark border. */
 body.listingPreviewBody .toast{
   background:rgba(8,12,24,.96)!important;
   color:#fff!important;
@@ -2334,8 +2300,6 @@ body.listingPreviewBody .toast.show{
   border:0!important;
   outline:0!important;
 }
-
-/* v1.6.25 — remove extra dark border around Ticket class/Journey preview groups. */
 .listingPreviewPage .busTicketChoiceGroup{
   border-color:transparent!important;
   box-shadow:none!important;
@@ -2346,9 +2310,6 @@ body.listingPreviewBody .toast.show{
 .listingPreviewPage .ticketChoice.is-active{
   border-color:var(--accent)!important;
 }
-
-
-/* v1.6.29 — Ticket class and Journey use the same selection border states. */
 .listingPreviewPage .ticketChoiceGrid[aria-label="Ticket class"] .ticketChoice,
 .listingPreviewPage .ticketChoiceGrid[aria-label="Journey type"] .ticketChoice{
   border:1px solid color-mix(in srgb,var(--line) 55%, transparent)!important;
@@ -2360,8 +2321,6 @@ body.listingPreviewBody .toast.show{
   border-color:var(--accent)!important;
   box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)!important;
 }
-
-/* v1.6.32 — global Classic Trip contact hub. */
 .ctContactHub{
   position:fixed;
   right:18px;
@@ -2436,12 +2395,8 @@ body.listingPreviewBody .toast.show{
 }
 
 @media print{.ctContactHub{display:none!important;}}
-
-/* v1.6.32 — preview notices must remain above floating support controls. */
 body.listingPreviewBody .toast,
 body.listingPreviewBody .siteFlashStack{z-index:10050!important;}
-
-/* v1.6.36 — compact, opaque, circular and draggable Classic Trip contact hub. */
 .ctContactHub{
   width:58px!important;
   height:58px!important;
@@ -2548,14 +2503,8 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .ctContactHubToggle i{font-size:21px!important;}
 }
 @media print{.ctContactHub{display:none!important;}}
-
-
-/* v1.6.36 — archive restore is an accessible icon-only action. */
 .archiveRestoreIconBtn{width:36px!important;height:36px!important;min-width:36px!important;padding:0!important;border-radius:999px!important;display:inline-grid!important;place-items:center!important;}
 .archiveRestoreIconBtn i{margin:0!important;}
-
-
-/* v1.6.53 — marketplace card parity, readable swipeable route matrix, and cheapest-fare emphasis. */
 .companyRouteList{
   display:grid!important;
   grid-auto-flow:column!important;
@@ -2623,8 +2572,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .companyRouteChip{font-size:11px!important;max-width:210px!important}
   .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:10px!important;max-width:185px!important}
 }
-
-/* v1.6.53 — exact service-card identity follows listings beyond the home page. */
 .sitePage .marketplaceListingCard.serviceCard--hotel .thumb{aspect-ratio:16/10!important}
 .sitePage .marketplaceListingCard.serviceCard--flight{border-style:dashed!important}
 .sitePage .marketplaceListingCard.serviceCard--flight .thumb{aspect-ratio:16/7!important}
@@ -2645,8 +2592,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .sitePage .marketplaceListingCard.serviceCard--cargo .listingThumbLink,
   .sitePage .marketplaceListingCard.serviceCard--cargo .thumb{min-height:142px}
 }
-
-/* v1.6.53 — blog directory only; approved home.css remains untouched. */
 .blogsPage .blogDirectoryGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 .blogsPage .blogDirectoryCard{grid-column:auto!important;grid-template-columns:1fr!important;grid-template-rows:auto 1fr!important}
 .blogsPage .blogDirectoryMedia{height:190px!important;min-height:0!important}
@@ -2654,9 +2599,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
 .blogsPage .blogDirectoryBody h2{font-size:17px!important}
 @media(max-width:1100px){.blogsPage .blogDirectoryGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:680px){.blogsPage .blogDirectoryGrid{grid-template-columns:1fr!important}}
-
-
-/* v1.6.55 — route text only: staggered free-flow lanes with native left/right swipe. */
 .companyRouteList{
   display:block!important;
   width:100%!important;
@@ -2740,8 +2682,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .companyRouteChip{font-size:12px!important;max-width:none!important}
   .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:11.75px!important;max-width:none!important}
 }
-
-/* v1.6.56 — marketplace card rhythm: two route rows, two amenity rows, no descriptions, natural equal-height rows. */
 .marketplaceListingCard{
   height:100%;
 }
@@ -2913,8 +2853,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .homePage .sectionListingCollection[data-view="bars"] .companyRouteChip{font-size:10.25px!important}
   .homePage .sectionListingCollection[data-view="bars"] .listingAmenityChip{font-size:9.75px!important}
 }
-
-/* v1.6.56 — let the tallest natural card define each grid row; shorter cards stretch to it. */
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard .listingBody,
 .sitePage .gridCards .marketplaceListingCard .listingBody{
   display:flex!important;
@@ -2926,8 +2864,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
 .sitePage .gridCards .marketplaceListingCard .priceRow{
   margin-top:auto!important;
 }
-
-/* v1.6.57 — restore full price/actions and make amenities flow exactly like routes. */
 .marketplaceListingCard .priceRow{
   display:grid!important;
   grid-template-columns:minmax(0,1fr) auto!important;
@@ -3031,9 +2967,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .marketplaceListingCard .actions{gap:5px!important}
   .marketplaceListingCard .actions .btn{padding-inline:8px!important}
 }
-
-
-/* v1.6.59 — compact image badges, clean bar inventory spacing, and repair card-body clipping. */
 /* The two image badges stay readable but take less visual space on both cards and bars. */
 .marketplaceListingCard .thumbBadges{
   left:8px!important;
@@ -3068,7 +3001,7 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
 
 /*
  * Card clipping repair:
- * v1.6.56 gave listingBody height:100% while the image still occupied its own
+ * A prior listingBody height:100% rule conflicted while the image still occupied its own
  * height. Because .listing itself clips overflow, amenities/price/actions could
  * be pushed beyond the card. The card is now a real column: image + flexible body.
  */
@@ -3164,8 +3097,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   .marketplaceListingCard>.cornerBadge{top:7px!important;right:7px!important;font-size:8.5px!important;padding:3.5px 6px!important}
   .homePage .sectionListingCollection[data-view="bars"] .cornerBadge{top:4px!important;right:6px!important;font-size:7.8px!important;padding:3px 5px!important;max-width:78px!important}
 }
-
-/* v1.6.59 — fine-tune price hierarchy and image badges only. */
 .marketplaceListingCard.serviceCard--bus .pricePrefix,
 .marketplaceListingCard.serviceCard--bus .priceCurrency{
   font-size:.72em!important;
@@ -3185,7 +3116,7 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
   margin-top:1px!important;
 }
 
-/* Bring the two photo badges back up slightly from v1.6.59. */
+/* Keep the two photo badges slightly larger. */
 .marketplaceListingCard .thumbBadges .badge{
   min-height:22px!important;
   padding:4px 7px!important;
@@ -3223,9 +3154,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
     padding:3px 5.5px!important;
   }
 }
-
-
-/* v1.6.60 — increase marketplace image/count badges slightly only. */
 .marketplaceListingCard .thumbBadges .badge{
   min-height:24px!important;
   padding:4.5px 8px!important;
@@ -3263,8 +3191,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
     padding:3.5px 6.5px!important;
   }
 }
-
-/* v1.6.61 — one more small marketplace badge increase; no other card geometry changes. */
 .marketplaceListingCard .thumbBadges .badge{
   min-height:25px!important;
   padding:5px 8.5px!important;
@@ -3302,8 +3228,6 @@ html[data-theme="dark"] .ctContactHub.is-open .ctContactHubToggle{
     padding:3.75px 7px!important;
   }
 }
-
-/* v1.6.62 — final desktop bar badge sizing. Keep card and phone bar geometry unchanged. */
 @media(min-width:681px){
   .homePage .sectionListingCollection[data-view="bars"] .thumbBadges .badge{
     min-height:25px!important;

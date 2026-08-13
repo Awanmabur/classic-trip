@@ -78,7 +78,7 @@ check('Public catalog invalidation runs only for catalog-changing mutations',
   flash.includes('affectsPublicCatalog') && flash.includes('invalidateMarketplaceCache'));
 check('Production assets and home catalog use longer safe caches',
   app.includes("env.isProduction ? '30d' : 0") && env.includes("number('HOME_CACHE_TTL_MS', 300000)"));
-check('Release cache key and package version preserve the v1.6.11+ baseline',
+check('Release cache key and package version stay aligned',
   serviceWorker.includes(`classic-trip-static-v${pkg.version}`));
 check('Full verification runs this repair audit',
   pkg.scripts.verify.includes('npm run check:performance-edit-payment-repair'));

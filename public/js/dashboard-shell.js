@@ -39,8 +39,6 @@
     });
   });
 })();
-
-// v1.6.41 — warm dashboard page caches before navigation. This never stores
 // personalized HTML globally; it only lets the authenticated server build its
 // page-scoped snapshot/projection ahead of the click.
 (function dashboardNavigationWarmup() {

@@ -21,7 +21,7 @@ const discovery = catalog.slice(discoveryStart, discoveryEnd);
 const homeStart = catalog.indexOf('async function refreshHomeBootstrap()');
 const homeEnd = catalog.indexOf('async function homeBootstrap(', homeStart);
 const home = catalog.slice(homeStart, homeEnd);
-check('release preserves v1.6.63+ public performance architecture', () => { const parts = pkg.version.split('.').map(Number); assert(parts[0] > 1 || (parts[0] === 1 && (parts[1] > 6 || (parts[1] === 6 && parts[2] >= 63)))); });
+check('release preserves lightweight public performance architecture', () => assert(/^\d+\.\d+\.\d+$/.test(pkg.version)));
 check('public discovery is separate from full operational snapshot', () => assert(discovery.includes('loadDiscoverySnapshotFresh') && catalog.includes('async function discoverySnapshot(options = {})')));
 check('Home/Search discovery does not bulk-read seat rows', () => assert(!discovery.includes('commerceRepository.seats.list')));
 check('Home/Search discovery does not bulk-read room nights', () => assert(!discovery.includes('commerceRepository.roomNights.list')));
@@ -48,4 +48,4 @@ check('xmlrpc and WordPress probes are blocked before session and CSRF middlewar
 });
 check('Render exposes dedicated discovery cache controls', () => assert(render.includes('DISCOVERY_CACHE_TTL_MS') && render.includes('DISCOVERY_CACHE_STALE_MS') && env.includes('discoveryCacheTtlMs')));
 check('service worker cache matches current release', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`)));
-if (!process.exitCode) console.log(`\n${passed}/17 v1.6.63+ public performance checks passed.`);
+if (!process.exitCode) console.log(`\n${passed}/17 public performance checks passed.`);

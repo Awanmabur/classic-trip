@@ -358,9 +358,6 @@ html[data-theme="light"] .heroCard::after{display:none}
 #searchTabs.tabs::-webkit-scrollbar{display:none}
 #searchTabs.tabs.is-dragging{cursor:grabbing;scroll-behavior:auto;user-select:none}
 #searchTabs .tab{flex:0 0 auto;scroll-snap-align:start;white-space:nowrap}
-
-
-/* v1.6.43 — seven-post blog cards/bars and fully styled public article preview */
 .blogHomeGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
 .blogHomeGrid .blogCard{height:100%;min-width:0}
 .blogDirectoryPage,.blogPostShell{padding:18px 0 34px}

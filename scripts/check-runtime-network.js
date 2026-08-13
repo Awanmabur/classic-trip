@@ -25,7 +25,7 @@ const localRedis = read('scripts/redis-local.js');
 const sw = read('public/sw.js');
 const render = read('render.yaml');
 
-check('release is v1.6.64', pkg.version === '1.6.64' && lock.version === '1.6.64' && lock.packages?.['']?.version === '1.6.64');
+check('package and lockfile release versions match', pkg.version === lock.version && pkg.version === lock.packages?.['']?.version);
 check('doctor:network npm command exists', pkg.scripts?.['doctor:network'] === 'node scripts/doctor-network.js');
 check('redis:local npm command exists', pkg.scripts?.['redis:local'] === 'node scripts/redis-local.js');
 check('Redis keeps runtime recovery active after first healthy connection', redis.includes('if (!hasBeenReady && retries >= 3) return false;'));
@@ -39,6 +39,6 @@ check('network doctor verifies Redis DNS TCP and PING', ['Redis DNS', 'Redis TCP
 check('local Redis helper binds Docker Redis to loopback only', localRedis.includes('127.0.0.1:${HOST_PORT}:6379') && localRedis.includes("'--restart', 'unless-stopped'"));
 check('local Redis helper verifies PONG', localRedis.includes("String(ping.stdout).trim() === 'PONG'"));
 check('Render web and worker expose Redis recovery controls', ['REDIS_PING_INTERVAL_MS', 'REDIS_RECONNECT_MAX_DELAY_MS', 'REDIS_ERROR_LOG_THROTTLE_MS'].every((key) => (render.match(new RegExp(`key: ${key}`, 'g')) || []).length === 2));
-check('service worker cache is v1.6.64', sw.includes('classic-trip-static-v1.6.64'));
+check('service worker cache matches current release', sw.includes(`classic-trip-static-v${pkg.version}`));
 
-if (!process.exitCode) console.log(`\n${passed}/${passed} v1.6.64 runtime/network checks passed.`);
+if (!process.exitCode) console.log(`\n${passed}/${passed} runtime/network checks passed.`);

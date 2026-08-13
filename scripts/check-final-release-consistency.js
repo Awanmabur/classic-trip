@@ -19,8 +19,8 @@ check('service worker cache matches package version', sw.includes(`classic-trip-
 check('Ticket class/Journey render before route', ejs.indexOf('busTicketChooser') < ejs.indexOf('busJourneyStepGroup'));
 check('Standard is the preferred default class', ejs.includes("ticketClassesAvailable.has('standard') ? 'standard'"));
 check('One-way is selected by default', ejs.includes('ticketChoice is-active" id="oneWayTicketChoice') && ejs.includes('aria-pressed="true"'));
-check('preview toast remains black with no border', css.includes('v1.6.24 — keep preview flash black') && css.includes('background:rgba(8,12,24,.96)!important') && css.includes('border:0!important'));
-check('Ticket class outer group dark border removed', css.includes('v1.6.25 — remove extra dark border') && css.includes('border-color:transparent!important'));
+check('preview toast remains black with no border', css.includes('background:rgba(8,12,24,.96)!important') && css.includes('border:0!important'));
+check('Ticket class outer group dark border removed', css.includes('border-color:transparent!important'));
 
 const viewRoot = path.join(root, 'src', 'views');
 function walk(dir) {

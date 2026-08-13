@@ -361,7 +361,7 @@ function activePersistentBlocker(rule = {}, now = new Date()) {
   // Vehicle conflicts are date-specific. One conflicting date must never freeze
   // the whole 30-day rolling window; the materializer rechecks each date and
   // continues to later dates that are free. Older persisted vehicle blockers
-  // from v1.6.32 are therefore treated as advisory only.
+  // Legacy conflict snapshots are therefore treated as advisory only.
   if (String(rule.materializationBlockerCode || '').startsWith('vehicle_schedule_conflict')) return null;
   const requiresAction = rule.materializationRequiresAction === true;
   if (!rule.materializationBlockerCode) return null;
