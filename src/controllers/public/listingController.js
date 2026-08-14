@@ -344,7 +344,19 @@ async function bookingForm(req, res, next) {
   try {
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
-    const publicContext = await publicListingContext(req.params.slug, req.params.serviceType);
+    // Bus checkout is entered immediately after the lightweight marketplace flow.
+    // Reuse that Redis-backed discovery snapshot instead of opening a fresh scoped
+    // Atlas snapshot just to render the passenger form.
+    let publicContext;
+    if (normalize(req.params.serviceType) === 'bus') {
+      const data = await catalogService.discoverySnapshotForListing(req.params.slug, req.params.serviceType);
+      const raw = data ? catalogService.listingFor(data, req.params.slug, req.params.serviceType) : null;
+      publicContext = raw && catalogService.isPublicListing(raw, data)
+        ? { data, raw, listing: catalogService.catalogItem(data, raw) }
+        : await publicListingContext(req.params.slug, req.params.serviceType);
+    } else {
+      publicContext = await publicListingContext(req.params.slug, req.params.serviceType);
+    }
     if (!publicContext.listing) return next();
     const normalizedServiceType = normalize(publicContext.listing.serviceType);
     if (normalizedServiceType === 'flight') return res.redirect(303, `/flights?listingId=${encodeURIComponent(publicContext.listing.id)}`);
@@ -360,7 +372,7 @@ async function bookingForm(req, res, next) {
         await busBookingDraftService.resolveDraft(req, { draftId: legacyDraftId, listing: publicContext.listing });
         return res.redirect(303, `/book/bus/${encodeURIComponent(publicContext.listing.slug)}`);
       }
-      const draft = await busBookingDraftService.resolveDraft(req, { draftId: '', listing: publicContext.listing });
+      const draft = busBookingDraftService.peekDraft(req, { draftId: '', listing: publicContext.listing });
       bookingDraftId = draft.id;
       source = {
         ref: draft.referralCode,
@@ -378,17 +390,40 @@ async function bookingForm(req, res, next) {
         returnOriginStopId: draft.return?.originStopId || '',
         returnDestinationStopId: draft.return?.destinationStopId || '',
       };
-      const contextPromise = catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false, compactAvailability: true }, publicContext);
-      const returnAvailabilityPromise = source.returnScheduleId
-        ? busInventoryService.getAvailability({
-          scheduleId: source.returnScheduleId,
-          originStopId: source.returnOriginStopId,
-          destinationStopId: source.returnDestinationStopId,
-          holdId: source.returnHoldId,
-          seatNumbers: source.returnSeats || '',
-        })
-        : Promise.resolve(null);
-      [context, returnAvailability] = await Promise.all([contextPromise, returnAvailabilityPromise]);
+      const draftAvailability = busBookingDraftService.checkoutAvailability(draft, 'outbound');
+      const draftReturnAvailability = draft.return ? busBookingDraftService.checkoutAvailability(draft, 'return') : null;
+      if (draftAvailability) {
+        const company = catalogService.companyFor(publicContext.data, publicContext.raw.companyId || publicContext.raw.companySlug);
+        const listing = publicContext.listing;
+        listing.priceFrom = Number(draftAvailability.fare?.baseAmountPerSeat || listing.priceFrom || 0);
+        listing.currency = draftAvailability.fare?.currency || listing.currency;
+        listing.from = draftAvailability.journey?.originName || listing.from;
+        listing.to = draftAvailability.journey?.destinationName || listing.to;
+        const availability = {
+          ...draftAvailability,
+          selectedRouteId: draftAvailability.schedule?.routeId || '',
+          routes: Array.isArray(listing.routes) ? listing.routes : [],
+          returnSchedules: [],
+        };
+        const preview = catalogService.listingPreview(publicContext.data, listing, availability, company);
+        preview.previewSeats = availability.seats || [];
+        preview.currency = availability.fare?.currency || listing.currency;
+        context = { ...publicContext, listing, company, availability, preview };
+        returnAvailability = draftReturnAvailability;
+      } else {
+        // Compatibility for a draft created by a pre-v1.6.81 process.
+        const contextPromise = catalogContext(req.params.slug, req.params.serviceType, { ...source, includeReturnSchedules: false, compactAvailability: true }, publicContext);
+        const returnAvailabilityPromise = source.returnScheduleId
+          ? busInventoryService.getAvailability({
+            scheduleId: source.returnScheduleId,
+            originStopId: source.returnOriginStopId,
+            destinationStopId: source.returnDestinationStopId,
+            holdId: source.returnHoldId,
+            seatNumbers: source.returnSeats || '',
+          })
+          : Promise.resolve(null);
+        [context, returnAvailability] = await Promise.all([contextPromise, returnAvailabilityPromise]);
+      }
       if (!context.listing) return next();
     } else {
       context = await catalogContext(req.params.slug, req.params.serviceType, source, publicContext);

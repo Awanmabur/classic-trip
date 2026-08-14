@@ -23,6 +23,7 @@ const commercialTermsService = require('../../../services/commission/commercialT
 const logger = require('../../../config/logger');
 const TRUSTED_AVAILABILITY_ROWS = Symbol.for('classic-trip.bus-availability-rows');
 const TRUSTED_COMMERCIAL_CONTEXT = Symbol.for('classic-trip.bus-commercial-context');
+const TRUSTED_CHECKOUT_SNAPSHOT = Symbol.for('classic-trip.bus-checkout-snapshot');
 const MAX_SEATS_PER_HOLD = 10;
 const STATIC_CONTEXT_TTL_MS = 30_000;
 const STATIC_CONTEXT_CACHE_LIMIT = 300;
@@ -202,6 +203,49 @@ function inventoryStatusAvailable(row, allowedHoldId = '') {
   if (row.status === 'available') return true;
   if (row.status === 'held' && new Date(row.lockedUntil).getTime() <= Date.now()) return true;
   return !!allowedHoldId && row.status === 'held' && row.holdId === allowedHoldId && new Date(row.lockedUntil).getTime() > Date.now();
+}
+
+function checkoutSnapshotFromAvailability(availability = {}, selectedSeats = []) {
+  const wanted = new Set(seatList(selectedSeats));
+  const seats = (availability.seats || []).filter((seat) => !wanted.size || wanted.has(String(seat.seatNumber || '').toUpperCase()));
+  const commercial = availability[TRUSTED_COMMERCIAL_CONTEXT] || {};
+  return {
+    schedule: availability.schedule || {},
+    route: availability.route || {},
+    journey: availability.journey || {},
+    stops: availability.stops || [],
+    seats,
+    fare: availability.fare || {},
+    commercialTerms: commercial.terms || null,
+    capturedAt: nowIso(),
+  };
+}
+
+function attachCheckoutSnapshot(target = {}, snapshot = null) {
+  if (!target || !snapshot) return target;
+  Object.defineProperty(target, TRUSTED_CHECKOUT_SNAPSHOT, { value: snapshot, enumerable: false, configurable: true });
+  return target;
+}
+
+function checkoutSnapshotForHold(hold = {}) {
+  return hold?.[TRUSTED_CHECKOUT_SNAPSHOT] || null;
+}
+
+function availabilityFromCheckoutSnapshot(snapshot = null, hold = {}) {
+  if (!snapshot?.schedule?.id || !snapshot?.fare) return null;
+  const availability = {
+    schedule: snapshot.schedule,
+    route: snapshot.route || {},
+    journey: snapshot.journey || {},
+    stops: snapshot.stops || [],
+    seats: snapshot.seats || [],
+    availableSeats: (snapshot.seats || []).filter((seat) => seat.available !== false).length,
+    fare: snapshot.fare,
+  };
+  Object.defineProperty(availability, TRUSTED_COMMERCIAL_CONTEXT, {
+    value: { terms: snapshot.commercialTerms || null }, enumerable: false, configurable: true,
+  });
+  return availability;
 }
 
 async function getAvailability({ scheduleId, originStopId, destinationStopId, holdId = '', seatNumbers = [] } = {}) {
@@ -432,6 +476,7 @@ function queueCompatibilityRefresh(scheduleId, seatNumbers = []) {
 }
 
 async function holdSeats({ scheduleId, originStopId, destinationStopId, selectedSeats, context = {} } = {}) {
+  const holdStartedAt = Date.now();
   const seats = seatList(selectedSeats);
   if (!seats.length) throw validationError('Select at least one seat');
   if (seats.length > MAX_SEATS_PER_HOLD) throw validationError(`A maximum of ${MAX_SEATS_PER_HOLD} seats can be held at once`);
@@ -439,6 +484,7 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
   // counter round trip from the customer's Proceed-to-payment click.
   const holdId = fastEntityId('bus-hold');
   const availability = await getAvailability({ scheduleId, originStopId, destinationStopId, seatNumbers: seats });
+  const availabilityMs = Date.now() - holdStartedAt;
   const availableMap = new Map(availability.seats.map((seat) => [String(seat.seatNumber).toUpperCase(), seat]));
   const unavailable = seats.filter((seatNumber) => !availableMap.get(seatNumber)?.available);
   if (unavailable.length) throw conflictError(`Seats are no longer available for this journey: ${unavailable.join(', ')}`, 'seat_unavailable');
@@ -526,11 +572,14 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
   }
   hold.itemIds = holdItems.map((item) => item.id);
 
+  let transactionMs = 0;
   try {
+    const transactionStartedAt = Date.now();
     await repository.withTransaction(async (session) => {
-      // One conditional update claims every selected seat segment atomically. If
-      // even one segment changed since the preview read, throwing rolls the whole
-      // transaction back. This replaces a second read + per-row bulk rewrite.
+      // Only the two durability-critical writes stay in the latency-sensitive
+      // transaction: claim the inventory and create the authoritative hold. The
+      // hold-item/outbox/audit projections are reconstructible from these rows and
+      // are persisted immediately after commit without delaying the customer.
       const claimed = await repository.segmentInventory.updateMany(
         { scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds }, status: 'available' },
         { $set: { status: 'held', holdId: hold.id, lockedUntil: expiresAt.toISOString(), updatedAt: timestamp.toISOString() } },
@@ -539,22 +588,28 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
       if (Number(claimed.modifiedCount ?? claimed.nModified ?? 0) !== expected) {
         throw conflictError('One or more selected seats were just taken; choose again', 'seat_unavailable');
       }
-      // UUID-backed rows are new by construction, so inserts avoid unnecessary
-      // upsert matching on this latency-sensitive path.
       await repository.holds.insert(hold, { session });
-      await repository.holdItems.insertMany(holdItems, { session, ordered: true });
-      await repository.outbox({ eventType: 'BusInventoryHeld', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { scheduleId: hold.scheduleId, seatNumbers: seats, segmentIds: hold.segmentIds, expiresAt: hold.expiresAt }, dedupeKey: `BusInventoryHeld:${hold.id}`, session });
     });
-    // The hold and outbox event are already durable. Audit persistence must not
-    // keep a traveler waiting on another Atlas round trip.
-    repository.audit({ actorId: actorId(context.createdBy), action: 'bus.inventory.held', targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { scheduleId: hold.scheduleId, seats, segmentIds: hold.segmentIds } })
-      .catch((error) => logger.warn('Deferred bus hold audit failed', { holdId: hold.id, error: error.message }));
+    transactionMs = Date.now() - transactionStartedAt;
+    Promise.allSettled([
+      repository.holdItems.insertMany(holdItems, { ordered: true }),
+      repository.outbox({ eventType: 'BusInventoryHeld', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { scheduleId: hold.scheduleId, seatNumbers: seats, segmentIds: hold.segmentIds, expiresAt: hold.expiresAt }, dedupeKey: `BusInventoryHeld:${hold.id}` }),
+      repository.audit({ actorId: actorId(context.createdBy), action: 'bus.inventory.held', targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { scheduleId: hold.scheduleId, seats, segmentIds: hold.segmentIds } }),
+    ]).then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') logger.warn('Deferred bus hold projection failed', { holdId: hold.id, projection: ['hold_items', 'outbox', 'audit'][index], error: result.reason?.message || String(result.reason || '') });
+      });
+    });
   } catch (error) {
     if (error.code === 11000) throw conflictError('One or more selected seats were just held by another traveler', 'seat_unavailable');
     throw error;
   }
   queueCompatibilityRefresh(hold.scheduleId, seats);
-  return { ...hold, accessToken: token, seats: seats.map((seatNumber) => availableMap.get(seatNumber)), fare: availability.fare, journey: availability.journey };
+  const holdTotalMs = Date.now() - holdStartedAt;
+  if (holdTotalMs >= 1200) logger.warn('Bus seat hold timing', { scheduleId: hold.scheduleId, seats: seats.length, segments: hold.segmentIds.length, availabilityMs, transactionMs, totalMs: holdTotalMs });
+  const responseHold = { ...hold, accessToken: token, seats: seats.map((seatNumber) => availableMap.get(seatNumber)), fare: availability.fare, journey: availability.journey };
+  attachCheckoutSnapshot(responseHold, checkoutSnapshotFromAvailability(availability, seats));
+  return responseHold;
 }
 
 async function assertActiveHold(holdId, token = '', session = null) {
@@ -692,6 +747,11 @@ async function releaseHold(holdId, reason = 'released', actor = 'system', sessio
 module.exports = {
   MAX_SEATS_PER_HOLD,
   TRUSTED_COMMERCIAL_CONTEXT,
+  TRUSTED_CHECKOUT_SNAPSHOT,
+  checkoutSnapshotFromAvailability,
+  attachCheckoutSnapshot,
+  checkoutSnapshotForHold,
+  availabilityFromCheckoutSnapshot,
   scheduleContext,
   expireStaleHolds,
   getAvailability,

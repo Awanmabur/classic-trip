@@ -145,6 +145,8 @@ services:
         sync: false
       - key: PESAPAL_NOTIFICATION_TYPE
         value: POST
+      - key: PESAPAL_REQUEST_TIMEOUT_MS
+        value: "12000"
       - key: PESAPAL_WEBHOOK_SECRET
         sync: false
       - key: EMAIL_FROM

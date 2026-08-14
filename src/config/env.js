@@ -120,6 +120,7 @@ const env = {
       ipnId: configuredValue('PESAPAL_IPN_ID'),
       webhookSecret: process.env.PESAPAL_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || '',
       notificationType: process.env.PESAPAL_NOTIFICATION_TYPE || 'POST',
+      requestTimeoutMs: number('PESAPAL_REQUEST_TIMEOUT_MS', 12000),
     },
     mtn_momo: {
       apiUrl: process.env.MTN_MOMO_API_URL || process.env.PAYMENT_API_URL || '',

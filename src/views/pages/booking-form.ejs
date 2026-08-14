@@ -343,6 +343,7 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:12px">
               <a class="btn btnGhost" href="/listings/<%= listing.serviceType %>/<%= listing.slug %>"><i class="fa-solid fa-arrow-left"></i> <%= listing.serviceType === 'hotel' ? 'Change room or dates' : listing.serviceType === 'tour' ? 'View tour' : listing.serviceType === 'car_rental' ? 'View rental' : listing.serviceType === 'cargo' ? 'View cargo service' : 'Change selection' %></a>
               <button class="btn btnPrimary" type="submit" <%= listing.bookable && selectedFieldValue ? '' : 'disabled' %>><i class="fa-solid fa-lock"></i> Pay with Pesapal</button>
+              <span class="small" data-payment-connecting-note style="display:none">Secure payment is being opened. Keep this page open.</span>
             </div>
           </div>
         </aside>
@@ -444,9 +445,11 @@
         return;
       }
       const btn = form.querySelector('[type="submit"]');
+      const note = form.querySelector('[data-payment-connecting-note]');
+      if (note) note.style.display = 'inline';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting to Pesapal…';
       }
     });
     syncCopiedFields();

@@ -257,6 +257,7 @@ async function validateLeg(input, { listing, outboundHold = null, req = null } =
 }
 
 function snapshotLeg(hold, token, legType) {
+  const checkoutSnapshot = inventoryService.checkoutSnapshotForHold(hold);
   return {
     legType,
     holdId: hold.id,
@@ -267,8 +268,13 @@ function snapshotLeg(hold, token, legType) {
     routeId: hold.routeId,
     originStopId: hold.originStopId,
     destinationStopId: hold.destinationStopId,
+    originOrder: hold.originOrder,
+    destinationOrder: hold.destinationOrder,
+    segmentIds: Array.isArray(hold.segmentIds) ? hold.segmentIds : [],
     selectedSeats: listCsv(hold.seatNumbers || hold.seatNumber),
+    itemCount: Number(hold.itemCount || 0),
     expiresAt: hold.expiresAt,
+    checkoutSnapshot: checkoutSnapshot || null,
   };
 }
 
@@ -388,6 +394,59 @@ async function createDraft(req, { listing, payload = {} } = {}) {
   };
 }
 
+function peekDraft(req, { draftId, listing } = {}) {
+  const id = cleanText(draftId, 80) || (listing ? getActiveDraftId(req, listing) : '');
+  if (!id) throw conflictError('Choose your journey and seats before opening checkout', 'booking_draft_required');
+  const draft = purgeExpired(req)[id];
+  if (!draft) throw conflictError('The secure booking draft expired. Select the seats again.', 'booking_draft_expired');
+  if (listing && (String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug))) {
+    throw validationError('Booking draft belongs to another listing', 403);
+  }
+  if (new Date(draft.inventoryExpiresAt || 0).getTime() <= Date.now()) {
+    throw conflictError('The secure seat hold expired. Select the seats again.', 'booking_draft_expired');
+  }
+  const draftListing = listing || { id: draft.listingId, slug: draft.listingSlug, serviceType: 'bus' };
+  setActiveDraft(req, draftListing, id);
+  return draft;
+}
+
+function trustedHoldFromDraftLeg(leg = {}) {
+  if (!leg?.holdId) return null;
+  const hold = {
+    id: leg.holdId,
+    holdType: 'bus_segment_seat',
+    serviceType: 'bus',
+    status: 'active',
+    listingId: leg.listingId,
+    companyId: leg.companyId,
+    scheduleId: leg.scheduleId,
+    routeId: leg.routeId,
+    originStopId: leg.originStopId,
+    destinationStopId: leg.destinationStopId,
+    originOrder: Number(leg.originOrder || 0),
+    destinationOrder: Number(leg.destinationOrder || 0),
+    segmentIds: Array.isArray(leg.segmentIds) ? leg.segmentIds : [],
+    seatNumber: (leg.selectedSeats || [])[0] || '',
+    seatNumbers: listCsv(leg.selectedSeats || []),
+    itemCount: Number(leg.itemCount || 0),
+    lockedUntil: leg.expiresAt,
+    expiresAt: leg.expiresAt,
+  };
+  inventoryService.attachCheckoutSnapshot(hold, leg.checkoutSnapshot || null);
+  return hold;
+}
+
+function checkoutAvailability(draft = {}, key = 'outbound') {
+  const leg = draft?.[key];
+  if (!leg?.checkoutSnapshot) return null;
+  const hold = trustedHoldFromDraftLeg(leg);
+  const availability = inventoryService.availabilityFromCheckoutSnapshot(leg.checkoutSnapshot, hold);
+  if (!availability) return null;
+  availability.scheduleId = leg.scheduleId;
+  availability.schedules = [availability.schedule].filter(Boolean);
+  return availability;
+}
+
 async function resolveDraft(req, { draftId, listing } = {}) {
   const id = cleanText(draftId, 80) || (listing ? getActiveDraftId(req, listing) : '');
   if (!id) throw conflictError('Choose your journey and seats before opening checkout', 'booking_draft_required');
@@ -419,7 +478,10 @@ async function resolveDraft(req, { draftId, listing } = {}) {
 }
 
 async function applyDraftToPayload(req, payload = {}, listing = null) {
-  const draft = await resolveDraft(req, { draftId: payload.bookingDraftId, listing });
+  // The draft lives in the signed server-side session and already contains the
+  // authoritative hold identity. Avoid another Atlas hold read on the Pay click;
+  // persistPendingRows revalidates the hold atomically before payment can proceed.
+  const draft = peekDraft(req, { draftId: payload.bookingDraftId, listing });
   if (payload.listingId && String(payload.listingId) !== String(draft.listingId)) throw validationError('Booking form listing does not match the secure draft', 403);
   const nextPayload = {
     ...payload,
@@ -442,7 +504,10 @@ async function applyDraftToPayload(req, payload = {}, listing = null) {
     ref: cleanText(payload.ref || draft.referralCode, 180),
   };
   Object.defineProperty(nextPayload, TRUSTED_DRAFT_HOLDS, {
-    value: draft[TRUSTED_DRAFT_HOLDS] || null,
+    value: {
+      outbound: trustedHoldFromDraftLeg(draft.outbound),
+      return: draft.return ? trustedHoldFromDraftLeg(draft.return) : null,
+    },
     enumerable: false, configurable: false, writable: false,
   });
   return nextPayload;
@@ -463,6 +528,8 @@ async function discardDraft(req, draftId, options = {}) {
 module.exports = {
   createDraft,
   resolveDraft,
+  peekDraft,
+  checkoutAvailability,
   applyDraftToPayload,
   discardDraft,
   TRUSTED_DRAFT_HOLDS,

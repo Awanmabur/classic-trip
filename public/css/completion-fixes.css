@@ -3387,7 +3387,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
 .marketplaceListingCard.serviceCard--hotel .thumb{position:relative!important;width:100%!important;max-width:100%!important;height:135px!important;min-height:135px!important;aspect-ratio:auto!important;overflow:hidden!important;background:var(--field)!important}
 .marketplaceListingCard.serviceCard--hotel .thumb img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center!important}
 .homePage .marketplaceSection--hotel .serviceCard--hotel:nth-child(1) .thumb{height:135px!important;min-height:135px!important;aspect-ratio:auto!important}
-/* v1.6.80: Stay bars must use the same full-height media column as every bar.
+/* v1.6.81: Stay bars must use the same full-height media column as every bar.
    Earlier Stay-specific 150/142px rules overrode the natural bar stretcher and
    left blank space when amenities/content made the row taller. */
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--hotel>.listingThumbLink{

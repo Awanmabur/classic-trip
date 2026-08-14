@@ -35,7 +35,7 @@ function check(label, fn) {
     await check('order initiation sends callback, notification id and customer billing data', async () => {
       const result = await p.initiatePayment({ bookingRef: 'CTS-LIVE-1', amount: 25000, currency: 'UGX', description: 'Classic Trip go-live payment contract', customer: { fullName: 'Launch Test', phone: '+256700000001' } }, config);
       assert.strictEqual(result.providerReference, 'TRACK-LIVE-1'); assert.ok(result.checkoutUrl.startsWith('https://pay.pesapal.com/'));
-      const submit = calls.find((c) => c.u.includes('/Transactions/SubmitOrderRequest')); assert(submit); assert.strictEqual(submit.body.notification_id, 'IPN-LIVE-1'); assert.strictEqual(submit.body.callback_url, config.callbackUrl); assert.strictEqual(submit.body.id, 'CTS-LIVE-1'); assert(submit.body.billing_address.phone_number);
+      const submit = calls.find((c) => c.u.includes('/Transactions/SubmitOrderRequest')); assert(submit); assert.strictEqual(submit.body.notification_id, 'IPN-LIVE-1'); assert.strictEqual(submit.body.callback_url, config.callbackUrl); assert.strictEqual(submit.body.id, 'CTS-LIVE-1'); assert(submit.body.billing_address.phone_number); assert.strictEqual(submit.body.redirect_mode, 'TOP_WINDOW'); assert.ok(String(submit.body.cancellation_url || '').startsWith('https://www.classictrip.org/tickets'));
     });
     await check('IPN verification trusts GetTransactionStatus rather than callback merchant reference', async () => {
       const verified = await p.verifyWebhook({ OrderTrackingId: 'TRACK-LIVE-1', OrderMerchantReference: 'ATTACKER-REF' }, config);
@@ -52,6 +52,12 @@ function check(label, fn) {
     });
     await check('production env pins live Pesapal and same-host HTTPS callbacks', () => {
       const env = read('src/config/env.js'); assert(env.includes("hostname.toLowerCase() !== 'pay.pesapal.com'")); assert(env.includes('PESAPAL_CALLBACK_URL must use HTTPS on the APP_URL host')); assert(env.includes('PESAPAL_IPN_URL must use HTTPS on the APP_URL host'));
+    });
+    await check('production Pesapal timeout exceeds the old six-second cutoff and is explicitly configurable', () => {
+      const env = read('src/config/env.js'); const render = read('render.yaml'); const provider = read('src/services/payment/pesapalPaymentProvider.js');
+      assert(provider.includes('DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 12000'));
+      assert(env.includes("number('PESAPAL_REQUEST_TIMEOUT_MS', 12000)"));
+      assert(render.includes('PESAPAL_REQUEST_TIMEOUT_MS'));
     });
     await check('doctor:pesapal performs non-charge authentication/IPN readiness', () => {
       const doctor = read('scripts/doctor-pesapal.js'); assert(doctor.includes('readinessCheck(config)')); assert(doctor.includes('No customer charge was created'));

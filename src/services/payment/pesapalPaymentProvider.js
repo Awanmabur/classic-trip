@@ -1,5 +1,6 @@
 const { platformCurrency } = require('../../utils/currency');
-const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 6000;
+const logger = require('../../config/logger');
+const DEFAULT_PAYMENT_REQUEST_TIMEOUT_MS = 12000;
 
 function requestTimeoutMs(config = {}) {
   const configured = Number(config.requestTimeoutMs || config.timeoutMs || 0);
@@ -211,6 +212,8 @@ function buildOrder(payment = {}, config = {}, notificationId = '') {
     amount: Number(amount.toFixed(2)),
     description: String(payment.description || `Classic Trip booking ${bookingRef}`).trim().slice(0, 100),
     callback_url: callback,
+    redirect_mode: 'TOP_WINDOW',
+    cancellation_url: `${new URL(callback).origin}/tickets?bookingRef=${encodeURIComponent(bookingRef)}&paymentRetry=cancelled`,
     notification_id: notificationId,
     billing_address: {
       email_address: email,
@@ -317,10 +320,32 @@ async function prewarm(config = {}, options = {}) {
 }
 
 async function initiatePayment(payment = {}, config = {}) {
+  const startedAt = Date.now();
   const token = await tokenFor(config);
   const notificationId = await notificationIdFor(config, token);
+  const controlPlaneMs = Date.now() - startedAt;
   const order = buildOrder(payment, config, notificationId);
-  const result = await requestJson(config, '/Transactions/SubmitOrderRequest', { token, body: order });
+  const submitStartedAt = Date.now();
+  let result;
+  try {
+    result = await requestJson(config, '/Transactions/SubmitOrderRequest', { token, body: order });
+  } catch (error) {
+    logger.warn('Pesapal SubmitOrderRequest timing', {
+      bookingRef: String(payment.bookingRef || payment.reference || '').slice(0, 80),
+      outcome: error?.code || 'error',
+      controlPlaneMs,
+      submitMs: Date.now() - submitStartedAt,
+      timeoutMs: requestTimeoutMs(config),
+      host: (() => { try { return new URL(config.apiUrl).hostname; } catch (_) { return ''; } })(),
+    });
+    throw error;
+  }
+  const submitMs = Date.now() - submitStartedAt;
+  if (submitMs >= 1200) logger.warn('Pesapal SubmitOrderRequest timing', {
+    bookingRef: String(payment.bookingRef || payment.reference || '').slice(0, 80),
+    outcome: 'redirect_received', controlPlaneMs, submitMs, timeoutMs: requestTimeoutMs(config),
+    host: (() => { try { return new URL(config.apiUrl).hostname; } catch (_) { return ''; } })(),
+  });
   const status = normalizeStatus(result.status || result.payment_status_description || result.data?.status);
   const providerReference = String(result.order_tracking_id || result.OrderTrackingId || result.orderTrackingId || result.data?.order_tracking_id || '').trim();
   const rawCheckoutUrl = result.redirect_url || result.redirectUrl || result.checkoutUrl || result.data?.redirect_url || '';

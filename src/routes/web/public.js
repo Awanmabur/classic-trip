@@ -121,8 +121,16 @@ router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, re
       busBookingDraftService.discardDraft(req, payload.bookingDraftId, { save: false }).catch(() => {});
     }
     ticketAccessService.grantSessionAccess(req, booking.bookingRef);
-    if (booking.checkoutUrl && booking.paymentStatus !== 'successful') return res.redirect(safePaymentRedirect(booking.checkoutUrl, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}`));
-    return res.redirect(`/booking/success/${booking.bookingRef}`);
+    if (booking.checkoutUrl && booking.paymentStatus !== 'successful') {
+      return res.redirect(303, safePaymentRedirect(booking.checkoutUrl, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}&paymentRetry=unavailable`));
+    }
+    if (booking.paymentStatus !== 'successful') {
+      // Never pretend a pending booking reached payment when Pesapal did not return
+      // a redirect URL. Send the traveler to the retry-safe payment state instead.
+      const retryState = booking.paymentInitiationStatus === 'retry_required' ? 'unavailable' : 'pending';
+      return res.redirect(303, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}&paymentRetry=${encodeURIComponent(retryState)}`);
+    }
+    return res.redirect(303, `/booking/success/${booking.bookingRef}`);
   } catch (error) {
     return next(error);
   }

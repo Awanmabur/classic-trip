@@ -255,15 +255,18 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
   // Checkout only needs the seats attached to this hold. Reading the complete
   // vehicle inventory again made the payment transition slow as soon as one
   // real departure existed. The departure row is fetched concurrently.
-  const availability = await inventoryService.getAvailability({
+  const availability = inventoryService.availabilityFromCheckoutSnapshot(
+    inventoryService.checkoutSnapshotForHold(hold), hold,
+  ) || await inventoryService.getAvailability({
     scheduleId: hold.scheduleId,
     originStopId: hold.originStopId,
     destinationStopId: hold.destinationStopId,
     holdId: hold.id,
     seatNumbers,
   });
-  // getAvailability already validates the current published departure and returns
-  // the mutable schedule fields needed below; do not read the same schedule twice.
+  // A server-side booking draft freezes the exact checkout quote while the hold is
+  // active. The final transaction still revalidates the hold atomically, so using
+  // this snapshot removes duplicate Atlas reads without trusting browser pricing.
   const schedule = availability.schedule;
   if (!schedule?.id) throw conflictError('Held departure no longer exists', 'departure_configuration_missing');
   if (seatNumbers.length !== passengers.length) throw validationError('Each trip leg must have one selected seat for every passenger');
@@ -413,7 +416,7 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
       checkInStatus: 'not_checked',
     });
   }
-  return { hold, availability, schedule, seatNumbers, item, reservation, assignments, tickets, ticketLegs, pricing, commercialContext: availability[inventoryService.TRUSTED_COMMERCIAL_CONTEXT] || null };
+  return { hold, availability, schedule, seatNumbers, item, reservation, assignments, tickets, ticketLegs, pricing, commercialContext: availability[inventoryService.TRUSTED_COMMERCIAL_CONTEXT] || { terms: inventoryService.checkoutSnapshotForHold(hold)?.commercialTerms || null } };
 }
 
 async function buildCanonicalRows(payload = {}, req = null) {
@@ -792,14 +795,19 @@ async function createGuestBooking(payload = {}, req = null) {
     },
     createdAt: nowIso(),
   };
-  const persistStartedAt = Date.now();
-  await persistPendingRows(rows, req?.session?.user?.id || rows.booking.guestSnapshot.email, intent, claim.record);
-  timing.persistMs = Date.now() - persistStartedAt;
   let providerResult = null;
   let providerStartedAt = 0;
+  let pendingRowsPersisted = false;
   try {
+    // The canonical Mongo transaction and Pesapal SubmitOrderRequest are independent
+    // once the server has frozen the amount/booking reference. Run them concurrently
+    // so checkout latency is the slower of Atlas or Pesapal, not their sum. The
+    // customer is redirected only after the booking transaction is durable.
+    const persistStartedAt = Date.now();
     providerStartedAt = Date.now();
-    providerResult = await paymentService.initiatePayment({
+    const persistPromise = persistPendingRows(rows, req?.session?.user?.id || rows.booking.guestSnapshot.email, intent, claim.record)
+      .then(() => { pendingRowsPersisted = true; timing.persistMs = Date.now() - persistStartedAt; });
+    const providerPromise = paymentService.initiatePayment({
       provider,
       bookingRef: rows.booking.bookingRef,
       reference: rows.booking.bookingRef,
@@ -815,8 +823,15 @@ async function createGuestBooking(payload = {}, req = null) {
         serviceType: 'bus',
         holdIds: rows.holds.map((hold) => hold.id),
       },
-    });
-    timing.providerMs = Date.now() - providerStartedAt;
+    }).finally(() => { timing.providerMs = Date.now() - providerStartedAt; });
+    const [persistOutcome, providerOutcome] = await Promise.allSettled([persistPromise, providerPromise]);
+    if (persistOutcome.status === 'rejected') {
+      const persistError = persistOutcome.reason instanceof Error ? persistOutcome.reason : new Error(String(persistOutcome.reason || 'Booking persistence failed'));
+      persistError.checkoutPersistenceFailed = true;
+      throw persistError;
+    }
+    if (providerOutcome.status === 'rejected') throw providerOutcome.reason;
+    providerResult = providerOutcome.value;
     const result = providerResult;
     Object.assign(intent, {
       providerReference: result.providerReference || '',
@@ -860,11 +875,30 @@ async function createGuestBooking(payload = {}, req = null) {
       createdAt: nowIso(),
     };
     const providerPersistStartedAt = Date.now();
-    await repository.withTransaction(async (session) => {
-      await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }, { session });
-      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
-      await repository.payments.insert(payment, { session });
-    });
+    if (normalize(result.status) === 'successful') {
+      // Immediate-success providers require the complete payment state before
+      // confirmation. Pesapal normally returns pending + redirect_url here.
+      await repository.withTransaction(async (session) => {
+        await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }, { session });
+        await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
+        await repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }, { session });
+      });
+    } else {
+      // Persist the provider binding on the booking before redirecting. The intent
+      // and payment projections are retry-safe and can finish after the response;
+      // Pesapal callbacks also carry the merchant booking reference + tracking id.
+      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
+      Promise.allSettled([
+        repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }),
+        repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }),
+      ]).then((results) => results.forEach((entry, index) => {
+        if (entry.status === 'rejected') logger.warn('Deferred payment projection failed', {
+          bookingRef: rows.booking.bookingRef,
+          projection: index === 0 ? 'payment_intent' : 'payment',
+          error: entry.reason?.message || String(entry.reason || ''),
+        });
+      }));
+    }
     timing.providerPersistMs = Date.now() - providerPersistStartedAt;
     let booking = rows.booking;
     if (result.status === 'successful') {
@@ -880,6 +914,7 @@ async function createGuestBooking(payload = {}, req = null) {
     if (timing.totalMs >= 1500) logger.warn('Bus payment checkout timing', { requestId: req?.id || '', bookingRef: booking.bookingRef, provider, ...timing });
     return booking;
   } catch (error) {
+    if (!pendingRowsPersisted || error?.checkoutPersistenceFailed) throw error;
     if (!providerResult) {
       // A network/configuration error is not a decline. Preserve the canonical
       // reservations and retry with the same provider idempotency key.
@@ -895,10 +930,9 @@ async function createGuestBooking(payload = {}, req = null) {
         paymentFailureReason: intent.failureReason,
         updatedAt: nowIso(),
       });
-      await repository.withTransaction(async (session) => {
-        await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }, { session });
-        await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
-      });
+      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
+      repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey })
+        .catch((persistError) => logger.warn('Deferred failed-init payment intent persistence failed', { bookingRef: rows.booking.bookingRef, error: persistError.message }));
       deferCompleteIdempotency(claim.record, rows.booking);
       timing.providerMs = providerStartedAt ? Date.now() - providerStartedAt : 0;
       timing.totalMs = Date.now() - checkoutStartedAt;
