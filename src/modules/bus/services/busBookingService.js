@@ -774,6 +774,8 @@ async function createGuestBooking(payload = {}, req = null) {
   const rowsStartedAt = Date.now();
   const rows = await buildCanonicalRows(payload, req);
   timing.canonicalRowsMs = Date.now() - rowsStartedAt;
+  rows.booking.paymentProvider = provider;
+  rows.booking.paymentInitiationStatus = 'initiating';
   const intent = {
     id: fastEntityId('payment-intent'),
     intentRef: generateCode('PI', 10),
@@ -884,20 +886,24 @@ async function createGuestBooking(payload = {}, req = null) {
         await repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }, { session });
       });
     } else {
-      // Persist the provider binding on the booking before redirecting. The intent
-      // and payment projections are retry-safe and can finish after the response;
-      // Pesapal callbacks also carry the merchant booking reference + tracking id.
-      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
-      Promise.allSettled([
-        repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }),
-        repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }),
-      ]).then((results) => results.forEach((entry, index) => {
-        if (entry.status === 'rejected') logger.warn('Deferred payment projection failed', {
-          bookingRef: rows.booking.bookingRef,
-          projection: index === 0 ? 'payment_intent' : 'payment',
-          error: entry.reason?.message || String(entry.reason || ''),
-        });
-      }));
+      // Keep only the provider binding durable before showing Pesapal. The booking
+      // and intent already exist from the canonical transaction, so two direct
+      // updates can run in parallel in one network round-trip window. The detailed
+      // payment projection is retry-safe and can finish after the handoff begins.
+      await Promise.all([
+        repository.bookings.updateOne({ bookingRef: rows.booking.bookingRef }, { $set: {
+          paymentProvider: rows.booking.paymentProvider, paymentRef: rows.booking.paymentRef,
+          checkoutUrl: rows.booking.checkoutUrl, paymentStatus: rows.booking.paymentStatus,
+          paymentInitiationStatus: 'ready', updatedAt: rows.booking.updatedAt,
+        } }),
+        repository.paymentIntents.updateOne({ idempotencyKey: intent.idempotencyKey }, { $set: {
+          providerReference: intent.providerReference, checkoutUrl: intent.checkoutUrl, status: intent.status,
+          paidAt: intent.paidAt, attempts: intent.attempts, updatedAt: nowIso(),
+        } }),
+      ]);
+      rows.booking.paymentInitiationStatus = 'ready';
+      repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey })
+        .catch((error) => logger.warn('Deferred payment projection failed', { bookingRef: rows.booking.bookingRef, projection: 'payment', error: error.message }));
     }
     timing.providerPersistMs = Date.now() - providerPersistStartedAt;
     let booking = rows.booking;

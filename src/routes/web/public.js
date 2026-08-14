@@ -29,7 +29,6 @@ const { invitationPasswordRules } = require('../../validators/authValidator');
 const { paymentLimiter, ticketLimiter, authLimiter, publicWriteLimiter } = require('../../middlewares/rateLimit');
 const { mongoose } = require('../../config/db');
 const readiness = require('../../config/readiness');
-const { safePaymentRedirect } = require('../../utils/paymentRedirect');
 
 const router = express.Router();
 
@@ -122,7 +121,7 @@ router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, re
     }
     ticketAccessService.grantSessionAccess(req, booking.bookingRef);
     if (booking.checkoutUrl && booking.paymentStatus !== 'successful') {
-      return res.redirect(303, safePaymentRedirect(booking.checkoutUrl, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}&paymentRetry=unavailable`));
+      return bookingPaymentController.openCheckout(req, res, booking.bookingRef, booking.checkoutUrl, booking.paymentProvider || 'pesapal', `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}&paymentRetry=unavailable`);
     }
     if (booking.paymentStatus !== 'successful') {
       // Never pretend a pending booking reached payment when Pesapal did not return
@@ -137,6 +136,7 @@ router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, re
 });
 router.post('/bookings/hotel', paymentLimiter, hotelBookingRules, validateRequest, rejectPublicFieldTampering, hotelBookingController.create);
 router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, rejectPublicFieldTampering, bookingPaymentController.retry);
+router.get('/booking/payment/handoff/:bookingRef', bookingPaymentController.handoff);
 router.get('/booking/payment/callback', listingController.paymentCallback);
 router.get('/booking/success/:bookingRef', listingController.bookingSuccess);
 router.get('/tickets', ticketLimiter, listingController.ticketLookupPage);

@@ -74,7 +74,7 @@ const cspDirectives = {
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
   imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://media.radissonhotels.net', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
   connectSrc: ["'self'"],
-  frameSrc: ["'none'"],
+  frameSrc: ["'self'", 'https://pesapal.com', 'https://*.pesapal.com'],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],
@@ -88,7 +88,7 @@ app.use(helmet({
   strictTransportSecurity: env.isProduction ? { maxAge: 31536000, includeSubDomains: true } : false,
 }));
 app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=(), payment=(self)');
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=(), payment=(self "https://pay.pesapal.com" "https://cybqa.pesapal.com")');
   next();
 });
 app.use((req, res, next) => {

@@ -13,7 +13,7 @@ const env = read('src/config/env.js');
 const render = read('render.yaml');
 const checks = [];
 function check(name, ok) { checks.push({ name, ok: !!ok }); console.log(`${ok ? '✓' : '✗'} ${name}`); }
-check('release is v1.6.81', pkg.version === '1.6.81');
+check('release is v1.6.82', pkg.version === '1.6.82');
 check('production opens the port before background public discovery warmup', server.includes('if (!env.isProduction) return;') && server.includes('catalogService.prewarmHome()'));
 check('local startup prewarms public discovery before listening', server.includes('await catalogService.prewarmHome()') && server.indexOf('await catalogService.prewarmHome()') < server.indexOf('app.listen'));
 check('production warmup remains non-blocking and Redis-first', server.includes('catalogService.prewarmHome()') && catalog.includes('else await discoverySnapshot();') && server.includes("if (!env.isProduction) return;"));

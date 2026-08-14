@@ -1,0 +1,30 @@
+<%- include('../partials/site-head', { seo }) %>
+<%- include('../partials/site-header') %>
+<main class="container paymentHandoffPage" style="padding:16px 0 40px">
+  <section class="card" style="padding:18px;display:grid;gap:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <span class="badge badgeInfo"><i class="fa-solid fa-shield-halved"></i> Secure Pesapal payment</span>
+      <span class="ticketCode"><%= bookingRef %></span>
+    </div>
+    <div>
+      <h1 style="margin:0 0 6px;font-size:clamp(22px,3vw,32px)">Complete your payment</h1>
+      <p class="muted" style="margin:0">Choose your payment method in the secure Pesapal window below. Classic Trip will confirm the booking only after Pesapal verifies the payment.</p>
+    </div>
+    <div class="paymentHandoffActions" style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn btnPrimary" href="<%= checkoutUrl %>" target="_top" rel="external noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Pesapal payment</a>
+      <a class="btn btnGhost" href="/tickets?bookingRef=<%= encodeURIComponent(bookingRef) %>"><i class="fa-solid fa-ticket"></i> Check booking</a>
+    </div>
+    <div class="paymentHandoffFrameWrap" style="position:relative;min-height:620px;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--field)">
+      <iframe
+        class="paymentHandoffFrame"
+        src="<%= checkoutUrl %>"
+        title="Pesapal secure payment"
+        allow="payment"
+        referrerpolicy="strict-origin-when-cross-origin"
+        style="display:block;width:100%;height:min(760px,78vh);min-height:620px;border:0;background:#fff"
+      ></iframe>
+    </div>
+    <p class="small" style="margin:0">If the secure payment window does not load, use <strong>Open Pesapal payment</strong> above. Do not make a second booking; your current seat hold remains attached to booking <%= bookingRef %>.</p>
+  </section>
+</main>
+<%- include('../partials/site-footer') %>

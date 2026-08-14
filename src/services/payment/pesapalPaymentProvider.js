@@ -351,14 +351,19 @@ async function initiatePayment(payment = {}, config = {}) {
   const rawCheckoutUrl = result.redirect_url || result.redirectUrl || result.checkoutUrl || result.data?.redirect_url || '';
   if (!providerReference || !rawCheckoutUrl) { const error = new Error('Pesapal order response is missing the tracking ID or checkout URL'); error.status = 502; error.providerResponse = result; throw error; }
   const checkoutUrl = assertPesapalRedirect(rawCheckoutUrl, config);
+  // Pesapal's documented SubmitOrderRequest success payload uses status "200"
+  // to mean the order was created; it is not a paid transaction state. Any
+  // redirect-bearing nonterminal response therefore remains pending until
+  // GetTransactionStatus verifies successful payment.
+  const paymentStatus = ['successful', 'failed', 'refunded'].includes(status) ? status : 'pending';
   return {
     provider: 'pesapal',
     providerReference,
     checkoutUrl,
     amount: Number(result.amount || order.amount),
     currency: result.currency || order.currency,
-    status: status === 'pending' && (result.redirect_url || result.redirectUrl) ? 'pending' : status,
-    paidAt: status === 'successful' ? new Date().toISOString() : null,
+    status: paymentStatus,
+    paidAt: paymentStatus === 'successful' ? new Date().toISOString() : null,
     rawPayload: result,
   };
 }
