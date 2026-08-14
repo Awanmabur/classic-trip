@@ -291,7 +291,7 @@
     routes: ['Routes', 'Manage every bus route, corridor, boarding point, drop-off point, and route status.'],
     vehicles: ['Vehicles', 'Manage partner buses, assigned drivers, compliance, seat layouts, and operating status.'],
     schedules: ['Schedules', 'Monitor departure times, assigned vehicles, availability, capacity, and publishing status.'],
-    payments: ['Payments & Commission', `Review payment settlements, ${platformConfig.partnerCommissionPercent ?? ''}% partner commission, fixed UGX ${Number(platformConfig.promoterFixedUgx ?? 2000).toLocaleString()} promoter rewards, and partner payouts.`],
+    payments: ['Payments & Commercial Agreements', 'Review settlements, partner-specific fixed or percentage commercial terms, promoter rewards, customer discounts, and partner payouts.'],
     promoters: ['Promoters', 'Manage referral links, commission balances, payout requests, and campaign performance.'],
     customers: ['Customers', 'View customer profiles, bookings, receipts, saved items, refunds, and support tickets.'],
     support: ['Support & Disputes', 'Handle payment problems, missing tickets, refund cases, and partner disputes.'],
@@ -470,7 +470,7 @@
         <button class="tinyBtn" data-modal="view" data-type="${safeType}" data-label="${safeLabel}"${detailAttr}${idAttr} title="View full details"><i class="fa-regular fa-eye"></i></button>
         <button class="tinyBtn" data-copy-value="${safeLabel}" title="Copy reference"><i class="fa-regular fa-copy"></i></button>
         <button class="tinyBtn" data-export-row="${safeType}" data-label="${safeLabel}"${detailAttr} title="Export row"><i class="fa-solid fa-file-export"></i></button>
-        <button class="tinyBtn" data-modal="edit" data-type="partner commission" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit commission percentage"><i class="fa-solid fa-percent"></i></button>
+        <button class="tinyBtn" data-modal="edit" data-type="partner commission" data-label="${safeLabel}"${detailAttr}${idAttr} title="Edit commercial agreement"><i class="fa-solid fa-handshake"></i></button>
         ${approve}${reject}${suspend}
       </div>`;
     }
@@ -3815,29 +3815,68 @@
     };
     if (key === 'partner commission') {
       const companyId = detail?.main?.slug || detail?.main?.companyId || detail?.id || recordId;
-      const currentCommission = fieldValue('commercialTerms.commissionPercent') || platformConfig.partnerCommissionPercent || 0;
-      const currentPayout = Math.max(0, 100 - Number(currentCommission || 0));
+      const terms = detail?.commercialTerms || {};
+      const currentCommission = Number(terms.commissionPercent ?? platformConfig.partnerCommissionPercent ?? 0);
       return {
-        action: `/admin/companies/${encodeURIComponent(companyId)}/commission`, submit: 'Save partner commission',
+        action: `/admin/companies/${encodeURIComponent(companyId)}/commission`, submit: 'Save partner commercial terms',
         fields: [
-          { type:'smart-summary', label:'Percentage commission contract', help:`Classic Trip retains ${Number(currentCommission).toFixed(2)}%. The partner currently receives ${currentPayout.toFixed(2)}%. Existing bookings keep their frozen historical percentage.` },
-          { name:'commissionPercent', label:'Partner commission %', type:'number', icon:'fa-percent', value:String(currentCommission), required:true, help:'Enter one percentage from 0 to 100. No plan, renewal, recurring fee, or second partner charge is created.' },
-          { name:'reason', label:'Change reason', type:'textarea', full:true, required:true, placeholder:'Why this partner-specific percentage is being changed' }
+          { type:'smart-summary', label:'Flexible partner agreement', help:'Choose percentage or fixed-per-unit. Promoter rewards and customer discounts are funded only from Classic Trip’s agreed share. Existing bookings keep their frozen historical split.' },
+          { name:'commercialModel', label:'Classic Trip earning model', type:'select', icon:'fa-scale-balanced', options:[{value:'percentage_commission',label:'Percentage of booking'},{value:'fixed_per_unit',label:'Fixed amount per unit'}], value:terms.model || platformConfig.commercialModel || 'percentage_commission' },
+          { name:'commissionPercent', label:'Classic Trip %', type:'number', icon:'fa-percent', value:String(currentCommission), help:'Used when the earning model is Percentage.' },
+          { name:'fixedAmount', label:'Classic Trip fixed amount', type:'number', icon:'fa-coins', value:String(terms.fixedAmount ?? 0), help:'Example: 5000 UGX per Standard ticket. Used when model is Fixed per unit.' },
+          { name:'unitBasis', label:'Fixed unit', type:'select', icon:'fa-ticket', options:[{value:'per_booking',label:'Per booking'},{value:'per_passenger',label:'Per passenger'},{value:'per_ticket',label:'Per ticket / seat'},{value:'per_room',label:'Per room'},{value:'per_room_night',label:'Per room-night'},{value:'per_item',label:'Per item'}], value:terms.unitBasis || 'per_booking' },
+          { name:'promoterRewardModel', label:'Promoter reward from Classic Trip share', type:'select', icon:'fa-bullhorn', options:[{value:'none',label:'No promoter reward'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:terms.promoterRewardModel || 'none' },
+          { name:'promoterFixedAmount', label:'Promoter fixed amount', type:'number', icon:'fa-coins', value:String(terms.promoterFixedAmount ?? 0) },
+          { name:'promoterSharePercent', label:'Promoter % of Classic Trip share', type:'number', icon:'fa-percent', value:String(terms.promoterSharePercent ?? 0) },
+          { name:'customerDiscountModel', label:'Customer discount from Classic Trip share', type:'select', icon:'fa-tags', options:[{value:'none',label:'No discount'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:terms.customerDiscountModel || 'none' },
+          { name:'customerDiscountFixedAmount', label:'Customer discount fixed amount', type:'number', icon:'fa-coins', value:String(terms.customerDiscountFixedAmount ?? 0) },
+          { name:'customerDiscountSharePercent', label:'Customer discount % of Classic Trip share', type:'number', icon:'fa-percent', value:String(terms.customerDiscountSharePercent ?? 0) },
+          { name:'reason', label:'Agreement / change reason', type:'textarea', full:true, required:true, placeholder:'Example: Bus agreed Classic Trip earns UGX 5,000 per Standard seat.' }
         ]
       };
     }
     if (key === 'finance rules') return {
-      action: platformActionPath('finance', '/finance-rules'), submit: 'Save finance rules',
+      action: platformActionPath('finance', '/finance-rules'), submit: 'Save global commercial defaults',
       fields: [
-        { name:'partnerCommissionPercent', label:'Partner commission %', type:'number', icon:'fa-percent', value:String(platformConfig.partnerCommissionPercent ?? ''), help:'Classic Trip retains this percentage from completed bookings. The partner receives the remainder.' },
-        { name:'promoterFixedUgx', label:'Promoter commission per eligible UGX booking', type:'number', icon:'fa-coins', value:String(platformConfig.promoterFixedUgx ?? 2000), help:'Fixed UGX promoter reward funded from Classic Trip’s commission; partner payout is not reduced again.' },
-        { name:'promoterSharePercent', label:'Non-UGX promoter fallback %', type:'hidden', value:String(platformConfig.promoterSharePercent ?? '') },
+        { type:'smart-summary', label:'Global fallback only', help:'These values apply only where no partner/listing/fare-plan/room-type override exists. Super Admin can set specific agreements from Payments → Commercial agreements.' },
+        { name:'commercialModel', label:'Default earning model', type:'select', icon:'fa-scale-balanced', options:[{value:'percentage_commission',label:'Percentage of booking'},{value:'fixed_per_unit',label:'Fixed amount per unit'}], value:platformConfig.commercialModel || 'percentage_commission' },
+        { name:'partnerCommissionPercent', label:'Default Classic Trip %', type:'number', icon:'fa-percent', value:String(platformConfig.partnerCommissionPercent ?? '') },
+        { name:'fixedPlatformAmount', label:'Default fixed amount', type:'number', icon:'fa-coins', value:String(platformConfig.fixedPlatformAmount ?? 0) },
+        { name:'fixedUnitBasis', label:'Default fixed unit', type:'select', icon:'fa-ticket', options:[{value:'per_booking',label:'Per booking'},{value:'per_passenger',label:'Per passenger'},{value:'per_ticket',label:'Per ticket / seat'},{value:'per_room',label:'Per room'},{value:'per_room_night',label:'Per room-night'},{value:'per_item',label:'Per item'}], value:platformConfig.fixedUnitBasis || 'per_booking' },
+        { name:'promoterRewardModel', label:'Default promoter reward', type:'select', icon:'fa-bullhorn', options:[{value:'none',label:'None'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:platformConfig.promoterRewardModel || 'none' },
+        { name:'promoterFixedAmount', label:'Default promoter fixed amount', type:'number', icon:'fa-coins', value:String(platformConfig.promoterFixedAmount ?? 0) },
+        { name:'promoterSharePercent', label:'Default promoter % of Classic Trip share', type:'number', icon:'fa-percent', value:String(platformConfig.promoterSharePercent ?? 0) },
+        { name:'customerDiscountModel', label:'Default customer discount', type:'select', icon:'fa-tags', options:[{value:'none',label:'None'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:platformConfig.customerDiscountModel || 'none' },
+        { name:'customerDiscountFixedAmount', label:'Default customer discount amount', type:'number', icon:'fa-coins', value:String(platformConfig.customerDiscountFixedAmount ?? 0) },
+        { name:'customerDiscountSharePercent', label:'Default customer discount % of Classic Trip share', type:'number', icon:'fa-percent', value:String(platformConfig.customerDiscountSharePercent ?? 0) },
         { name:'customerServiceFeePercent', label:'Customer service fee %', type:'number', icon:'fa-percent', value:String(platformConfig.customerServiceFeePercent ?? '') },
         { name:'customerServiceFeeFlat', label:'Customer flat service fee', type:'number', icon:'fa-coins', value:String(platformConfig.customerServiceFeeFlat ?? '') },
         { name:'customerTaxPercent', label:'Customer tax %', type:'number', icon:'fa-percent', value:String(platformConfig.customerTaxPercent ?? '') },
         { name:'holdMinutes', label:'Hold timer minutes', type:'number', icon:'fa-clock', value:String(platformConfig.holdMinutes ?? '') },
         { name:'defaultCurrency', label:'Default currency', type:'select', icon:'fa-coins', options:supportedCurrencies, value:platformDefaultCurrency },
-        { name:'supportedCurrencies', label:'Supported currencies', icon:'fa-coins', value:supportedCurrencies.join(', '), help:'Configure once here. Company and service forms reuse these codes.' }
+        { name:'supportedCurrencies', label:'Supported currencies', icon:'fa-coins', value:supportedCurrencies.join(', ') }
+      ]
+    };
+    if (key === 'commercial rule' || key === 'commercial agreement') return {
+      action: '/admin/commercial-rules', submit: 'Save commercial agreement',
+      fields: [
+        { type:'smart-summary', label:'Specific partner/service agreement', help:'Most-specific rule wins: fare plan or room type → listing → partner → global fallback. Fixed rewards and discounts are capped so the partner’s agreed payout is never reduced twice.' },
+        { name:'companyId', label:'Partner / company', type:'select', icon:'fa-building', options:companies, required:true },
+        { name:'scopeType', label:'Apply agreement to', type:'select', icon:'fa-crosshairs', options:[{value:'company',label:'Whole partner/company'},{value:'listing',label:'One listing/service'},{value:'fare_product',label:'One bus fare plan / ticket class'},{value:'room_type',label:'One hotel room type'}], required:true, value:'company' },
+        { name:'listingId', label:'Listing / service (when applicable)', type:'select', icon:'fa-layer-group', options:listings, dependsOn:'companyId', filterKey:'companyId' },
+        { name:'fareProductId', label:'Bus fare plan / ticket class', type:'select', icon:'fa-ticket', options:fareProducts, dependsOn:'listingId', filterKey:'listingId', help:'Use this for Standard, VIP, Premium, Executive, or any fare plan.' },
+        { name:'roomTypeId', label:'Hotel room type', type:'select', icon:'fa-bed', options:roomTypes, dependsOn:'listingId', filterKey:'listingId' },
+        { name:'commercialModel', label:'Classic Trip earning model', type:'select', icon:'fa-scale-balanced', options:[{value:'percentage_commission',label:'Percentage of sale'},{value:'fixed_per_unit',label:'Fixed amount per unit'}], value:'percentage_commission' },
+        { name:'commissionPercent', label:'Classic Trip %', type:'number', icon:'fa-percent', value:'0' },
+        { name:'fixedAmount', label:'Classic Trip fixed amount', type:'number', icon:'fa-coins', value:'0', help:'Example: UGX 5,000 Standard seat or UGX 10,000 VIP seat.' },
+        { name:'unitBasis', label:'Fixed unit', type:'select', icon:'fa-ticket', options:[{value:'per_booking',label:'Per booking'},{value:'per_passenger',label:'Per passenger'},{value:'per_ticket',label:'Per ticket / seat'},{value:'per_room',label:'Per room'},{value:'per_room_night',label:'Per room-night'},{value:'per_item',label:'Per item'}], value:'per_booking' },
+        { name:'promoterRewardModel', label:'Promoter reward from Classic Trip share', type:'select', icon:'fa-bullhorn', options:[{value:'none',label:'None'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:'none' },
+        { name:'promoterFixedAmount', label:'Promoter fixed amount', type:'number', icon:'fa-coins', value:'0' },
+        { name:'promoterSharePercent', label:'Promoter % of Classic Trip share', type:'number', icon:'fa-percent', value:'0' },
+        { name:'customerDiscountModel', label:'Customer discount from Classic Trip share', type:'select', icon:'fa-tags', options:[{value:'none',label:'None'},{value:'fixed_amount',label:'Fixed amount'},{value:'percentage_of_platform',label:'% of Classic Trip share'}], value:'none' },
+        { name:'customerDiscountFixedAmount', label:'Customer discount fixed amount', type:'number', icon:'fa-coins', value:'0' },
+        { name:'customerDiscountSharePercent', label:'Customer discount % of Classic Trip share', type:'number', icon:'fa-percent', value:'0' },
+        { name:'reason', label:'Agreement / change reason', type:'textarea', full:true, required:true, placeholder:'Record what the partner agreed and when.' }
       ]
     };
     if (key === 'price rule') {
@@ -4060,7 +4099,14 @@
             <div class="field"><label>Partner model</label><div class="control"><i class="fa-solid fa-user-tag"></i><select name="partnerCategory" data-depends-on="companyType" data-filter-key="serviceType" required><option value="" disabled selected>Select partner model</option><option value="bus_operator" data-service-type="bus">Bus operator</option><option value="hotel_partner" data-service-type="hotel">Hotel or stay partner</option><option value="flight_agent" data-service-type="flight">Accredited flight agent</option><option value="boda_rider" data-service-type="local_transport">Boda rider</option><option value="car_driver" data-service-type="local_transport">Car driver</option><option value="fleet_owner" data-service-type="local_transport">Vehicle or fleet owner</option><option value="taxi_company" data-service-type="local_transport">Mobility company</option><option value="tour_operator" data-service-type="tour">Tour operator</option><option value="car_rental_partner" data-service-type="car_rental">Car rental partner</option><option value="cargo_partner" data-service-type="cargo">Cargo provider</option></select></div></div>
             <div class="field"><label>Country</label><div class="control"><i class="fa-solid fa-earth-africa"></i><select name="country" required><option value="" selected disabled>Select country</option>${countryOptions.map(item => `<option value="${escapeHtml(item.value)}" data-currency="${escapeHtml(item.currency)}" data-timezone="${escapeHtml(item.timezone)}">${escapeHtml(item.label)}</option>`).join('')}</select></div></div>
             <div class="field"><label>Operating currency</label><div class="control"><i class="fa-solid fa-money-bill"></i><input name="operatingCurrency" value="${escapeHtml(platformDefaultCurrency)}" readonly></div><small class="fieldHelp">Set automatically from the selected country.</small></div>
-            <div class="field"><label>Partner commission %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" name="commissionPercent" min="0" max="100" step="0.01" value="${escapeHtml(String(platformConfig.partnerCommissionPercent ?? 0))}" required></div><small class="fieldHelp">One percentage only. The partner receives the remainder.</small></div>
+            <div class="field"><label>Classic Trip earning model</label><div class="control"><i class="fa-solid fa-scale-balanced"></i><select name="commercialModel"><option value="percentage_commission" ${platformConfig.commercialModel === 'percentage_commission' ? 'selected' : ''}>Percentage of sale</option><option value="fixed_per_unit" ${platformConfig.commercialModel === 'fixed_per_unit' ? 'selected' : ''}>Fixed amount per unit</option></select></div></div>
+            <div class="field"><label>Classic Trip %</label><div class="control"><i class="fa-solid fa-percent"></i><input type="number" name="commissionPercent" min="0" max="100" step="0.01" value="${escapeHtml(String(platformConfig.partnerCommissionPercent ?? 0))}"></div><small class="fieldHelp">Used only for percentage agreements.</small></div>
+            <div class="field"><label>Classic Trip fixed amount</label><div class="control"><i class="fa-solid fa-coins"></i><input type="number" name="fixedAmount" min="0" step="0.01" value="${escapeHtml(String(platformConfig.fixedPlatformAmount ?? 0))}"></div></div>
+            <div class="field"><label>Fixed unit</label><div class="control"><i class="fa-solid fa-ticket"></i><select name="unitBasis"><option value="per_booking">Per booking</option><option value="per_passenger">Per passenger</option><option value="per_ticket">Per ticket / seat</option><option value="per_room">Per room</option><option value="per_room_night">Per room-night</option><option value="per_item">Per item</option></select></div></div>
+            <div class="field"><label>Promoter reward</label><div class="control"><i class="fa-solid fa-bullhorn"></i><select name="promoterRewardModel"><option value="none">None</option><option value="fixed_amount">Fixed amount</option><option value="percentage_of_platform">% of Classic Trip share</option></select></div></div>
+            <div class="field"><label>Promoter fixed / %</label><div class="control"><i class="fa-solid fa-coins"></i><input type="number" name="promoterFixedAmount" min="0" step="0.01" placeholder="Fixed amount"></div><div class="control" style="margin-top:6px"><i class="fa-solid fa-percent"></i><input type="number" name="promoterSharePercent" min="0" max="100" step="0.01" placeholder="% of Classic Trip share"></div></div>
+            <div class="field"><label>Customer discount</label><div class="control"><i class="fa-solid fa-tags"></i><select name="customerDiscountModel"><option value="none">None</option><option value="fixed_amount">Fixed amount</option><option value="percentage_of_platform">% of Classic Trip share</option></select></div></div>
+            <div class="field"><label>Discount fixed / %</label><div class="control"><i class="fa-solid fa-coins"></i><input type="number" name="customerDiscountFixedAmount" min="0" step="0.01" placeholder="Fixed amount"></div><div class="control" style="margin-top:6px"><i class="fa-solid fa-percent"></i><input type="number" name="customerDiscountSharePercent" min="0" max="100" step="0.01" placeholder="% of Classic Trip share"></div></div>
             <div class="field"><label>City</label><div class="control"><i class="fa-solid fa-location-dot"></i><input name="city" placeholder="Kampala"></div></div>
             <div class="field"><label>Support email</label><div class="control"><i class="fa-solid fa-envelope"></i><input name="email" type="email" placeholder="ops@example.com"></div></div>
             <div class="field"><label>Support phone</label><div class="control"><i class="fa-solid fa-phone"></i><input name="phone" placeholder="Enter phone number"></div></div>

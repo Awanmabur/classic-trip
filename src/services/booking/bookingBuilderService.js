@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { ENABLED_BOOKING_TYPES } = require('../../config/constants');
 const commerceRepository = require('../../repositories/domain/commerceRepository');
 const promoterRepository = require('../../repositories/domain/promoterRepository');
-const calculateCommission = require('../../utils/calculateCommission');
+const commercialTermsService = require('../commission/commercialTermsService');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const fraudService = require('../fraud/fraudService');
 const sensitiveFieldService = require('../security/sensitiveFieldService');
@@ -264,10 +264,30 @@ async function buildBooking(payload = {}, req = null) {
 
   const addons = selectedAddonsFor(listing, payload);
   const addonTotal = addons.reduce((sum, row) => sum + Number(row.price || 0), 0);
-  const customerFees = calculateCustomerFees(subtotal);
+  const commercialTerms = commercialTermsService.resolveTerms({ company, listing });
+  const commissionableSubtotal = subtotal + addonTotal;
+  const baseSplit = commercialTermsService.calculateAgreementComponent({
+    grossAmount: commissionableSubtotal,
+    terms: commercialTerms,
+    counts: {
+      bookingCount: 1,
+      passengerCount: passengerRows.length || quantity,
+      ticketCount: serviceType === 'bus' ? Math.max(1, passengerRows.length || quantity) : 0,
+      itemCount: Math.max(1, quantity),
+    },
+    hasReferral: Boolean(promoterAttribution),
+    currency: bookingCurrency,
+  });
+  const customerFees = calculateCustomerFees(baseSplit.customerFare);
   const fees = customerFees.totalFees;
-  const total = customerFees.total + addonTotal;
-  const split = calculateCommission(total, Boolean(promoterAttribution), { commissionPercent: company?.commercialTerms?.commissionPercent, currency: bookingCurrency });
+  const total = baseSplit.customerFare + fees;
+  const split = {
+    ...baseSplit,
+    customerServiceFee: customerFees.serviceFee,
+    customerTaxAmount: customerFees.taxAmount,
+    platformFee: Number(baseSplit.platformCommissionFee || 0) + fees,
+    customerTotal: total,
+  };
   const initialPaymentStatus = payload.paymentStatus || (payload.deferPayment ? 'pending' : 'successful');
   const buyerDocumentNumber = clean(payload.documentNumber || payload.identityNumber || '');
   const booking = {
@@ -281,8 +301,8 @@ async function buildBooking(payload = {}, req = null) {
     },
     customerUserId: payload.customerUserId || payload.userId || req?.session?.user?.id || null, companyId: listing.companyId, providerCompanyId: listing.companyId, listingId: listing.id, scheduleId,
     passengers: passengerRows, bookingItems, bookingLegs, ticketLegs, serviceReservation,
-    tripType, quantity, addons, notes: payload.notes || payload.customerNote || '', pricing: { subtotal, fees, addonTotal, total, currency: bookingCurrency, split, addons }, promoterAttribution,
-    commercialTermsSnapshot: { model: 'percentage_commission', commissionPercent: split.partnerCommissionPercent, partnerPayoutPercent: split.partnerPayoutPercent, promoterSharePercent: split.promoterSharePercent, termsVersion: company?.commercialTerms?.termsVersion || getCachedPlatformConfig().commercialTermsVersion || 'commission-v1' },
+    tripType, quantity, addons, notes: payload.notes || payload.customerNote || '', pricing: { partnerFareSubtotal: commissionableSubtotal, discountTotal: Number(split.discountAmount || 0), subtotal: Number(split.customerFare || 0), serviceFee: customerFees.serviceFee, taxAmount: customerFees.taxAmount, commissionableSubtotal, fees, addonTotal, total, currency: bookingCurrency, split, addons }, promoterAttribution,
+    commercialTermsSnapshot: { ...commercialTermsService.snapshotTerms(commercialTerms), partnerPayoutPercent: split.partnerPayoutPercent, resolvedSplit: { commercialModel: split.commercialModel, unitBasis: split.unitBasis, units: split.units, grossAmount: split.grossAmount, platformGrossCommission: split.platformGrossCommission, discountAmount: split.discountAmount, promoterAmount: split.promoterAmount, companyAmount: split.companyAmount } },
     referralCode: promoterAttribution?.code || '', paymentStatus: initialPaymentStatus, bookingStatus: initialPaymentStatus === 'successful' ? 'confirmed' : 'pending', settlementStatus: 'pending',
     qrCodeValue: `CLASSIC-TRIP:${bookingRef}:${listing.id}:${Date.now()}`, lockedUntil: addMinutes(new Date(), getCachedPlatformConfig().holdMinutes).toISOString(), bookingChannel: payload.offlineSale ? 'agent_offline' : (payload.bookingChannel || 'web'), createdByAgentId: payload.agentId || '', createdAt: new Date().toISOString(),
   };

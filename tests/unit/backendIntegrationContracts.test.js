@@ -101,7 +101,7 @@ describe('backend end-to-end integration contracts', () => {
     const generic = read('src/services/booking/bookingService.js');
     const bus = read('src/modules/bus/services/busBookingService.js');
     const hotel = read('src/services/hotel/hotelService.js');
-    expect(routes).toContain("router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, bookingPaymentController.retry)");
+    expect(routes).toContain("router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, rejectPublicFieldTampering, bookingPaymentController.retry)");
     expect(controller).toContain('ticketAccessService.canAccessBooking(req, booking)');
     expect(controller).toContain('accessGranted: true');
     expect(generic.indexOf('persistBooking(booking, payload, 0, { claimInventory: true })')

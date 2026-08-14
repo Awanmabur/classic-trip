@@ -2,7 +2,6 @@
 
 const crypto = require('crypto');
 const { formatRouteLabel } = require('../../../utils/routeLabel');
-const { priceBusTicket } = require('../../../utils/busCustomerPricing');
 const repository = require('../repositories/busRepository');
 const {
   cleanText,
@@ -19,7 +18,11 @@ const {
   tokenPreview,
 } = require('../domain/busDomain');
 const { getCachedPlatformConfig } = require('../../../services/platform/platformConfigService');
+const { calculateCustomerFees } = require('../../../utils/calculateCustomerFees');
+const commercialTermsService = require('../../../services/commission/commercialTermsService');
 const logger = require('../../../config/logger');
+const TRUSTED_AVAILABILITY_ROWS = Symbol.for('classic-trip.bus-availability-rows');
+const TRUSTED_COMMERCIAL_CONTEXT = Symbol.for('classic-trip.bus-commercial-context');
 const MAX_SEATS_PER_HOLD = 10;
 const STATIC_CONTEXT_TTL_MS = 30_000;
 const STATIC_CONTEXT_CACHE_LIMIT = 300;
@@ -35,6 +38,7 @@ let compatibilityRefreshRunning = false;
 
 function nowIso() { return new Date().toISOString(); }
 function actorId(value) { return cleanText(value || 'guest', 180); }
+function fastEntityId(prefix) { return `${prefix}-${crypto.randomUUID()}`; }
 function seatList(value) {
   const raw = Array.isArray(value) ? value : String(value || '').split(',');
   return unique(raw.map((item) => cleanText(item, 20).toUpperCase())).slice(0, MAX_SEATS_PER_HOLD + 1);
@@ -155,7 +159,8 @@ async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
     if (!inflight) {
       inflight = (async () => {
         const snapshotContext = contextFromScheduleSnapshots(schedule);
-        const [listing, route, stopsRaw, segments, seatMapVersion, fareProduct] = await Promise.all([
+        const [company, listing, route, stopsRaw, segments, seatMapVersion, fareProduct] = await Promise.all([
+          repository.companies.findOne({ id: schedule.companyId, status: 'active', verificationStatus: 'verified' }),
           repository.listings.findOne({ id: schedule.listingId, companyId: schedule.companyId, serviceType: 'bus', status: 'active', releaseStatus: 'published' }),
           snapshotContext ? Promise.resolve(snapshotContext.route) : repository.routes.findOne({ id: schedule.routeId, companyId: schedule.companyId, status: 'active' }),
           snapshotContext ? Promise.resolve(snapshotContext.stops) : repository.routeStops.list({ companyId: schedule.companyId, routeId: schedule.routeId, status: { $ne: 'archived' } }, { sort: { stopOrder: 1 }, limit: 240 }),
@@ -166,6 +171,7 @@ async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
         if (!route || !listing) throw conflictError('Departure route or bus service is unavailable', 'departure_configuration_missing');
         if (!seatMapVersion || !fareProduct) throw conflictError('Departure seat map or fare is unavailable', 'departure_configuration_missing');
         const value = {
+          company,
           route,
           listing,
           stops: sortStops(stopsRaw),
@@ -261,19 +267,44 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
     }
   }
   const fare = calculateFare({ fares: fareRows, originStopId: range.origin.id, destinationStopId: range.destination.id, segments: context.segments, range, fallbackAmount: context.schedule.basePrice });
-  const customerBasePricing = priceBusTicket({
-    partnerFare: fare.amount,
-    seatDelta: 0,
-    isMainRoute: fullPublishedJourney,
+  const commercialTerms = commercialTermsService.resolveTerms({
+    company: context.company,
+    listing: context.listing,
+    fareProduct: context.fareProduct,
+  });
+  const baseCommercialSplit = commercialTermsService.calculateAgreementComponent({
+    grossAmount: fare.amount,
+    terms: commercialTerms,
+    counts: { bookingCount: 1, passengerCount: 1, ticketCount: 1, itemCount: 1 },
+    hasReferral: false,
     currency: context.fareProduct.currency,
   });
-  return {
+  const baseCustomerFees = calculateCustomerFees(baseCommercialSplit.customerFare);
+  const pricedSeats = seats.map((seat) => {
+    const partnerFare = Math.max(0, Number(fare.amount || 0) + Number(seat.priceDelta || 0));
+    const split = commercialTermsService.calculateAgreementComponent({
+      grossAmount: partnerFare,
+      terms: commercialTerms,
+      counts: { bookingCount: 1, passengerCount: 1, ticketCount: 1, itemCount: 1 },
+      hasReferral: false,
+      currency: context.fareProduct.currency,
+    });
+    return {
+      ...seat,
+      partnerFare,
+      customerFare: split.customerFare,
+      discountAmount: split.discountAmount,
+    };
+  });
+  const result = {
     schedule: {
       id: context.schedule.id,
       companyId: context.schedule.companyId,
       listingId: context.schedule.listingId,
       routeId: context.schedule.routeId,
       vehicleId: context.schedule.vehicleId,
+      seatMapVersionId: context.schedule.seatMapVersionId,
+      fareProductId: context.schedule.fareProductId,
       vehicleName: context.schedule.vehicleName,
       vehicleClass: normalize(context.schedule.vehicleClass || context.seatMapVersion.vehicleClass) === 'vip' ? 'vip' : 'standard',
       departAt: context.schedule.departAt,
@@ -291,10 +322,16 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
     route: { id: context.route.id, routeName: context.route.routeName, routeCode: context.route.routeCode, origin: context.route.origin, destination: context.route.destination },
     journey: { originStopId: range.origin.id, originBranchId: range.origin.branchId || '', originName: range.origin.name, destinationStopId: range.destination.id, destinationBranchId: range.destination.branchId || '', destinationName: range.destination.name, originOrder: range.originOrder, destinationOrder: range.destinationOrder, segmentIds, segmentCount: selectedSegments.length },
     stops: context.stops.map((stop) => ({ id: stop.id, branchId: stop.branchId || '', name: stop.name, stopType: stop.stopType, stopOrder: stop.stopOrder, pickupAllowed: stop.pickupAllowed, dropoffAllowed: stop.dropoffAllowed, publicInstructions: stop.publicInstructions })),
-    seats,
-    availableSeats: seats.filter((seat) => seat.available).length,
-    fare: { baseAmountPerSeat: customerBasePricing.customerFare, partnerBaseAmountPerSeat: fare.amount, discountAmountPerSeat: customerBasePricing.discount, serviceFeePerSeat: customerBasePricing.serviceFee, isMainRoute: fullPublishedJourney, currency: context.fareProduct.currency, fareProductId: context.fareProduct.id, fareProductName: context.fareProduct.name, fareClass: context.fareProduct.fareClass, refundable: !!context.fareProduct.refundable, changeable: !!context.fareProduct.changeable, baggageAllowanceKg: Number(context.fareProduct.baggageAllowanceKg || 0), source: fare.source },
+    seats: pricedSeats,
+    availableSeats: pricedSeats.filter((seat) => seat.available).length,
+    fare: { baseAmountPerSeat: baseCommercialSplit.customerFare, partnerBaseAmountPerSeat: fare.amount, discountAmountPerSeat: baseCommercialSplit.discountAmount, serviceFeePerSeat: baseCustomerFees.totalFees, isMainRoute: fullPublishedJourney, currency: context.fareProduct.currency, fareProductId: context.fareProduct.id, fareProductName: context.fareProduct.name, fareClass: context.fareProduct.fareClass, refundable: !!context.fareProduct.refundable, changeable: !!context.fareProduct.changeable, baggageAllowanceKg: Number(context.fareProduct.baggageAllowanceKg || 0), source: fare.source },
   };
+  // Internal callers that immediately create a hold can reuse the exact segment
+  // rows already read above instead of paying for the same Atlas query twice.
+  // Keep them non-enumerable so API responses never expose inventory internals.
+  Object.defineProperty(result, TRUSTED_AVAILABILITY_ROWS, { value: rows, enumerable: false });
+  Object.defineProperty(result, TRUSTED_COMMERCIAL_CONTEXT, { value: { company: context.company, listing: context.listing, fareProduct: context.fareProduct, terms: commercialTerms }, enumerable: false });
+  return result;
 }
 
 async function recalculateCompatibilitySeats(scheduleId, seatNumbers, session = null) {
@@ -398,10 +435,10 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
   const seats = seatList(selectedSeats);
   if (!seats.length) throw validationError('Select at least one seat');
   if (seats.length > MAX_SEATS_PER_HOLD) throw validationError(`A maximum of ${MAX_SEATS_PER_HOLD} seats can be held at once`);
-  const [availability, holdId] = await Promise.all([
-    getAvailability({ scheduleId, originStopId, destinationStopId, seatNumbers: seats }),
-    repository.nextId('bus-hold'),
-  ]);
+  // Hold ids are globally unique UUIDs; allocating them locally removes a MongoDB
+  // counter round trip from the customer's Proceed-to-payment click.
+  const holdId = fastEntityId('bus-hold');
+  const availability = await getAvailability({ scheduleId, originStopId, destinationStopId, seatNumbers: seats });
   const availableMap = new Map(availability.seats.map((seat) => [String(seat.seatNumber).toUpperCase(), seat]));
   const unavailable = seats.filter((seatNumber) => !availableMap.get(seatNumber)?.available);
   if (unavailable.length) throw conflictError(`Seats are no longer available for this journey: ${unavailable.join(', ')}`, 'seat_unavailable');
@@ -449,7 +486,11 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
     createdAt: timestamp.toISOString(),
     updatedAt: timestamp.toISOString(),
   };
-  let inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } }, { sort: { seatNumber: 1, segmentOrder: 1 }, limit: (seats.length * hold.segmentIds.length) + 10 });
+  let inventoryRows = availability[TRUSTED_AVAILABILITY_ROWS]
+    || await repository.segmentInventory.list(
+      { scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } },
+      { sort: { seatNumber: 1, segmentOrder: 1 }, limit: (seats.length * hold.segmentIds.length) + 10 },
+    );
   const staleSelectedHoldIds = unique(inventoryRows
     .filter((row) => row.status === 'held' && row.holdId && new Date(row.lockedUntil).getTime() <= timestamp.getTime())
     .map((row) => row.holdId));
@@ -459,11 +500,10 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
   }
   const expected = seats.length * hold.segmentIds.length;
   if (inventoryRows.length !== expected) throw conflictError('Seat inventory is incomplete; refresh the departure before booking', 'inventory_incomplete');
-  const holdItemIds = await repository.nextIds('hold-item', inventoryRows.length);
   const holdItems = [];
-  for (const [index, row] of inventoryRows.entries()) {
+  for (const row of inventoryRows) {
     holdItems.push({
-      id: holdItemIds[index],
+      id: fastEntityId('hold-item'),
       holdId,
       resourceType: 'bus_seat_segment',
       resourceKey: `bus:${hold.scheduleId}:${row.seatNumber}:${row.segmentId}`,
@@ -488,24 +528,27 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
 
   try {
     await repository.withTransaction(async (session) => {
-      // Re-check inside the transaction. The active resource-key unique index is the second line of defense.
-      const fresh = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds }, status: 'available' }, { session, sort: { seatNumber: 1, segmentOrder: 1 }, limit: expected + 10 });
-      if (fresh.length !== expected) throw conflictError('One or more selected seats were just taken; choose again', 'seat_unavailable');
-      for (const row of fresh) {
-        row.status = 'held';
-        row.holdId = hold.id;
-        row.lockedUntil = expiresAt.toISOString();
-        row.updatedAt = timestamp.toISOString();
+      // One conditional update claims every selected seat segment atomically. If
+      // even one segment changed since the preview read, throwing rolls the whole
+      // transaction back. This replaces a second read + per-row bulk rewrite.
+      const claimed = await repository.segmentInventory.updateMany(
+        { scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds }, status: 'available' },
+        { $set: { status: 'held', holdId: hold.id, lockedUntil: expiresAt.toISOString(), updatedAt: timestamp.toISOString() } },
+        { session },
+      );
+      if (Number(claimed.modifiedCount ?? claimed.nModified ?? 0) !== expected) {
+        throw conflictError('One or more selected seats were just taken; choose again', 'seat_unavailable');
       }
-      // Keep transaction operations sequential. Mongoose explicitly does not
-      // support parallel operations on the same transaction/session. The heavy
-      // compatibility recount remains deferred after commit instead.
-      await repository.holds.save(hold, { id: hold.id }, { session });
-      await repository.holdItems.saveMany(holdItems, null, { session });
-      await repository.segmentInventory.saveMany(fresh, null, { session });
+      // UUID-backed rows are new by construction, so inserts avoid unnecessary
+      // upsert matching on this latency-sensitive path.
+      await repository.holds.insert(hold, { session });
+      await repository.holdItems.insertMany(holdItems, { session, ordered: true });
       await repository.outbox({ eventType: 'BusInventoryHeld', aggregateType: 'inventory_hold', aggregateId: hold.id, companyId: hold.companyId, payload: { scheduleId: hold.scheduleId, seatNumbers: seats, segmentIds: hold.segmentIds, expiresAt: hold.expiresAt }, dedupeKey: `BusInventoryHeld:${hold.id}`, session });
-      await repository.audit({ actorId: actorId(context.createdBy), action: 'bus.inventory.held', targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { scheduleId: hold.scheduleId, seats, segmentIds: hold.segmentIds }, session });
     });
+    // The hold and outbox event are already durable. Audit persistence must not
+    // keep a traveler waiting on another Atlas round trip.
+    repository.audit({ actorId: actorId(context.createdBy), action: 'bus.inventory.held', targetType: 'inventory_hold', targetId: hold.id, companyId: hold.companyId, metadata: { scheduleId: hold.scheduleId, seats, segmentIds: hold.segmentIds } })
+      .catch((error) => logger.warn('Deferred bus hold audit failed', { holdId: hold.id, error: error.message }));
   } catch (error) {
     if (error.code === 11000) throw conflictError('One or more selected seats were just held by another traveler', 'seat_unavailable');
     throw error;
@@ -527,6 +570,26 @@ async function assertActiveHold(holdId, token = '', session = null) {
     }
   }
   return hold;
+}
+
+async function attachValidatedHoldToBooking(hold, booking, actor = 'system', session = null) {
+  if (!hold?.id || hold.status !== 'active' || new Date(hold.expiresAt).getTime() <= Date.now()) {
+    throw conflictError('This seat hold has expired', 'hold_expired');
+  }
+  const options = session ? { session } : {};
+  const timestamp = nowIso();
+  const result = await repository.holds.updateOne(
+    { id: hold.id, holdType: 'bus_segment_seat', status: 'active', expiresAt: { $gt: new Date() } },
+    { $set: { bookingId: booking.id, bookingRef: booking.bookingRef, updatedAt: timestamp } },
+    options,
+  );
+  if (Number(result.matchedCount ?? result.n ?? 0) !== 1) throw conflictError('This seat hold is no longer active', 'hold_expired');
+  await repository.holdItems.updateMany(
+    { holdId: hold.id, status: 'active' },
+    { $set: { bookingId: booking.id, bookingRef: booking.bookingRef } },
+    options,
+  );
+  return { ...hold, bookingId: booking.id, bookingRef: booking.bookingRef, updatedAt: timestamp };
 }
 
 async function attachHoldToBooking(holdId, booking, actor = 'system', session = null) {
@@ -628,12 +691,14 @@ async function releaseHold(holdId, reason = 'released', actor = 'system', sessio
 
 module.exports = {
   MAX_SEATS_PER_HOLD,
+  TRUSTED_COMMERCIAL_CONTEXT,
   scheduleContext,
   expireStaleHolds,
   getAvailability,
   holdSeats,
   assertActiveHold,
   attachHoldToBooking,
+  attachValidatedHoldToBooking,
   consumeHold,
   releaseHold,
   recalculateCompatibilitySeat,

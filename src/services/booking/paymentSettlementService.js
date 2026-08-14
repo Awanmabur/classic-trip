@@ -3,7 +3,6 @@ const financeRepository = require('../../repositories/domain/financeRepository')
 const promoterRepository = require('../../repositories/domain/promoterRepository');
 const commissionService = require('../commission/commissionService');
 const walletService = require('../wallet/walletService');
-const calculateCommission = require('../../utils/calculateCommission');
 const contentRepository = require('../../repositories/domain/contentRepository');
 
 async function ensureMovement({ ownerType, ownerId, currency, amount, transactionType, status, pending, booking, session }) {
@@ -47,19 +46,9 @@ async function settleBookingPayment(bookingOrRef, options = {}) {
       : 'settled';
     let split = booking.pricing?.split;
     if (!split) {
-      const commissionableAmount = Number(booking.pricing?.commissionableSubtotal ?? booking.pricing?.total ?? 0);
-      const coreSplit = calculateCommission(commissionableAmount, Boolean(booking.promoterAttribution), { commissionPercent: booking.commercialTermsSnapshot?.commissionPercent, currency: booking.pricing?.currency });
-      const customerServiceFee = Number(booking.pricing?.serviceFee || 0);
-      const customerTaxAmount = Number(booking.pricing?.taxAmount || 0);
-      split = {
-        ...coreSplit,
-        commissionableAmount,
-        customerServiceFee,
-        customerTaxAmount,
-        discountTotal: Number(booking.pricing?.discountTotal || 0),
-        platformCommissionFee: coreSplit.platformFee,
-        platformFee: Number(coreSplit.platformFee || 0) + customerServiceFee + customerTaxAmount,
-      };
+      split = commissionService.fallbackSplitForBooking(booking, Boolean(booking.promoterAttribution));
+      split.commissionableAmount = Number(booking.pricing?.commissionableSubtotal ?? booking.pricing?.partnerFareSubtotal ?? split.grossAmount ?? 0);
+      split.discountTotal = Number(booking.pricing?.discountTotal ?? split.discountAmount ?? 0);
     }
     const currency = booking.pricing?.currency || platformCurrency();
     await commissionService.createCommission(booking, Boolean(booking.promoterAttribution), split, { session });

@@ -16,7 +16,7 @@ const hotelService = read('src/services/hotel/hotelService.js');
 const listingCard = read('src/views/partials/listing-card.ejs');
 const pkg = JSON.parse(read('package.json'));
 
-check('release is v1.6.75', () => assert.strictEqual(pkg.version, '1.6.75'));
+check('release is v1.6.80', () => assert.strictEqual(pkg.version, '1.6.80'));
 for (const name of ['Dandy Hotel Juba','Zoom Future Hotel','Vision Gate Hotel','Kal Hotel & Garden','Pyramid Continental Hotel','Radisson Blu Hotel, Juba']) {
   check(`stay seed includes ${name}`, () => assert(seed.includes(`name: '${name}'`)));
 }

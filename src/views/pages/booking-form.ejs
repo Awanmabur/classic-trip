@@ -6,14 +6,6 @@
   const safeAvailability = availability || {};
   const safeReturnAvailability = (typeof returnAvailability !== 'undefined' && returnAvailability) ? returnAvailability : {};
   const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency || platformConfig.defaultCurrency;
-  const busTicketPrice = (partnerFare, seatDelta, isMainRoute) => {
-    const partner = Math.max(0, Math.round(Number(partnerFare || 0) + Number(seatDelta || 0)));
-    const ugx = String(currency || '').toUpperCase() === String(platformConfig.ugandaCurrency || '').toUpperCase();
-    const discount = ugx && isMainRoute ? Math.min(3000, Math.max(0, partner - 1000)) : 0;
-    const fare = Math.max(0, partner - discount);
-    const fee = ugx && fare >= 1000 ? (fare <= 30000 ? 1000 : fare <= 100000 ? 2000 : fare <= 150000 ? 3000 : 5000) : 0;
-    return { partner, fare, discount, fee };
-  };
   const previewSeats = previewData.previewSeats || (safeAvailability.seats || []).slice(0, 48);
   const previewRooms = previewData.previewRooms || (safeAvailability.rooms || []).slice(0, 16);
   const previewSchedules = safeAvailability.schedules || [];
@@ -75,7 +67,6 @@
   let selectedSchedule = null;
   let basePrice = Number(listing.priceFrom || 0);
   let discountTotal = 0;
-  let busServiceFee = 0;
 
   if (listing.serviceType === 'bus') {
     const schedules = safeAvailability.schedules || [];
@@ -94,17 +85,22 @@
     selectedFieldValue = (selectedBusSeats.length ? selectedBusSeats : [selectedSeat?.seatNumber || requestedOption || '']).filter(Boolean).join(',');
     selectedLabel = selectedFieldValue ? formatBusSeats(selectedFieldValue) : 'Seat pending';
     const outboundPartnerFare = Number(safeAvailability.fare?.partnerBaseAmountPerSeat ?? safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0);
-    const outboundRows = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).map((seat) => busTicketPrice(outboundPartnerFare, Number(seat?.priceDelta || 0), Boolean(safeAvailability.fare?.isMainRoute)));
+    const outboundRows = (selectedSeatRows.length ? selectedSeatRows : [selectedSeat].filter(Boolean)).map((seat) => {
+      const partner = Number(seat?.partnerFare ?? (outboundPartnerFare + Number(seat?.priceDelta || 0)));
+      const fare = Number(seat?.customerFare ?? (Number(safeAvailability.fare?.baseAmountPerSeat ?? outboundPartnerFare) + Number(seat?.priceDelta || 0)));
+      return { partner, fare, discount: Number(seat?.discountAmount ?? Math.max(0, partner - fare)) };
+    });
     const returnSeatsAvailable = safeReturnAvailability.seats || [];
     const returnPartnerFare = Number(safeReturnAvailability.fare?.partnerBaseAmountPerSeat ?? safeReturnAvailability.fare?.baseAmountPerSeat ?? 0);
     const returnRows = requestedReturnSeatList.map((seatNumber) => {
       const seat = returnSeatsAvailable.find(item => String(item.seatNumber) === String(seatNumber)) || {};
-      return busTicketPrice(returnPartnerFare, Number(seat.priceDelta || 0), Boolean(safeReturnAvailability.fare?.isMainRoute));
+      const partner = Number(seat.partnerFare ?? (returnPartnerFare + Number(seat.priceDelta || 0)));
+      const fare = Number(seat.customerFare ?? (Number(safeReturnAvailability.fare?.baseAmountPerSeat ?? returnPartnerFare) + Number(seat.priceDelta || 0)));
+      return { partner, fare, discount: Number(seat.discountAmount ?? Math.max(0, partner - fare)) };
     });
     const allBusRows = outboundRows.concat(returnRows);
     basePrice = allBusRows.reduce((sum, row) => sum + row.fare, 0);
     discountTotal = allBusRows.reduce((sum, row) => sum + row.discount, 0);
-    busServiceFee = allBusRows.reduce((sum, row) => sum + row.fee, 0);
   }
 
   if (listing.serviceType === 'hotel') {
@@ -134,8 +130,9 @@
   const selectedSeatSet = new Set(selectedSeatListForForm.map(item => String(item || '').trim()).filter(Boolean));
   const returnSeatSet = new Set(requestedReturnSeatList.map(item => String(item || '').trim()).filter(Boolean));
 
-  const serviceFee = listing.serviceType === 'bus' ? busServiceFee : Math.round((Number(basePrice || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(basePrice || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
-  const totalEstimate = basePrice + serviceFee + selectedAddonTotal;
+  const feeBase = Number(basePrice || 0) + Number(selectedAddonTotal || 0);
+  const serviceFee = Math.round((feeBase * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (feeBase * Number(platformConfig.customerTaxPercent || 0) / 100));
+  const totalEstimate = feeBase + serviceFee;
 %>
 <main class="container paymentPage" style="padding:16px 0 30px">
   <section class="sheet directPaymentSheet">

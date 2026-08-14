@@ -10,6 +10,7 @@ const companyOperationsRepository = {
   policies: new MongoCollection('companyPolicies'),
   listings: new MongoCollection('listings'),
   routes: new MongoCollection('routes'),
+  fareProducts: new MongoCollection('fareProducts'),
   routeStops: new MongoCollection('routeStops'),
   vehicles: new MongoCollection('vehicles'),
   schedules: new MongoCollection('schedules'),

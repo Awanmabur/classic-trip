@@ -121,7 +121,15 @@ const DISCOVERY_SHARED_KEY = redisRuntime.key('public-discovery', 'v2-country-ro
 
 async function runCatalogTasks(tasks = []) {
   const values = new Array(tasks.length);
-  const concurrency = Math.max(2, Math.min(4, Number(env.mongoPool?.max || 5) - 1));
+  // Public discovery is latency-bound against Atlas. Four-way fan-out left
+  // large cold catalogs in multiple network round-trip waves. The global Mongo
+  // read admission gate still protects auth/booking capacity, so use a bounded
+  // configurable fan-out here to cut cold Home/Search warmup time without
+  // allowing unbounded database concurrency.
+  const concurrency = Math.max(2, Math.min(
+    Number(env.performance.publicCatalogReadConcurrency || 8),
+    Math.max(2, Number(env.mongoPool?.max || 8) - 4),
+  ));
   let cursor = 0;
   async function worker() {
     while (cursor < tasks.length) {
@@ -632,15 +640,25 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
   const snapshotFareRouteIds = new Set([...snapshotFareProducts.values()].map((row) => text(row.routeId)).filter(Boolean));
   const snapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotStopRouteIds.has(String(routeId)));
   const fareSnapshotsCoverRoutes = routeIds.length > 0 && routeIds.every((routeId) => snapshotFareRouteIds.has(String(routeId)));
-  const [routeStops, fareProducts, segmentFares, roomUnits, roomNights] = await runCatalogTasks([
+  const [routeStops, fareProducts, segmentFares, roomUnitCounts, roomNightCounts] = await runCatalogTasks([
     () => !isBus || !routeIds.length ? [] : (snapshotsCoverRoutes ? snapshotStops : commerceRepository.routeStops.list({ routeId: { $in: routeIds }, status: { $ne: 'archived' } }, { sort: { routeId: 1, stopOrder: 1 }, limit: 400 })),
     () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes ? [...snapshotFareProducts.values()] : commerceRepository.fareProducts.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { createdAt: -1 }, limit: 160 })),
     () => !isBus || !routeIds.length ? [] : (fareSnapshotsCoverRoutes && snapshotSegmentFares.size ? [...snapshotSegmentFares.values()] : commerceRepository.segmentFares.list({ routeId: { $in: routeIds }, status: 'active' }, { sort: { routeId: 1, fromOrder: 1, toOrder: 1 }, limit: 1200 })),
-    () => roomTypeIds.length ? commerceRepository.roomUnits.list({ listingId, roomTypeId: { $in: roomTypeIds }, status: { $nin: ['archived', 'maintenance'] } }, { limit: 300 }) : [],
-    () => roomTypeIds.length ? commerceRepository.roomNights.list({ listingId, roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }, { limit: 1500 }) : [],
+    // Initial Stay previews need counts, not hundreds of room-unit rows and up
+    // to 1,500 future room-night documents. Exact dated availability remains
+    // authoritative in hotelInventoryService once the guest chooses dates.
+    () => roomTypeIds.length ? commerceRepository.roomUnits.countGroupedBy('roomTypeId', { listingId, roomTypeId: { $in: roomTypeIds }, status: 'available', housekeepingStatus: { $in: ['clean', 'inspected', 'ready'] } }) : [],
+    () => roomTypeIds.length ? commerceRepository.roomNights.countGroupedBy('roomTypeId', { listingId, roomTypeId: { $in: roomTypeIds }, date: { $gte: today }, status: { $in: ['available', 'open'] } }) : [],
   ]);
+  const roomAvailabilitySummary = roomTypeIds.map((roomTypeId) => ({
+    roomTypeId,
+    availableUnits: Number(roomUnitCounts.find((row) => String(row.key || '') === String(roomTypeId))?.count || 0),
+    availableNights: Number(roomNightCounts.find((row) => String(row.key || '') === String(roomTypeId))?.count || 0),
+  }));
   const seats = [];
   const vehicles = [];
+  const roomUnits = [];
+  const roomNights = [];
   return {
     categories: [],
     listings: [listing],
@@ -656,6 +674,7 @@ async function loadListingSnapshotFresh(identifier, serviceType = '') {
     roomTypes,
     roomUnits,
     roomNights,
+    roomAvailabilitySummary,
     links: [],
     campaigns: [],
     blogs: [],
@@ -903,19 +922,25 @@ function fareCatalogForListing(data, listingId) {
 }
 function scheduleSeats(data, scheduleId) { return data.seats.filter((row) => sameId(row.scheduleId, scheduleId)); }
 function listingRooms(data, listingId) {
-  const types = data.roomTypes.filter((row) => sameId(row.listingId, listingId) && active(row));
+  const types = (data.roomTypes || []).filter((row) => sameId(row.listingId, listingId) && active(row));
+  const summaries = Array.isArray(data.roomAvailabilitySummary) ? data.roomAvailabilitySummary : [];
   return types.map((roomType) => {
     const roomTypeId = entityId(roomType);
-    const units = data.roomUnits.filter((unit) => sameId(unit.roomTypeId, roomTypeId) && !['archived', 'maintenance'].includes(normalize(unit.status)));
+    const units = (data.roomUnits || []).filter((unit) => sameId(unit.roomTypeId, roomTypeId) && !['archived', 'maintenance'].includes(normalize(unit.status)));
     const unitIds = new Set(units.map((unit) => entityId(unit)));
-    const nights = data.roomNights.filter((night) => unitIds.has(String(night.roomUnitId || '')));
-    const availableNights = nights.filter((night) => ['available', 'open'].includes(normalize(night.status)) && !night.bookingRef && number(night.availableInventory ?? 1) > 0).length;
-    const availableUnits = units.filter((unit) => normalize(unit.status) === 'available' && ['clean', 'inspected', 'ready'].includes(normalize(unit.housekeepingStatus || 'clean'))).length;
+    const nights = (data.roomNights || []).filter((night) => unitIds.has(String(night.roomUnitId || '')));
+    const summary = summaries.find((row) => sameId(row.roomTypeId || row.id, roomTypeId)) || {};
+    const availableNights = nights.length
+      ? nights.filter((night) => ['available', 'open'].includes(normalize(night.status)) && !night.bookingRef && number(night.availableInventory ?? 1) > 0).length
+      : number(summary.availableNights);
+    const availableUnits = units.length
+      ? units.filter((unit) => normalize(unit.status) === 'available' && ['clean', 'inspected', 'ready'].includes(normalize(unit.housekeepingStatus || 'clean'))).length
+      : number(summary.availableUnits);
     return {
       ...roomType,
       roomTypeId,
       roomType: roomType.name || roomType.title,
-      inventory: units.length,
+      inventory: units.length || availableUnits,
       availableUnits,
       availableNights,
       nightlyPrice: number(roomType.basePrice),

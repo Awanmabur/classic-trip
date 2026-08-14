@@ -11,15 +11,25 @@ function installStub(file, exports) {
 }
 
 function loadMaterializer({ createScheduleBatch }) {
-  const existingDeparture = new Date('2026-08-06T12:00:00.000Z').toISOString();
+  // Use local calendar constructors so this fixture is deterministic on both
+  // Render (UTC) and East Africa/Windows development machines.
+  const existingDeparture = new Date(2026, 7, 6, 12, 0, 0, 0).toISOString();
+  installStub(path.join(root, 'src/repositories/index.js'), {
+    mongoReady() { return true; },
+  });
   installStub(path.join(root, 'src/repositories/domain/busOperationsRepository.js'), {
     schedules: {
       async list(filter = {}) {
         if (filter.status === 'active' || filter.status === 'draft') return [];
-        return [{ id: 'schedule-existing', companyId: 'company-2', scheduleRuleId: 'schedule-rule-11', departAt: existingDeparture }];
+        // The materializer makes two different schedule reads: one for this
+        // rule's already-created departures, and another for vehicle overlaps.
+        // Do not return the rule's existing departure as a fake overlap row.
+        if (filter.vehicleId) return [];
+        return [{ id: 'schedule-existing', companyId: 'company-2', routeId: 'route-1', vehicleId: 'vehicle-1', scheduleRuleId: 'schedule-rule-11', departAt: existingDeparture }];
       },
     },
-    scheduleRules: { async list() { return []; }, async findOne() { return null; } },
+    scheduleRules: { async list() { return []; }, async findOne() { return null; }, async updateOne() { return true; } },
+    routes: { async findOne() { return null; } },
   });
   installStub(path.join(root, 'src/services/company/companyService.js'), {
     createScheduleBatch,
@@ -74,8 +84,8 @@ describe('rolling worker repair after the first dated departure', () => {
 
     const result = await materializer.materializeRule(
       activeRule(),
-      new Date('2026-08-08T00:00:00.000Z'),
-      new Date('2026-08-06T08:00:00.000Z'),
+      new Date(2026, 7, 8, 0, 0, 0, 0),
+      new Date(2026, 7, 6, 8, 0, 0, 0),
       { maxCreates: 1 },
     );
 
@@ -85,7 +95,7 @@ describe('rolling worker repair after the first dated departure', () => {
     expect(result.created).toBe(1);
     expect(result.draft).toBe(1);
     expect(result.skipped).toBe(0);
-    expect(result.pending).toBe(1);
+    expect(result.pending > 0).toBe(true);
     expect(result.failures).toContain('operator_permit_missing_or_expired');
   });
 

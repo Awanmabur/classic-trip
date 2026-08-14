@@ -12,6 +12,7 @@ const hotelService = require('../hotel/hotelService');
 const busSetupService = require('../../modules/bus/services/busSetupService');
 const busDepartureService = require('../../modules/bus/services/busDepartureService');
 const { getPlatformConfig } = require('../platform/platformConfigService');
+const commercialTermsService = require('../commission/commercialTermsService');
 const { SERVICE_REGISTRY, normalizeServiceType } = require('../../config/serviceRegistry');
 const { partnerProfile, capabilityPolicyFor } = require('../../config/partnerProfiles');
 const { evaluateDriverAssignment, evaluateDriverEligibility, evaluatePartnerDriverActivation } = require('./driverEligibilityService');
@@ -203,17 +204,27 @@ async function createCompany(payload = {}) {
       },
       ratingAverage: 0, reviewCount: 0, operatingCurrency: requestedCurrency,
       commercialTerms: {
-        model: 'percentage_commission',
-        commissionPercent: Math.max(0, Math.min(100, Number(payload.commissionPercent ?? platformConfig.partnerCommissionPercent) || 0)),
-        promoterFunding: 'platform_commission',
-        termsVersion: platformConfig.commercialTermsVersion || 'commission-v1',
+        ...commercialTermsService.normalizeTerms({
+          model: payload.commercialModel || platformConfig.commercialModel,
+          commissionPercent: payload.commissionPercent ?? platformConfig.partnerCommissionPercent,
+          fixedAmount: payload.fixedAmount ?? platformConfig.fixedPlatformAmount,
+          unitBasis: payload.unitBasis || platformConfig.fixedUnitBasis,
+          currency: requestedCurrency,
+          promoterRewardModel: payload.promoterRewardModel || platformConfig.promoterRewardModel,
+          promoterFixedAmount: payload.promoterFixedAmount ?? platformConfig.promoterFixedAmount,
+          promoterSharePercent: payload.promoterSharePercent ?? platformConfig.promoterSharePercent,
+          customerDiscountModel: payload.customerDiscountModel || platformConfig.customerDiscountModel,
+          customerDiscountFixedAmount: payload.customerDiscountFixedAmount ?? platformConfig.customerDiscountFixedAmount,
+          customerDiscountSharePercent: payload.customerDiscountSharePercent ?? platformConfig.customerDiscountSharePercent,
+          termsVersion: platformConfig.commercialTermsVersion || 'commercial-v1',
+          source: typeof payload.commissionPercent !== 'undefined' || typeof payload.fixedAmount !== 'undefined' ? 'admin_override' : 'platform_default',
+        }),
         acceptedAt: payload.termsAccepted ? new Date().toISOString() : null,
         acceptedBy: cleanText(payload.ownerId || payload.acceptedBy || '', 180),
-        source: typeof payload.commissionPercent !== 'undefined' ? 'admin_override' : 'platform_default',
         updatedAt: new Date().toISOString(),
         updatedBy: cleanText(payload.ownerId || payload.acceptedBy || 'system', 180),
       },
-      settings: { instantConfirmation: false, canPublish: false, onboardingStep: 'verification', profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: 'percentage_commission', partnerCategory: cleanText(payload.partnerCategory, 60), accountModel: cleanText(payload.accountModel, 40), platformManagedPricing: normalizeServiceType(payload.companyType || payload.type) === 'local_transport', supplierManagedInventory: normalizeServiceType(payload.companyType || payload.type) === 'flight' }, createdAt: new Date().toISOString(),
+      settings: { instantConfirmation: false, canPublish: false, onboardingStep: 'verification', profileIncomplete: !city, missingProfileFields: city ? [] : ['city'], commercialModel: commercialTermsService.normalizeTerms({ model: payload.commercialModel || platformConfig.commercialModel }).model, partnerCategory: cleanText(payload.partnerCategory, 60), accountModel: cleanText(payload.accountModel, 40), platformManagedPricing: normalizeServiceType(payload.companyType || payload.type) === 'local_transport', supplierManagedInventory: normalizeServiceType(payload.companyType || payload.type) === 'flight' }, createdAt: new Date().toISOString(),
     };
     try {
       // Creation must be insert-only. Upsert-by-id could overwrite an existing
@@ -238,39 +249,119 @@ async function createCompany(payload = {}) {
 
 async function updateCommercialTerms(identifier, payload = {}, actorId = 'admin-system') {
   const company = await companyOrThrow(identifier);
-  const commissionPercent = Number(payload.commissionPercent);
-  if (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent > 100) {
-    throw validation('Partner commission must be a percentage between 0 and 100');
-  }
   const reason = cleanText(payload.reason || payload.note, 1000);
-  if (!reason) throw validation('A reason is required when changing a partner commission percentage');
+  if (!reason) throw validation('A reason is required when changing partner commercial terms');
+  const platformConfig = await getPlatformConfig();
+  const model = cleanText(payload.model || payload.commercialModel || company.commercialTerms?.model || 'percentage_commission', 60);
+  if (!commercialTermsService.MODELS.has(model)) throw validation('Commercial model must be percentage commission or fixed per unit');
+  const commissionPercent = Number(payload.commissionPercent ?? company.commercialTerms?.commissionPercent ?? platformConfig.partnerCommissionPercent);
+  const fixedAmount = Number(payload.fixedAmount ?? company.commercialTerms?.fixedAmount ?? 0);
+  if (model === 'percentage_commission' && (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent > 100)) throw validation('Partner commission must be between 0 and 100 percent');
+  if (model === 'fixed_per_unit' && (!Number.isFinite(fixedAmount) || fixedAmount < 0)) throw validation('Fixed Classic Trip amount must be zero or greater');
+  const unitBasis = cleanText(payload.unitBasis || company.commercialTerms?.unitBasis || (company.companyType === 'bus' ? 'per_ticket' : company.companyType === 'hotel' ? 'per_room_night' : 'per_booking'), 60);
+  if (!commercialTermsService.UNIT_BASES.has(unitBasis)) throw validation('Select a valid commercial unit basis');
+  const promoterRewardModel = cleanText(payload.promoterRewardModel || company.commercialTerms?.promoterRewardModel || 'none', 60);
+  const customerDiscountModel = cleanText(payload.customerDiscountModel || company.commercialTerms?.customerDiscountModel || 'none', 60);
+  if (!commercialTermsService.ALLOCATION_MODELS.has(promoterRewardModel) || !commercialTermsService.ALLOCATION_MODELS.has(customerDiscountModel)) throw validation('Promoter and discount models must be none, fixed amount, or percentage of Classic Trip share');
+  const promoterSharePercent = Number(payload.promoterSharePercent ?? company.commercialTerms?.promoterSharePercent ?? 0);
+  const customerDiscountSharePercent = Number(payload.customerDiscountSharePercent ?? company.commercialTerms?.customerDiscountSharePercent ?? 0);
+  const promoterFixedAmount = Number(payload.promoterFixedAmount ?? company.commercialTerms?.promoterFixedAmount ?? 0);
+  const customerDiscountFixedAmount = Number(payload.customerDiscountFixedAmount ?? company.commercialTerms?.customerDiscountFixedAmount ?? 0);
+  if (!Number.isFinite(promoterFixedAmount) || promoterFixedAmount < 0 || !Number.isFinite(customerDiscountFixedAmount) || customerDiscountFixedAmount < 0) throw validation('Promoter reward and customer discount fixed amounts must be zero or greater');
+  if (promoterSharePercent < 0 || promoterSharePercent > 100 || customerDiscountSharePercent < 0 || customerDiscountSharePercent > 100) throw validation('Promoter and discount percentages must be between 0 and 100');
+  if (promoterRewardModel === 'percentage_of_platform' && customerDiscountModel === 'percentage_of_platform' && promoterSharePercent + customerDiscountSharePercent > 100) throw validation('Promoter share plus customer discount cannot exceed 100% of Classic Trip share');
   const now = new Date().toISOString();
   const current = company.commercialTerms || {};
   company.commercialTerms = {
-    model: 'percentage_commission',
-    commissionPercent: Number(commissionPercent.toFixed(4)),
-    promoterFunding: 'platform_commission',
-    termsVersion: `commission-${Date.now()}`,
+    ...commercialTermsService.normalizeTerms({
+      model, commissionPercent, fixedAmount, unitBasis,
+      currency: cleanText(payload.currency || company.operatingCurrency || platformConfig.defaultCurrency, 8).toUpperCase(),
+      promoterRewardModel, promoterFixedAmount, promoterSharePercent,
+      customerDiscountModel, customerDiscountFixedAmount, customerDiscountSharePercent,
+      termsVersion: `commercial-${Date.now()}`, source: 'admin_override', updatedAt: now, updatedBy: cleanText(actorId, 180),
+    }),
     acceptedAt: current.acceptedAt || now,
     acceptedBy: current.acceptedBy || company.ownerId || actorId,
-    source: 'admin_override',
     updatedAt: now,
     updatedBy: cleanText(actorId, 180),
   };
-  company.settings = { ...(company.settings || {}), commercialModel: 'percentage_commission' };
+  company.settings = { ...(company.settings || {}), commercialModel: model };
   await companyRepository.withTransaction(async (session) => {
     await companyRepository.companies.save(company, { id: company.id }, { session });
-    await writeAudit(actorId, 'company.commission.updated', company.id, {
-      entityType: 'company',
-      companyId: company.id,
-      previousCommissionPercent: Number(current.commissionPercent || 0),
-      commissionPercent: company.commercialTerms.commissionPercent,
-      partnerPayoutPercent: Number((100 - company.commercialTerms.commissionPercent).toFixed(4)),
-      reason,
-      termsVersion: company.commercialTerms.termsVersion,
+    await writeAudit(actorId, 'company.commercial_terms.updated', company.id, {
+      entityType: 'company', companyId: company.id, previousTerms: current, commercialTerms: company.commercialTerms, reason, termsVersion: company.commercialTerms.termsVersion,
     }, { session });
   });
   return company;
+}
+
+async function updateCommercialOverride(payload = {}, actorId = 'admin-system') {
+  const scopeType = cleanText(payload.scopeType, 40);
+  const company = await companyOrThrow(payload.companyId);
+  const reason = cleanText(payload.reason || payload.note, 1000);
+  if (!reason) throw validation('A reason is required when changing commercial terms');
+  if (scopeType === 'company') return updateCommercialTerms(company.id, payload, actorId);
+
+  let target = null;
+  let collection = null;
+  let targetId = '';
+  if (scopeType === 'listing') {
+    targetId = cleanText(payload.listingId, 180);
+    target = await listingOrThrow(company.id, targetId);
+    collection = companyRepository.listings;
+  } else if (scopeType === 'fare_product') {
+    targetId = cleanText(payload.fareProductId, 180);
+    target = await companyRepository.fareProducts.findOne({ id: targetId, companyId: company.id });
+    collection = companyRepository.fareProducts;
+  } else if (scopeType === 'room_type') {
+    targetId = cleanText(payload.roomTypeId, 180);
+    target = await companyRepository.roomTypes.findOne({ id: targetId, companyId: company.id });
+    collection = companyRepository.roomTypes;
+  } else {
+    throw validation('Commercial scope must be company, listing, bus fare plan, or hotel room type');
+  }
+  if (!target) throw notFound('Commercial rule target not found for this partner');
+  if (payload.reset === true || payload.reset === 'true' || payload.reset === '1' || payload.reset === 'on') {
+    target.commercialTermsOverride = undefined;
+  } else {
+    const inherited = commercialTermsService.resolveTerms({ company, listing: scopeType === 'listing' ? null : await companyRepository.listings.findOne({ id: target.listingId, companyId: company.id }), fareProduct: null, roomType: null });
+    const requestedModel = cleanText(payload.model || payload.commercialModel || inherited.model, 60);
+    const requestedCommissionPercent = Number(payload.commissionPercent ?? inherited.commissionPercent ?? 0);
+    const requestedFixedAmount = Number(payload.fixedAmount ?? inherited.fixedAmount ?? 0);
+    const requestedPromoterShare = Number(payload.promoterSharePercent ?? inherited.promoterSharePercent ?? 0);
+    const requestedDiscountShare = Number(payload.customerDiscountSharePercent ?? inherited.customerDiscountSharePercent ?? 0);
+    const requestedPromoterFixed = Number(payload.promoterFixedAmount ?? inherited.promoterFixedAmount ?? 0);
+    const requestedDiscountFixed = Number(payload.customerDiscountFixedAmount ?? inherited.customerDiscountFixedAmount ?? 0);
+    if (!commercialTermsService.MODELS.has(requestedModel)) throw validation('Commercial model must be percentage commission or fixed per unit');
+    if (requestedModel === 'percentage_commission' && (!Number.isFinite(requestedCommissionPercent) || requestedCommissionPercent < 0 || requestedCommissionPercent > 100)) throw validation('Classic Trip percentage must be between 0 and 100');
+    if (requestedModel === 'fixed_per_unit' && (!Number.isFinite(requestedFixedAmount) || requestedFixedAmount < 0)) throw validation('Fixed Classic Trip amount must be zero or greater');
+    if (![requestedPromoterShare, requestedDiscountShare].every((value) => Number.isFinite(value) && value >= 0 && value <= 100)) throw validation('Promoter and discount percentages must be between 0 and 100');
+    if (![requestedPromoterFixed, requestedDiscountFixed].every((value) => Number.isFinite(value) && value >= 0)) throw validation('Promoter reward and customer discount fixed amounts must be zero or greater');
+    const terms = commercialTermsService.normalizeTerms({
+      model: requestedModel,
+      commissionPercent: payload.commissionPercent ?? inherited.commissionPercent,
+      fixedAmount: payload.fixedAmount ?? inherited.fixedAmount,
+      unitBasis: payload.unitBasis || (scopeType === 'fare_product' ? 'per_ticket' : scopeType === 'room_type' ? 'per_room_night' : inherited.unitBasis),
+      currency: payload.currency || target.currency || company.operatingCurrency || inherited.currency,
+      promoterRewardModel: payload.promoterRewardModel || inherited.promoterRewardModel,
+      promoterFixedAmount: payload.promoterFixedAmount ?? inherited.promoterFixedAmount,
+      promoterSharePercent: payload.promoterSharePercent ?? inherited.promoterSharePercent,
+      customerDiscountModel: payload.customerDiscountModel || inherited.customerDiscountModel,
+      customerDiscountFixedAmount: payload.customerDiscountFixedAmount ?? inherited.customerDiscountFixedAmount,
+      customerDiscountSharePercent: payload.customerDiscountSharePercent ?? inherited.customerDiscountSharePercent,
+      termsVersion: `commercial-${Date.now()}`, source: `${scopeType}_override`, updatedAt: new Date().toISOString(), updatedBy: cleanText(actorId, 180),
+    }, inherited, { source: `${scopeType}_override`, scopeType, scopeId: targetId });
+    if (terms.model === 'fixed_per_unit' && terms.fixedAmount < 0) throw validation('Fixed Classic Trip amount must be zero or greater');
+    if (terms.promoterRewardModel === 'percentage_of_platform' && terms.customerDiscountModel === 'percentage_of_platform' && terms.promoterSharePercent + terms.customerDiscountSharePercent > 100) throw validation('Promoter share plus customer discount cannot exceed 100% of Classic Trip share');
+    target.commercialTermsOverride = terms;
+  }
+  target.updatedBy = cleanText(actorId, 180);
+  target.updatedAt = new Date().toISOString();
+  await companyRepository.withTransaction(async (session) => {
+    await collection.save(target, { id: target.id }, { session });
+    await writeAudit(actorId, payload.reset ? 'commercial_terms.override.reset' : 'commercial_terms.override.updated', target.id, { entityType: scopeType, companyId: company.id, reason, terms: target.commercialTermsOverride || null }, { session });
+  });
+  return { company, target, scopeType, commercialTerms: target.commercialTermsOverride || null };
 }
 
 async function setVerificationStatus(identifier, status = COMPANY_STATUS.VERIFIED, adminId = 'admin-system', review = {}) {
@@ -1150,7 +1241,7 @@ async function resumeScheduleRuleDispatch(companyId, id, actor = 'company-admin'
 async function cancelScheduleRuleDispatch(companyId, id, actor = 'company-admin') { await assertBusCompany(companyId); return busDepartureService.cancelScheduleRule(companyId, id, actor); }
 
 module.exports = {
-  createCompany, updateCommercialTerms, setVerificationStatus, createListing: createListingDispatch, updateListing: updateListingDispatch, publishListing: publishListingDispatch, archiveListing: archiveListingDispatch,
+  createCompany, updateCommercialTerms, updateCommercialOverride, setVerificationStatus, createListing: createListingDispatch, updateListing: updateListingDispatch, publishListing: publishListingDispatch, archiveListing: archiveListingDispatch,
   createRoute: createRouteDispatch, updateRoute: updateRouteDispatch, archiveRoute: archiveRouteDispatch,
   createRouteStop: createRouteStopDispatch, updateRouteStop: updateRouteStopDispatch, archiveRouteStop: archiveRouteStopDispatch, moveRouteStop: moveRouteStopDispatch,
   createVehicle: createVehicleDispatch, updateVehicle: updateVehicleDispatch, archiveVehicle: archiveVehicleDispatch,

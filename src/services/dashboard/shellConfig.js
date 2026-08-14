@@ -504,6 +504,10 @@ function filterEmployeeMenuByPermissions(menu, permissions = []) {
 }
 
 function menuHref(roleKey, page) {
+  // Workflow guides are embedded in the current dashboard workspace. Keep the
+  // link as an in-page anchor for every role instead of constructing a route
+  // such as /admin/workflow-guide that does not exist.
+  if (page === 'workflow-guide') return '#workflow-guide';
   const servicePages = new Set(SERVICE_DASHBOARDS.map((item) => item.key));
   if (roleKey === 'company') {
     const companyRoutes = {

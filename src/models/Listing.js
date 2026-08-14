@@ -50,6 +50,7 @@ const listingSchema = new Schema({
   packageLimit: { type: Number, min: 1 },
   availabilityMode: { type: String, enum: ['on_demand', 'dated_capacity', 'date_range'], default: 'on_demand' },
   serviceDetails: Schema.Types.Mixed,
+  commercialTermsOverride: Schema.Types.Mixed,
   ratingAverage: Number,
   reviewCount: Number,
   isSponsored: { type: Boolean, default: false, index: true },

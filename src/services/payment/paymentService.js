@@ -2,6 +2,9 @@ const { createProvider } = require('./httpPaymentProvider');
 const pesapalProvider = require('./pesapalPaymentProvider');
 const { env } = require('../../config/env');
 const { safePaymentRedirect } = require('../../utils/paymentRedirect');
+const logger = require('../../config/logger');
+
+let providerWarmTimer = null;
 
 const supportedProviders = ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'];
 
@@ -73,6 +76,34 @@ async function initiateRefund(refund = {}) {
   return provider.initiateRefund(refund);
 }
 
+
+async function prewarmActiveProvider() {
+  const provider = normalizeProviderName(env.paymentProvider);
+  if (provider !== 'pesapal' || !providerIsConfigured(provider)) return { provider, configured: providerIsConfigured(provider), warmed: false };
+  const config = providerConfig(provider);
+  const notificationReady = env.isProduction || /^https:\/\//i.test(String(config.ipnUrl || ''));
+  const result = await pesapalProvider.prewarm(config, { notification: notificationReady });
+  return { provider, configured: true, warmed: true, ...result };
+}
+
+function startProviderKeepWarm() {
+  if (providerWarmTimer) return providerWarmTimer;
+  const run = () => prewarmActiveProvider()
+    .then((result) => { if (result.warmed) logger.info('Payment provider control plane warmed', { provider: result.provider }); })
+    .catch((error) => logger.warn('Payment provider warmup deferred; checkout will retry on demand', { provider: env.paymentProvider, error: error.message }));
+  run();
+  // Pesapal documents a maximum 5-minute bearer-token lifetime. Refresh the
+  // process cache every four minutes so a normal payment click usually needs
+  // only SubmitOrderRequest, not authentication + IPN discovery first.
+  providerWarmTimer = setInterval(run, 4 * 60 * 1000);
+  providerWarmTimer.unref?.();
+  return providerWarmTimer;
+}
+
+function stopProviderKeepWarm() {
+  if (providerWarmTimer) clearInterval(providerWarmTimer);
+  providerWarmTimer = null;
+}
 function providerSummary() {
   return supportedProviders.map((provider) => ({
     provider,
@@ -91,4 +122,7 @@ module.exports = {
   providerFor,
   resolveProviderName,
   assertProviderAllowed,
+  prewarmActiveProvider,
+  startProviderKeepWarm,
+  stopProviderKeepWarm,
 };

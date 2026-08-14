@@ -10,6 +10,14 @@ const {
   rollingWindowBounds,
 } = require('../../src/jobs/materializeSchedules');
 
+function localDateKey(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 describe('rolling departure materializer lifecycle', () => {
   test('daily rules cover today plus the following 29 calendar days', () => {
     const now = new Date('2026-08-05T00:00:00');
@@ -37,17 +45,17 @@ describe('rolling departure materializer lifecycle', () => {
     const rule = { startDate: '2026-08-01', departureTime: '09:30', daysOfWeek: [] };
     const bounds = rollingWindowBounds(rule, horizon, now);
     expect(bounds.replacedDepartedDate).toBe(true);
-    expect(bounds.cursor.toISOString().slice(0, 10)).toBe('2026-08-06');
-    expect(bounds.windowEnd.toISOString().slice(0, 10)).toBe('2026-09-04');
+    expect(localDateKey(bounds.cursor)).toBe('2026-08-06');
+    expect(localDateKey(bounds.windowEnd)).toBe('2026-09-04');
     const dates = matchingFutureDates(rule, bounds.cursor, bounds.windowEnd, now);
     expect(dates).toHaveLength(30);
-    expect(dates[29].toISOString().slice(0, 10)).toBe('2026-09-04');
+    expect(localDateKey(dates[29])).toBe('2026-09-04');
   });
 
   test('every run rechecks the full live window so missing dates can be repaired', () => {
     const source = fs.readFileSync(path.join(__dirname, '../../src/jobs/materializeSchedules.js'), 'utf8');
     expect(source).toContain('const { cursor, windowEnd } = rollingWindowBounds(rule, horizonEnd, now);');
-    expect(source).toContain('const dates = expectedDates.filter');
+    expect(source).toContain('const missingDates = expectedDates.filter');
     expect(source).not.toContain('watermark ? new Date(watermark.getTime() + DAY_MS)');
   });
 });

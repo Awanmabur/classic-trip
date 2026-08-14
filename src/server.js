@@ -6,6 +6,7 @@ const { ensurePlatformConfig } = require('./services/platform/platformConfigServ
 const repositories = require('./repositories');
 const scheduleMaterializer = require('./jobs/materializeSchedules');
 const readiness = require('./config/readiness');
+const paymentService = require('./services/payment/paymentService');
 
 let httpServer = null;
 let shuttingDown = false;
@@ -19,18 +20,38 @@ async function start() {
   // Session and rate-limit middleware choose their backing stores while app.js
   // is loaded, so Redis must be connected before the application is required.
   app = require('./app');
+  const catalogService = require('./services/marketplace/catalogService');
+  paymentService.startProviderKeepWarm();
   if (env.nodeEnvWasNormalized) {
     logger.warn('NODE_ENV spelling was corrected', { from: env.rawNodeEnv, to: env.nodeEnv });
   }
+
+  // Local development has no Render readiness gate. Warm the lightweight public
+  // catalog before announcing that the server is ready so the operator's first
+  // browser request never becomes the cold Atlas warmup request. This adds a
+  // bounded startup wait, not request latency, and never loads booking inventory.
+  if (!env.isProduction) {
+    readiness.beginPublicDiscoveryWarmup();
+    try {
+      await catalogService.prewarmHome();
+      readiness.markPublicDiscoveryReady();
+      logger.startup('Public discovery prewarmed for local traffic');
+    } catch (error) {
+      readiness.markPublicDiscoveryReady({ degraded: true, error: error?.message || 'local_warmup_failed' });
+      logger.warn('Local public discovery warmup deferred; cache fallbacks remain available', { error: error?.message || String(error) });
+    }
+  }
+
   httpServer = app.listen(env.port, () => {
     logger.startup(`${env.appName} listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
+
+    if (!env.isProduction) return;
 
     // Open the port first so Render can reach /ready, then warm the lightweight
     // anonymous Home/Search view in the background. /ready remains 503 until
     // this succeeds (or the bounded fallback expires), so the first real user
     // does not pay the cold discovery-query cost. Booking/payment inventory is
     // intentionally excluded from this warmup.
-    const catalogService = require('./services/marketplace/catalogService');
     readiness.beginPublicDiscoveryWarmup();
     let warmupFinished = false;
     const warmupDeadline = setTimeout(() => {
@@ -79,6 +100,7 @@ async function shutdown(signal, exitCode = 0) {
   forceTimer.unref();
   try {
     scheduleMaterializer.stopWebFallback();
+    paymentService.stopProviderKeepWarm();
     if (httpServer) {
       await new Promise((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve())));
     }

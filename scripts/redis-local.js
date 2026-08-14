@@ -40,7 +40,7 @@ if (inspect.status !== 0) {
     '--restart', 'unless-stopped',
     '-p', `127.0.0.1:${HOST_PORT}:6379`,
     IMAGE,
-    'redis-server', '--appendonly', 'yes',
+    'redis-server', '--appendonly', 'yes', '--timeout', '0', '--tcp-keepalive', '15',
   ]);
   if (created.status !== 0) fail(`Could not create ${CONTAINER}.`, created);
 } else if (String(inspect.stdout).trim() !== 'true') {
@@ -61,5 +61,15 @@ for (let attempt = 0; attempt < 20; attempt += 1) {
 }
 
 if (!ready) fail(`${CONTAINER} started but Redis did not answer PING.`);
+
+// Apply stable local socket settings even to containers created by an older
+// Classic Trip release. This avoids recreating the container (and losing local
+// sessions/cache) just to pick up the improved TCP keepalive configuration.
+const timeoutConfig = run('docker', ['exec', CONTAINER, 'redis-cli', 'CONFIG', 'SET', 'timeout', '0']);
+if (timeoutConfig.status !== 0) fail(`Could not disable idle Redis disconnects for ${CONTAINER}.`, timeoutConfig);
+const keepaliveConfig = run('docker', ['exec', CONTAINER, 'redis-cli', 'CONFIG', 'SET', 'tcp-keepalive', '15']);
+if (keepaliveConfig.status !== 0) fail(`Could not configure Redis TCP keepalive for ${CONTAINER}.`, keepaliveConfig);
+
 console.log(`✓ Local Redis is ready — redis://127.0.0.1:${HOST_PORT}`);
+console.log('✓ Redis socket policy — timeout=0 tcp-keepalive=15s');
 console.log(`✓ Container ${CONTAINER} will restart automatically unless explicitly stopped.`);

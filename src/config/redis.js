@@ -19,6 +19,32 @@ async function connectRedis() {
   let hasBeenReady = false;
   let lastErrorLogAt = 0;
   let reconnectNoticeAt = 0;
+  let runtimeOutageStartedAt = 0;
+  let runtimeOutageWarningTimer = null;
+  let runtimeOutageError = '';
+
+  function clearRuntimeOutageWarning() {
+    if (runtimeOutageWarningTimer) clearTimeout(runtimeOutageWarningTimer);
+    runtimeOutageWarningTimer = null;
+  }
+
+  function scheduleRuntimeOutageWarning(errorMessage = '') {
+    if (!hasBeenReady) return;
+    if (!runtimeOutageStartedAt) runtimeOutageStartedAt = Date.now();
+    runtimeOutageError = errorMessage || runtimeOutageError;
+    if (runtimeOutageWarningTimer) return;
+    runtimeOutageWarningTimer = setTimeout(() => {
+      runtimeOutageWarningTimer = null;
+      const now = Date.now();
+      if (now - lastErrorLogAt < env.redis.errorLogThrottleMs) return;
+      lastErrorLogAt = now;
+      logger.warn('Redis connection interrupted; automatic recovery active', {
+        error: runtimeOutageError || 'socket_closed',
+        outageMs: Math.max(0, now - runtimeOutageStartedAt),
+      });
+    }, env.redis.transientNoticeDelayMs);
+    runtimeOutageWarningTimer.unref?.();
+  }
 
   client = createClient({
     url: env.redis.url,
@@ -28,7 +54,7 @@ async function connectRedis() {
     socket: {
       connectTimeout: env.redis.connectTimeoutMs,
       keepAlive: true,
-      keepAliveInitialDelay: 5000,
+      keepAliveInitialDelay: env.redis.keepAliveInitialDelayMs,
       reconnectStrategy(retries) {
         // Keep startup bounded when Redis has never connected: Classic Trip can
         // intentionally fall back to MongoDB when Redis is optional. Once Redis
@@ -44,24 +70,29 @@ async function connectRedis() {
   });
 
   client.on('error', (error) => {
-    const now = Date.now();
-    // Runtime socket failures can emit repeatedly while node-redis reconnects.
-    // Throttle the warning so one network flap does not flood Render logs.
-    if (now - lastErrorLogAt >= env.redis.errorLogThrottleMs) {
-      lastErrorLogAt = now;
-      logger.warn('Redis connection error; automatic recovery active', { error: error.message });
-    }
+    // Docker Desktop/NAT can occasionally reset an otherwise healthy TCP socket
+    // for a few milliseconds. node-redis reconnects automatically. Do not flood
+    // operators with a warning unless the outage survives the short grace period.
+    if (hasBeenReady) scheduleRuntimeOutageWarning(error.message);
   });
   client.on('reconnecting', () => {
+    if (!hasBeenReady) return;
     const now = Date.now();
-    if (hasBeenReady && now - reconnectNoticeAt >= env.redis.errorLogThrottleMs) {
-      reconnectNoticeAt = now;
-      logger.warn('Redis reconnecting; cache/rate-limit fallbacks remain available');
-    }
+    if (!runtimeOutageStartedAt) runtimeOutageStartedAt = now;
+    if (now - reconnectNoticeAt >= env.redis.errorLogThrottleMs) reconnectNoticeAt = now;
   });
   client.on('ready', () => {
-    if (hasBeenReady) logger.startup('Redis reconnected', { sessions: true, rateLimits: true });
+    const wasReady = hasBeenReady;
+    const outageMs = runtimeOutageStartedAt ? Math.max(0, Date.now() - runtimeOutageStartedAt) : 0;
+    clearRuntimeOutageWarning();
+    runtimeOutageStartedAt = 0;
+    runtimeOutageError = '';
     hasBeenReady = true;
+    // Only surface a recovery event when Redis was actually unavailable long
+    // enough to matter. Brief socket swaps stay invisible to users/operators.
+    if (wasReady && outageMs >= env.redis.transientNoticeDelayMs) {
+      logger.startup('Redis reconnected', { sessions: true, rateLimits: true, outageMs });
+    }
   });
 
   connecting = client.connect()

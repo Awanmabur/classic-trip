@@ -90,23 +90,35 @@ router.get('/book/:serviceType/:slug', listingController.bookingForm);
 router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, rejectPublicFieldTampering, async (req, res, next) => {
   try {
     let payload = stripClientSuppliedIdentity(req.body);
-    const listing = await busRepository.listings.findOne({ id: String(payload.listingId || '').trim() });
-    if (!listing) {
-      const error = new Error('Booking listing was not found');
-      error.status = 404;
-      throw error;
+    let listing = null;
+    let isBus = Boolean(String(payload.bookingDraftId || '').trim());
+    let isHotel = false;
+    if (isBus) {
+      // The server-side draft already contains the authoritative listing scope and
+      // active hold. Avoid another Atlas listing read on the payment click.
+      payload = await busBookingDraftService.applyDraftToPayload(req, payload, null);
+      listing = { id: payload.listingId, serviceType: 'bus' };
+    } else {
+      listing = await busRepository.listings.findOne({ id: String(payload.listingId || '').trim() });
+      if (!listing) {
+        const error = new Error('Booking listing was not found');
+        error.status = 404;
+        throw error;
+      }
+      const serviceType = String(listing?.serviceType || '').toLowerCase();
+      isBus = serviceType === 'bus';
+      isHotel = serviceType === 'hotel';
+      if (isBus) payload = await busBookingDraftService.applyDraftToPayload(req, payload, listing);
     }
-    const serviceType = String(listing?.serviceType || '').toLowerCase();
-    const isBus = serviceType === 'bus';
-    const isHotel = serviceType === 'hotel';
-    if (isBus) payload = await busBookingDraftService.applyDraftToPayload(req, payload, listing);
     const booking = isBus
       ? await busBookingService.createGuestBooking(payload, req)
       : isHotel
         ? await hotelService.createHotelBooking(payload, req)
         : await bookingService.createGuestBooking(payload, req);
     if (isBus) {
-      try { await busBookingDraftService.discardDraft(req, payload.bookingDraftId); } catch (_) { /* Booking is already durable; stale draft cleanup is best effort. */ }
+      // The response/session middleware will persist the already-mutated session;
+      // stale draft cleanup must not add a Redis round trip before redirect.
+      busBookingDraftService.discardDraft(req, payload.bookingDraftId, { save: false }).catch(() => {});
     }
     ticketAccessService.grantSessionAccess(req, booking.bookingRef);
     if (booking.checkoutUrl && booking.paymentStatus !== 'successful') return res.redirect(safePaymentRedirect(booking.checkoutUrl, `/tickets?bookingRef=${encodeURIComponent(booking.bookingRef)}`));

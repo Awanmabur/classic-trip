@@ -3,12 +3,20 @@ const { Schema, model } = require('./_helpers');
 const financeRulesSchema = new Schema({
   // The only partner commercial charge: Classic Trip retains this percentage
   // of each completed booking and the partner receives the remainder.
-  partnerCommissionPercent: { type: Number, min: 0, max: 100, default: 10 },
+  commercialModel: { type: String, enum: ['percentage_commission','fixed_per_unit'], default: 'percentage_commission' },
+  partnerCommissionPercent: { type: Number, min: 0, max: 100, default: 0 },
+  fixedPlatformAmount: { type: Number, min: 0, default: 0 },
+  fixedUnitBasis: { type: String, enum: ['per_booking','per_passenger','per_ticket','per_room','per_room_night','per_item'], default: 'per_booking' },
   // Promoter rewards are funded from the platform commission, never added on
   // top of the customer total and never deducted a second time from partners.
-  promoterSharePercent: { type: Number, min: 0, max: 100, default: 30 },
-  // Uganda promoter policy: a fixed reward per eligible referred booking.
-  promoterFixedUgx: { type: Number, min: 0, default: 2000 },
+  promoterRewardModel: { type: String, enum: ['none','fixed_amount','percentage_of_platform'], default: 'none' },
+  promoterSharePercent: { type: Number, min: 0, max: 100, default: 0 },
+  promoterFixedAmount: { type: Number, min: 0, default: 0 },
+  // Legacy alias retained for existing stored settings; new writes use promoterFixedAmount.
+  promoterFixedUgx: { type: Number, min: 0, default: 0 },
+  customerDiscountModel: { type: String, enum: ['none','fixed_amount','percentage_of_platform'], default: 'none' },
+  customerDiscountFixedAmount: { type: Number, min: 0, default: 0 },
+  customerDiscountSharePercent: { type: Number, min: 0, max: 100, default: 0 },
   customerServiceFeePercent: { type: Number, min: 0, max: 100, default: 0 },
   customerServiceFeeFlat: { type: Number, min: 0, default: 0 },
   customerTaxPercent: { type: Number, min: 0, max: 100, default: 0 },

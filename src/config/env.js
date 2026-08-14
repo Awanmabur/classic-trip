@@ -85,7 +85,9 @@ const env = {
     prefix: process.env.REDIS_PREFIX || 'classic-trip:',
     required: booleanFlag('REDIS_REQUIRED', false),
     connectTimeoutMs: Math.max(500, number('REDIS_CONNECT_TIMEOUT_MS', 4000)),
-    pingIntervalMs: Math.max(5000, number('REDIS_PING_INTERVAL_MS', 30000)),
+    pingIntervalMs: Math.max(5000, number('REDIS_PING_INTERVAL_MS', 15000)),
+    keepAliveInitialDelayMs: Math.max(500, number('REDIS_KEEPALIVE_INITIAL_DELAY_MS', 1000)),
+    transientNoticeDelayMs: Math.max(250, number('REDIS_TRANSIENT_NOTICE_DELAY_MS', 1500)),
     reconnectMaxDelayMs: Math.max(500, number('REDIS_RECONNECT_MAX_DELAY_MS', 3000)),
     errorLogThrottleMs: Math.max(5000, number('REDIS_ERROR_LOG_THROTTLE_MS', 30000)),
   },
@@ -242,6 +244,7 @@ const env = {
     // before /ready advertises the instance. A bounded fallback prevents a
     // temporary Atlas/cache problem from trapping a deployment forever.
     publicWarmupMaxWaitMs: Math.max(2000, number('PUBLIC_WARMUP_MAX_WAIT_MS', 10000)),
+    publicCatalogReadConcurrency: Math.max(2, Math.min(12, number('PUBLIC_CATALOG_DB_READ_CONCURRENCY', 8))),
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 10),

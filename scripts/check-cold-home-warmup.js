@@ -13,9 +13,10 @@ const env = read('src/config/env.js');
 const render = read('render.yaml');
 const checks = [];
 function check(name, ok) { checks.push({ name, ok: !!ok }); console.log(`${ok ? '✓' : '✗'} ${name}`); }
-check('release is v1.6.75', pkg.version === '1.6.75');
-check('web port opens before public discovery warmup starts', server.includes('catalogService.prewarmHome()') && server.indexOf('app.listen') < server.indexOf('catalogService.prewarmHome()'));
-check('startup warmup is non-blocking and Redis-first', server.includes('catalogService.prewarmHome()') && catalog.includes('else await discoverySnapshot();') && !server.includes('await catalogService.prewarmHome()'));
+check('release is v1.6.80', pkg.version === '1.6.80');
+check('production opens the port before background public discovery warmup', server.includes('if (!env.isProduction) return;') && server.includes('catalogService.prewarmHome()'));
+check('local startup prewarms public discovery before listening', server.includes('await catalogService.prewarmHome()') && server.indexOf('await catalogService.prewarmHome()') < server.indexOf('app.listen'));
+check('production warmup remains non-blocking and Redis-first', server.includes('catalogService.prewarmHome()') && catalog.includes('else await discoverySnapshot();') && server.includes("if (!env.isProduction) return;"));
 check('Render readiness waits for public discovery in production', publicRoutes.includes("publicDiscovery: warm.publicDiscoveryReady") && publicRoutes.includes('databaseReady && publicDiscoveryReady'));
 check('warmup has a bounded degraded-ready fallback', server.includes('warmup_deadline_exceeded') && env.includes("PUBLIC_WARMUP_MAX_WAIT_MS"));
 check('cold discovery reuses cached platform settings instead of rereading Mongo', catalog.includes('getCachedPlatformConfig') && catalog.includes('() => getCachedPlatformConfig()'));

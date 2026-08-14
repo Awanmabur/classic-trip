@@ -48,5 +48,15 @@ check('xmlrpc and WordPress probes are blocked before session and CSRF middlewar
   assert(app.includes("'/xmlrpc.php'"));
 });
 check('Render exposes dedicated discovery cache controls', () => assert(render.includes('DISCOVERY_CACHE_TTL_MS') && render.includes('DISCOVERY_CACHE_STALE_MS') && env.includes('discoveryCacheTtlMs')));
+check('public discovery read fan-out is configurable and bounded', () => assert(catalog.includes('publicCatalogReadConcurrency') && env.includes('PUBLIC_CATALOG_DB_READ_CONCURRENCY') && render.includes('PUBLIC_CATALOG_DB_READ_CONCURRENCY')));
+check('initial Stay preview uses grouped availability counts instead of bulk room rows', () => {
+  const scopedStart = catalog.indexOf('async function loadListingSnapshotFresh');
+  const scopedEnd = catalog.indexOf('function sharedListingSnapshotKey', scopedStart);
+  const scoped = catalog.slice(scopedStart, scopedEnd);
+  assert(scoped.includes("roomUnits.countGroupedBy('roomTypeId'"));
+  assert(scoped.includes("roomNights.countGroupedBy('roomTypeId'"));
+  assert(!scoped.includes('roomUnits.list('));
+  assert(!scoped.includes('roomNights.list('));
+});
 check('service worker cache matches current release', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`)));
 if (!process.exitCode) console.log(`\n${passed}/${passed} public performance checks passed.`);

@@ -26,6 +26,7 @@ const roomTypeSchema = new Schema({
   images: [mediaSchema],
   policies: [String],
   taxesAndFees: [Schema.Types.Mixed],
+  commercialTermsOverride: Schema.Types.Mixed,
   status: { type: String, default: 'active', index: true, enum: ['active', 'paused', 'archived'] },
   createdBy: String,
   updatedBy: String,

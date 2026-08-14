@@ -21,7 +21,7 @@ const siteFooter = read('src/views/partials/site-footer.ejs');
 const blogController = read('src/controllers/public/blogController.js');
 const env = read('src/config/env.js');
 
-check('release is v1.6.75', () => assert.strictEqual(pkg.version, '1.6.75'));
+check('release is v1.6.80', () => assert.strictEqual(pkg.version, '1.6.80'));
 check('all seven home marketplace card sections SSR six cards', () => {
   const slices = [...home.matchAll(/initial(?:Bus|Hotel|Flight|Taxi|Tour|Rental|Cargo)Listings\s*=.*?\.slice\(0,\s*6\)/g)];
   assert.strictEqual(slices.length, 7);
@@ -99,6 +99,11 @@ check('local .env is allowed for release checks but remains git-ignored', () => 
 });
 check('service worker cache matches current release', () => assert(read('public/sw.js').includes(`classic-trip-static-v${pkg.version}`)));
 if (!process.exitCode) 
+check('Stay bar media stretches to the full row height', () => {
+  assert(css.includes('v1.6.80: Stay bars must use the same full-height media column'));
+  assert(css.includes('height:auto!important'));
+  assert(css.includes('height:100%!important'));
+});
 check('Stay listing media fills the full card frame and has a local fallback', () => {
   assert(css.includes('Stay media must fill the complete card media frame.'));
   assert(css.includes('serviceCard--hotel .thumb img'));

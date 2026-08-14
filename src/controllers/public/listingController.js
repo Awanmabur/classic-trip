@@ -11,6 +11,7 @@ const { SERVICE_REGISTRY, COMING_SOON_SERVICE_TYPES } = require('../../config/se
 const hotelInventoryService = require('../../services/hotel/hotelInventoryService');
 const seoService = require('../../services/seo/seoService');
 const { resolveMediaUrl, mediaUrl } = require('../../utils/mediaUrl');
+const logger = require('../../config/logger');
 
 function normalize(value) { return String(value || '').toLowerCase().trim(); }
 function seoText(value, max = 160) {
@@ -313,16 +314,28 @@ async function listingDetails(req, res, next) {
 }
 
 async function prepareBookingForm(req, res, next) {
+  const checkoutStartedAt = Date.now();
   try {
     // Checkout preparation needs only the published listing identity. Avoid loading
     // full seat availability and return-search data here because holdSeats performs
     // the authoritative inventory read inside the secure hold flow.
-    const context = await publicListingContext(req.params.slug, req.params.serviceType);
+    const discovery = await catalogService.discoverySnapshotForListing(req.params.slug, req.params.serviceType);
+    const rawListing = discovery ? catalogService.listingFor(discovery, req.params.slug, req.params.serviceType) : null;
+    const listing = rawListing && catalogService.isPublicListing(rawListing, discovery)
+      ? catalogService.catalogItem(discovery, rawListing)
+      : null;
+    const context = listing ? { data: discovery, raw: rawListing, listing } : await publicListingContext(req.params.slug, req.params.serviceType);
     if (!context.listing) return next();
     if (normalize(context.listing.serviceType) !== 'bus') {
       return res.status(400).json({ error: 'Secure checkout preparation is currently required only for bus bookings.' });
     }
+    const listingResolvedAt = Date.now();
     const draft = await busBookingDraftService.createDraft(req, { listing: context.listing, payload: req.body || {} });
+    const finishedAt = Date.now();
+    if (finishedAt - checkoutStartedAt >= 1200) logger.warn('Bus checkout prepare timing', {
+      requestId: req.id || '', listing: context.listing.slug || context.listing.id,
+      listingMs: listingResolvedAt - checkoutStartedAt, holdAndDraftMs: finishedAt - listingResolvedAt, totalMs: finishedAt - checkoutStartedAt,
+    });
     return res.status(draft.reused ? 200 : 201).json(draft);
   } catch (error) { return next(error); }
 }

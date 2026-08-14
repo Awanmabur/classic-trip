@@ -359,14 +359,25 @@ async function freezePayment(req, res, next) {
 async function updateFinanceRules(req, res, next) {
   try {
     const current = await getPlatformConfig();
+    const commercialModel = enumValue(req.body.commercialModel || current.commercialModel, new Set(['percentage_commission','fixed_per_unit']), current.commercialModel || 'percentage_commission', 'commercial model');
     const partnerCommissionPercent = amountValue(req.body.partnerCommissionPercent ?? req.body.platformCommissionPercent, current.partnerCommissionPercent);
+    const fixedPlatformAmount = amountValue(req.body.fixedPlatformAmount, current.fixedPlatformAmount || 0);
+    const fixedUnitBasis = enumValue(req.body.fixedUnitBasis || current.fixedUnitBasis, new Set(['per_booking','per_passenger','per_ticket','per_room','per_room_night','per_item']), current.fixedUnitBasis || 'per_booking', 'fixed unit basis');
+    const promoterRewardModel = enumValue(req.body.promoterRewardModel || current.promoterRewardModel, new Set(['none','fixed_amount','percentage_of_platform']), current.promoterRewardModel || 'none', 'promoter reward model');
     const promoterSharePercent = amountValue(req.body.promoterSharePercent, current.promoterSharePercent);
-    const promoterFixedUgx = amountValue(req.body.promoterFixedUgx, current.promoterFixedUgx || 2000);
+    const promoterFixedAmount = amountValue(req.body.promoterFixedAmount ?? req.body.promoterFixedUgx, current.promoterFixedAmount || current.promoterFixedUgx || 0);
+    const customerDiscountModel = enumValue(req.body.customerDiscountModel || current.customerDiscountModel, new Set(['none','fixed_amount','percentage_of_platform']), current.customerDiscountModel || 'none', 'customer discount model');
+    const customerDiscountFixedAmount = amountValue(req.body.customerDiscountFixedAmount, current.customerDiscountFixedAmount || 0);
+    const customerDiscountSharePercent = amountValue(req.body.customerDiscountSharePercent, current.customerDiscountSharePercent || 0);
     const customerServiceFeePercent = amountValue(req.body.customerServiceFeePercent, current.customerServiceFeePercent);
     const customerServiceFeeFlat = amountValue(req.body.customerServiceFeeFlat, current.customerServiceFeeFlat);
     const customerTaxPercent = amountValue(req.body.customerTaxPercent, current.customerTaxPercent);
     const holdMinutes = amountValue(req.body.holdMinutes ?? req.body.holdTimer, current.holdMinutes);
     const defaultCurrency = cleanText(req.body.defaultCurrency || current.defaultCurrency, 8).toUpperCase();
+    if (partnerCommissionPercent < 0 || partnerCommissionPercent > 100) throw error('Classic Trip percentage must be between 0 and 100', 422);
+    if (fixedPlatformAmount < 0 || promoterFixedAmount < 0 || customerDiscountFixedAmount < 0) throw error('Fixed commercial amounts must be zero or greater', 422);
+    if (promoterSharePercent < 0 || promoterSharePercent > 100 || customerDiscountSharePercent < 0 || customerDiscountSharePercent > 100) throw error('Promoter and discount percentages must be between 0 and 100', 422);
+    if (promoterRewardModel === 'percentage_of_platform' && customerDiscountModel === 'percentage_of_platform' && promoterSharePercent + customerDiscountSharePercent > 100) throw error('Promoter share plus customer discount cannot exceed 100% of Classic Trip share', 422);
     const supportedCurrencies = [...new Set(String(req.body.supportedCurrencies || current.supportedCurrencies.join(','))
       .split(/[\s,;]+/).map((value) => cleanText(value, 8).toUpperCase()).filter(Boolean))];
     if (!/^[A-Z]{3}$/.test(defaultCurrency)) throw error('Default currency must use a three-letter ISO currency code', 422);
@@ -378,9 +389,17 @@ async function updateFinanceRules(req, res, next) {
       supportEmail: cleanText(req.body.supportEmail || current.supportEmail, 320),
       supportMessage: cleanText(req.body.supportMessage || current.supportMessage, 2000),
       financeRules: {
+        commercialModel,
         partnerCommissionPercent,
+        fixedPlatformAmount,
+        fixedUnitBasis,
+        promoterRewardModel,
         promoterSharePercent,
-        promoterFixedUgx,
+        promoterFixedAmount,
+        promoterFixedUgx: promoterFixedAmount,
+        customerDiscountModel,
+        customerDiscountFixedAmount,
+        customerDiscountSharePercent,
         customerServiceFeePercent,
         customerServiceFeeFlat,
         customerTaxPercent,

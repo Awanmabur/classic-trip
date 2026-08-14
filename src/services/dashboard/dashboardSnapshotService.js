@@ -310,7 +310,7 @@ const ADMIN_PAGE_ENTITIES = Object.freeze({
   inventory: new Set(['companies','listings','routes','vehicles','schedules','seats','busSeatSegmentInventories']),
   'seat-maps': new Set(['companies','listings','routes','vehicles','schedules','seats','busSeatSegmentInventories','bookings']),
   'hotel-rooms': new Set(['companies','listings','hotelProperties','roomTypes','roomUnits','roomNightInventories','ratePlans','maintenanceBlocks']),
-  payments: new Set(['companies','bookings','payments','paymentWebhookEvents','wallets','walletTransactions','paymentIntents','receiptInvoices']),
+  payments: new Set(['companies','listings','fareProducts','roomTypes','bookings','payments','paymentWebhookEvents','wallets','walletTransactions','paymentIntents','receiptInvoices']),
   audit: new Set(['users','auditLogs']),
   reports: new Set(['companies','bookings','payments','wallets','walletTransactions','commissions','financeStatements','settlementBatches','reconciliationReports']),
   revenue: new Set(['companies','bookings','payments','walletTransactions','commissions','taxFeeRecords']),

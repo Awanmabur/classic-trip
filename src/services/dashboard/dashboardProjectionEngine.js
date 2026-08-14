@@ -472,7 +472,7 @@ function createDashboardProjection(initialState = {}) {
     });
     const companyRows = state.companies.map(company => {
       const detail = companyDetail(company);
-      return [company.name, companyPartnerLabel(company), company.country || '-', String(detail.performance.totalListings), company.verificationStatus || company.status || 'pending', detail.performance.revenue, `${Number(detail.commercialTerms.commissionPercent || 0).toFixed(2)}%`, dashboardMeta('partner', company.id, company.name, company.verificationStatus || company.status, {
+      return [company.name, companyPartnerLabel(company), company.country || '-', String(detail.performance.totalListings), company.verificationStatus || company.status || 'pending', detail.performance.revenue, (detail.commercialTerms.model === 'fixed_per_unit' ? `${formatMoney(detail.commercialTerms.fixedAmount || 0, detail.commercialTerms.currency || company.operatingCurrency)} / ${(detail.commercialTerms.unitBasis || 'unit').replace(/^per_/, '').replaceAll('_',' ')}` : `${Number(detail.commercialTerms.commissionPercent || 0).toFixed(2)}%`), dashboardMeta('partner', company.id, company.name, company.verificationStatus || company.status, {
         ...detail,
         partnerCategory: companyPartnerCategory(company),
         companyType: normalize(company.companyType || company.type || company.serviceType),
@@ -497,6 +497,20 @@ function createDashboardProjection(initialState = {}) {
       const detail = paymentDetail(booking, payment);
       return [payment.id || `TX-${78000 + index}`, booking.bookingRef, formatMoney(detail.payment.amount, detail.payment.currency), formatMoney(booking.pricing?.split?.companyAmount || 0, booking.pricing?.currency), formatMoney(booking.pricing?.split?.platformFee || 0, booking.pricing?.currency), formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency), detail.payment.status || booking.paymentStatus, dashboardMeta('payment', payment.id || booking.bookingRef, payment.id || booking.bookingRef, detail.payment.status || booking.paymentStatus, detail, ['view', 'booking', 'settlement', 'export'])];
     });
+    const commercialRuleRows = [];
+    for (const company of state.companies || []) {
+      if (company.commercialTerms) commercialRuleRows.push({ scopeType: 'company', scopeId: company.id, companyId: company.id, companyName: company.name, targetName: company.name, serviceType: company.companyType, terms: company.commercialTerms });
+    }
+    for (const listing of state.listings || []) {
+      if (listing.commercialTermsOverride) commercialRuleRows.push({ scopeType: 'listing', scopeId: listing.id, companyId: listing.companyId, companyName: findCompany(listing.companyId)?.name || listing.companyId, targetName: listing.title, serviceType: listing.serviceType, terms: listing.commercialTermsOverride });
+    }
+    for (const fare of state.fareProducts || []) {
+      if (fare.commercialTermsOverride) commercialRuleRows.push({ scopeType: 'fare_product', scopeId: fare.id, companyId: fare.companyId, companyName: findCompany(fare.companyId)?.name || fare.companyId, targetName: `${fare.name || fare.id} · ${fare.fareClass || 'standard'}`, serviceType: 'bus', listingId: fare.listingId, terms: fare.commercialTermsOverride });
+    }
+    for (const roomType of state.roomTypes || []) {
+      if (roomType.commercialTermsOverride) commercialRuleRows.push({ scopeType: 'room_type', scopeId: roomType.id, companyId: roomType.companyId, companyName: findCompany(roomType.companyId)?.name || roomType.companyId, targetName: roomType.name || roomType.id, serviceType: 'hotel', listingId: roomType.listingId, terms: roomType.commercialTermsOverride });
+    }
+
     const promoterRows = state.users.filter(user => user.role === 'promoter').map(user => {
       const detail = promoterDetail(user);
       const links = state.promoterLinks.filter(link => link.promoterId === user.id);
@@ -904,8 +918,16 @@ function createDashboardProjection(initialState = {}) {
         ...(state.platformSettings || {}),
         platformName: state.platformSettings?.platformName || cachedPlatformConfig.platformName,
         defaultCurrency: state.platformSettings?.financeRules?.defaultCurrency || cachedPlatformConfig.defaultCurrency,
+        commercialModel: state.platformSettings?.financeRules?.commercialModel || cachedPlatformConfig.commercialModel,
         partnerCommissionPercent: Number(state.platformSettings?.financeRules?.partnerCommissionPercent ?? cachedPlatformConfig.partnerCommissionPercent),
+        fixedPlatformAmount: Number(state.platformSettings?.financeRules?.fixedPlatformAmount ?? cachedPlatformConfig.fixedPlatformAmount ?? 0),
+        fixedUnitBasis: state.platformSettings?.financeRules?.fixedUnitBasis || cachedPlatformConfig.fixedUnitBasis,
+        promoterRewardModel: state.platformSettings?.financeRules?.promoterRewardModel || cachedPlatformConfig.promoterRewardModel,
         promoterSharePercent: Number(state.platformSettings?.financeRules?.promoterSharePercent ?? cachedPlatformConfig.promoterSharePercent),
+        promoterFixedAmount: Number(state.platformSettings?.financeRules?.promoterFixedAmount ?? state.platformSettings?.financeRules?.promoterFixedUgx ?? cachedPlatformConfig.promoterFixedAmount ?? 0),
+        customerDiscountModel: state.platformSettings?.financeRules?.customerDiscountModel || cachedPlatformConfig.customerDiscountModel,
+        customerDiscountFixedAmount: Number(state.platformSettings?.financeRules?.customerDiscountFixedAmount ?? cachedPlatformConfig.customerDiscountFixedAmount ?? 0),
+        customerDiscountSharePercent: Number(state.platformSettings?.financeRules?.customerDiscountSharePercent ?? cachedPlatformConfig.customerDiscountSharePercent ?? 0),
         partnerPayoutPercent: Number(cachedPlatformConfig.partnerPayoutPercent),
         supportEmail: state.platformSettings?.supportEmail || '',
         maintenanceMode: state.platformSettings?.maintenanceMode === true,
@@ -921,6 +943,7 @@ function createDashboardProjection(initialState = {}) {
       vehicles: vehicleRows,
       schedules: scheduleRows,
       payments: paymentRows,
+      commercialRules: commercialRuleRows,
       promoters: promoterRows,
       customers: customerRows,
       support: supportRows,
@@ -972,6 +995,9 @@ function createDashboardProjection(initialState = {}) {
         listings: (state.listings || []).filter(listing => listing.status === 'active' && listing.bookable !== false).map(listing => ({
           id: listing.id, value: listing.id, label: `${listing.title || listing.id} (${SERVICE_LABELS[listing.serviceType] || listing.serviceType || 'Service'})`,
           companyId: listing.companyId, listingId: listing.id, serviceType: listing.serviceType, status: listing.status
+        })),
+        fareProducts: (state.fareProducts || []).filter(fare => fare.status !== 'archived').map(fare => ({
+          id: fare.id, value: fare.id, label: `${fare.name || fare.id} (${fare.fareClass || 'standard'})`, companyId: fare.companyId, listingId: fare.listingId, routeId: fare.routeId, fareClass: fare.fareClass, serviceType: 'bus', status: fare.status
         })),
         schedules: (state.schedules || []).filter(schedule => !['archived', 'cancelled', 'completed'].includes(normalize(schedule.status))).map(schedule => {
           const listing = findListing(schedule.listingId) || {};
@@ -1073,11 +1099,20 @@ function createDashboardProjection(initialState = {}) {
       capabilityPolicy: company.capabilityPolicy || company.settings?.capabilityPolicy || {},
       companyName: company.name || company.companyName || '',
       commercialTerms: {
-        model: company.commercialTerms?.model || 'percentage_commission',
+        model: company.commercialTerms?.model || cachedPlatformConfig.commercialModel || 'percentage_commission',
         commissionPercent: Number(company.commercialTerms?.commissionPercent ?? cachedPlatformConfig.partnerCommissionPercent ?? 0),
+        fixedAmount: Number(company.commercialTerms?.fixedAmount ?? cachedPlatformConfig.fixedPlatformAmount ?? 0),
+        unitBasis: company.commercialTerms?.unitBasis || cachedPlatformConfig.fixedUnitBasis || 'per_booking',
+        currency: company.commercialTerms?.currency || company.operatingCurrency || cachedPlatformConfig.defaultCurrency,
         partnerPayoutPercent: Math.max(0, 100 - Number(company.commercialTerms?.commissionPercent ?? cachedPlatformConfig.partnerCommissionPercent ?? 0)),
-        promoterFunding: company.commercialTerms?.promoterFunding || 'platform_commission',
-        termsVersion: company.commercialTerms?.termsVersion || cachedPlatformConfig.commercialTermsVersion || 'commission-v1',
+        promoterFunding: 'platform_commission',
+        promoterRewardModel: company.commercialTerms?.promoterRewardModel || cachedPlatformConfig.promoterRewardModel || 'none',
+        promoterFixedAmount: Number(company.commercialTerms?.promoterFixedAmount ?? cachedPlatformConfig.promoterFixedAmount ?? 0),
+        promoterSharePercent: Number(company.commercialTerms?.promoterSharePercent ?? cachedPlatformConfig.promoterSharePercent ?? 0),
+        customerDiscountModel: company.commercialTerms?.customerDiscountModel || cachedPlatformConfig.customerDiscountModel || 'none',
+        customerDiscountFixedAmount: Number(company.commercialTerms?.customerDiscountFixedAmount ?? cachedPlatformConfig.customerDiscountFixedAmount ?? 0),
+        customerDiscountSharePercent: Number(company.commercialTerms?.customerDiscountSharePercent ?? cachedPlatformConfig.customerDiscountSharePercent ?? 0),
+        termsVersion: company.commercialTerms?.termsVersion || cachedPlatformConfig.commercialTermsVersion || 'commercial-v1',
         source: company.commercialTerms?.source || 'platform_default',
       },
       visiblePages: Array.from(visiblePages),
@@ -3544,8 +3579,8 @@ function createDashboardProjection(initialState = {}) {
           bookingId: booking.id,
           bookingRef: booking.bookingRef,
           referralCode: booking.promoterAttribution?.code || mainLink.code || '',
-          referralPercent: (commission.promoterRewardModel === 'fixed_ugx' || booking.pricing?.split?.promoterRewardModel === 'fixed_ugx')
-            ? `UGX ${Number(commission.promoterFixedAmount || booking.pricing?.split?.promoterFixedAmount || booking.pricing?.split?.promoterAmount || 2000).toLocaleString()} fixed`
+          referralPercent: (commission.promoterRewardModel === 'fixed_amount' || booking.pricing?.split?.promoterRewardModel === 'fixed_amount')
+            ? `${booking.pricing?.currency || platformDefaultCurrency} ${Number(commission.promoterFixedAmount || booking.pricing?.split?.promoterFixedAmount || booking.pricing?.split?.promoterAmount || 0).toLocaleString()} fixed`
             : (booking.pricing?.split?.promoterPercent || `${Number(commission.promoterSharePercent || 0)}%`),
           grossAmount: formatMoney(booking.pricing?.total || 0, booking.pricing?.currency),
           commissionAmount: formatMoney(booking.pricing?.split?.promoterAmount || 0, booking.pricing?.currency),
@@ -3976,11 +4011,20 @@ function createDashboardProjection(initialState = {}) {
         pendingPayout: formatMoney(pendingPayout)
       },
       commercialTerms: {
-        model: company.commercialTerms?.model || 'percentage_commission',
+        model: company.commercialTerms?.model || cachedPlatformConfig.commercialModel || 'percentage_commission',
         commissionPercent: Number(company.commercialTerms?.commissionPercent ?? cachedPlatformConfig.partnerCommissionPercent ?? 0),
+        fixedAmount: Number(company.commercialTerms?.fixedAmount ?? cachedPlatformConfig.fixedPlatformAmount ?? 0),
+        unitBasis: company.commercialTerms?.unitBasis || cachedPlatformConfig.fixedUnitBasis || 'per_booking',
+        currency: company.commercialTerms?.currency || company.operatingCurrency || cachedPlatformConfig.defaultCurrency,
         partnerPayoutPercent: Math.max(0, 100 - Number(company.commercialTerms?.commissionPercent ?? cachedPlatformConfig.partnerCommissionPercent ?? 0)),
-        promoterFunding: company.commercialTerms?.promoterFunding || 'platform_commission',
-        termsVersion: company.commercialTerms?.termsVersion || cachedPlatformConfig.commercialTermsVersion || 'commission-v1',
+        promoterFunding: 'platform_commission',
+        promoterRewardModel: company.commercialTerms?.promoterRewardModel || cachedPlatformConfig.promoterRewardModel || 'none',
+        promoterFixedAmount: Number(company.commercialTerms?.promoterFixedAmount ?? cachedPlatformConfig.promoterFixedAmount ?? 0),
+        promoterSharePercent: Number(company.commercialTerms?.promoterSharePercent ?? cachedPlatformConfig.promoterSharePercent ?? 0),
+        customerDiscountModel: company.commercialTerms?.customerDiscountModel || cachedPlatformConfig.customerDiscountModel || 'none',
+        customerDiscountFixedAmount: Number(company.commercialTerms?.customerDiscountFixedAmount ?? cachedPlatformConfig.customerDiscountFixedAmount ?? 0),
+        customerDiscountSharePercent: Number(company.commercialTerms?.customerDiscountSharePercent ?? cachedPlatformConfig.customerDiscountSharePercent ?? 0),
+        termsVersion: company.commercialTerms?.termsVersion || cachedPlatformConfig.commercialTermsVersion || 'commercial-v1',
         source: company.commercialTerms?.source || 'platform_default',
         acceptedAt: company.commercialTerms?.acceptedAt || '',
         acceptedBy: company.commercialTerms?.acceptedBy || '',

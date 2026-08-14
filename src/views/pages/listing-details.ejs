@@ -7,7 +7,7 @@
   const currency = previewData.currency || listing.currency || platformConfig.defaultCurrency;
   const customerFeeFor = (subtotal) => Math.round((Number(subtotal || 0) * Number(platformConfig.customerServiceFeePercent || 0) / 100) + Number(platformConfig.customerServiceFeeFlat || 0) + (Number(subtotal || 0) * Number(platformConfig.customerTaxPercent || 0) / 100));
   const initialBusFare = Number(safeAvailability.fare?.baseAmountPerSeat ?? listing.priceFrom ?? 0);
-  const initialBusServiceFee = String(currency || '').toUpperCase() === String(platformConfig.ugandaCurrency || '').toUpperCase() && initialBusFare >= 1000 ? (initialBusFare <= 30000 ? 1000 : initialBusFare <= 100000 ? 2000 : initialBusFare <= 150000 ? 3000 : 5000) : 0;
+  const initialBusServiceFee = customerFeeFor(initialBusFare);
   const serviceFee = previewData.serviceFee ?? (listing.serviceType === 'bus' ? initialBusServiceFee : customerFeeFor(listing.priceFrom || 0));
   const initialDisplayedFare = listing.serviceType === 'bus' ? initialBusFare : Number(listing.priceFrom || 0);
   const totalEstimate = previewData.totalEstimate ?? (initialDisplayedFare + serviceFee);
@@ -330,16 +330,6 @@
   let outboundRequestSequence = 0;
   const customerFeeConfig = <%- toScriptJson({ percent: platformConfig.customerServiceFeePercent || 0, flat: platformConfig.customerServiceFeeFlat || 0, taxPercent: platformConfig.customerTaxPercent || 0, ugandaCurrency: platformConfig.ugandaCurrency || '' }) %>;
   function customerFees(subtotal) { const base = Math.max(0, Number(subtotal || 0)); return Math.round((base * Number(customerFeeConfig.percent || 0) / 100) + Number(customerFeeConfig.flat || 0) + (base * Number(customerFeeConfig.taxPercent || 0) / 100)); }
-  function busTicketPrice(partnerFare, seatDelta, isMainRoute) {
-    const partner = Math.max(0, Math.round(Number(partnerFare || 0) + Number(seatDelta || 0)));
-    const ugx = String(previewPricing.currency || '').toUpperCase() === String(customerFeeConfig.ugandaCurrency || '').toUpperCase();
-    const discount = ugx && isMainRoute ? Math.min(3000, Math.max(0, partner - 1000)) : 0;
-    const fare = Math.max(0, partner - discount);
-    let fee = 0;
-    if (ugx && fare >= 1000) fee = fare <= 30000 ? 1000 : fare <= 100000 ? 2000 : fare <= 150000 ? 3000 : 5000;
-    return { partner, fare, discount, fee };
-  }
-
   function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   }
@@ -627,10 +617,13 @@
   }
   function selectedBusPricing(buttons, pricing) {
     return buttons.reduce((totals, button) => {
-      const row = busTicketPrice(pricing.partnerBasePrice, Number(button?.dataset?.priceDelta || 0), pricing.isMainRoute);
-      totals.base += row.fare; totals.fee += row.fee; totals.discount += row.discount; totals.partner += row.partner;
+      const delta = Number(button?.dataset?.priceDelta || 0);
+      const partner = Number(button?.dataset?.partnerFare || 0) || Math.max(0, Number(pricing.partnerBasePrice || 0) + delta);
+      const fare = Number(button?.dataset?.customerFare || 0) || Math.max(0, Number(pricing.basePrice || 0) + delta);
+      const discount = Math.max(0, Number(button?.dataset?.discountAmount || Math.max(0, partner - fare)));
+      totals.base += fare; totals.discount += discount; totals.partner += partner;
       return totals;
-    }, { base: 0, fee: 0, discount: 0, partner: 0 });
+    }, { base: 0, discount: 0, partner: 0 });
   }
   function outboundBasePrice() {
     if (previewPricing.serviceType === 'hotel') return selectedBasePrice(selectedButton()) * hotelStayRange().nights * hotelRoomCount();
@@ -652,9 +645,9 @@
     const returnBase = previewPricing.serviceType === 'bus' ? returnBus.base : returnBasePrice();
     const base = outboundBase + returnBase;
     const discount = previewPricing.serviceType === 'bus' ? outboundBus.discount + returnBus.discount : 0;
-    const fee = previewPricing.serviceType === 'bus' ? outboundBus.fee + returnBus.fee : (base > 0 ? customerFees(base) : 0);
     const addonTotal = activeAddons().reduce((sum, addon) => sum + addon.price, 0);
-    const total = base + fee + addonTotal;
+    const fee = (base + addonTotal) > 0 ? customerFees(base + addonTotal) : 0;
+    const total = base + addonTotal + fee;
     const returnLabels = activeReturnSelections.length ? ` · Return: ${activeReturnSelections.map((seat) => `Seat No ${seat}`).join(', ')}` : '';
     const hotelSelectionSuffix = previewPricing.serviceType === 'hotel' ? ` · ${hotelRoomCount()} room${hotelRoomCount() === 1 ? '' : 's'}` : '';
     const ticketPrefix = previewPricing.serviceType === 'bus' ? `${ticketClassLabel(activeTicketClass)} · ` : '';
@@ -685,9 +678,9 @@
     const selected = kind === 'return' ? activeReturnSelections.includes(number) : activeSelections.includes(number);
     const statusClass = `${seatStatusClass(seat)}${selected && !seatUnavailable(seat) ? ' selected' : ''}`;
     if (kind === 'return') {
-      return `<button class="returnSeat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-return-seat="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-listing-action="return-seat" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+      return `<button class="returnSeat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-return-seat="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-partner-fare="${Number(seat.partnerFare || 0)}" data-customer-fare="${Number(seat.customerFare || 0)}" data-discount-amount="${Number(seat.discountAmount || 0)}" data-listing-action="return-seat" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
     }
-    return `<button class="seat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-choice="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-seat-kind="outbound" data-listing-action="select-option" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
+    return `<button class="seat ${statusClass}" data-seat-state="${seatStatusClass(seat)}" style="${seatStatusClass(seat) === 'taken' ? 'background:#dc2626!important;border-color:#b91c1c!important;color:#fff!important' : ''}" type="button" data-choice="${escapeHtml(number)}" data-label="${escapeHtml(label)}" data-price-delta="${Number(seat.priceDelta || 0)}" data-partner-fare="${Number(seat.partnerFare || 0)}" data-customer-fare="${Number(seat.customerFare || 0)}" data-discount-amount="${Number(seat.discountAmount || 0)}" data-seat-kind="outbound" data-listing-action="select-option" ${disabledAttr}><span>Seat No</span><b>${escapeHtml(number)}</b></button>`;
   }
   function layoutSides(layoutName, seatCount) {
     const normalized = String(layoutName || '').toLowerCase();

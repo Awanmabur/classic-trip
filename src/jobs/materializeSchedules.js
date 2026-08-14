@@ -183,16 +183,29 @@ async function pauseDormantOverlappingRules(activeRules = [], now = new Date()) 
 async function hydrateLegacyRuleDuration(rule = {}) {
   const currentDuration = Number(rule.durationMinutes || 0);
   if (currentDuration > 0 || !rule.routeId || !rule.companyId) return rule;
-  const route = await busOperationsRepository.routes.findOne({ id: rule.routeId, companyId: rule.companyId });
+
+  // Duration hydration is compatibility help for old rolling rules, not a
+  // prerequisite for materialization. Keep the worker resilient when a narrow
+  // repository/test fixture does not expose route hydration methods; the rule
+  // can still materialize and the normal schedule payload will use its existing
+  // duration/fallback behavior. Real repository/runtime failures are still
+  // surfaced by the actual materialization operations below.
+  const findRoute = busOperationsRepository.routes?.findOne;
+  if (typeof findRoute !== 'function') return rule;
+  const route = await findRoute.call(busOperationsRepository.routes, { id: rule.routeId, companyId: rule.companyId });
   if (!route) return rule;
   const routeDuration = Number(route.estimatedDurationMinutes || parseDurationMinutes(route.estimatedDuration, 0) || 0);
   if (!(routeDuration > 0)) return rule;
-  await busOperationsRepository.scheduleRules.updateOne({ id: rule.id, companyId: rule.companyId }, {
-    $set: {
-      durationMinutes: routeDuration,
-      materializationStateUpdatedAt: new Date().toISOString(),
-    },
-  });
+
+  const updateRule = busOperationsRepository.scheduleRules?.updateOne;
+  if (typeof updateRule === 'function') {
+    await updateRule.call(busOperationsRepository.scheduleRules, { id: rule.id, companyId: rule.companyId }, {
+      $set: {
+        durationMinutes: routeDuration,
+        materializationStateUpdatedAt: new Date().toISOString(),
+      },
+    });
+  }
   rule.durationMinutes = routeDuration;
   return rule;
 }

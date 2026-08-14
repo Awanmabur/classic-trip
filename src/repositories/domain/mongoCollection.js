@@ -69,6 +69,11 @@ class MongoCollection {
     return this.repository.updateMany(filter, update, options);
   }
 
+  async findOneAndUpdate(filter, update, options = {}) {
+    this.assertReady();
+    return this.repository.findOneAndUpdate(filter, update, options);
+  }
+
   async deleteOne(filter = {}, options = {}) {
     this.assertReady();
     const existing = await this.repository.findOne(filter, options);

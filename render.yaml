@@ -12,6 +12,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24.14.1
       - key: APP_NAME
         value: Classic Trip
       - key: APP_URL
@@ -35,7 +37,7 @@ services:
       - key: MONGO_TRANSACTIONS
         value: "true"
       - key: MONGO_MIN_POOL_SIZE
-        value: "1"
+        value: "4"
       - key: MONGO_MAX_POOL_SIZE
         value: "24"
       - key: MONGO_MAX_CONNECTING
@@ -80,6 +82,8 @@ services:
         value: "21600000"
       - key: PUBLIC_WARMUP_MAX_WAIT_MS
         value: "10000"
+      - key: PUBLIC_CATALOG_DB_READ_CONCURRENCY
+        value: "8"
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -90,7 +94,11 @@ services:
       - key: REDIS_PREFIX
         value: "classic-trip:"
       - key: REDIS_PING_INTERVAL_MS
-        value: "30000"
+        value: "15000"
+      - key: REDIS_KEEPALIVE_INITIAL_DELAY_MS
+        value: "1000"
+      - key: REDIS_TRANSIENT_NOTICE_DELAY_MS
+        value: "1500"
       - key: REDIS_RECONNECT_MAX_DELAY_MS
         value: "3000"
       - key: REDIS_ERROR_LOG_THROTTLE_MS
@@ -201,6 +209,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24.14.1
       - key: APP_URL
         fromService:
           type: web
@@ -264,7 +274,11 @@ services:
       - key: REDIS_PREFIX
         value: "classic-trip:"
       - key: REDIS_PING_INTERVAL_MS
-        value: "30000"
+        value: "15000"
+      - key: REDIS_KEEPALIVE_INITIAL_DELAY_MS
+        value: "1000"
+      - key: REDIS_TRANSIENT_NOTICE_DELAY_MS
+        value: "1500"
       - key: REDIS_RECONNECT_MAX_DELAY_MS
         value: "3000"
       - key: REDIS_ERROR_LOG_THROTTLE_MS

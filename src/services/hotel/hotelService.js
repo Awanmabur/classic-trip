@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const { env } = require('../../config/env');
 const generateBookingRef = require('../../utils/generateBookingRef');
-const calculateCommission = require('../../utils/calculateCommission');
+const commercialTermsService = require('../commission/commercialTermsService');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const hotelRepository = require('../../repositories/domain/hotelRepository');
 const timelineService = require('../support/timelineService');
@@ -1090,11 +1090,31 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
   const propertyTax = Number((taxableRoomTotal * Math.max(0, Number(property.taxPercent || 0)) / 100).toFixed(2));
   const propertyServiceFee = Number((taxableRoomTotal * Math.max(0, Number(property.serviceFeePercent || 0)) / 100).toFixed(2));
   const subtotal = taxableRoomTotal + addonPricing.total + propertyTax + propertyServiceFee;
-  const customerFees = calculateCustomerFees(subtotal);
-  const fees = customerFees.totalFees;
-  const total = customerFees.total;
   const company = await hotelRepository.companyOrThrow(listing.companyId);
-  const split = calculateCommission(total, Boolean(payload.promoterAttribution?.promoterId || payload.referralCode), { commissionPercent: company?.commercialTerms?.commissionPercent, currency });
+  const commercialTerms = commercialTermsService.resolveTerms({ company, listing, roomType: roomTypes[0] });
+  const baseSplit = commercialTermsService.calculateAgreementComponent({
+    grossAmount: subtotal,
+    terms: commercialTerms,
+    counts: {
+      bookingCount: 1,
+      passengerCount: adults + children + infants,
+      roomCount,
+      roomNightCount: roomCount * nights.length,
+      itemCount: roomCount,
+    },
+    hasReferral: Boolean(payload.promoterAttribution?.promoterId || payload.referralCode),
+    currency,
+  });
+  const customerFees = calculateCustomerFees(baseSplit.customerFare);
+  const fees = customerFees.totalFees;
+  const total = baseSplit.customerFare + fees;
+  const split = {
+    ...baseSplit,
+    customerServiceFee: customerFees.serviceFee,
+    customerTaxAmount: customerFees.taxAmount,
+    platformFee: Number(baseSplit.platformCommissionFee || 0) + fees,
+    customerTotal: total,
+  };
   const requestedSourceForPricing = clean(payload.source).toLowerCase().replace(/-/g, '_');
   if (requestedSourceForPricing === 'agent_offline') {
     const trustedOfflinePricing = options.trustedOffline === true && String(options.companyId || '') === String(listing.companyId || '') && clean(options.actorId);
@@ -1182,7 +1202,7 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       departureNotes: clean(payload.departureNotes).slice(0, 1200),
       specialRequests: clean(payload.specialRequests || payload.notes || '').slice(0, 1200),
     },
-    commercialTermsSnapshot: { model: 'percentage_commission', commissionPercent: split.partnerCommissionPercent, partnerPayoutPercent: split.partnerPayoutPercent, promoterSharePercent: split.promoterSharePercent, termsVersion: company?.commercialTerms?.termsVersion || getCachedPlatformConfig().commercialTermsVersion || 'commission-v1' },
+    commercialTermsSnapshot: { ...commercialTermsService.snapshotTerms(commercialTerms), partnerPayoutPercent: split.partnerPayoutPercent, resolvedSplit: { commercialModel: split.commercialModel, unitBasis: split.unitBasis, units: split.units, grossAmount: split.grossAmount, platformGrossCommission: split.platformGrossCommission, discountAmount: split.discountAmount, promoterAmount: split.promoterAmount, companyAmount: split.companyAmount } },
     pricing: {
       roomSubtotal,
       occupancySurcharge,
@@ -1190,7 +1210,12 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       taxableRoomTotal,
       propertyTax,
       propertyServiceFee,
-      subtotal,
+      partnerFareSubtotal: subtotal,
+      discountTotal: Number(split.discountAmount || 0),
+      subtotal: Number(split.customerFare || 0),
+      serviceFee: customerFees.serviceFee,
+      taxAmount: customerFees.taxAmount,
+      commissionableSubtotal: subtotal,
       fees,
       addonTotal: addonPricing.total,
       addons: addonPricing.addons,

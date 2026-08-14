@@ -10,6 +10,7 @@ const ACTIVE_DRAFT_KEY = 'busBookingActiveDrafts';
 const MAX_SESSION_DRAFTS = 8;
 const DRAFT_GRACE_MS = 30_000;
 const DRAFT_LIFETIME_MS = 60 * 60 * 1000;
+const TRUSTED_DRAFT_HOLDS = Symbol.for('classic-trip.bus-booking-draft-holds');
 
 
 const TOKEN_CIPHER = 'aes-256-gcm';
@@ -388,17 +389,19 @@ async function createDraft(req, { listing, payload = {} } = {}) {
 }
 
 async function resolveDraft(req, { draftId, listing } = {}) {
-  const id = cleanText(draftId, 80) || getActiveDraftId(req, listing);
+  const id = cleanText(draftId, 80) || (listing ? getActiveDraftId(req, listing) : '');
   if (!id) throw conflictError('Choose your journey and seats before opening checkout', 'booking_draft_required');
   const draft = purgeExpired(req)[id];
   if (!draft) throw conflictError('The secure booking draft expired. Select the seats again.', 'booking_draft_expired');
-  if (!listing || String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug)) {
+  if (listing && (String(draft.listingId) !== String(listing.id) || String(draft.listingSlug) !== String(listing.slug))) {
     throw validationError('Booking draft belongs to another listing', 403);
   }
-  setActiveDraft(req, listing, id);
-  const outboundResult = await resolveOrReacquireLeg(req, draft, 'outbound', listing);
+  const draftListing = listing || { id: draft.listingId, slug: draft.listingSlug, serviceType: 'bus' };
+  setActiveDraft(req, draftListing, id);
+  const outboundResult = await resolveOrReacquireLeg(req, draft, 'outbound', draftListing);
+  let returnResult = null;
   try {
-    if (draft.return) await resolveOrReacquireLeg(req, draft, 'return', listing, outboundResult.hold);
+    if (draft.return) returnResult = await resolveOrReacquireLeg(req, draft, 'return', draftListing, outboundResult.hold);
   } catch (error) {
     if (outboundResult.reacquired) await inventoryService.releaseHold(outboundResult.hold.id, 'return_reacquire_failed', 'booking-draft');
     throw error;
@@ -407,13 +410,18 @@ async function resolveDraft(req, { draftId, listing } = {}) {
     new Date(draft.outbound.expiresAt).getTime(),
     draft.return ? new Date(draft.return.expiresAt).getTime() : Number.POSITIVE_INFINITY,
   )).toISOString();
-  if (outboundResult.reacquired || draft.return) await saveSession(req);
+  Object.defineProperty(draft, TRUSTED_DRAFT_HOLDS, {
+    value: { outbound: outboundResult.hold, return: returnResult?.hold || null },
+    enumerable: false, configurable: true, writable: false,
+  });
+  if (outboundResult.reacquired || returnResult?.reacquired) await saveSession(req);
   return draft;
 }
 
 async function applyDraftToPayload(req, payload = {}, listing = null) {
   const draft = await resolveDraft(req, { draftId: payload.bookingDraftId, listing });
-  return {
+  if (payload.listingId && String(payload.listingId) !== String(draft.listingId)) throw validationError('Booking form listing does not match the secure draft', 403);
+  const nextPayload = {
     ...payload,
     listingId: draft.listingId,
     holdId: draft.outbound.holdId,
@@ -433,9 +441,14 @@ async function applyDraftToPayload(req, payload = {}, listing = null) {
     addons: draft.addonIds,
     ref: cleanText(payload.ref || draft.referralCode, 180),
   };
+  Object.defineProperty(nextPayload, TRUSTED_DRAFT_HOLDS, {
+    value: draft[TRUSTED_DRAFT_HOLDS] || null,
+    enumerable: false, configurable: false, writable: false,
+  });
+  return nextPayload;
 }
 
-async function discardDraft(req, draftId) {
+async function discardDraft(req, draftId, options = {}) {
   if (!req?.session) return;
   const id = cleanText(draftId, 80);
   const drafts = purgeExpired(req);
@@ -444,7 +457,7 @@ async function discardDraft(req, draftId) {
   for (const [key, pointer] of Object.entries(active)) {
     if (String(pointer?.id || '') === id) delete active[key];
   }
-  await saveSession(req);
+  if (options.save !== false) await saveSession(req);
 }
 
 module.exports = {
@@ -452,4 +465,5 @@ module.exports = {
   resolveDraft,
   applyDraftToPayload,
   discardDraft,
+  TRUSTED_DRAFT_HOLDS,
 };

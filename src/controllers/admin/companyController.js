@@ -34,8 +34,18 @@ async function updateCommission(req, res, next) {
       req.body,
       req.session?.user?.id || 'admin-system'
     );
-    if (req.flash) req.flash('success', 'Partner commission percentage updated. Existing bookings keep their historical percentage.');
+    if (req.flash) req.flash('success', 'Commercial agreement updated. Existing bookings keep their frozen historical split.');
     res.redirect('/admin/companies');
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateCommercialOverride(req, res, next) {
+  try {
+    await companyService.updateCommercialOverride(req.body, req.session?.user?.id || 'admin-system');
+    if (req.flash) req.flash('success', req.body.reset ? 'Commercial override removed; inherited terms now apply.' : 'Commercial rule saved. Existing bookings keep their frozen historical split.');
+    res.redirect('/admin/payments');
   } catch (error) {
     next(error);
   }
@@ -76,4 +86,4 @@ async function suspend(req, res, next) {
   }
 }
 
-module.exports = { create, updateCommission, approve, reject, suspend };
+module.exports = { create, updateCommission, updateCommercialOverride, approve, reject, suspend };

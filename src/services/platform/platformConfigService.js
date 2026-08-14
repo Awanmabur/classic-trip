@@ -8,9 +8,17 @@ const SYSTEM_DEFAULTS = Object.freeze({
   defaultCurrency: 'UGX',
   ugandaCurrency: currencyForCountry('Uganda'),
   supportedCurrencies: ['UGX', 'KES', 'RWF', 'TZS', 'BIF', 'SSP', 'CDF', 'SOS', 'USD'],
-  partnerCommissionPercent: 10,
-  promoterSharePercent: 30,
-  promoterFixedUgx: 2000,
+  commercialModel: 'percentage_commission',
+  partnerCommissionPercent: 0,
+  fixedPlatformAmount: 0,
+  fixedUnitBasis: 'per_booking',
+  promoterRewardModel: 'none',
+  promoterSharePercent: 0,
+  promoterFixedAmount: 0,
+  promoterFixedUgx: 0,
+  customerDiscountModel: 'none',
+  customerDiscountFixedAmount: 0,
+  customerDiscountSharePercent: 0,
   customerServiceFeePercent: 0,
   customerServiceFeeFlat: 0,
   customerTaxPercent: 0,
@@ -58,9 +66,19 @@ function normalize(row = {}) {
   const finance = row.financeRules && typeof row.financeRules === 'object' ? row.financeRules : {};
   const defaultCurrency = currency(finance.defaultCurrency);
   const legacyPartnerCommission = legacyCommissionPercent(finance);
+  const commercialModel = ['percentage_commission','fixed_per_unit'].includes(String(finance.commercialModel || '').trim()) ? String(finance.commercialModel).trim() : SYSTEM_DEFAULTS.commercialModel;
   const partnerCommissionPercent = number(legacyPartnerCommission, SYSTEM_DEFAULTS.partnerCommissionPercent);
+  const fixedPlatformAmount = number(finance.fixedPlatformAmount, SYSTEM_DEFAULTS.fixedPlatformAmount, 0, 1000000000);
+  const fixedUnitBasis = ['per_booking','per_passenger','per_ticket','per_room','per_room_night','per_item'].includes(String(finance.fixedUnitBasis || '').trim()) ? String(finance.fixedUnitBasis).trim() : SYSTEM_DEFAULTS.fixedUnitBasis;
+  const legacyFixedPromoter = Number(finance.promoterFixedAmount ?? finance.promoterFixedUgx);
+  const promoterFixedAmount = number(legacyFixedPromoter, SYSTEM_DEFAULTS.promoterFixedAmount, 0, 1000000000);
+  const promoterRewardModel = ['none','fixed_amount','percentage_of_platform'].includes(String(finance.promoterRewardModel || '').trim())
+    ? String(finance.promoterRewardModel).trim()
+    : (promoterFixedAmount > 0 ? 'fixed_amount' : (Number(finance.promoterSharePercent || 0) > 0 ? 'percentage_of_platform' : SYSTEM_DEFAULTS.promoterRewardModel));
   const promoterSharePercent = number(legacyPromoterShare(finance, partnerCommissionPercent), SYSTEM_DEFAULTS.promoterSharePercent);
-  const promoterFixedUgx = number(finance.promoterFixedUgx, SYSTEM_DEFAULTS.promoterFixedUgx, 0, 1000000000);
+  const customerDiscountModel = ['none','fixed_amount','percentage_of_platform'].includes(String(finance.customerDiscountModel || '').trim()) ? String(finance.customerDiscountModel).trim() : SYSTEM_DEFAULTS.customerDiscountModel;
+  const customerDiscountFixedAmount = number(finance.customerDiscountFixedAmount, SYSTEM_DEFAULTS.customerDiscountFixedAmount, 0, 1000000000);
+  const customerDiscountSharePercent = number(finance.customerDiscountSharePercent, SYSTEM_DEFAULTS.customerDiscountSharePercent);
   const customerServiceFeePercent = number(finance.customerServiceFeePercent, SYSTEM_DEFAULTS.customerServiceFeePercent);
   const customerServiceFeeFlat = number(finance.customerServiceFeeFlat, SYSTEM_DEFAULTS.customerServiceFeeFlat, 0, 1000000000);
   const customerTaxPercent = number(finance.customerTaxPercent, SYSTEM_DEFAULTS.customerTaxPercent);
@@ -71,9 +89,17 @@ function normalize(row = {}) {
     defaultCurrency,
     ugandaCurrency: SYSTEM_DEFAULTS.ugandaCurrency,
     supportedCurrencies,
+    commercialModel,
     partnerCommissionPercent,
+    fixedPlatformAmount,
+    fixedUnitBasis,
+    promoterRewardModel,
     promoterSharePercent,
-    promoterFixedUgx,
+    promoterFixedAmount,
+    promoterFixedUgx: promoterFixedAmount,
+    customerDiscountModel,
+    customerDiscountFixedAmount,
+    customerDiscountSharePercent,
     partnerPayoutPercent: Math.max(0, 100 - partnerCommissionPercent),
     promoterEffectivePercent: Number(((partnerCommissionPercent * promoterSharePercent) / 100).toFixed(4)),
     customerServiceFeePercent,
@@ -95,9 +121,17 @@ function toStored(config) {
     supportMessage: config.supportMessage,
     maintenanceMode: config.maintenanceMode,
     financeRules: {
+      commercialModel: config.commercialModel,
       partnerCommissionPercent: config.partnerCommissionPercent,
+      fixedPlatformAmount: config.fixedPlatformAmount,
+      fixedUnitBasis: config.fixedUnitBasis,
+      promoterRewardModel: config.promoterRewardModel,
       promoterSharePercent: config.promoterSharePercent,
-      promoterFixedUgx: config.promoterFixedUgx,
+      promoterFixedAmount: config.promoterFixedAmount,
+      promoterFixedUgx: config.promoterFixedAmount,
+      customerDiscountModel: config.customerDiscountModel,
+      customerDiscountFixedAmount: config.customerDiscountFixedAmount,
+      customerDiscountSharePercent: config.customerDiscountSharePercent,
       customerServiceFeePercent: config.customerServiceFeePercent,
       customerServiceFeeFlat: config.customerServiceFeeFlat,
       customerTaxPercent: config.customerTaxPercent,

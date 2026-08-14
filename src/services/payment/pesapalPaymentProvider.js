@@ -309,6 +309,13 @@ async function readinessCheck(config = {}) {
   };
 }
 
+async function prewarm(config = {}, options = {}) {
+  if (!configured(config)) return { configured: false };
+  const token = await tokenFor(config);
+  const notificationId = options.notification === false ? '' : await notificationIdFor(config, token);
+  return { configured: true, notificationId: String(notificationId || ''), tokenExpiresAt: tokenCache.expiresAt };
+}
+
 async function initiatePayment(payment = {}, config = {}) {
   const token = await tokenFor(config);
   const notificationId = await notificationIdFor(config, token);
@@ -433,4 +440,4 @@ async function initiateRefund(refund = {}, config = {}) {
   };
 }
 
-module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, readinessCheck, credentialCheck, normalizeStatus, pesapalFields, safeMerchantReference, assertPesapalRedirect, buildOrder, tokenExpiryAt };
+module.exports = { configured, prewarm, initiatePayment, initiateRefund, verifyWebhook, readinessCheck, credentialCheck, normalizeStatus, pesapalFields, safeMerchantReference, assertPesapalRedirect, buildOrder, tokenExpiryAt };

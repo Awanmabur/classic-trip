@@ -16,6 +16,7 @@ const fareProductSchema = new Schema({
   salesStartAt: Date,
   salesEndAt: Date,
   status: { type: String, enum: ['draft', 'active', 'paused', 'archived'], default: 'draft', index: true },
+  commercialTermsOverride: Schema.Types.Mixed,
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });

@@ -31,14 +31,14 @@ check('redis:local npm command exists', pkg.scripts?.['redis:local'] === 'node s
 check('Redis keeps runtime recovery active after first healthy connection', redis.includes('if (!hasBeenReady && retries >= 3) return false;'));
 check('Redis runtime reconnect uses bounded exponential backoff and jitter', redis.includes('2 ** exponent') && redis.includes('reconnectMaxDelayMs') && redis.includes('Math.random() * 200'));
 check('Redis sends periodic health pings', redis.includes('pingInterval: env.redis.pingIntervalMs'));
-check('Redis socket keepalive is explicitly enabled', redis.includes('keepAlive: true') && redis.includes('keepAliveInitialDelay: 5000'));
-check('Redis socket errors are log-throttled', redis.includes('errorLogThrottleMs') && redis.includes('automatic recovery active'));
-check('new Redis recovery controls are configurable', ['REDIS_PING_INTERVAL_MS', 'REDIS_RECONNECT_MAX_DELAY_MS', 'REDIS_ERROR_LOG_THROTTLE_MS'].every((key) => env.includes(key) && envExample.includes(key)));
+check('Redis socket keepalive is explicitly enabled', redis.includes('keepAlive: true') && redis.includes('keepAliveInitialDelay: env.redis.keepAliveInitialDelayMs'));
+check('Redis socket errors are log-throttled', redis.includes('errorLogThrottleMs') && redis.includes('transientNoticeDelayMs') && redis.includes('automatic recovery active'));
+check('new Redis recovery controls are configurable', ['REDIS_PING_INTERVAL_MS', 'REDIS_KEEPALIVE_INITIAL_DELAY_MS', 'REDIS_TRANSIENT_NOTICE_DELAY_MS', 'REDIS_RECONNECT_MAX_DELAY_MS', 'REDIS_ERROR_LOG_THROTTLE_MS'].every((key) => env.includes(key) && envExample.includes(key)));
 check('network doctor probes MongoDB SRV members', networkDoctor.includes('resolveSrv') && networkDoctor.includes('MongoDB TCP'));
 check('network doctor verifies Redis DNS TCP and PING', ['Redis DNS', 'Redis TCP', 'Redis PING'].every((token) => networkDoctor.includes(token)));
 check('local Redis helper binds Docker Redis to loopback only', localRedis.includes('127.0.0.1:${HOST_PORT}:6379') && localRedis.includes("'--restart', 'unless-stopped'"));
 check('local Redis helper verifies PONG', localRedis.includes("String(ping.stdout).trim() === 'PONG'"));
-check('Render web and worker expose Redis recovery controls', ['REDIS_PING_INTERVAL_MS', 'REDIS_RECONNECT_MAX_DELAY_MS', 'REDIS_ERROR_LOG_THROTTLE_MS'].every((key) => (render.match(new RegExp(`key: ${key}`, 'g')) || []).length === 2));
+check('Render web and worker expose Redis recovery controls', ['REDIS_PING_INTERVAL_MS', 'REDIS_KEEPALIVE_INITIAL_DELAY_MS', 'REDIS_TRANSIENT_NOTICE_DELAY_MS', 'REDIS_RECONNECT_MAX_DELAY_MS', 'REDIS_ERROR_LOG_THROTTLE_MS'].every((key) => (render.match(new RegExp(`key: ${key}`, 'g')) || []).length === 2));
 check('service worker cache matches current release', sw.includes(`classic-trip-static-v${pkg.version}`));
 
 if (!process.exitCode) console.log(`\n${passed}/${passed} runtime/network checks passed.`);

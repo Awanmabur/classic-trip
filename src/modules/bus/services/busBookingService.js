@@ -1,5 +1,7 @@
 'use strict';
-const { priceBusTicket } = require('../../../utils/busCustomerPricing');
+const { calculateCustomerFees } = require('../../../utils/calculateCustomerFees');
+const commercialTermsService = require('../../../services/commission/commercialTermsService');
+const promoterRepository = require('../../../repositories/domain/promoterRepository');
 
 const crypto = require('crypto');
 const generateCode = require('../../../utils/generateCode');
@@ -9,6 +11,8 @@ const paymentSettlementService = require('../../../services/booking/paymentSettl
 const sensitiveFieldService = require('../../../services/security/sensitiveFieldService');
 const repository = require('../repositories/busRepository');
 const inventoryService = require('./busInventoryService');
+const { TRUSTED_DRAFT_HOLDS } = require('./busBookingDraftService');
+const logger = require('../../../config/logger');
 const {
   cleanText,
   normalize,
@@ -33,8 +37,34 @@ function itemAt(values, index, fallback = '') {
   return cleanText(rows[index] == null ? fallback : rows[index], 500);
 }
 function actorId(value) { return cleanText(value || 'guest', 180); }
+function fastEntityId(prefix) { return `${prefix}-${crypto.randomUUID()}`; }
+function fastEntityIds(prefix, count = 1) { return Array.from({ length: count }, () => fastEntityId(prefix)); }
 function minExpiry(holds = []) {
   return holds.map((hold) => new Date(hold.expiresAt).getTime()).filter(Number.isFinite).sort((a, b) => a - b)[0] || Date.now();
+}
+
+function isActiveReferralLink(link = {}) {
+  if (['archived', 'disabled', 'rejected', 'suspended'].includes(normalize(link.status))) return false;
+  return !link.expiresAt || new Date(link.expiresAt) > new Date();
+}
+
+async function resolvePromoterAttribution(payload = {}, req = null, listingId = '') {
+  if (payload.promoterAttribution?.promoterId) return payload.promoterAttribution;
+  const refCode = cleanText(payload.ref || payload.referralCode || req?.cookies?.ct_ref || req?.session?.referralCode || '', 180);
+  if (!refCode) return null;
+  const link = await promoterRepository.links.findOne({
+    status: { $nin: ['archived', 'disabled', 'rejected', 'suspended'] },
+    $and: [
+      { $or: [{ listingId: listingId }, { listingId: '' }, { listingId: null }, { listingId: { $exists: false } }] },
+      { $or: [{ code: refCode }, { referralCode: refCode }] },
+    ],
+  });
+  if (!link || String(req?.session?.user?.id || '') === String(link.promoterId || '')) return null;
+  return { promoterId: link.promoterId, linkId: link.id, code: link.code || link.referralCode || refCode };
+}
+
+function commercialGroupKey(terms = {}) {
+  return [terms.termsVersion, terms.source, terms.scopeType, terms.scopeId, terms.model, terms.unitBasis, terms.commissionPercent, terms.fixedAmount, terms.promoterRewardModel, terms.promoterFixedAmount, terms.promoterSharePercent, terms.customerDiscountModel, terms.customerDiscountFixedAmount, terms.customerDiscountSharePercent].join('|');
 }
 
 
@@ -141,34 +171,35 @@ function payloadHash(payload = {}) {
 async function claimIdempotency(key, scope, entityId, payload = {}) {
   const cleanKey = cleanText(key, 300);
   if (!cleanKey) return { replayed: false, record: null };
-  const existing = await repository.idempotencyKeys.findOne({ key: cleanKey, scope });
-  if (existing) {
-    if (existing.payloadHash && existing.payloadHash !== payloadHash(payload)) {
-      throw conflictError('This idempotency key was already used with different booking data', 'idempotency_payload_mismatch');
-    }
-    return { replayed: true, record: existing };
-  }
   const timestamp = new Date();
-  const record = {
-    id: await repository.nextId('idempotency'),
-    key: cleanKey,
-    scope,
-    entityType: 'booking',
-    entityId: cleanText(entityId, 180),
-    payloadHash: payloadHash(payload),
-    status: 'started',
-    firstSeenAt: timestamp.toISOString(),
-    lastSeenAt: timestamp.toISOString(),
-    expiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    metadata: {},
-  };
+  const candidateId = fastEntityId('idempotency');
+  const hash = payloadHash(payload);
+  let record;
   try {
-    await repository.idempotencyKeys.save(record, { key: cleanKey, scope });
+    record = await repository.idempotencyKeys.findOneAndUpdate(
+      { key: cleanKey, scope },
+      {
+        $setOnInsert: {
+          id: candidateId, key: cleanKey, scope, entityType: 'booking', entityId: cleanText(entityId, 180),
+          payloadHash: hash, status: 'started', firstSeenAt: timestamp.toISOString(),
+          expiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000).toISOString(), metadata: {},
+        },
+        $set: { lastSeenAt: timestamp.toISOString() },
+      },
+      { upsert: true, new: true },
+    );
   } catch (error) {
-    if (error.code === 11000) return { replayed: true, record: await repository.idempotencyKeys.findOne({ key: cleanKey, scope }) };
-    throw error;
+    // Two identical clicks can race the unique {key,scope} upsert. The winner is
+    // authoritative; the loser resolves the existing record instead of surfacing
+    // a Mongo duplicate-key error to the traveler.
+    if (Number(error?.code) !== 11000) throw error;
+    record = await repository.idempotencyKeys.findOne({ key: cleanKey, scope });
+    if (!record) throw error;
   }
-  return { replayed: false, record };
+  if (record?.payloadHash && record.payloadHash !== hash) {
+    throw conflictError('This idempotency key was already used with different booking data', 'idempotency_payload_mismatch');
+  }
+  return { replayed: record?.id !== candidateId, record };
 }
 
 async function completeIdempotency(record, booking) {
@@ -180,6 +211,15 @@ async function completeIdempotency(record, booking) {
   record.metadata = { bookingRef: booking.bookingRef, bookingStatus: booking.bookingStatus, paymentStatus: booking.paymentStatus };
   await repository.idempotencyKeys.save(record, { key: record.key, scope: record.scope });
 }
+
+function deferCompleteIdempotency(record, booking) {
+  if (!record || !booking) return;
+  completeIdempotency(record, booking).catch((error) => logger.warn('Deferred booking idempotency completion failed', {
+    bookingRef: booking.bookingRef || '',
+    error: error.message,
+  }));
+}
+
 
 function legSpec(payload = {}, prefix = '') {
   const returnLeg = prefix === 'return';
@@ -215,48 +255,44 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
   // Checkout only needs the seats attached to this hold. Reading the complete
   // vehicle inventory again made the payment transition slow as soon as one
   // real departure existed. The departure row is fetched concurrently.
-  const [availability, schedule] = await Promise.all([
-    inventoryService.getAvailability({
-      scheduleId: hold.scheduleId,
-      originStopId: hold.originStopId,
-      destinationStopId: hold.destinationStopId,
-      holdId: hold.id,
-      seatNumbers,
-    }),
-    repository.schedules.findOne({ id: hold.scheduleId, companyId: hold.companyId }),
-  ]);
-  if (!schedule) throw conflictError('Held departure no longer exists', 'departure_configuration_missing');
+  const availability = await inventoryService.getAvailability({
+    scheduleId: hold.scheduleId,
+    originStopId: hold.originStopId,
+    destinationStopId: hold.destinationStopId,
+    holdId: hold.id,
+    seatNumbers,
+  });
+  // getAvailability already validates the current published departure and returns
+  // the mutable schedule fields needed below; do not read the same schedule twice.
+  const schedule = availability.schedule;
+  if (!schedule?.id) throw conflictError('Held departure no longer exists', 'departure_configuration_missing');
   if (seatNumbers.length !== passengers.length) throw validationError('Each trip leg must have one selected seat for every passenger');
   const seatByNumber = new Map(availability.seats.map((seat) => [String(seat.seatNumber).toUpperCase(), seat]));
   const selectedSeatRows = seatNumbers.map((number) => seatByNumber.get(String(number).toUpperCase()));
   if (selectedSeatRows.some((seat) => !seat)) throw conflictError('Seat-map version no longer matches this hold', 'seat_map_mismatch');
 
   const timestamp = nowIso();
-  const [itemId, reservationId] = await Promise.all([
-    repository.nextId('booking-item'),
-    repository.nextId('bus-reservation'),
-  ]);
-  const ticketPrices = selectedSeatRows.map((seat) => priceBusTicket({
-    partnerFare: Number(availability.fare.partnerBaseAmountPerSeat ?? availability.fare.baseAmountPerSeat ?? 0),
-    seatDelta: Number(seat.priceDelta || 0),
-    isMainRoute: Boolean(availability.fare.isMainRoute),
-    currency: availability.fare.currency,
+  const itemId = fastEntityId('booking-item');
+  const reservationId = fastEntityId('bus-reservation');
+  const ticketPrices = selectedSeatRows.map((seat) => ({
+    partnerTicketAmount: Number(seat.partnerFare ?? (Number(availability.fare.partnerBaseAmountPerSeat || 0) + Number(seat.priceDelta || 0))),
+    customerFare: Number(seat.customerFare ?? (Number(availability.fare.baseAmountPerSeat || 0) + Number(seat.priceDelta || 0))),
+    discount: Number(seat.discountAmount || 0),
   }));
   const partnerFareSubtotal = ticketPrices.reduce((sum, row) => sum + row.partnerTicketAmount, 0);
   const discountTotal = ticketPrices.reduce((sum, row) => sum + row.discount, 0);
   const subtotal = ticketPrices.reduce((sum, row) => sum + row.customerFare, 0);
-  const serviceFee = ticketPrices.reduce((sum, row) => sum + row.serviceFee, 0);
-  const total = subtotal + serviceFee;
-  if (total <= 0) throw validationError('Server pricing produced an invalid booking total');
-  const pricing = { partnerFareSubtotal, discountTotal, subtotal, serviceFee, taxAmount: 0, fees: serviceFee, addonTotal: 0, commissionableSubtotal: subtotal, total, currency: availability.fare.currency, addons: [], split: null };
+  if (subtotal <= 0) throw validationError('Server pricing produced an invalid booking total');
+  // Customer service fee/tax is calculated once for the complete booking below, not per ticket.
+  const pricing = { partnerFareSubtotal, discountTotal, subtotal, serviceFee: 0, taxAmount: 0, fees: 0, addonTotal: 0, commissionableSubtotal: partnerFareSubtotal, total: subtotal, currency: availability.fare.currency, addons: [], split: null };
   const priceSnapshot = immutableSnapshot({
     ...availability.fare,
     selectedSeats: selectedSeatRows.map((seat, index) => ({ seatNumber: seat.seatNumber, seatClass: seat.seatClass, priceDelta: seat.priceDelta, pricing: ticketPrices[index] })),
     partnerFareSubtotal,
     discountTotal,
     subtotal,
-    serviceFee,
-    total,
+    serviceFee: 0,
+    total: subtotal,
   });
   const item = {
     id: itemId,
@@ -306,10 +342,8 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
   const assignments = [];
   const tickets = [];
   const ticketLegs = [];
-  const [assignmentIds, ticketIds] = await Promise.all([
-    repository.nextIds('bus-seat-assignment', passengers.length),
-    repository.nextIds('bus-ticket', passengers.length),
-  ]);
+  const assignmentIds = fastEntityIds('bus-seat-assignment', passengers.length);
+  const ticketIds = fastEntityIds('bus-ticket', passengers.length);
   for (let index = 0; index < passengers.length; index += 1) {
     const passenger = passengers[index];
     const seatNumber = seatNumbers[index];
@@ -379,7 +413,7 @@ async function buildLeg({ hold, bookingId, bookingRef, passengers, legIndex }) {
       checkInStatus: 'not_checked',
     });
   }
-  return { hold, availability, schedule, seatNumbers, item, reservation, assignments, tickets, ticketLegs, pricing };
+  return { hold, availability, schedule, seatNumbers, item, reservation, assignments, tickets, ticketLegs, pricing, commercialContext: availability[inventoryService.TRUSTED_COMMERCIAL_CONTEXT] || null };
 }
 
 async function buildCanonicalRows(payload = {}, req = null) {
@@ -394,10 +428,11 @@ async function buildCanonicalRows(payload = {}, req = null) {
   const outboundSpec = legSpec(payload);
   const returnSpec = legSpec(payload, 'return');
   const hasReturn = Boolean(returnSpec.holdId || returnSpec.scheduleId || returnSpec.selectedSeats.length);
-  const outboundHold = await ensureLegHold(outboundSpec, context);
+  const trustedDraftHolds = payload[TRUSTED_DRAFT_HOLDS] || null;
+  const outboundHold = trustedDraftHolds?.outbound || await ensureLegHold(outboundSpec, context);
   let returnHold = null;
   try {
-    if (hasReturn) returnHold = await ensureLegHold(returnSpec, context);
+    if (hasReturn) returnHold = trustedDraftHolds?.return || await ensureLegHold(returnSpec, context);
   } catch (error) {
     if (!outboundSpec.holdId) await inventoryService.releaseHold(outboundHold.id, 'return_leg_hold_failed', context.createdBy);
     throw error;
@@ -444,10 +479,10 @@ async function buildCanonicalRows(payload = {}, req = null) {
   }
 
   const timestamp = nowIso();
-  const bookingId = await repository.nextId('booking');
+  const bookingId = fastEntityId('booking');
   const bookingRef = generateCode('CTB', 10);
   const passengerInputs = buildPassengerPayloads(payload, outboundSeats);
-  const passengerIds = await repository.nextIds('passenger', passengerInputs.length);
+  const passengerIds = fastEntityIds('passenger', passengerInputs.length);
   const passengers = passengerInputs.map((passenger, index) => ({
     ...passenger,
     id: passengerIds[index],
@@ -469,9 +504,26 @@ async function buildCanonicalRows(payload = {}, req = null) {
   const currencies = unique(legs.map((leg) => leg.pricing.currency));
   if (currencies.length !== 1) throw validationError('All bus legs in one booking must use the same currency');
   const partnerFareSubtotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.partnerFareSubtotal || leg.pricing.subtotal || 0), 0);
-  const discountTotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.discountTotal || 0), 0);
-  const subtotal = legs.reduce((sum, leg) => sum + Number(leg.pricing.subtotal || 0), 0);
-  const serviceFee = legs.reduce((sum, leg) => sum + Number(leg.pricing.serviceFee || leg.pricing.fees || 0), 0);
+  const promoterAttribution = await resolvePromoterAttribution(payload, req, outboundHold.listingId);
+  // Group legs by the exact resolved agreement so a company-level fixed promoter reward
+  // is applied once, while fare-plan-specific Standard/VIP/Premium agreements remain independent.
+  const agreementGroups = new Map();
+  for (const leg of legs) {
+    const terms = leg.commercialContext?.terms || commercialTermsService.platformDefaults();
+    const key = commercialGroupKey(terms);
+    const current = agreementGroups.get(key) || { terms, grossAmount: 0, ticketCount: 0 };
+    current.grossAmount += Number(leg.pricing.partnerFareSubtotal || 0);
+    current.ticketCount += leg.seatNumbers.length;
+    agreementGroups.set(key, current);
+  }
+  const commercialComponents = [...agreementGroups.values()].map((group) => commercialTermsService.calculateAgreementComponent({
+    grossAmount: group.grossAmount,
+    terms: group.terms,
+    counts: { bookingCount: 1, passengerCount: passengers.length, ticketCount: group.ticketCount, itemCount: group.ticketCount },
+    hasReferral: Boolean(promoterAttribution?.promoterId),
+    currency: currencies[0],
+  }));
+  const ticketSplit = commercialTermsService.combineSplits(commercialComponents, { currency: currencies[0] });
   const addonPricing = await selectedAddonPricing({
     companyId: outboundHold.companyId,
     listingId: outboundHold.listingId,
@@ -480,19 +532,37 @@ async function buildCanonicalRows(payload = {}, req = null) {
     legCount: legs.length,
     currency: currencies[0],
   });
+  // Optional add-ons are partner-owned unless a future add-on-specific agreement exists.
+  const customerFare = Number(ticketSplit.customerFare || 0) + Number(addonPricing.addonTotal || 0);
+  const customerFees = calculateCustomerFees(customerFare);
+  const commercialGross = Number(ticketSplit.grossAmount || 0) + Number(addonPricing.addonTotal || 0);
+  const partnerAmount = Number(ticketSplit.companyAmount || 0) + Number(addonPricing.addonTotal || 0);
+  const split = {
+    ...ticketSplit,
+    grossAmount: commercialGross,
+    partnerCommissionPercent: commercialGross > 0 ? Math.round((Number(ticketSplit.platformGrossCommission || 0) / commercialGross) * 10000) / 100 : 0,
+    partnerPayoutPercent: commercialGross > 0 ? Math.round((partnerAmount / commercialGross) * 10000) / 100 : 100,
+    companyAmount: partnerAmount,
+    partnerAmount,
+    customerFare,
+    customerServiceFee: customerFees.serviceFee,
+    customerTaxAmount: customerFees.taxAmount,
+    platformFee: Number(ticketSplit.platformCommissionFee || 0) + customerFees.totalFees,
+    customerTotal: customerFare + customerFees.totalFees,
+  };
   const pricing = {
     partnerFareSubtotal,
-    discountTotal,
-    subtotal,
-    serviceFee,
-    taxAmount: 0,
-    fees: serviceFee,
+    discountTotal: Number(ticketSplit.discountAmount || 0),
+    subtotal: Number(ticketSplit.customerFare || 0),
+    serviceFee: customerFees.serviceFee,
+    taxAmount: customerFees.taxAmount,
+    fees: customerFees.totalFees,
     addonTotal: addonPricing.addonTotal,
-    commissionableSubtotal: subtotal + addonPricing.addonTotal,
-    total: subtotal + serviceFee + addonPricing.addonTotal,
+    commissionableSubtotal: partnerFareSubtotal,
+    total: customerFare + customerFees.totalFees,
     currency: currencies[0],
     addons: addonPricing.addons,
-    split: null,
+    split,
   };
   const firstLeg = legs[0];
   const booking = {
@@ -506,6 +576,21 @@ async function buildCanonicalRows(payload = {}, req = null) {
     companyId: outboundHold.companyId,
     tenantId: outboundHold.companyId,
     listingId: outboundHold.listingId,
+    promoterAttribution,
+    referralCode: promoterAttribution?.code || cleanText(payload.referralCode || payload.ref, 180),
+    commercialTermsSnapshot: {
+      model: split.commercialModel,
+      termsVersion: split.termsVersion,
+      source: split.termsSource,
+      currency: pricing.currency,
+      components: commercialComponents.map((component) => ({
+        commercialModel: component.commercialModel, unitBasis: component.unitBasis, units: component.units, grossAmount: component.grossAmount,
+        termsVersion: component.termsVersion, termsSource: component.termsSource, termsScopeType: component.termsScopeType, termsScopeId: component.termsScopeId,
+        partnerCommissionPercent: component.partnerCommissionPercent, fixedPlatformAmount: component.fixedPlatformAmount,
+        promoterRewardModel: component.promoterRewardModel, promoterFixedAmount: component.promoterFixedAmount, promoterSharePercent: component.promoterSharePercent,
+        customerDiscountModel: component.customerDiscountModel, customerDiscountFixedAmount: component.customerDiscountFixedAmount, customerDiscountSharePercent: component.customerDiscountSharePercent,
+      })),
+    },
     scheduleId: outboundHold.scheduleId,
     tripId: outboundHold.scheduleId,
     vehicleId: firstLeg.schedule.vehicleId,
@@ -576,15 +661,25 @@ async function buildCanonicalRows(payload = {}, req = null) {
   };
 }
 
-async function persistPendingRows(rows, actor = 'guest') {
+async function persistPendingRows(rows, actor = 'guest', intent = null, idempotencyRecord = null) {
   await repository.withTransaction(async (session) => {
-    await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
-    await repository.bookingItems.saveMany(rows.items, null, { session });
-    await repository.reservations.saveMany(rows.reservations, null, { session });
-    await repository.passengers.saveMany(rows.passengers, null, { session });
-    await repository.seatAssignments.saveMany(rows.assignments, null, { session });
-    await repository.tickets.saveMany(rows.tickets, null, { session });
-    for (const hold of rows.holds) await inventoryService.attachHoldToBooking(hold.id, rows.booking, actor, session);
+    // These ids are UUID-backed and brand new, so inserts are cheaper than six
+    // separate upsert-match operations on the latency-sensitive checkout path.
+    await repository.bookings.insert(rows.booking, { session });
+    await repository.bookingItems.insertMany(rows.items, { session, ordered: true });
+    await repository.reservations.insertMany(rows.reservations, { session, ordered: true });
+    await repository.passengers.insertMany(rows.passengers, { session, ordered: true });
+    await repository.seatAssignments.insertMany(rows.assignments, { session, ordered: true });
+    await repository.tickets.insertMany(rows.tickets, { session, ordered: true });
+    for (const hold of rows.holds) await inventoryService.attachValidatedHoldToBooking(hold, rows.booking, actor, session);
+    if (intent) await repository.paymentIntents.insert(intent, { session });
+    if (idempotencyRecord) {
+      idempotencyRecord.entityId = rows.booking.id;
+      idempotencyRecord.status = 'started';
+      idempotencyRecord.lastSeenAt = nowIso();
+      idempotencyRecord.metadata = { bookingRef: rows.booking.bookingRef, bookingStatus: rows.booking.bookingStatus, paymentStatus: rows.booking.paymentStatus };
+      await repository.idempotencyKeys.save(idempotencyRecord, { key: idempotencyRecord.key, scope: idempotencyRecord.scope }, { session });
+    }
     await repository.outbox({
       eventType: 'BusBookingCreated',
       aggregateType: 'booking',
@@ -594,16 +689,11 @@ async function persistPendingRows(rows, actor = 'guest') {
       dedupeKey: `BusBookingCreated:${rows.booking.id}`,
       session,
     });
-    await repository.audit({
-      actorId: actorId(actor),
-      action: 'bus.booking.created',
-      targetType: 'booking',
-      targetId: rows.booking.id,
-      companyId: rows.booking.companyId,
-      metadata: { bookingRef: rows.booking.bookingRef, holdIds: rows.holds.map((hold) => hold.id), seats: rows.legs.map((leg) => leg.seatNumbers), addonIds: (rows.booking.addons || []).map((addon) => addon.id), addonTotal: rows.booking.pricing?.addonTotal || 0 },
-      session,
-    });
   });
+  repository.audit({
+    actorId: actorId(actor), action: 'bus.booking.created', targetType: 'booking', targetId: rows.booking.id, companyId: rows.booking.companyId,
+    metadata: { bookingRef: rows.booking.bookingRef, holdIds: rows.holds.map((hold) => hold.id), seats: rows.legs.map((leg) => leg.seatNumbers), addonIds: (rows.booking.addons || []).map((addon) => addon.id), addonTotal: rows.booking.pricing?.addonTotal || 0 },
+  }).catch((error) => logger.warn('Deferred bus booking audit failed', { bookingRef: rows.booking.bookingRef, error: error.message }));
 }
 
 async function purgeFailedBookingArtifacts(booking, options = {}) {
@@ -651,6 +741,8 @@ async function canonicalRecords(booking) {
 }
 
 async function createGuestBooking(payload = {}, req = null) {
+  const checkoutStartedAt = Date.now();
+  const timing = {};
   const provider = paymentService.resolveProviderName(payload.provider || payload.paymentProvider || env.paymentProvider);
   const idempotencyKey = cleanText(
     payload.idempotencyKey
@@ -668,14 +760,19 @@ async function createGuestBooking(payload = {}, req = null) {
     email: cleanText(payload.email, 254),
   };
   const claim = await claimIdempotency(idempotencyKey, 'bus_booking_create', payload.holdId || payload.scheduleId || '', claimPayload);
+  timing.idempotencyMs = Date.now() - checkoutStartedAt;
   if (claim.replayed && claim.record?.metadata?.bookingRef) {
     const existing = await repository.bookings.findOne({ bookingRef: claim.record.metadata.bookingRef, serviceType: 'bus' });
     if (existing) return existing;
   }
+  if (claim.replayed && !claim.record?.metadata?.bookingRef) {
+    throw conflictError('This booking is already being processed. Please wait a moment before retrying.', 'booking_in_progress');
+  }
+  const rowsStartedAt = Date.now();
   const rows = await buildCanonicalRows(payload, req);
-  await persistPendingRows(rows, req?.session?.user?.id || rows.booking.guestSnapshot.email);
+  timing.canonicalRowsMs = Date.now() - rowsStartedAt;
   const intent = {
-    id: await repository.nextId('payment-intent'),
+    id: fastEntityId('payment-intent'),
     intentRef: generateCode('PI', 10),
     bookingId: rows.booking.id,
     bookingRef: rows.booking.bookingRef,
@@ -695,9 +792,13 @@ async function createGuestBooking(payload = {}, req = null) {
     },
     createdAt: nowIso(),
   };
-  await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
+  const persistStartedAt = Date.now();
+  await persistPendingRows(rows, req?.session?.user?.id || rows.booking.guestSnapshot.email, intent, claim.record);
+  timing.persistMs = Date.now() - persistStartedAt;
   let providerResult = null;
+  let providerStartedAt = 0;
   try {
+    providerStartedAt = Date.now();
     providerResult = await paymentService.initiatePayment({
       provider,
       bookingRef: rows.booking.bookingRef,
@@ -715,6 +816,7 @@ async function createGuestBooking(payload = {}, req = null) {
         holdIds: rows.holds.map((hold) => hold.id),
       },
     });
+    timing.providerMs = Date.now() - providerStartedAt;
     const result = providerResult;
     Object.assign(intent, {
       providerReference: result.providerReference || '',
@@ -723,7 +825,6 @@ async function createGuestBooking(payload = {}, req = null) {
       paidAt: result.status === 'successful' ? nowIso() : null,
       attempts: [...intent.attempts, { at: nowIso(), provider, status: result.status || 'pending', providerReference: result.providerReference || '' }],
     });
-    await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
     if (normalize(result.status) === 'failed') {
       const paymentError = new Error(result.message || result.failureReason || 'Payment could not be completed');
       paymentError.status = 402;
@@ -738,7 +839,7 @@ async function createGuestBooking(payload = {}, req = null) {
       updatedAt: nowIso(),
     });
     const payment = {
-      id: await repository.nextId('payment'),
+      id: fastEntityId('payment'),
       bookingId: rows.booking.id,
       bookingRef: rows.booking.bookingRef,
       companyId: rows.booking.companyId,
@@ -758,10 +859,13 @@ async function createGuestBooking(payload = {}, req = null) {
       metadata: { source: 'busBookingService.createGuestBooking', paymentIntentId: intent.id },
       createdAt: nowIso(),
     };
+    const providerPersistStartedAt = Date.now();
     await repository.withTransaction(async (session) => {
+      await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }, { session });
       await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
-      await repository.payments.save(payment, { idempotencyKey: payment.idempotencyKey }, { session });
+      await repository.payments.insert(payment, { session });
     });
+    timing.providerPersistMs = Date.now() - providerPersistStartedAt;
     let booking = rows.booking;
     if (result.status === 'successful') {
       booking = await confirmPayment(rows.booking.bookingRef, {
@@ -771,7 +875,9 @@ async function createGuestBooking(payload = {}, req = null) {
         source: 'payment_initiation',
       });
     }
-    await completeIdempotency(claim.record, booking);
+    deferCompleteIdempotency(claim.record, booking);
+    timing.totalMs = Date.now() - checkoutStartedAt;
+    if (timing.totalMs >= 1500) logger.warn('Bus payment checkout timing', { requestId: req?.id || '', bookingRef: booking.bookingRef, provider, ...timing });
     return booking;
   } catch (error) {
     if (!providerResult) {
@@ -781,7 +887,6 @@ async function createGuestBooking(payload = {}, req = null) {
       intent.failedAt = null;
       intent.failureReason = cleanText(error.message, 500);
       intent.attempts = [...(intent.attempts || []), { at: nowIso(), provider, status: 'initiation_error', reason: intent.failureReason }];
-      await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey });
       Object.assign(rows.booking, {
         paymentProvider: provider,
         paymentStatus: 'pending',
@@ -790,8 +895,14 @@ async function createGuestBooking(payload = {}, req = null) {
         paymentFailureReason: intent.failureReason,
         updatedAt: nowIso(),
       });
-      await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
-      await completeIdempotency(claim.record, rows.booking);
+      await repository.withTransaction(async (session) => {
+        await repository.paymentIntents.save(intent, { idempotencyKey: intent.idempotencyKey }, { session });
+        await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef }, { session });
+      });
+      deferCompleteIdempotency(claim.record, rows.booking);
+      timing.providerMs = providerStartedAt ? Date.now() - providerStartedAt : 0;
+      timing.totalMs = Date.now() - checkoutStartedAt;
+      logger.warn('Bus payment checkout timing', { requestId: req?.id || '', bookingRef: rows.booking.bookingRef, provider, outcome: 'provider_init_error', ...timing });
       return rows.booking;
     }
     if (normalize(providerResult.status) !== 'failed') {
@@ -819,7 +930,7 @@ async function createGuestBooking(payload = {}, req = null) {
         updatedAt: nowIso(),
       });
       await repository.bookings.save(rows.booking, { bookingRef: rows.booking.bookingRef });
-      await completeIdempotency(claim.record, rows.booking);
+      deferCompleteIdempotency(claim.record, rows.booking);
       return rows.booking;
     }
     intent.status = 'failed';

@@ -121,6 +121,7 @@ router.get('/admin/:page', dashboardController.index);
 router.post('/admin/reports/custom', reportController.adminCustom);
 router.post('/admin/companies', upload.single('imageFile'), requireCsrfToken, companyRules, validateRequest, companyController.create);
 router.post('/admin/companies/:slug/commission', companyController.updateCommission);
+router.post('/admin/commercial-rules', companyController.updateCommercialOverride);
 router.post('/admin/companies/:slug/approve', companyController.approve);
 router.post('/admin/companies/:slug/reject', companyController.reject);
 router.post('/admin/companies/:slug/suspend', companyController.suspend);
