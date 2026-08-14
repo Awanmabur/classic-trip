@@ -86,7 +86,10 @@ async function manifest(companyId, scheduleId) {
       phone: passenger.phone || booking.guestSnapshot?.phone || '',
       email: passenger.email || booking.guestSnapshot?.email || '',
       identityType: passenger.identityType || '',
-      identityNumber: passenger.identityNumber || '',
+      identityNumberLast4: passenger.identityNumberLast4 || String(passenger.identityNumber || '').slice(-4),
+      identityNumber: (passenger.identityNumberLast4 || passenger.identityNumber)
+        ? `••••${passenger.identityNumberLast4 || String(passenger.identityNumber || '').slice(-4)}`
+        : '',
       seatNumber: ticket.seatNumber,
       originStopId: ticket.originStopId,
       destinationStopId: ticket.destinationStopId,

@@ -3380,3 +3380,16 @@ body.sitePage::before{display:none!important;content:none!important;background:n
   }
 }
 
+
+
+/* Stay media must fill the complete card media frame. */
+.marketplaceListingCard.serviceCard--hotel>.listingThumbLink{display:block!important;width:100%!important;max-width:100%!important;align-self:stretch!important;overflow:hidden!important}
+.marketplaceListingCard.serviceCard--hotel .thumb{position:relative!important;width:100%!important;max-width:100%!important;height:135px!important;min-height:135px!important;aspect-ratio:auto!important;overflow:hidden!important;background:var(--field)!important}
+.marketplaceListingCard.serviceCard--hotel .thumb img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center!important}
+.homePage .marketplaceSection--hotel .serviceCard--hotel:nth-child(1) .thumb{height:135px!important;min-height:135px!important;aspect-ratio:auto!important}
+.homePage .sectionListingCollection[data-view="bars"] .serviceCard--hotel>.listingThumbLink,
+.homePage .sectionListingCollection[data-view="bars"] .serviceCard--hotel .thumb{height:150px!important;min-height:150px!important}
+@media(max-width:680px){
+  .homePage .sectionListingCollection[data-view="bars"] .serviceCard--hotel>.listingThumbLink,
+  .homePage .sectionListingCollection[data-view="bars"] .serviceCard--hotel .thumb{height:142px!important;min-height:142px!important}
+}

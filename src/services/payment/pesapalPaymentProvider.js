@@ -244,6 +244,71 @@ function pesapalFields(payload = {}) {
   };
 }
 
+
+function ipnRows(payload) {
+  return Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.ipn_list) ? payload.ipn_list : []);
+}
+
+function activeIpnRow(row = {}) {
+  return row.ipn_status === undefined || row.ipn_status === 1 || row.ipn_status === '1' || String(row.ipn_status_description || row.ipn_status_decription || '').toLowerCase() === 'active';
+}
+
+async function credentialCheck(config = {}) {
+  if (!configured(config)) {
+    const error = new Error('Pesapal payment provider is not configured'); error.status = 503; throw error;
+  }
+  const live = isLivePesapal(config);
+  const api = validatedAbsoluteUrl(config.apiUrl, 'Pesapal API URL', { requireHttps: live });
+  if (live && api.hostname.toLowerCase() !== 'pay.pesapal.com') {
+    const error = new Error('Live Pesapal API must use pay.pesapal.com'); error.status = 503; throw error;
+  }
+  const token = await tokenFor(config);
+  const listed = await requestJson(config, '/URLSetup/GetIpnList', { method: 'GET', token });
+  const rows = ipnRows(listed).filter(activeIpnRow);
+  return { authenticated: true, provider: 'pesapal', live, apiHost: api.hostname, activeIpnCount: rows.length };
+}
+
+async function readinessCheck(config = {}) {
+  if (!configured(config)) {
+    const error = new Error('Pesapal payment provider is not configured'); error.status = 503; throw error;
+  }
+  const live = isLivePesapal(config);
+  const api = validatedAbsoluteUrl(config.apiUrl, 'Pesapal API URL', { requireHttps: live });
+  if (live && api.hostname.toLowerCase() !== 'pay.pesapal.com') {
+    const error = new Error('Live Pesapal API must use pay.pesapal.com'); error.status = 503; throw error;
+  }
+  validatedAbsoluteUrl(config.callbackUrl, 'Pesapal callback URL', { requireHttps: live });
+  if (config.ipnUrl) validatedAbsoluteUrl(config.ipnUrl, 'Pesapal IPN URL', { requireHttps: live });
+  const token = await tokenFor(config);
+  const notificationId = await notificationIdFor(config, token);
+  const listed = await requestJson(config, '/URLSetup/GetIpnList', { method: 'GET', token });
+  const rows = ipnRows(listed);
+  const expectedUrl = String(config.ipnUrl || '').replace(/\/$/, '');
+  const expectedType = String(config.notificationType || 'POST').toUpperCase();
+  const match = rows.find((row) => {
+    const rowId = String(row.ipn_id || row.ipnId || row.notification_id || '').trim();
+    const rowUrl = String(row.url || '').replace(/\/$/, '');
+    const rowType = String(row.ipn_notification_type_description || row.notification_type_description || row.ipn_notification_type || '').toUpperCase();
+    return activeIpnRow(row)
+      && (rowId === String(notificationId) || (expectedUrl && rowUrl === expectedUrl))
+      && (!rowType || rowType === expectedType);
+  });
+  if (!match) {
+    const error = new Error('Pesapal IPN is not visible as an active registration after authentication');
+    error.status = 503; error.code = 'pesapal_ipn_not_active'; throw error;
+  }
+  return {
+    authenticated: true,
+    provider: 'pesapal',
+    live,
+    apiHost: api.hostname,
+    notificationId: String(notificationId),
+    notificationType: expectedType,
+    ipnUrl: String(match.url || config.ipnUrl || ''),
+    callbackUrl: String(config.callbackUrl || ''),
+  };
+}
+
 async function initiatePayment(payment = {}, config = {}) {
   const token = await tokenFor(config);
   const notificationId = await notificationIdFor(config, token);
@@ -368,4 +433,4 @@ async function initiateRefund(refund = {}, config = {}) {
   };
 }
 
-module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, normalizeStatus, pesapalFields, safeMerchantReference, assertPesapalRedirect, buildOrder, tokenExpiryAt };
+module.exports = { configured, initiatePayment, initiateRefund, verifyWebhook, readinessCheck, credentialCheck, normalizeStatus, pesapalFields, safeMerchantReference, assertPesapalRedirect, buildOrder, tokenExpiryAt };

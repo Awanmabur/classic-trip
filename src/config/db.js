@@ -33,6 +33,13 @@ function wait(milliseconds) {
 async function connectDb() {
   if (!env.mongoUri) throw new Error('MONGO_URI is required for the MongoDB-backed application');
   mongoose.set('strictQuery', true);
+  // HTTP input is rejected globally when keys contain '$' or '.', and query
+  // filters below are constructed by trusted server code. Mongoose's global
+  // sanitizeFilter rewrites legitimate internal operators such as $in/$ne
+  // into literal values, which breaks availability and other scoped queries.
+  // Keep strictQuery enabled and leave sanitizeFilter disabled here; the
+  // request-security middleware is the injection boundary.
+  mongoose.set('sanitizeFilter', false);
   const effectiveDbName = env.mongoDbName || (uriIncludesDatabaseName(env.mongoUri) ? '' : 'classic-trip');
   const attempts = env.mongoConnection.retryAttempts;
   let lastError = null;

@@ -12,6 +12,7 @@ const releaseService = require('../commission/releaseService');
 const paymentService = require('../payment/paymentService');
 const notificationService = require('../notification/notificationService');
 const hotelInventoryService = require('./hotelInventoryService');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 const { getCachedPlatformConfig } = require('../platform/platformConfigService');
 const { LISTING_DESCRIPTION_MIN_LENGTH, normalizePublicDescription } = require('../../config/contentRules');
 
@@ -922,7 +923,9 @@ async function buildCanonicalHotelRecords({ booking, listing, property, roomType
     const row = {
       id: guestId, reservationId, bookingId: booking.id, bookingRef: booking.bookingRef, companyId: booking.companyId, listingId: booking.listingId,
       roomAssignmentId: assignment?.id || '', roomIndex, guestType: guest.guestType || 'adult', guestIndex, isLeadGuest: guestIndex === 0,
-      fullName: clean(guest.fullName), email: clean(guest.email).toLowerCase(), phone: clean(guest.phone), identityType: clean(guest.identityType), identityNumber: clean(guest.identityNumber), nationality: clean(guest.nationality),
+      fullName: clean(guest.fullName), email: clean(guest.email).toLowerCase(), phone: clean(guest.phone), identityType: clean(guest.identityType),
+      identityNumberEncrypted: sensitiveFieldService.encrypt(clean(guest.identityNumber), 'hotel-guest-identity'),
+      identityNumberLast4: sensitiveFieldService.last4(clean(guest.identityNumber)), nationality: clean(guest.nationality),
       sex: clean(guest.sex), emergencyContactName: clean(guest.emergencyContactName), emergencyContactPhone: clean(guest.emergencyContactPhone), specialRequests: clean(guest.specialRequests), checkInStatus: 'not_checked',
     };
     hotelGuests.push(row);
@@ -1149,7 +1152,9 @@ async function createHotelBooking(payload = {}, req = {}, options = {}) {
       const roomIndex = Math.max(0, Math.min(roomUnits.length - 1, Number(guest.roomIndex || 0)));
       return {
         id: `guest-${index + 1}`, fullName: clean(guest.fullName), email: clean(guest.email).toLowerCase(), phone: clean(guest.phone),
-        identityType: clean(guest.identityType), identityNumber: clean(guest.identityNumber), nationality: clean(guest.nationality),
+        identityType: clean(guest.identityType),
+        identityNumberEncrypted: sensitiveFieldService.encrypt(clean(guest.identityNumber), 'hotel-guest-identity'),
+        identityNumberLast4: sensitiveFieldService.last4(clean(guest.identityNumber)), nationality: clean(guest.nationality),
         sex: clean(guest.sex), emergencyContactName: clean(guest.emergencyContactName), emergencyContactPhone: clean(guest.emergencyContactPhone), guestType: guest.guestType,
         specialNotes: clean(guest.specialRequests), roomIndex, seatOrRoom: roomUnits[roomIndex]?.unitNumber || roomTypes[roomIndex]?.name || '', roomNumber: roomUnits[roomIndex]?.unitNumber || '',
         roomType: roomTypes[roomIndex]?.name || '', roomTypeId: roomTypes[roomIndex]?.id || '', roomUnitId: roomUnits[roomIndex]?.id || '',
@@ -1489,7 +1494,8 @@ async function manifestRecords(companyId, listingId = '', mode = 'arrivals', dat
     const property = propertyById.get(reservation.propertyId) || {};
     const roomTypeNames = [...new Set(assigned.map((row) => roomTypeById.get(row.roomTypeId)?.name || row.roomTypeSnapshot).filter(Boolean))];
     const roomNumbers = assigned.map((row) => roomUnitById.get(row.roomUnitId)?.unitNumber || row.roomNumberSnapshot).filter(Boolean);
-    const maskedIdentity = guest.identityNumber ? `${guest.identityType || 'ID'} ••••${String(guest.identityNumber).slice(-4)}` : '';
+    const identityLast4 = clean(guest.identityNumberLast4 || String(guest.identityNumber || '').slice(-4));
+    const maskedIdentity = identityLast4 ? `${guest.identityType || 'ID'} ••••${identityLast4}` : '';
     const guestNames = reservationGuests.map((row) => row.fullName).filter(Boolean);
     const guestLabel = guestNames.length > 1 ? `${guestNames[0]} +${guestNames.length - 1}` : (guestNames[0] || '-');
     return {
@@ -1533,7 +1539,11 @@ async function manifestRecords(companyId, listingId = '', mode = 'arrivals', dat
   const legacyRows = legacyBookings.filter((booking) => !canonicalRefs.has(String(booking.bookingRef))).map((booking) => {
     const legacyGuests = Array.isArray(booking.passengers) ? booking.passengers : [];
     const lead = legacyGuests[0] || {};
-    const identityNumber = clean(lead.identityNumber || booking.guestSnapshot?.identityNumber);
+    const identityLast4 = clean(
+      lead.identityNumberLast4
+      || booking.guestSnapshot?.identityNumberLast4
+      || String(lead.identityNumber || booking.guestSnapshot?.identityNumber || '').slice(-4)
+    );
     return {
       bookingRef: booking.bookingRef,
       reservationId: '',
@@ -1544,7 +1554,7 @@ async function manifestRecords(companyId, listingId = '', mode = 'arrivals', dat
       guestCount: Math.max(1, Number(legacyGuests.length || booking.hotelStay?.adults || 1)),
       phone: booking.guestSnapshot?.phone || lead.phone || '',
       email: booking.guestSnapshot?.email || lead.email || '',
-      identity: identityNumber ? `${lead.identityType || booking.guestSnapshot?.identityType || 'ID'} ••••${identityNumber.slice(-4)}` : '',
+      identity: identityLast4 ? `${lead.identityType || booking.guestSnapshot?.identityType || 'ID'} ••••${identityLast4}` : '',
       nationality: lead.nationality || booking.guestSnapshot?.nationality || '',
       emergencyContact: [lead.emergencyContactName, lead.emergencyContactPhone].filter(Boolean).join(' · '),
       property: listingById.get(booking.listingId)?.title || '-',
@@ -2069,6 +2079,7 @@ async function publishHotelListing(companyId, listingId, actorId = 'company-admi
     status: 'active',
     releaseStatus: 'published',
     bookable: true,
+    serviceDetails: { ...(listing.serviceDetails || {}), publicProfileOnly: false },
     isVerified: true,
     publishedAt: listing.publishedAt || now,
     unpublishedAt: null,
@@ -2094,6 +2105,18 @@ async function reconcileHotelListingPublication(companyId, listingId, actorId = 
   if (!listing || clean(listing.releaseStatus).toLowerCase() !== 'published') return listing;
   const readiness = await hotelListingReadiness(companyId, listing.id);
   if (readiness.ready) return listing;
+  // Launch/onboarding partner profiles may be visible for discovery before the
+  // hotel has uploaded room types, rates and dated inventory. Keep those
+  // profiles non-bookable instead of auto-hiding them during ordinary property
+  // edits. The normal publishHotelListing readiness gate still controls when
+  // money can be accepted.
+  if (listing.serviceDetails?.publicProfileOnly === true && listing.bookable !== true) {
+    listing.bookable = false;
+    if (listing.status !== 'active') listing.status = 'active';
+    if (listing.releaseStatus !== 'published') listing.releaseStatus = 'published';
+    await hotelRepository.listings.save(listing, { id: listing.id });
+    return listing;
+  }
   const now = new Date().toISOString();
   Object.assign(listing, { status: 'paused', releaseStatus: 'paused', bookable: false, unpublishedAt: now, updatedAt: now });
   await hotelRepository.listings.save(listing, { id: listing.id });

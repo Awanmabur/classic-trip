@@ -90,6 +90,7 @@ const env = {
     errorLogThrottleMs: Math.max(5000, number('REDIS_ERROR_LOG_THROTTLE_MS', 30000)),
   },
   sessionSecret: process.env.SESSION_SECRET || 'dev_classic_trip_secret',
+  dataEncryptionKey: configuredValue('DATA_ENCRYPTION_KEY') || (NORMALIZED_NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_data_key')),
   mfaEncryptionKey: configuredValue('MFA_ENCRYPTION_KEY') || (process.env.NODE_ENV === 'production' ? '' : (process.env.SESSION_SECRET || 'dev_classic_trip_mfa_key')),
   platformMfaEnabled: booleanFlag('PLATFORM_MFA_ENABLED', false),
   mfaSessionMaxAgeMinutes: number('MFA_SESSION_MAX_AGE_MINUTES', 720),
@@ -276,6 +277,7 @@ function validateEnv() {
   if (missingAlways.length) throw new Error(`Missing required environment variables: ${missingAlways.join(', ')}`);
   const requiredInProduction = [
     'SESSION_SECRET',
+    'DATA_ENCRYPTION_KEY',
     ...(env.platformMfaEnabled ? ['MFA_ENCRYPTION_KEY'] : []),
     'MONGO_URI',
     'CLOUDINARY_CLOUD_NAME',
@@ -319,11 +321,32 @@ function validateEnv() {
   if (env.isProduction && env.maps.requireLiveRouting && !env.maps.routingApiUrl) {
     throw new Error('TAXI_ROUTING_API_URL is required when TAXI_REQUIRE_LIVE_ROUTING=true');
   }
+  if (env.isProduction) {
+    const mongoValue = String(env.mongoUri || '').trim();
+    const secureSrv = /^mongodb\+srv:\/\//i.test(mongoValue);
+    let secureStandard = false;
+    if (/^mongodb:\/\//i.test(mongoValue)) {
+      try {
+        const mongoUrl = new URL(mongoValue);
+        secureStandard = ['true', '1'].includes(String(mongoUrl.searchParams.get('tls') || mongoUrl.searchParams.get('ssl') || '').toLowerCase());
+      } catch (_) {}
+    }
+    if (!secureSrv && !secureStandard) throw new Error('Production MONGO_URI must use mongodb+srv:// or explicitly enable TLS');
+  }
   if (env.isProduction && !env.mongoTransactions) {
     throw new Error('MONGO_TRANSACTIONS=true is required in production');
   }
   if (env.isProduction && env.sessionSecret === 'dev_classic_trip_secret') {
     throw new Error('SESSION_SECRET must be set to a production value');
+  }
+  if (env.isProduction && String(env.sessionSecret || '').length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters in production');
+  }
+  if (env.isProduction && String(env.dataEncryptionKey || '').length < 32) {
+    throw new Error('DATA_ENCRYPTION_KEY must be at least 32 characters in production');
+  }
+  if (env.isProduction && env.platformMfaEnabled && String(env.mfaEncryptionKey || '').length < 32) {
+    throw new Error('MFA_ENCRYPTION_KEY must be at least 32 characters when platform MFA is enabled');
   }
   if (env.isProduction && env.push.enabled && (!env.push.vapidPublicKey || !env.push.vapidPrivateKey)) {
     throw new Error('PUSH_VAPID_PUBLIC_KEY and PUSH_VAPID_PRIVATE_KEY are required when PUSH_ENABLED=true');

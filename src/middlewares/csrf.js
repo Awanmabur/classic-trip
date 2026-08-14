@@ -1,3 +1,4 @@
+const { assertSafeObjectKeys } = require('./requestSecurity');
 const crypto = require('crypto');
 const { env } = require('../config/env');
 
@@ -154,6 +155,7 @@ function validateSubmittedToken(req, next) {
  */
 function requireCsrfToken(req, res, next) {
   if (shouldSkip(req) || req.csrfValidationComplete === true) return next();
+  try { assertSafeObjectKeys(req.body, 'multipart'); } catch (error) { return next(error); }
   return validateSubmittedToken(req, next);
 }
 

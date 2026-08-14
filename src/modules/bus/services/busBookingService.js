@@ -6,6 +6,7 @@ const generateCode = require('../../../utils/generateCode');
 const { env } = require('../../../config/env');
 const paymentService = require('../../../services/payment/paymentService');
 const paymentSettlementService = require('../../../services/booking/paymentSettlementService');
+const sensitiveFieldService = require('../../../services/security/sensitiveFieldService');
 const repository = require('../repositories/busRepository');
 const inventoryService = require('./busInventoryService');
 const {
@@ -116,7 +117,8 @@ function buildPassengerPayloads(payload = {}, seatNumbers = []) {
       name: fullName,
       phone: itemAt(phones, index, buyer.phone),
       email: itemAt(emails, index, buyer.email).toLowerCase(),
-      identityNumber: itemAt(identities, index),
+      identityNumberEncrypted: sensitiveFieldService.encrypt(itemAt(identities, index), 'bus-passenger-identity'),
+      identityNumberLast4: sensitiveFieldService.last4(itemAt(identities, index)),
       identityType: itemAt(identityTypes, index),
       sex: itemAt(sexes, index),
       nationality: itemAt(nationalities, index),

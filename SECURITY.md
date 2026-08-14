@@ -1,22 +1,22 @@
-# Security Policy
+# Classic Trip Security
 
-## Supported release
+Classic Trip uses server-side authentication and authorization, tenant/company scoping, CSRF protection, secure production cookies, session regeneration, bcrypt password hashing, layered rate limiting/account lockout, signed bot-proof/honeypot controls, strict input validation, Mongo operator-key rejection, file-type/signature validation, API response redaction, Helmet/CSP/HSTS security headers, HTTPS/TLS enforcement, payment-provider verification, and production dependency auditing.
 
-Classic Trip 1.4.1 is the supported release in this package.
+Sensitive stored identifiers and operational tokens are encrypted with AES-256-GCM. v1.6.74 introduces `DATA_ENCRYPTION_KEY` as a dedicated production encryption secret; it must be distinct from `SESSION_SECRET`. Legacy ciphertext remains readable under the preserved session secret for backward compatibility.
 
-## Reporting a vulnerability
+Run before launch:
 
-Do not disclose a suspected vulnerability publicly. Send the affected route or component, reproduction steps, impact, and relevant request IDs/log timestamps to the project owner through the private operational contact configured for Classic Trip.
+```bash
+npm run check:secret-hygiene
+npm run check:security-launch-20
+npm run check:go-live
+npm run release:check
+```
 
-Do not include real passwords, access tokens, payment credentials, customer identity documents, or full production database records in a report.
+If `check:secret-hygiene` finds a secret anywhere in Git history, removing the current file is not enough: purge the historical object and rotate the affected credential before deployment.
+## Production log redaction
 
-## Production requirements
+All structured log metadata is sanitized recursively. Secret-like keys, authorization values, cookies, credential-bearing URLs, and common password/token/key assignments are replaced with `[REDACTED]` before output. Run `npm run check:log-redaction` to validate representative leak cases.
 
-- Use HTTPS only and keep proxy forwarding correctly configured.
-- Use strong unique secrets and rotate exposed credentials immediately.
-- Run MongoDB with replica-set/Atlas transaction support.
-- Use Redis for sessions, login counters, rate limits, and shared runtime coordination.
-- Keep Cloudinary, payment, email, WhatsApp, and push credentials outside source control.
-- Run `npm run release:check` before deployment and after dependency changes.
-- Send application audit/security logs to an externally managed SIEM or log platform with retention and alerting.
-- Place the public service behind provider-level DDoS protection, WAF/rate controls, and network monitoring. Application code cannot by itself prove that external IDS/IPS/WAF/SIEM controls are enabled.
+See `SECURITY-20-CONTROLS.md` for the complete launch-security mapping.
+

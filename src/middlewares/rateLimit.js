@@ -22,7 +22,7 @@ function wantsJson(req) {
 }
 
 function safeRateLimitRedirect(req, scope) {
-  if (scope === 'auth' || scope === 'password_reset') return '/login?error=rate_limited';
+  if (scope === 'auth' || scope === 'login_daily_ip' || scope === 'password_reset') return '/login?error=rate_limited';
   const referer = String(req.get('referer') || '');
   try {
     const url = new URL(referer);
@@ -53,6 +53,12 @@ const authLimiter = createLimiter('auth', {
   windowMs: 15 * 60 * 1000,
   limit: 10,
   message: 'Too many attempts, please try again after 15 minutes.',
+});
+
+const loginDailyLimiter = createLimiter('login_daily_ip', {
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: 100,
+  message: 'Too many login attempts from this network today. Please try again later or contact support.',
 });
 
 const forgotPasswordLimiter = createLimiter('password_reset', {
@@ -99,6 +105,7 @@ const publicReadLimiter = createLimiter('public_api_read', {
 
 module.exports = {
   authLimiter,
+  loginDailyLimiter,
   forgotPasswordLimiter,
   paymentLimiter,
   ticketLimiter,

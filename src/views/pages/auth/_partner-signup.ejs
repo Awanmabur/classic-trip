@@ -11,6 +11,7 @@
 
   <form class="form active" id="partnerOnboardingForm" action="/partner/onboarding" method="post" novalidate>
     <input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+    <input type="hidden" name="_ct_bot" value="<%= botProof || '' %>"><div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;opacity:0"><label>Leave this field empty<input type="text" name="_ct_hp" value="" tabindex="-1" autocomplete="off"></label></div>
     <input type="hidden" name="companyType" id="partnerCompanyType" value="<%= partnerForm?.companyType || '' %>">
 
     <div class="partnerSectionTitle"><span>Choose your service</span><small>The application changes automatically</small></div>

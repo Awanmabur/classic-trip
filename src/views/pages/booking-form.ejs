@@ -155,7 +155,7 @@
       <% if (listing.serviceType === 'bus') { %><input type="hidden" name="bookingDraftId" value="<%= safeBookingDraftId %>"><% } %>
       <input type="hidden" name="ref" value="<%= safeReferralCode %>">
       <input type="hidden" name="holdId" value="<%= safeHoldId %>">
-      <input type="hidden" name="total" value="<%= totalEstimate %>" data-total-input>
+      <input type="hidden" value="<%= totalEstimate %>" data-total-input>
       <% if (selectedSchedule?.id) { %><input type="hidden" name="scheduleId" value="<%= selectedSchedule.id %>" data-schedule-input><% } %>
       <input type="hidden" name="<%= selectedFieldName %>" value="<%= selectedFieldValue %>" data-selected-input>
       <% if (listing.serviceType === 'hotel') { %>

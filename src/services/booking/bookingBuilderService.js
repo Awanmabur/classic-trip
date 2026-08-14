@@ -5,6 +5,7 @@ const promoterRepository = require('../../repositories/domain/promoterRepository
 const calculateCommission = require('../../utils/calculateCommission');
 const { calculateCustomerFees } = require('../../utils/calculateCustomerFees');
 const fraudService = require('../fraud/fraudService');
+const sensitiveFieldService = require('../security/sensitiveFieldService');
 const { nextId } = require('../data/idService');
 const { getCachedPlatformConfig } = require('../platform/platformConfigService');
 
@@ -268,9 +269,16 @@ async function buildBooking(payload = {}, req = null) {
   const total = customerFees.total + addonTotal;
   const split = calculateCommission(total, Boolean(promoterAttribution), { commissionPercent: company?.commercialTerms?.commissionPercent, currency: bookingCurrency });
   const initialPaymentStatus = payload.paymentStatus || (payload.deferPayment ? 'pending' : 'successful');
+  const buyerDocumentNumber = clean(payload.documentNumber || payload.identityNumber || '');
   const booking = {
     id: bookingId, bookingRef, guestLookupCode: crypto.randomBytes(6).toString('hex').toUpperCase(), serviceType,
-    guestSnapshot: { ...buyer }, buyerSnapshot: { ...buyer, idType: payload.idType || '', documentNumber: payload.documentNumber || '', notes: payload.notes || payload.customerNote || '' },
+    guestSnapshot: { ...buyer }, buyerSnapshot: {
+      ...buyer,
+      idType: payload.idType || payload.identityType || '',
+      documentNumberEncrypted: sensitiveFieldService.encrypt(buyerDocumentNumber, 'booking-buyer-document'),
+      documentNumberLast4: sensitiveFieldService.last4(buyerDocumentNumber),
+      notes: payload.notes || payload.customerNote || '',
+    },
     customerUserId: payload.customerUserId || payload.userId || req?.session?.user?.id || null, companyId: listing.companyId, providerCompanyId: listing.companyId, listingId: listing.id, scheduleId,
     passengers: passengerRows, bookingItems, bookingLegs, ticketLegs, serviceReservation,
     tripType, quantity, addons, notes: payload.notes || payload.customerNote || '', pricing: { subtotal, fees, addonTotal, total, currency: bookingCurrency, split, addons }, promoterAttribution,

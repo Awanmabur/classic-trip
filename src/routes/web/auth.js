@@ -4,9 +4,11 @@ const google = require('../../config/google');
 const authController = require('../../controllers/auth/authController');
 const googleController = require('../../controllers/auth/googleController');
 const phoneVerificationController = require('../../controllers/auth/phoneVerificationController');
-const { authLimiter, forgotPasswordLimiter } = require('../../middlewares/rateLimit');
-const { loginRules, registerRules, resetPasswordRules, phoneCodeRules, mfaCodeRules } = require('../../validators/authValidator');
+const { authLimiter, loginDailyLimiter, forgotPasswordLimiter } = require('../../middlewares/rateLimit');
+const { loginRules, registerRules, forgotPasswordRules, resetPasswordRules, phoneCodeRules, mfaCodeRules } = require('../../validators/authValidator');
 const { validateRequest } = require('../../middlewares/validate');
+const { humanFormGuard } = require('../../middlewares/botProtection');
+const { rejectPublicFieldTampering } = require('../../middlewares/requestSecurity');
 
 const router = express.Router();
 
@@ -24,11 +26,11 @@ router.get('/auth/mfa/setup', authController.showMfaSetup);
 router.post('/auth/mfa/setup', authLimiter, mfaCodeRules, validateRequest, authController.confirmMfaSetup);
 router.get('/auth/mfa/challenge', authController.showMfaChallenge);
 router.post('/auth/mfa/challenge', authLimiter, mfaCodeRules, validateRequest, authController.verifyMfaChallenge);
-router.post('/login', authLimiter, loginRules, validateRequest, authController.login);
-router.post('/register', authLimiter, registerRules, validateRequest, authController.register);
-router.post('/forgot-password', forgotPasswordLimiter, authController.forgotPassword);
+router.post('/login', authLimiter, loginDailyLimiter, humanFormGuard, rejectPublicFieldTampering, loginRules, validateRequest, authController.login);
+router.post('/register', authLimiter, humanFormGuard, rejectPublicFieldTampering, registerRules, validateRequest, authController.register);
+router.post('/forgot-password', forgotPasswordLimiter, humanFormGuard, forgotPasswordRules, validateRequest, authController.forgotPassword);
 router.get('/reset-password/:token', authController.showResetPassword);
-router.post('/reset-password', authLimiter, resetPasswordRules, validateRequest, authController.resetPassword);
+router.post('/reset-password', authLimiter, humanFormGuard, rejectPublicFieldTampering, resetPasswordRules, validateRequest, authController.resetPassword);
 router.post('/logout', authController.logout);
 router.get('/logout', (req, res) => res.redirect('/login')); // Logout is a POST action, not a dashboard page.
 router.get('/verify-email/:token', authController.verifyEmail);

@@ -8,7 +8,10 @@ const passengerSnapshotSchema = new Schema({
   phone: String,
   email: String,
   identityType: String,
-  identityNumber: String,
+  // Legacy plaintext field retained only so pre-v1.6.74 records can be migrated/read safely.
+  identityNumber: { type: String, select: false },
+  identityNumberEncrypted: String,
+  identityNumberLast4: String,
   nationality: String,
   sex: String,
   emergencyContactName: String,

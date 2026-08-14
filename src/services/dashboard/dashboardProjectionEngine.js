@@ -1643,8 +1643,10 @@ function createDashboardProjection(initialState = {}) {
       const roomLabels = assignments.length
         ? assignments.map(assignment => assignment.roomNumberSnapshot || roomUnitById(assignment.roomUnitId).unitNumber || assignment.roomUnitId).filter(Boolean)
         : (booking.passengers || []).map(guest => guest.seatOrRoom || guest.roomNumber || guest.roomType).filter(Boolean);
-      const identityNumber = leadGuest.identityNumber || leadGuest.documentNumber || leadGuest.idNumber || '';
-      const identityLabel = [leadGuest.identityType || leadGuest.documentType, maskIdentity(identityNumber), leadGuest.nationality].filter(Boolean).join(' / ') || '-';
+      const identityLast4 = leadGuest.identityNumberLast4
+        || leadGuest.documentNumberLast4
+        || String(leadGuest.identityNumber || leadGuest.documentNumber || leadGuest.idNumber || '').slice(-4);
+      const identityLabel = [leadGuest.identityType || leadGuest.documentType, identityLast4 ? `••••${identityLast4}` : '', leadGuest.nationality].filter(Boolean).join(' / ') || '-';
       const occupancy = `${Number(reservation.adults || 1)}A${Number(reservation.children || 0) ? ` · ${Number(reservation.children)}C` : ''}${Number(reservation.infants || 0) ? ` · ${Number(reservation.infants)}I` : ''} · ${Number(reservation.roomCount || assignments.length || 1)} room${Number(reservation.roomCount || assignments.length || 1) === 1 ? '' : 's'}`;
       const contact = leadGuest.phone || leadGuest.email || booking.guestSnapshot?.phone || booking.guestSnapshot?.email || '-';
       const status = reservation.status || booking.hotelStay?.status || booking.bookingStatus || 'confirmed';
@@ -3849,7 +3851,9 @@ function createDashboardProjection(initialState = {}) {
         email: booking.buyerSnapshot?.email || booking.guestSnapshot?.email || '',
         phone: booking.buyerSnapshot?.phone || booking.guestSnapshot?.phone || '',
         idType: booking.buyerSnapshot?.idType || '',
-        documentNumber: booking.buyerSnapshot?.documentNumber || '',
+        documentNumber: booking.buyerSnapshot?.documentNumberLast4
+          ? `••••${booking.buyerSnapshot.documentNumberLast4}`
+          : (booking.buyerSnapshot?.documentNumber ? `••••${String(booking.buyerSnapshot.documentNumber).slice(-4)}` : ''),
         notes: booking.buyerSnapshot?.notes || booking.notes || ''
       },
       company: {

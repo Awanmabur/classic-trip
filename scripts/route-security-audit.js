@@ -80,9 +80,10 @@ for (const policy of privateWebPolicies) {
 }
 
 const explicitPolicies = [
-  ['src/routes/web/auth.js', /router\.post\('\/login',\s*authLimiter,\s*loginRules,\s*validateRequest/, 'login must be rate-limited and validated'],
-  ['src/routes/web/auth.js', /router\.post\('\/register',\s*authLimiter,\s*registerRules,\s*validateRequest/, 'registration must be rate-limited and validated'],
-  ['src/routes/web/auth.js', /router\.post\('\/reset-password',\s*authLimiter,\s*resetPasswordRules,\s*validateRequest/, 'password reset must be rate-limited and validated'],
+  ['src/routes/web/auth.js', /router\.post\('\/login',\s*authLimiter,\s*loginDailyLimiter,\s*humanFormGuard,\s*rejectPublicFieldTampering,\s*loginRules,\s*validateRequest/, 'login must be short/daily rate-limited, bot-protected, tamper-protected, and validated'],
+  ['src/routes/web/auth.js', /router\.post\('\/register',\s*authLimiter,\s*humanFormGuard,\s*rejectPublicFieldTampering,\s*registerRules,\s*validateRequest/, 'registration must be rate-limited, bot-protected, tamper-protected, and validated'],
+  ['src/routes/web/auth.js', /router\.post\('\/reset-password',\s*authLimiter,\s*humanFormGuard,\s*rejectPublicFieldTampering,\s*resetPasswordRules,\s*validateRequest/, 'password reset must be rate-limited, bot-protected, tamper-protected, and validated'],
+  ['src/routes/web/auth.js', /router\.post\('\/forgot-password',\s*forgotPasswordLimiter,\s*humanFormGuard,\s*forgotPasswordRules,\s*validateRequest/, 'password-recovery request must be rate-limited, bot-protected, and validated'],
   ['src/routes/web/auth.js', /router\.post\('\/account\/resend-verification',\s*authLimiter/, 'verification resend must be rate-limited'],
   ['src/routes/api/bookings.js', /router\.post\('\/',\s*paymentLimiter,\s*bookingRules,\s*validateRequest/, 'booking creation must be rate-limited and validated'],
   ['src/routes/api/listings.js', /router\.post\('\/:listingId\/hold',\s*publicWriteLimiter/, 'public inventory holds must be rate-limited'],

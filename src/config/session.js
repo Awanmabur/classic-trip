@@ -23,6 +23,8 @@ module.exports = function sessionConfig() {
       httpOnly: true,
       secure: env.isProduction,
       sameSite: 'lax',
+      priority: 'high',
+      path: '/',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   };

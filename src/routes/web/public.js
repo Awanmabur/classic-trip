@@ -23,6 +23,8 @@ const { supportRules } = require('../../validators/supportValidator');
 const { companyRules } = require('../../validators/companyValidator');
 const { partnerOnboardingRules } = require('../../validators/partnerValidator');
 const { validateRequest } = require('../../middlewares/validate');
+const { humanFormGuard } = require('../../middlewares/botProtection');
+const { rejectPublicFieldTampering } = require('../../middlewares/requestSecurity');
 const { invitationPasswordRules } = require('../../validators/authValidator');
 const { paymentLimiter, ticketLimiter, authLimiter, publicWriteLimiter } = require('../../middlewares/rateLimit');
 const { mongoose } = require('../../config/db');
@@ -75,16 +77,16 @@ router.get('/promoters', listingController.promotersPage);
 router.get('/promoter-program', listingController.promotersPage);
 router.get('/partner-commission', partnerController.commissionInfo);
 router.get('/partner/onboarding', (req, res) => res.redirect(303, '/login?role=partner#partner'));
-router.post('/partner/onboarding', authLimiter, partnerOnboardingRules, validateRequest, partnerController.createOnboarding);
+router.post('/partner/onboarding', authLimiter, humanFormGuard, rejectPublicFieldTampering, partnerOnboardingRules, validateRequest, partnerController.createOnboarding);
 router.get('/invite/:token', invitationController.show);
-router.post('/invite/:token', authLimiter, invitationPasswordRules, validateRequest, invitationController.accept);
+router.post('/invite/:token', authLimiter, humanFormGuard, rejectPublicFieldTampering, invitationPasswordRules, validateRequest, invitationController.accept);
 router.post('/invite/:token/reject', authLimiter, invitationController.reject);
 router.get('/companies/:slug', listingController.companyProfile);
 router.get('/partner/:slug', listingController.companyProfile);
 router.get('/listings/:serviceType/:slug', listingController.listingDetails);
 router.post('/book/:serviceType/:slug/prepare', publicWriteLimiter, listingController.prepareBookingForm);
 router.get('/book/:serviceType/:slug', listingController.bookingForm);
-router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, async (req, res, next) => {
+router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, rejectPublicFieldTampering, async (req, res, next) => {
   try {
     let payload = stripClientSuppliedIdentity(req.body);
     const listing = await busRepository.listings.findOne({ id: String(payload.listingId || '').trim() });
@@ -112,8 +114,8 @@ router.post('/bookings/guest', paymentLimiter, bookingRules, validateRequest, as
     return next(error);
   }
 });
-router.post('/bookings/hotel', paymentLimiter, hotelBookingRules, validateRequest, hotelBookingController.create);
-router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, bookingPaymentController.retry);
+router.post('/bookings/hotel', paymentLimiter, hotelBookingRules, validateRequest, rejectPublicFieldTampering, hotelBookingController.create);
+router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, rejectPublicFieldTampering, bookingPaymentController.retry);
 router.get('/booking/payment/callback', listingController.paymentCallback);
 router.get('/booking/success/:bookingRef', listingController.bookingSuccess);
 router.get('/tickets', ticketLimiter, listingController.ticketLookupPage);

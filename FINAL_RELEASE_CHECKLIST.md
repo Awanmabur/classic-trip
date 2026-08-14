@@ -1,27 +1,27 @@
-# Classic Trip v1.6.68 Production Release Checklist
+# Classic Trip v1.6.74 — Final Release Checklist
 
-- [ ] `npm ci` completes successfully.
-- [ ] `npm run check:public-layout-content` passes 18/18.
-- [ ] `npm run check:public-performance` passes 18/18.
-- [ ] `npm run check:production-cleanup` passes 17/17.
-- [ ] `npm run check:runtime-network` passes 15/15.
-- [ ] `npm run check:index-reconciliation` passes 4/4.
-- [ ] `npm run doctor:network` confirms usable MongoDB and Redis connectivity.
-- [ ] `npm run db:indexes -- --dry-run` shows only expected index changes.
-- [ ] `npm run db:indexes` completes successfully against production Atlas.
-- [ ] `npm run verify` passes.
-- [ ] `npm run audit:production` reports no high/critical production vulnerabilities.
-- [ ] Production `.env`/Render secrets are configured outside source control.
-- [ ] Optional official social URLs are set only for profiles that actually exist.
-- [ ] Redis is connected for production sessions/cache/rate limits.
-- [ ] MongoDB transaction support is available.
-- [ ] Web process starts and listens on the assigned port.
-- [ ] Worker process starts separately when enabled.
-- [ ] Home Card view shows six items per populated service section and Bar view shows four.
-- [ ] Country-route filtering works on Home and `/search`.
-- [ ] Bus amenities match the unique amenities of assigned live vehicles.
-- [ ] Partner / Share / Close stay in the preview top-right; the context row remains full-width below.
-- [ ] Public marketplace pages have no noisy/shaded background texture.
-- [ ] Home and normal public pages show the same footer structure.
-- [ ] Blog preview keeps the original split desktop header, its container follows content height, tall source images stay cropped inside the media column, and four related guides appear on desktop.
-- [ ] A real booking flow verifies live departure/seat inventory remains authoritative.
+1. Preserve the existing production `SESSION_SECRET`; changing it would invalidate sessions and prevent legacy encrypted v1 fields from being decrypted.
+2. Set a new, distinct `DATA_ENCRYPTION_KEY` of at least 32 random characters (Render Blueprint can generate it automatically).
+3. Keep `.env`, private keys, seed credentials and service-account files out of Git and deployment archives.
+4. Run `npm ci` and confirm `npm audit --omit=dev --audit-level=moderate` passes.
+5. Run `npm run check:secret-hygiene` in the real Git working copy. If it detects a historical secret, purge it from Git history and rotate that credential before launch.
+6. Run `npm run check:security-launch-20` and require 20/20.
+7. Run `npm run check:go-live` and `npm run release:check`.
+8. Run `npm run doctor:network`. Local `npm run doctor:pesapal` checks credentials/control-plane only; run `npm run doctor:pesapal -- --production` on the deployed HTTPS environment for final callback/IPN certification.
+9. Deploy, then complete one controlled low-value Pesapal payment and verify callback/IPN/GetTransactionStatus, idempotent paid state, receipt/ticket, and no duplicate booking/payment mutation.
+10. Confirm production logs show no secret values, stack traces to customers, repeated auth failures, Redis permanent disconnects, or Mongo TLS/configuration errors.
+
+## Security launch gate
+
+Run:
+
+```bash
+npm run check:security-launch-20
+npm run check:secret-hygiene
+npm run check:log-redaction
+npm run check:pesapal-security
+npm run check:pesapal-go-live
+```
+
+Before production, generate a distinct `DATA_ENCRYPTION_KEY` (32+ random characters) and never reuse `SESSION_SECRET`, Pesapal credentials, or Cloudinary credentials for it.
+

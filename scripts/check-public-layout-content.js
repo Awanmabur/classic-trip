@@ -21,7 +21,7 @@ const siteFooter = read('src/views/partials/site-footer.ejs');
 const blogController = read('src/controllers/public/blogController.js');
 const env = read('src/config/env.js');
 
-check('release is v1.6.68', () => assert.strictEqual(pkg.version, '1.6.68'));
+check('release is v1.6.74', () => assert.strictEqual(pkg.version, '1.6.74'));
 check('all seven home marketplace card sections SSR six cards', () => {
   const slices = [...home.matchAll(/initial(?:Bus|Hotel|Flight|Taxi|Tour|Rental|Cargo)Listings\s*=.*?\.slice\(0,\s*6\)/g)];
   assert.strictEqual(slices.length, 7);
@@ -98,4 +98,10 @@ check('local .env is allowed for release checks but remains git-ignored', () => 
   assert(productionCheck.includes('Local .env must be excluded by .gitignore'));
 });
 check('service worker cache matches current release', () => assert(read('public/sw.js').includes(`classic-trip-static-v${pkg.version}`)));
-if (!process.exitCode) console.log(`\n${passed}/${passed} public layout/content checks passed.`);
+if (!process.exitCode) 
+check('Stay listing media fills the full card frame and has a local fallback', () => {
+  assert(css.includes('Stay media must fill the complete card media frame.'));
+  assert(css.includes('serviceCard--hotel .thumb img'));
+  assert(read('src/views/partials/listing-card.ejs').includes("/images/stays/stay-fallback.svg"));
+});
+console.log(`\n${passed}/${passed} public layout/content checks passed.`);

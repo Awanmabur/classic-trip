@@ -16,7 +16,10 @@ const hotelGuestSchema = new Schema({
   email: String,
   phone: String,
   identityType: String,
-  identityNumber: String,
+  // Legacy plaintext field; new writes use encrypted + last-four fields.
+  identityNumber: { type: String, select: false },
+  identityNumberEncrypted: String,
+  identityNumberLast4: String,
   nationality: String,
   sex: String,
   emergencyContactName: String,

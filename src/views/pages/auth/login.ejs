@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Classic Trip" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.68" />
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.74" />
   <title>Classic Trip | Login, Signup & Partner Onboarding</title>
   <meta name="description" content="Login, create a traveler or promoter account, or apply as a bus operator, stay partner, flight agent, boda rider, car driver or fleet owner from one secure page." />
   <meta name="csrf-token" content="<%= csrfToken || '' %>" />
@@ -110,9 +110,9 @@
 
 
 </style>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.68">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.74">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.68" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.74" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="authPage">
   <div class="navWrap">
@@ -178,7 +178,7 @@
         <div class="panel active" id="loginPanel" role="tabpanel" aria-labelledby="loginTab" aria-hidden="false">
           <div class="loginPanelStack">
           <div class="formCard">
-            <form class="form active" id="loginForm" action="/login" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+            <form class="form active" id="loginForm" action="/login" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="_ct_bot" value="<%= botProof || '' %>"><div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;opacity:0"><label>Leave this field empty<input type="text" name="_ct_hp" value="" tabindex="-1" autocomplete="off"></label></div>
               <div class="field">
                 <label>Email or phone number <a class="link" href="#" data-open-panel="forgot">Forgot?</a></label>
                 <div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone" autocomplete="username" required></div>
@@ -209,7 +209,7 @@
               <button class="role active" type="button" data-role="customer"><i class="fa-regular fa-user"></i>Customer</button>
               <button class="role" type="button" data-role="promoter"><i class="fa-solid fa-share-nodes"></i>Promoter</button>
             </div>
-            <form class="form active" id="signupForm" action="/register" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="role" id="roleInput" value="customer">
+            <form class="form active" id="signupForm" action="/register" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="_ct_bot" value="<%= botProof || '' %>"><div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;opacity:0"><label>Leave this field empty<input type="text" name="_ct_hp" value="" tabindex="-1" autocomplete="off"></label></div><input type="hidden" name="role" id="roleInput" value="customer">
               <div class="row2">
                 <div class="field"><label>First name</label><div class="control"><i class="fa-regular fa-user"></i><input name="firstName" placeholder="First name" autocomplete="given-name" required></div></div>
                 <div class="field"><label>Last name</label><div class="control"><i class="fa-regular fa-user"></i><input name="lastName" placeholder="Last name" autocomplete="family-name" required></div></div>
@@ -273,7 +273,7 @@
 
         <div class="panel" id="forgotPanel" hidden aria-hidden="true">
           <div class="formCard">
-            <form class="form active" id="forgotForm" action="/forgot-password" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>">
+            <form class="form active" id="forgotForm" action="/forgot-password" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken || '' %>"><input type="hidden" name="_ct_bot" value="<%= botProof || '' %>"><div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;opacity:0"><label>Leave this field empty<input type="text" name="_ct_hp" value="" tabindex="-1" autocomplete="off"></label></div>
               <div class="field"><label>Recover your account</label><div class="control"><i class="fa-regular fa-envelope"></i><input type="text" name="identity" placeholder="Email or phone number" required></div></div>
               <button class="submit" type="submit"><i class="fa-solid fa-paper-plane"></i>Send reset link</button>
               <button class="social" type="button" data-open-panel="login"><i class="fa-solid fa-arrow-left"></i>Back to login</button>
@@ -309,9 +309,9 @@
 
   <div class="toast" id="toast">Action completed</div>
 
-  <script src="/js/auth-page.js?v=1.6.68" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.68" data-modules="/js/mobile-navigation.js?v=1.6.68|/js/pwa.js?v=1.6.68" defer></script>
+  <script src="/js/auth-page.js?v=1.6.74" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.74" data-modules="/js/mobile-navigation.js?v=1.6.74|/js/pwa.js?v=1.6.74" defer></script>
   <%- include('../../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.68" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.74" defer></script>
 </body>
 </html>

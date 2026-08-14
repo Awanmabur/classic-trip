@@ -36,3 +36,11 @@ Classic_Trip_Final_Master_Document.pdf
 
 # Local one-time seeded credentials; never deploy or commit
 seed-output/
+# Private keys and machine credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+

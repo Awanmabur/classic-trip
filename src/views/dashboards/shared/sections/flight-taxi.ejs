@@ -144,7 +144,7 @@
 
 <script nonce="<%= cspNonce %>">
 (function(){
-  var csrf=<%- JSON.stringify(csrfToken || '') %>;
+  var csrf=<%- toScriptJson(csrfToken || '') %>;
   function qs(s,r){return (r||document).querySelector(s);} function qsa(s,r){return Array.from((r||document).querySelectorAll(s));}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
   function msg(el,text,kind){if(!el)return;el.textContent=text||'';el.className='travelMessage'+(text?' show '+(kind||'error'):'');}

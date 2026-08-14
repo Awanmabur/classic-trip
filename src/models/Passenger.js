@@ -12,7 +12,10 @@ const passengerSchema = new Schema({
   dropoffPoint: String,
   specialNotes: String,
   travelNotes: String,
-  identityNumber: String,
+  // Legacy plaintext field; new writes use encrypted + last-four fields.
+  identityNumber: { type: String, select: false },
+  identityNumberEncrypted: String,
+  identityNumberLast4: String,
   identityType: String,
   sex: String,
   nationality: String,

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Kal Hotel &amp; Garden partner cover">
+<rect width="1280" height="800" fill="#111827"/>
+<rect x="64" y="64" width="1152" height="672" rx="44" fill="#172033" stroke="#334155" stroke-width="4"/>
+<circle cx="1080" cy="170" r="112" fill="#f5b700" opacity=".12"/>
+<path d="M170 560V315l205-110 205 110v245H170Zm70-55h270V355l-135-72-135 72v150Zm65 0V395h140v110H305Z" fill="#f5b700"/>
+<path d="M620 300h410v46H620zm0 86h330v34H620zm0 70h370v34H620z" fill="#e5e7eb" opacity=".9"/>
+<text x="620" y="590" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="700">Kal Hotel &amp; Garden</text>
+<text x="620" y="650" fill="#cbd5e1" font-family="Arial,Helvetica,sans-serif" font-size="30">Sherikat · Juba · South Sudan</text>
+<text x="620" y="700" fill="#94a3b8" font-family="Arial,Helvetica,sans-serif" font-size="22">Classic Trip partner profile · property photo can be updated by the hotel</text>
+</svg>

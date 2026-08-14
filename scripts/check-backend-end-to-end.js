@@ -28,7 +28,7 @@ const refundWorkflow = read('src/services/support/workflowService.js');
 const refundModel = read('src/models/RefundRequest.js');
 const taxiRide = read('src/modules/taxi/services/taxiRideService.js');
 
-check('public payment retry uses payment limiter', publicRoutes.includes("router.post('/bookings/:bookingRef/payment/retry', paymentLimiter, bookingPaymentController.retry)"));
+check('public payment retry uses payment limiter', /router\.post\('\/bookings\/:bookingRef\/payment\/retry',\s*paymentLimiter,/.test(publicRoutes));
 check('public payment retry verifies ticket ownership', publicPayment.includes('ticketAccessService.canAccessBooking(req, booking)'));
 check('public payment retry uses canonical service', publicPayment.includes('bookingPaymentService.initiate(booking.bookingRef'));
 check('generic inventory commits before provider order', genericBooking.indexOf('persistBooking(booking, payload, 0, { claimInventory: true })') < genericBooking.indexOf('payment = await paymentService.initiatePayment'));

@@ -22,6 +22,9 @@ const dashboardMutationState = require('./middlewares/dashboardMutationState');
 const platformMonitoring = require('./middlewares/platformMonitoring');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
+const { rejectDangerousInputKeys } = require('./middlewares/requestSecurity');
+const { attachBotProof } = require('./middlewares/botProtection');
+const { apiResponseSecurity } = require('./middlewares/apiResponseSecurity');
 
 const app = express();
 const PUBLIC_MARKETS = publicMarkets();
@@ -69,7 +72,7 @@ const cspDirectives = {
   scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
-  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
+  imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.cloudinary.com', 'https://media.radissonhotels.net', 'https://cdn.jsdelivr.net', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', ...(configuredMapTileOrigin ? [configuredMapTileOrigin] : [])],
   connectSrc: ["'self'"],
   frameSrc: ["'none'"],
   objectSrc: ["'none'"],
@@ -81,9 +84,15 @@ if (env.isProduction) cspDirectives.upgradeInsecureRequests = [];
 app.use(helmet({
   contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  strictTransportSecurity: env.isProduction ? { maxAge: 31536000, includeSubDomains: true } : false,
 }));
 app.use((req, res, next) => {
-  if (!env.isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https') return next();
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=(), payment=(self)');
+  next();
+});
+app.use((req, res, next) => {
+  if (!env.isProduction || req.secure) return next();
   const publicOrigin = new URL(env.appUrl).origin;
   return res.redirect(308, `${publicOrigin}${req.originalUrl}`);
 });
@@ -126,8 +135,10 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 }));
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
+app.use(rejectDangerousInputKeys);
 app.use(cookieParser());
 app.use(sessionConfig());
+app.use(apiResponseSecurity);
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(attachUser);
@@ -135,6 +146,7 @@ app.use(attachReferral);
 app.use(platformMonitoring);
 app.use(csrfToken);
 app.use(flashMiddleware);
+app.use(attachBotProof);
 app.use(publicPerformance);
 app.use(searchIndexing);
 app.use(dashboardMutationState);
@@ -158,7 +170,7 @@ app.use((req, res, next) => {
   res.locals.resolveMediaUrl = resolveMediaUrl;
   // Escapes `<` so JSON embedded inside <script> tags (via <%- %>) can't be broken out of
   // with a `</script>` payload in user-controlled data.
-  res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/</g, '\\u003c');
+  res.locals.toScriptJson = (value) => JSON.stringify(value === undefined ? null : value).replace(/[<>&\u2028\u2029]/g, (char) => ({ '<': '\\u003c', '>': '\\u003e', '&': '\\u0026', '\u2028': '\\u2028', '\u2029': '\\u2029' }[char]));
   next();
 });
 

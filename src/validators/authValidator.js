@@ -37,6 +37,11 @@ const registerRules = [
   }),
 ];
 
+
+const forgotPasswordRules = [
+  body('identity').trim().notEmpty().isLength({ max: 254 }),
+];
+
 const resetPasswordRules = [
   body('token').notEmpty().isLength({ min: 32, max: 128 }),
   body('password').isLength({ min: 8 }).custom(passwordBytes)
@@ -66,4 +71,4 @@ const mfaCodeRules = [
   body('code').trim().matches(/^(?:\d{6}|[A-Za-z0-9-]{16,24})$/).withMessage('Enter a six-digit authenticator code or recovery code'),
 ];
 
-module.exports = { loginRules, registerRules, resetPasswordRules, invitationPasswordRules, phoneCodeRules, mfaCodeRules };
+module.exports = { loginRules, registerRules, forgotPasswordRules, resetPasswordRules, invitationPasswordRules, phoneCodeRules, mfaCodeRules };

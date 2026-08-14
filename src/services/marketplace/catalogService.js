@@ -927,11 +927,25 @@ function liveCampaignFor(data, listingId, now = new Date()) {
     && (!campaign.endsAt || new Date(campaign.endsAt) >= now));
 }
 
+const SEEDED_STAY_LOCAL_IMAGES = Object.freeze({
+  'dandy-hotel': '/images/stays/dandy-hotel-real.jpg',
+  'daddy-hotel': '/images/stays/dandy-hotel-real.jpg',
+});
+function seededStayLocalImage(listing = {}, company = {}) {
+  const key = String(listing.companySlug || company.slug || '').trim();
+  const local = SEEDED_STAY_LOCAL_IMAGES[key] || '';
+  if (!local || canonicalServiceType(listing) !== 'hotel') return '';
+  const media = Array.isArray(listing.media) ? listing.media : [];
+  const seedOwned = !media.length || media.every((item) => /^(?:seed:|seed-remote:|seed-cloudinary:)/.test(String(item?.publicId || '')));
+  return seedOwned ? local : '';
+}
 function seededOperatorKey(listing = {}, company = {}) {
   return String(listing.companySlug || company.slug || '').trim();
 }
 function resolveListingImage(listing = {}, company = {}, candidate = '') {
   const key = seededOperatorKey(listing, company);
+  const localStayImage = seededStayLocalImage(listing, company);
+  if (localStayImage) return localStayImage;
   const current = resolveMediaUrl(candidate, listing.img, listing.image, listing.coverImage, listing.media);
   const fallback = SEEDED_OPERATOR_IMAGES[key] || '';
   if (fallback && (!current || isLegacySeedOperatorUrl(key, current) || /^\/images\/operators\//i.test(current))) return fallback;
