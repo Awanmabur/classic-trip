@@ -1,4 +1,4 @@
-**v1.6.74 launch-security final:** all 20 supplied launch security controls are now implemented or mapped to the correct Classic Trip equivalent and enforced by automated gates. New sensitive-field writes use a dedicated AES-256-GCM `DATA_ENCRYPTION_KEY`; legacy v1 encrypted values remain readable with the existing `SESSION_SECRET`. Secret-history scanning, bot-proof/honeypot protection, daily login throttling, protected-field tampering rejection, API redaction, strict-query enforcement plus app-wide Mongo operator-key rejection, hardened script JSON escaping, upload validation, modern headers, HTTPS/TLS enforcement and production dependency auditing are included.
+**v1.6.75 launch-security final:** all 20 supplied launch security controls are now implemented or mapped to the correct Classic Trip equivalent and enforced by automated gates. New sensitive-field writes use a dedicated AES-256-GCM `DATA_ENCRYPTION_KEY`; legacy v1 encrypted values remain readable with the existing `SESSION_SECRET`. Secret-history scanning, bot-proof/honeypot protection, daily login throttling, protected-field tampering rejection, API redaction, strict-query enforcement plus app-wide Mongo operator-key rejection, hardened script JSON escaping, upload validation, modern headers, HTTPS/TLS enforcement and production dependency auditing are included.
 
 # Classic Trip — Production Platform
 
@@ -8,7 +8,7 @@ Classic Trip is the East Africa travel and mobility marketplace for buses, fligh
 
 ## Current production release
 
-**Version 1.6.74**
+**Version 1.6.75**
 
 This release preserves the cleaned v1.6.65 production baseline and the v1.6.63+ lightweight public-discovery architecture while completing the public marketplace layout: six-card Card view, four-item Bar view, real country-route filtering, vehicle-derived bus amenities, one shared public footer, cleaner marketplace surfaces and a corrected blog-preview layout.
 
@@ -106,7 +106,7 @@ node scripts/repair-bus-launch-readiness.js
 node scripts/repair-archive-uniqueness.js
 npm run doctor:media:db
 ```
-## v1.6.74 Go-live commands
+## v1.6.75 Go-live commands
 
 The v1.6.72 launch release adds six conservative Stay partner profiles and production Pesapal readiness checks. Stay profiles are public but remain non-bookable until genuine room/rate/date inventory is configured.
 

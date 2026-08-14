@@ -1,6 +1,6 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.6.74",
+  "version": "1.6.75",
   "private": true,
   "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
@@ -27,7 +27,7 @@
     "check:entity-relations": "node scripts/entity-relationship-ui-audit.js",
     "check:dashboards": "node scripts/validate-dashboard-scope.js && node scripts/dashboard-route-smoke-static.js",
     "test": "node scripts/run-unit-tests.js",
-    "verify": "npm run check && npm run check:lockfile && npm run check:release-consistency && npm run check:index-reconciliation && npm run check:production-cleanup && npm run check:runtime-network && npm run check:public-performance && npm run check:public-layout-content && npm run check:go-live-hotfix && npm run check:launch-stays && npm run check:pesapal-go-live && npm run check:secret-hygiene && npm run check:security-launch-20 && npm run check:log-redaction && npm run check:frontend-complete && npm run check:backend-end-to-end && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:dashboard-completeness && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:stays && npm test",
+    "verify": "npm run check && npm run check:lockfile && npm run check:release-consistency && npm run check:index-reconciliation && npm run check:production-cleanup && npm run check:runtime-network && npm run check:public-performance && npm run check:cold-home-warmup && npm run check:public-layout-content && npm run check:go-live-hotfix && npm run check:launch-stays && npm run check:pesapal-go-live && npm run check:secret-hygiene && npm run check:security-launch-20 && npm run check:log-redaction && npm run check:frontend-complete && npm run check:backend-end-to-end && npm run check:runtime && npm run check:production && npm run check:performance-architecture && npm run check:runtime-resilience && npm run check:architecture-security && npm run check:routes && npm run check:csrf && npm run check:dashboard-completeness && npm run check:dashboard-service-coverage && npm run check:flight-taxi && npm run check:stays && npm test",
     "launch:check": "node scripts/launch-check.js --production",
     "seo:submit-indexnow": "node scripts/submit-indexnow.js",
     "check:dashboard-repository": "node scripts/check-dashboard-repository-readiness.js",
@@ -134,13 +134,14 @@
     "doctor:pesapal": "node scripts/doctor-pesapal.js",
     "check:launch-stays": "node scripts/check-launch-stays.js",
     "check:pesapal-go-live": "node scripts/check-pesapal-go-live.js",
-    "check:go-live": "npm run check:go-live-hotfix && npm run check:launch-stays && npm run check:public-layout-content && npm run check:public-performance && npm run check:stays && npm run check:pesapal-security && npm run check:pesapal-go-live && npm run check:backend-end-to-end && npm run check:secret-hygiene && npm run check:security-launch-20 && npm run check:log-redaction",
+    "check:go-live": "npm run check:go-live-hotfix && npm run check:launch-stays && npm run check:public-layout-content && npm run check:public-performance && npm run check:cold-home-warmup && npm run check:stays && npm run check:pesapal-security && npm run check:pesapal-go-live && npm run check:backend-end-to-end && npm run check:secret-hygiene && npm run check:security-launch-20 && npm run check:log-redaction",
     "check:secret-hygiene": "node scripts/check-secret-hygiene.js",
     "check:security-launch-20": "node scripts/check-security-launch-20.js",
     "security:encrypt-identities:dry": "node scripts/migrate-sensitive-identities.js",
     "security:encrypt-identities": "node scripts/migrate-sensitive-identities.js --apply",
     "check:log-redaction": "node scripts/check-log-redaction.js",
-    "check:go-live-hotfix": "node scripts/check-go-live-hotfix.js"
+    "check:go-live-hotfix": "node scripts/check-go-live-hotfix.js",
+    "check:cold-home-warmup": "node scripts/check-cold-home-warmup.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

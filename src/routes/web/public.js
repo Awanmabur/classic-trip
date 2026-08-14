@@ -28,6 +28,7 @@ const { rejectPublicFieldTampering } = require('../../middlewares/requestSecurit
 const { invitationPasswordRules } = require('../../validators/authValidator');
 const { paymentLimiter, ticketLimiter, authLimiter, publicWriteLimiter } = require('../../middlewares/rateLimit');
 const { mongoose } = require('../../config/db');
+const readiness = require('../../config/readiness');
 const { safePaymentRedirect } = require('../../utils/paymentRedirect');
 
 const router = express.Router();
@@ -146,11 +147,17 @@ router.get('/health', (req, res) => {
 });
 router.get('/ready', (req, res) => {
   const databaseReady = mongoose.connection.readyState === 1;
+  const warm = readiness.snapshot();
+  const publicDiscoveryReady = !process.env.NODE_ENV || process.env.NODE_ENV !== 'production' || warm.publicDiscoveryReady;
+  const ready = databaseReady && publicDiscoveryReady;
   res.set('Cache-Control', 'no-store');
-  return res.status(databaseReady ? 200 : 503).json({
-    ok: databaseReady,
+  return res.status(ready ? 200 : 503).json({
+    ok: ready,
     app: 'Classic Trip',
     database: databaseReady ? 'ready' : 'unavailable',
+    publicDiscovery: warm.publicDiscoveryReady
+      ? (warm.publicDiscoveryDegraded ? 'degraded-ready' : 'ready')
+      : 'warming',
     requestId: req.id,
     time: new Date().toISOString(),
   });

@@ -7,7 +7,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const pkg = JSON.parse(read('package.json'));
 const checks = [];
 function check(label, fn) { try { fn(); checks.push(label); console.log(`✓ ${label}`); } catch (e) { console.error(`✗ ${label} — ${e.message}`); process.exitCode = 1; } }
-check('release is v1.6.74', () => assert.strictEqual(pkg.version, '1.6.74'));
+check('release is v1.6.75', () => assert.strictEqual(pkg.version, '1.6.75'));
 check('Dandy uses bundled real image as canonical runtime media', () => {
   const seed = read('scripts/seed-launch-stays.js');
   const block = seed.slice(seed.indexOf("key: 'dandy-hotel'"), seed.indexOf("key: 'zoom-future-hotel'"));
@@ -51,4 +51,4 @@ check('Pesapal doctor supports local credential-only mode but keeps strict produ
   assert(provider.includes('async function credentialCheck'));
   assert(doctor.includes('PESAPAL_CALLBACK_URL must use HTTPS on the APP_URL host.'));
 });
-if (!process.exitCode) console.log(`\n${checks.length}/${checks.length} v1.6.74 go-live hotfix checks passed.`);
+if (!process.exitCode) console.log(`\n${checks.length}/${checks.length} v1.6.75 go-live hotfix checks passed.`);

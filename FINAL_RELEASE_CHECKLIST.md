@@ -1,4 +1,4 @@
-# Classic Trip v1.6.74 — Final Release Checklist
+# Classic Trip v1.6.75 — Final Release Checklist
 
 1. Preserve the existing production `SESSION_SECRET`; changing it would invalidate sessions and prevent legacy encrypted v1 fields from being decrypted.
 2. Set a new, distinct `DATA_ENCRYPTION_KEY` of at least 32 random characters (Render Blueprint can generate it automatically).
@@ -25,3 +25,13 @@ npm run check:pesapal-go-live
 
 Before production, generate a distinct `DATA_ENCRYPTION_KEY` (32+ random characters) and never reuse `SESSION_SECRET`, Pesapal credentials, or Cloudinary credentials for it.
 
+
+## Render cold-start verification
+
+After deployment, confirm the startup logs contain:
+
+```text
+Public discovery cache warmed before traffic readiness
+```
+
+Then request `/ready` and confirm `ok: true`, `database: "ready"`, and `publicDiscovery: "ready"` (or `degraded-ready` only if the bounded fallback was needed). Run `npm run check:cold-home-warmup` and require 8/8. Keep `PUBLIC_WARMUP_MAX_WAIT_MS=10000` unless production measurements justify changing it.

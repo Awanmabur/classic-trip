@@ -1,4 +1,4 @@
-# Classic Trip — 20 Launch Security Controls (v1.6.74)
+# Classic Trip — 20 Launch Security Controls (v1.6.75)
 
 This matrix maps the 20 supplied launch-security checks to the implementation and automated gate that enforces them.
 

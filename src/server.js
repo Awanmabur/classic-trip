@@ -5,6 +5,7 @@ const logger = require('./config/logger');
 const { ensurePlatformConfig } = require('./services/platform/platformConfigService');
 const repositories = require('./repositories');
 const scheduleMaterializer = require('./jobs/materializeSchedules');
+const readiness = require('./config/readiness');
 
 let httpServer = null;
 let shuttingDown = false;
@@ -23,6 +24,36 @@ async function start() {
   }
   httpServer = app.listen(env.port, () => {
     logger.startup(`${env.appName} listening`, { url: `${env.appUrl}`, port: env.port, nodeEnv: env.nodeEnv });
+
+    // Open the port first so Render can reach /ready, then warm the lightweight
+    // anonymous Home/Search view in the background. /ready remains 503 until
+    // this succeeds (or the bounded fallback expires), so the first real user
+    // does not pay the cold discovery-query cost. Booking/payment inventory is
+    // intentionally excluded from this warmup.
+    const catalogService = require('./services/marketplace/catalogService');
+    readiness.beginPublicDiscoveryWarmup();
+    let warmupFinished = false;
+    const warmupDeadline = setTimeout(() => {
+      if (warmupFinished) return;
+      warmupFinished = true;
+      readiness.markPublicDiscoveryReady({ degraded: true, error: 'warmup_deadline_exceeded' });
+      logger.warn('Public discovery warmup exceeded readiness deadline; serving with normal cache fallbacks', {
+        maxWaitMs: env.performance.publicWarmupMaxWaitMs,
+      });
+    }, env.performance.publicWarmupMaxWaitMs);
+    warmupDeadline.unref?.();
+
+    catalogService.prewarmHome()
+      .then(() => {
+        if (warmupFinished) return;
+        warmupFinished = true;
+        clearTimeout(warmupDeadline);
+        readiness.markPublicDiscoveryReady();
+        logger.info('Public discovery cache warmed before traffic readiness');
+      })
+      .catch((error) => {
+        logger.warn('Public discovery warmup deferred; normal cache fallbacks remain available', { error: error?.message || String(error) });
+      });
   });
   httpServer.keepAliveTimeout = 65_000;
   httpServer.headersTimeout = 66_000;

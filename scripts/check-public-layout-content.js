@@ -21,7 +21,7 @@ const siteFooter = read('src/views/partials/site-footer.ejs');
 const blogController = read('src/controllers/public/blogController.js');
 const env = read('src/config/env.js');
 
-check('release is v1.6.74', () => assert.strictEqual(pkg.version, '1.6.74'));
+check('release is v1.6.75', () => assert.strictEqual(pkg.version, '1.6.75'));
 check('all seven home marketplace card sections SSR six cards', () => {
   const slices = [...home.matchAll(/initial(?:Bus|Hotel|Flight|Taxi|Tour|Rental|Cargo)Listings\s*=.*?\.slice\(0,\s*6\)/g)];
   assert.strictEqual(slices.length, 7);

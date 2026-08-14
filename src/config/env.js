@@ -238,6 +238,10 @@ const env = {
     // first visitor. Booking/payment data is intentionally excluded.
     discoveryCacheTtlMs: Math.max(60000, number('DISCOVERY_CACHE_TTL_MS', 300000)),
     discoveryCacheStaleMs: Math.max(600000, number('DISCOVERY_CACHE_STALE_MS', 21600000)),
+    // Render opens the port immediately, then warms anonymous Home/Search data
+    // before /ready advertises the instance. A bounded fallback prevents a
+    // temporary Atlas/cache problem from trapping a deployment forever.
+    publicWarmupMaxWaitMs: Math.max(2000, number('PUBLIC_WARMUP_MAX_WAIT_MS', 10000)),
     dashboardCacheTtlMs: number('DASHBOARD_SNAPSHOT_TTL_MS', 180000),
     dashboardCacheStaleMs: number('DASHBOARD_SNAPSHOT_STALE_MS', 1800000),
     dashboardReadConcurrency: number('DASHBOARD_DB_READ_CONCURRENCY', 10),

@@ -1,8 +1,18 @@
-# Classic Trip v1.6.74 — Launch Security Final Audit
+# Classic Trip v1.6.75 — Go-Live Performance + Security Final Audit
 
 ## Scope
 
 This release hardens the production application against the 20 launch-security controls supplied by the platform owner, while preserving v1.6.72 Stay media, marketplace performance, Pesapal verification, Redis recovery, booking integrity, dashboards, and public UX.
+
+## Render cold-start correction
+
+- The production port opens before cache work begins.
+- `/ready` remains 503 with `publicDiscovery: "warming"` until the anonymous Home/Search bootstrap is warm.
+- Startup warming is non-blocking and Redis-first; it does not force a fresh Atlas catalog rebuild when the shared discovery snapshot exists.
+- A bounded `PUBLIC_WARMUP_MAX_WAIT_MS` fallback (default 10 seconds) permits degraded readiness instead of an endless failed deployment.
+- The cold discovery builder reuses cached platform configuration and no longer performs an unnecessary platform-settings MongoDB read.
+- Booking/payment/seat/room-night inventory remains outside startup warming.
+- `check:cold-home-warmup` locks this behavior in with 8 automated contracts.
 
 ## Implemented security controls
 
@@ -39,7 +49,7 @@ This release hardens the production application against the 20 launch-security c
 
 ## Compatibility
 
-No database deletion or reseed is required. Values encrypted before v1.6.74 remain readable as long as the existing `SESSION_SECRET` is preserved. New sensitive-field writes use v2 encryption under `DATA_ENCRYPTION_KEY`.
+No database deletion or reseed is required. Values encrypted before v1.6.75 remain readable as long as the existing `SESSION_SECRET` is preserved. New sensitive-field writes use v2 encryption under `DATA_ENCRYPTION_KEY`.
 
 ## Final security hardening
 
@@ -51,7 +61,7 @@ No database deletion or reseed is required. Values encrypted before v1.6.74 rema
 - Public protected-field tampering, dangerous Mongo-style keys, unsafe raw EJS output, and secret-bearing API/log output are explicitly gated.
 
 
-## v1.6.74 go-live hotfixes
+## v1.6.75 go-live hotfixes
 
 - Dandy Hotel Juba uses the bundled verified real JPEG as the canonical public image for seed-owned Dandy/Daddy legacy records; partner-uploaded media still wins.
 - Stay availability keeps server-built Mongo operators functional, fixing the RoomUnit `status` `$in` CastError while retaining app-wide HTTP operator-key rejection.

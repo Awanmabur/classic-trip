@@ -10,7 +10,7 @@ const { resolveBlogImage } = require('../../utils/blogImage');
 const { SEEDED_OPERATOR_IMAGES, isLegacySeedOperatorUrl } = require('../../utils/seedMedia');
 const { resolveMediaUrl, mediaUrl } = require('../../utils/mediaUrl');
 const { priceBusTicket } = require('../../utils/busCustomerPricing');
-const { getPlatformConfig } = require('../platform/platformConfigService');
+const { getPlatformConfig, getCachedPlatformConfig } = require('../platform/platformConfigService');
 const { nextId } = require('../data/idService');
 const { env } = require('../../config/env');
 const { runMongoRead } = require('../data/mongoReadGate');
@@ -263,7 +263,7 @@ async function loadDiscoverySnapshotFresh() {
       () => commerceRepository.categories.list({ status: { $ne: 'archived' } }, { sort: { order: 1, name: 1 }, limit: 500 }),
       () => commerceRepository.listings.list({ status: 'active', releaseStatus: 'published', serviceType: { $in: TYPE_ORDER } }, { sort: { isFeatured: -1, createdAt: -1 }, limit: 5000 }),
       () => contentRepository.blogs.list({ status: 'published' }, { sort: { publishedAt: -1, createdAt: -1 }, limit: 60 }),
-      () => getPlatformConfig(),
+      () => getCachedPlatformConfig(),
     ]),
     flightSearchService.listAirports().catch(() => []),
   ]);
@@ -804,8 +804,13 @@ function invalidateMarketplaceCache() {
   invalidateSharedListingSnapshots();
 }
 
-async function prewarmHome() {
-  await discoverySnapshot({ force: true });
+async function prewarmHome(options = {}) {
+  // Startup warming must never force a fresh Atlas fan-out when a valid shared
+  // Redis discovery snapshot already exists. Read Redis first; only a truly
+  // cold cache falls back to the lightweight discovery query. A forceFresh
+  // option remains available for explicit operator maintenance.
+  if (options.forceFresh === true) await discoverySnapshot({ force: true });
+  else await discoverySnapshot();
   return homeBootstrap({ force: true });
 }
 

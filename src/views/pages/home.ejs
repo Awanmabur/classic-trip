@@ -65,14 +65,14 @@
   <meta name="twitter:image:alt" content="Classic Trip travel marketplace" />
   <script nonce="<%= cspNonce %>" type="application/ld+json"><%- toScriptJson(homeSchema) %></script>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
-  <link rel="stylesheet" href="/css/pwa.css?v=1.6.74" />
-  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.74">
+  <link rel="stylesheet" href="/css/pwa.css?v=1.6.75" />
+  <link rel="stylesheet" href="/css/pages/home.css?v=1.6.75">
   <link rel="stylesheet" href="/css/four-service-ui.css?v=20260726-reference-merge-1">
   <script src="/js/csrf.js?v=20260722-3" defer></script>
   <script src="/js/page-actions.js" defer></script>
-  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.74">
+  <link rel="stylesheet" href="/css/completion-fixes.css?v=1.6.75">
   <link rel="stylesheet" href="/css/accessibility-safe.css?v=20260726-reference-ui-1">
-  <script src="/js/external-styles-idle.js?v=1.6.74" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
+  <script src="/js/external-styles-idle.js?v=1.6.75" data-styles="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" defer></script>
 </head>
 <body class="homePage" data-user-id="<%= currentUser?.id || '' %>">
   <header class="nav">
@@ -456,11 +456,11 @@
 
   <script id="classicTripBootstrap" type="application/json" nonce="<%= cspNonce %>"><%- toScriptJson({ ...(bootstrap || {}), platformConfig: platformConfig || {} }) %></script>
   <script src="/js/mobile-navigation.js?v=20260727-1" defer></script>
-  <script src="/js/runtime-idle.js?v=1.6.74" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.74" defer></script>
-  <script src="/js/route-pair-select.js?v=1.6.74" defer></script>
-<script src="/js/home-service-search.js?v=1.6.74" defer></script>
-  <script src="/js/home.js?v=1.6.74" defer></script>
+  <script src="/js/runtime-idle.js?v=1.6.75" data-modules="/js/notifications.js|/js/pwa.js?v=1.6.75" defer></script>
+  <script src="/js/route-pair-select.js?v=1.6.75" defer></script>
+<script src="/js/home-service-search.js?v=1.6.75" defer></script>
+  <script src="/js/home.js?v=1.6.75" defer></script>
   <%- include('../partials/contact-hub') %>
-  <script src="/js/contact-hub.js?v=1.6.74" defer></script>
+  <script src="/js/contact-hub.js?v=1.6.75" defer></script>
 </body>
 </html>

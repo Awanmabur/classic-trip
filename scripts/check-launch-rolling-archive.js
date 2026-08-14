@@ -115,8 +115,10 @@ check('Atlas startup and pool queue tolerate transient topology changes', db.inc
   && db.includes('retryAttempts')
   && env.includes('MONGO_SERVER_SELECTION_TIMEOUT_MS')
   && env.includes("Math.max(1500, number('MONGO_WAIT_QUEUE_TIMEOUT_MS'"));
-check('Web process does not start jobs or read-model maintenance', !server.includes('startScheduledJobs')
-  && !server.includes('prewarmHome')
+check('Web process keeps jobs/maintenance out while allowing non-blocking public cache warmup', !server.includes('startScheduledJobs')
+  && server.includes('app.listen')
+  && server.includes('catalogService.prewarmHome()')
+  && server.indexOf('app.listen') < server.indexOf('catalogService.prewarmHome()')
   && !server.includes('runStartupReadMaintenance'));
 check('Reverse discovery ignores outbound chronology but rejects departed services',
   !returnSearch.includes('afterDate')

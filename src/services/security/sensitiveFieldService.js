@@ -14,7 +14,7 @@ function deriveKey(secret, context = 'default') {
 
 function keyForVersion(version, context = 'default') {
   if (version === CURRENT_VERSION) return deriveKey(env.dataEncryptionKey, context);
-  // Backward-compatible decryption for values written before v1.6.74.
+  // Backward-compatible decryption for values written before v1.6.75.
   if (version === LEGACY_VERSION) return deriveKey(env.sessionSecret, context);
   return null;
 }
