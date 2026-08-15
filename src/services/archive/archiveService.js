@@ -17,6 +17,43 @@ const COMPANY_MODELS = new Set([
   'TaxiServiceZone', 'TaxiFareRule', 'TaxiVehicle',
 ]);
 const OPERATIONS_MODELS = new Set([...COMPANY_MODELS, 'Place']);
+// Archive reads are page latency-sensitive. A company should never scan archived
+// hotel, flight and taxi collections when it operates only buses (and vice versa).
+// Restore authorization still uses the complete COMPANY_MODELS allow-list below.
+const COMPANY_ARCHIVE_COMMON_MODELS = new Set([
+  'CompanyPolicy', 'CompanyBranch', 'CompanyEmployee', 'Listing', 'Notification',
+]);
+const COMPANY_ARCHIVE_SERVICE_MODELS = Object.freeze({
+  bus: new Set([
+    'ServiceAddon', 'BusSegmentFare', 'FareProduct', 'RouteStop', 'RouteSegment',
+    'SeatMapTemplate', 'SeatMapVersion', 'Vehicle', 'Route', 'TripSchedule',
+  ]),
+  hotel: new Set([
+    'ServiceAddon', 'RatePlan', 'RoomUnit', 'RoomType', 'HotelProperty',
+    'RoomNightInventory', 'Room',
+  ]),
+  flight: new Set([
+    'Airline', 'Aircraft', 'FlightRoute', 'FlightFareFamily', 'FlightAncillary',
+  ]),
+  local_transport: new Set([
+    'VehicleClass', 'TaxiServiceZone', 'TaxiFareRule', 'TaxiVehicle',
+  ]),
+});
+
+function normalizedServiceType(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function archiveModelsForScope(scope, context = {}) {
+  const allowed = SCOPE_MODELS[scope] || new Set();
+  if (!['company', 'employee', 'driver'].includes(scope)) return [...allowed];
+  const serviceType = normalizedServiceType(context.serviceType);
+  const serviceModels = COMPANY_ARCHIVE_SERVICE_MODELS[serviceType];
+  if (!serviceModels) return [...allowed];
+  return [...new Set([...COMPANY_ARCHIVE_COMMON_MODELS, ...serviceModels])]
+    .filter((name) => allowed.has(name));
+}
+
 const SCOPE_MODELS = Object.freeze({
   admin: POLICY_MODELS,
   company: new Set([...COMPANY_MODELS, 'Notification']),
@@ -103,7 +140,7 @@ const RESTORE_TARGETS = Object.freeze({
   Place: { status: 'paused' },
 });
 
-const READ_CONCURRENCY = 4;
+const READ_CONCURRENCY = 8;
 const PER_MODEL_LIMIT = 40;
 const TOTAL_LIMIT = 300;
 
@@ -262,8 +299,8 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 }
 
 async function listForDashboard(scope, context = {}) {
-  const allowed = SCOPE_MODELS[scope] || new Set();
-  const modelNames = [...allowed].filter((name) => POLICY_MODELS.has(name));
+  const modelNames = archiveModelsForScope(scope, context)
+    .filter((name) => POLICY_MODELS.has(name));
   if (!modelNames.length) return [];
   const now = new Date();
   const groups = await mapWithConcurrency(modelNames, READ_CONCURRENCY, async (modelName) => {

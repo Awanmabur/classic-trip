@@ -13,10 +13,13 @@ const env = read('src/config/env.js');
 const redis = read('src/config/redis.js');
 const localRedis = read('scripts/redis-local.js');
 const render = read('render.yaml');
+const dashboardSnapshot = read('src/services/dashboard/dashboardSnapshotService.js');
+const archiveService = read('src/services/archive/archiveService.js');
+const companyController = read('src/controllers/company/dashboardController.js');
 const checks = [];
 function check(name, fn) { try { fn(); checks.push(true); console.log(`✓ ${name}`); } catch (e) { checks.push(false); console.error(`✗ ${name} — ${e.message}`); process.exitCode = 1; } }
-check('release is v1.6.85', () => assert.strictEqual(pkg.version, '1.6.85'));
-check('Stay Bar image column stretches through the complete row', () => assert(css.includes('v1.6.85: Stay bars must use the same full-height media column') && css.includes('height:auto!important') && css.includes('height:100%!important')));
+check('release is v1.6.86', () => assert.strictEqual(pkg.version, '1.6.86'));
+check('Stay Bar image column stretches through the complete row', () => assert(css.includes('v1.6.86: Stay bars must use the same full-height media column') && css.includes('height:auto!important') && css.includes('height:100%!important')));
 check('local startup prewarms lightweight discovery before listening', () => assert(server.indexOf('await catalogService.prewarmHome()') > -1 && server.indexOf('await catalogService.prewarmHome()') < server.indexOf('app.listen')));
 check('production still uses the non-blocking readiness warmup', () => assert(server.includes('if (!env.isProduction) return;') && server.includes('Public discovery cache warmed before traffic readiness')));
 check('public discovery database fan-out is configurable', () => assert(env.includes('PUBLIC_CATALOG_DB_READ_CONCURRENCY') && catalog.includes('publicCatalogReadConcurrency')));
@@ -25,4 +28,27 @@ check('Redis transient socket resets are debounced but longer outages remain vis
 check('local Redis disables idle timeout and enables TCP keepalive', () => assert(localRedis.includes("'CONFIG', 'SET', 'timeout', '0'") && localRedis.includes("'CONFIG', 'SET', 'tcp-keepalive', '15'")));
 check('Render is pinned to Node 24 LTS instead of floating to Current', () => assert(pkg.engines?.node === '>=24 <25' && read('.node-version').trim().startsWith('24.') && (render.match(/key: NODE_VERSION/g)||[]).length === 2));
 check('Render warms more Mongo sockets and uses faster discovery fan-out', () => assert(render.includes('MONGO_MIN_POOL_SIZE') && render.includes('value: "4"') && render.includes('PUBLIC_CATALOG_DB_READ_CONCURRENCY')));
+check('company overview hydrates only records rendered by the landing page', () => {
+  const start = dashboardSnapshot.indexOf('overview: new Set([');
+  const end = dashboardSnapshot.indexOf(']),', start);
+  const block = dashboardSnapshot.slice(start, end);
+  assert(block.includes("'listings'") && block.includes("'bookings'") && block.includes("'supportTickets'") && block.includes("'notifications'"));
+  assert(!block.includes("'payments'") && !block.includes("'hotelProperties'") && !block.includes("'taxiRides'"));
+});
+check('setup guide has an explicit compact dataset instead of overview fallback', () => assert(dashboardSnapshot.includes("'setup-guide': new Set([") && dashboardSnapshot.includes("'roomNightInventories'")));
+check('manifest page avoids unused standalone passenger and ticket fan-out', () => {
+  const start = dashboardSnapshot.indexOf('manifests: new Set([');
+  const end = dashboardSnapshot.indexOf(']),', start);
+  const block = dashboardSnapshot.slice(start, end);
+  assert(block.includes("'bookings'") && block.includes("'seats'") && block.includes("'schedules'"));
+  assert(!block.includes("'passengers'") && !block.includes("'ticketScans'") && !block.includes("'busSeatAssignments'"));
+});
+check('company archive reads only the active service family with wider bounded fan-out', () => assert(archiveService.includes('COMPANY_ARCHIVE_SERVICE_MODELS') && archiveService.includes('archiveModelsForScope(scope, context)') && archiveService.includes('const READ_CONCURRENCY = 8;') && companyController.includes('serviceType: baseDashboardData.serviceProfile?.primaryServiceType')));
+check('revenue and reports do not alias to the complete finance dataset', () => {
+  const start = dashboardSnapshot.indexOf('const COMPANY_PAGE_ALIASES');
+  const end = dashboardSnapshot.indexOf('});', start);
+  const aliases = dashboardSnapshot.slice(start, end);
+  assert(dashboardSnapshot.includes('revenue: new Set([') && dashboardSnapshot.includes("reports: new Set(['notifications'])"));
+  assert(!aliases.includes("revenue: 'finance'") && !aliases.includes("reports: 'finance'"));
+});
 if (!process.exitCode) console.log(`\n${checks.length}/${checks.length} fast runtime/UI checks passed.`);

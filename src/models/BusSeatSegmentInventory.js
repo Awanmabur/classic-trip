@@ -32,6 +32,10 @@ const busSeatSegmentInventorySchema = new Schema({
 }, { timestamps: true });
 
 busSeatSegmentInventorySchema.index({ scheduleId: 1, seatNumber: 1, segmentId: 1 }, { unique: true });
+// Public journey availability is scoped by schedule + segment first. Keep a second
+// query-shaped index so selecting a route segment does not scan every seat number
+// in the departure before it can apply segmentId.
+busSeatSegmentInventorySchema.index({ scheduleId: 1, segmentId: 1, seatNumber: 1 });
 busSeatSegmentInventorySchema.index({ scheduleId: 1, segmentOrder: 1, status: 1 });
 busSeatSegmentInventorySchema.index({ holdId: 1, status: 1 });
 busSeatSegmentInventorySchema.index({ companyId: 1, scheduleId: 1, status: 1, segmentOrder: 1 });

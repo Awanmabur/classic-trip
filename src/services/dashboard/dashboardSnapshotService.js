@@ -73,15 +73,22 @@ const COMPANY_SERVICE_ENTITIES = Object.freeze({
 const COMPANY_PAGE_ENTITIES = Object.freeze({
   archive: new Set(['notifications']),
   notifications: new Set(['notifications']),
+  // The company landing page renders four headline stats, recent bookings,
+  // support activity and notifications. Loading every service inventory + finance
+  // collection here made the first company-dashboard navigation several seconds
+  // slower on Atlas. Keep overview deliberately small; deeper pages load their own
+  // operational datasets.
   overview: new Set([
+    'listings', 'bookings', 'supportTickets', 'notifications',
+  ]),
+  // Setup Guide displays readiness counts only. This explicit page map prevents the
+  // route from falling through to the much broader overview dataset. The service
+  // filter below automatically removes bus fields for hotels and vice versa.
+  'setup-guide': new Set([
     'companyEmployees', 'companyBranches', 'invitations', 'verificationReviews',
-    'listings', 'routes', 'vehicles', 'fareProducts', 'schedules',
-    'bookings', 'payments', 'supportTickets', 'reviews', 'notifications',
-    'hotelProperties', 'roomTypes', 'roomUnits',
-    'hotelReservations', 'housekeepingTasks',
-    'aircraft', 'flightDepartures', 'flightOrders',
-    'taxiVehicles', 'taxiDriverProfiles', 'driverAvailabilities', 'taxiRides',
-    'wallets', 'walletTransactions', 'commissions',
+    'listings', 'routes', 'vehicles', 'schedules',
+    'hotelProperties', 'roomTypes', 'roomUnits', 'roomNightInventories',
+    'notifications',
   ]),
   'company-profile': new Set([
     'companyBranches', 'companyPolicies', 'listings', 'notifications',
@@ -131,11 +138,14 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
     'flightSeatInventories', 'flightOrders', 'flightTravelers', 'flightTickets',
     'taxiRides', 'receiptInvoices', 'bookingTimelineEvents', 'notifications',
   ]),
+  // Manifest projections consume the dated schedules, their seat rows and the
+  // booking passenger snapshots. Standalone passenger/ticket/assignment collections
+  // are not read by the manifest projector and previously added redundant Atlas
+  // fan-out to every request.
   manifests: new Set([
-    'companyEmployees', 'listings', 'routes', 'routeStops', 'vehicles',
-    'bookings', 'passengers', 'schedules', 'seats', 'ticketScans',
-    'busReservations', 'busSeatAssignments', 'busTickets', 'hotelReservations',
-    'hotelGuests', 'roomAssignments', 'roomTypes', 'roomUnits', 'notifications',
+    'listings', 'routes', 'vehicles', 'seatMapVersions', 'bookings', 'schedules',
+    'seats', 'hotelReservations', 'hotelGuests', 'roomAssignments',
+    'roomTypes', 'roomUnits', 'notifications',
   ]),
   checkins: new Set([
     'companyEmployees', 'listings', 'routes', 'routeStops', 'vehicles',
@@ -157,6 +167,15 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
     'taxFeeRecords', 'financeStatements', 'financeRiskReviews', 'settlementBatches',
     'reconciliationReports', 'offlineSales', 'notifications',
   ]),
+  // Revenue only renders booking revenue rows + the company wallet summary. Keep it
+  // independent from settlement/risk/reconciliation collections.
+  revenue: new Set([
+    'listings', 'bookings', 'payments', 'refundRequests', 'wallets',
+    'walletTransactions', 'notifications',
+  ]),
+  // Reports is a navigation/export surface; it does not need the full finance ledger
+  // merely to render the page.
+  reports: new Set(['notifications']),
   flight: new Set([
     'listings', 'bookings', 'payments', 'supportTickets', 'notifications',
     'airports', 'aircraftTypes',
@@ -173,7 +192,7 @@ const COMPANY_PAGE_ENTITIES = Object.freeze({
   ]),
 });
 const COMPANY_PAGE_ALIASES = Object.freeze({
-  revenue: 'finance', settlement: 'finance', payouts: 'finance', reports: 'finance',
+  settlement: 'finance', payouts: 'finance',
   'flight-search': 'flight', 'flight-quotes': 'flight', 'flight-travelers': 'flight',
   'flight-tickets': 'flight', 'flight-changes': 'flight', 'flight-refunds': 'flight',
   'taxi-fleet': 'mobility', 'taxi-drivers': 'mobility', 'taxi-availability': 'mobility',
@@ -618,7 +637,7 @@ async function companySnapshot(companyId, context = {}) {
 
   const desiredEntities = desiredCompanyEntities(snapshot.companies[0], context);
   const page = normalizedCompanyPage(context);
-  const needsPeople = ['overview', 'staff', 'schedules', 'manifests', 'checkins', 'mobility', 'employee'].includes(page)
+  const needsPeople = ['staff', 'schedules', 'checkins', 'mobility', 'employee'].includes(page)
     || desiredEntities.has('companyEmployees')
     || desiredEntities.has('invitations')
     || desiredEntities.has('verificationReviews');

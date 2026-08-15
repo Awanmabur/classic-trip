@@ -293,8 +293,9 @@ async function getAvailability({ scheduleId, originStopId, destinationStopId, ho
   const inventoryFilter = { scheduleId: context.schedule.id, segmentId: { $in: segmentIds } };
   if (requestedSeats.length) inventoryFilter.seatNumber = { $in: requestedSeats };
   const expectedInventoryRows = Math.max(1, definitions.length * selectedSegments.length);
+  // Ordering is reconstructed from the immutable seat definitions below, so the
+  // database does not need to sort segment inventory on the checkout critical path.
   const rows = await repository.segmentInventory.list(inventoryFilter, {
-    sort: { seatNumber: 1, segmentOrder: 1 },
     limit: expectedInventoryRows + 10,
   });
   const bySeat = new Map();
@@ -568,14 +569,14 @@ async function holdSeats({ scheduleId, originStopId, destinationStopId, selected
   let inventoryRows = availability[TRUSTED_AVAILABILITY_ROWS]
     || await repository.segmentInventory.list(
       { scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } },
-      { sort: { seatNumber: 1, segmentOrder: 1 }, limit: (seats.length * hold.segmentIds.length) + 10 },
+      { limit: (seats.length * hold.segmentIds.length) + 10 },
     );
   const staleSelectedHoldIds = unique(inventoryRows
     .filter((row) => row.status === 'held' && row.holdId && new Date(row.lockedUntil).getTime() <= timestamp.getTime())
     .map((row) => row.holdId));
   for (const staleHoldId of staleSelectedHoldIds) await releaseHold(staleHoldId, 'expired', 'checkout-targeted-expiry');
   if (staleSelectedHoldIds.length) {
-    inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } }, { sort: { seatNumber: 1, segmentOrder: 1 }, limit: (seats.length * hold.segmentIds.length) + 10 });
+    inventoryRows = await repository.segmentInventory.list({ scheduleId: hold.scheduleId, seatNumber: { $in: seats }, segmentId: { $in: hold.segmentIds } }, { limit: (seats.length * hold.segmentIds.length) + 10 });
   }
   const expected = seats.length * hold.segmentIds.length;
   if (inventoryRows.length !== expected) throw conflictError('Seat inventory is incomplete; refresh the departure before booking', 'inventory_incomplete');

@@ -17,6 +17,7 @@ const server = read('src/server.js');
 const handoffController = read('src/controllers/public/bookingPaymentController.js');
 const handoffView = read('src/views/pages/payment-handoff.ejs');
 const app = read('src/app.js');
+const segmentInventoryModel = read('src/models/BusSeatSegmentInventory.js');
 check('bus hold ids no longer require MongoDB counters', () => assert(inventory.includes("fastEntityId('bus-hold')") && !inventory.includes("repository.nextId('bus-hold')")));
 check('hold transaction claims seat segments in one conditional update', () => assert(inventory.includes('segmentInventory.updateMany') && inventory.includes('claimed.modifiedCount')));
 check('prepare reuses availability segment rows instead of rereading selected inventory', () => assert(inventory.includes('TRUSTED_AVAILABILITY_ROWS') && inventory.includes('availability[TRUSTED_AVAILABILITY_ROWS]')));
@@ -45,4 +46,14 @@ check('Pesapal checkout uses an internal iframe handoff instead of a fragile ext
 check('Pesapal handoff has a direct top-window fallback button', () => assert(handoffView.includes('Open Pesapal payment') && handoffView.includes('target="_top"')));
 check('security headers allow only Pesapal payment frames', () => assert(app.includes("https://*.pesapal.com") && app.includes('payment=(self \"https://pay.pesapal.com\" \"https://cybqa.pesapal.com\")')));
 check('checkout stage timing identifies future provider/database bottlenecks', () => assert(listing.includes('Bus checkout prepare timing') && booking.includes('Bus payment checkout timing') && booking.includes('providerMs')));
+check('segment availability has a schedule + segment + seat query-shaped index', () => assert(segmentInventoryModel.includes('index({ scheduleId: 1, segmentId: 1, seatNumber: 1 })')));
+check('availability critical path does not ask MongoDB to sort inventory rows', () => {
+  const start = inventory.indexOf('async function getAvailability');
+  const end = inventory.indexOf('async function recalculateCompatibilitySeats', start);
+  const block = inventory.slice(start, end);
+  const queryStart = block.indexOf('const rows = await repository.segmentInventory.list(inventoryFilter');
+  const queryEnd = block.indexOf(');', queryStart);
+  const query = block.slice(queryStart, queryEnd);
+  assert(queryStart >= 0 && !query.includes('sort:'));
+});
 if (!process.exitCode) console.log(`\n${passed}/${passed} checkout-speed checks passed.`);

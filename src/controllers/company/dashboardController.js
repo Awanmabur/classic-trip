@@ -102,7 +102,10 @@ async function index(req, res, next) {
       hotelManifestListingId: requestedHotelListingId,
     });
     const archiveRows = requestedPage === 'archive'
-      ? await archiveService.listForDashboard('company', { companyId })
+      ? await archiveService.listForDashboard('company', {
+        companyId,
+        serviceType: baseDashboardData.serviceProfile?.primaryServiceType || '',
+      })
       : [];
     const dashboardData = {
       ...baseDashboardData,
