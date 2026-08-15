@@ -775,7 +775,7 @@ async function createGuestBooking(payload = {}, req = null) {
   const rows = await buildCanonicalRows(payload, req);
   timing.canonicalRowsMs = Date.now() - rowsStartedAt;
   rows.booking.paymentProvider = provider;
-  rows.booking.paymentInitiationStatus = 'initiating';
+  rows.booking.paymentInitiationStatus = 'pending';
   const intent = {
     id: fastEntityId('payment-intent'),
     intentRef: generateCode('PI', 10),

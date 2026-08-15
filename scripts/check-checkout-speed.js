@@ -24,6 +24,7 @@ check('hold transaction keeps only claim + authoritative hold on the critical pa
 check('checkout uses server-trusted draft holds without a second hold lookup', () => assert(drafts.includes('TRUSTED_DRAFT_HOLDS') && booking.includes('trustedDraftHolds?.outbound')));
 check('bus payment POST avoids redundant listing lookup when a secure draft exists', () => assert(routes.includes("let isBus = Boolean(String(payload.bookingDraftId") && routes.includes('applyDraftToPayload(req, payload, null)')));
 check('canonical booking ids are UUID-backed instead of counter-backed', () => assert(booking.includes("fastEntityId('booking')") && booking.includes("fastEntityIds('passenger'") && booking.includes("fastEntityId('payment-intent')")));
+check('bus booking uses only valid paymentInitiationStatus enum values', () => assert(booking.includes("paymentInitiationStatus = 'pending'") && !booking.includes("paymentInitiationStatus = 'initiating'")));
 check('idempotency upsert race resolves the existing booking record safely', () => assert(booking.includes('Number(error?.code) !== 11000') && booking.includes("idempotencyKeys.findOne({ key: cleanKey, scope })")));
 check('booking leg reuses validated availability schedule', () => assert(booking.includes('const schedule = availability.schedule') && inventory.includes('seatMapVersionId: context.schedule.seatMapVersionId')));
 check('pending booking uses inserts and optimized hold attachment', () => assert(booking.includes('bookings.insert(rows.booking') && booking.includes('attachValidatedHoldToBooking')));

@@ -1,6 +1,6 @@
 {
   "name": "classic-trip-platform",
-  "version": "1.6.82",
+  "version": "1.6.83",
   "private": true,
   "description": "Production East Africa marketplace for buses, stays and Airbnb homes, flights, local mobility, tours, car rentals and cargo.",
   "main": "src/server.js",
