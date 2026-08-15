@@ -21,7 +21,7 @@ const siteFooter = read('src/views/partials/site-footer.ejs');
 const blogController = read('src/controllers/public/blogController.js');
 const env = read('src/config/env.js');
 
-check('release is v1.6.83', () => assert.strictEqual(pkg.version, '1.6.83'));
+check('release is v1.6.84', () => assert.strictEqual(pkg.version, '1.6.84'));
 check('all seven home marketplace card sections SSR six cards', () => {
   const slices = [...home.matchAll(/initial(?:Bus|Hotel|Flight|Taxi|Tour|Rental|Cargo)Listings\s*=.*?\.slice\(0,\s*6\)/g)];
   assert.strictEqual(slices.length, 7);
@@ -100,7 +100,7 @@ check('local .env is allowed for release checks but remains git-ignored', () => 
 check('service worker cache matches current release', () => assert(read('public/sw.js').includes(`classic-trip-static-v${pkg.version}`)));
 if (!process.exitCode) 
 check('Stay bar media stretches to the full row height', () => {
-  assert(css.includes('v1.6.83: Stay bars must use the same full-height media column'));
+  assert(css.includes('v1.6.84: Stay bars must use the same full-height media column'));
   assert(css.includes('height:auto!important'));
   assert(css.includes('height:100%!important'));
 });
@@ -110,9 +110,11 @@ check('Stay listing media fills the full card frame and has a local fallback', (
   assert(read('src/views/partials/listing-card.ejs').includes("/images/stays/stay-fallback.svg"));
 });
 check('Bus Card and Bar amenity lanes stay in front without added spacing', () => {
-  assert(css.includes('bus amenities stay above the footer without adding card/bar spacing'));
+  assert(css.includes('v1.6.84 — final bus amenity layering: no spacer is added below amenities'));
   assert(css.includes('serviceCard--bus .listingAmenityList'));
-  assert(css.includes('z-index:10!important'));
+  assert(css.includes('z-index:30!important'));
+  assert(css.includes('z-index:31!important'));
+  assert(css.includes('padding-bottom:10px!important'));
   assert(css.includes('flex:0 0 54px!important'));
   assert(css.includes('min-height:52px!important'));
   assert(css.includes('background:transparent!important'));

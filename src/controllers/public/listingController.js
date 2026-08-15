@@ -305,7 +305,10 @@ async function listingDetails(req, res, next) {
     if (normalize(req.params.serviceType) === 'bus') {
       const data = await catalogService.discoverySnapshotForListing(req.params.slug, req.params.serviceType);
       const raw = data ? catalogService.listingFor(data, req.params.slug, req.params.serviceType) : null;
-      if (data && raw) prefetched = { data, raw };
+      if (data && raw) {
+        busInventoryService.primeScheduleContextsFromDiscovery(data, raw.id || raw._id || req.params.slug);
+        prefetched = { data, raw };
+      }
     }
     const context = await catalogContext(req.params.slug, req.params.serviceType, req.query, prefetched); if (!context.listing) return next();
     if (req.query.ref) await catalogService.recordReferralClick(req.query.ref, context.listing.id, req);
@@ -326,6 +329,9 @@ async function prepareBookingForm(req, res, next) {
       : null;
     const context = listing ? { data: discovery, raw: rawListing, listing } : await publicListingContext(req.params.slug, req.params.serviceType);
     if (!context.listing) return next();
+    if (discovery && rawListing && normalize(context.listing.serviceType) === 'bus') {
+      busInventoryService.primeScheduleContextsFromDiscovery(discovery, rawListing.id || rawListing._id || req.params.slug);
+    }
     if (normalize(context.listing.serviceType) !== 'bus') {
       return res.status(400).json({ error: 'Secure checkout preparation is currently required only for bus bookings.' });
     }
@@ -486,7 +492,7 @@ function domainBookingUrl(booking = {}, lookupCode = '') {
   return '';
 }
 async function findBooking(bookingRef) { return bookingRef ? commerceRepository.bookings.findOne({ bookingRef }) : null; }
-async function findListingById(listingId) { const data = await catalogService.snapshotForListing(listingId) || await catalogService.snapshot(); const raw = catalogService.listingFor(data, listingId); return raw ? catalogService.catalogItem(data, raw) : null; }
+async function findListingById(listingId) { const data = await catalogService.discoverySnapshotForListing(listingId) || await catalogService.snapshotForListing(listingId) || await catalogService.snapshot(); const raw = catalogService.listingFor(data, listingId); return raw ? catalogService.catalogItem(data, raw) : null; }
 
 async function bookingFromPaymentCallback(req = {}) {
   const query = req.query || {};

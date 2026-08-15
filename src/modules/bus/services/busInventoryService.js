@@ -193,6 +193,39 @@ async function scheduleContext(scheduleId, { requirePublished = true } = {}) {
   return { schedule, ...staticContext };
 }
 
+function primeScheduleContextsFromDiscovery(data = {}, listingIdentifier = '') {
+  const listingKey = normalize(listingIdentifier);
+  const listings = Array.isArray(data.listings) ? data.listings : [];
+  const companies = Array.isArray(data.companies) ? data.companies : [];
+  const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+  let primed = 0;
+  for (const schedule of schedules) {
+    const scheduleId = cleanText(schedule?.id || schedule?._id, 180);
+    if (!scheduleId || normalize(schedule.status) === 'archived') continue;
+    if (listingKey && ![schedule.listingId, schedule.listingSlug].some((value) => normalize(value) === listingKey)) continue;
+    const listing = listings.find((row) => String(row.id || row._id || '') === String(schedule.listingId || ''));
+    const company = companies.find((row) => String(row.id || row._id || '') === String(schedule.companyId || ''));
+    const snapshotContext = contextFromScheduleSnapshots(schedule);
+    if (!listing || !company || !snapshotContext) continue;
+    cacheScheduleState(scheduleId, schedule);
+    const key = staticContextKey(schedule);
+    cacheStaticContext(key, {
+      company,
+      route: snapshotContext.route,
+      listing,
+      stops: snapshotContext.stops,
+      segments: snapshotContext.segments,
+      seatMapVersion: snapshotContext.seatMapVersion,
+      fareProduct: snapshotContext.fareProduct,
+      fares: snapshotContext.fares || [],
+      snapshotBacked: true,
+      cacheKey: key,
+    });
+    primed += 1;
+  }
+  return primed;
+}
+
 async function expireStaleHolds(reference = new Date()) {
   const expired = await repository.holds.list({ holdType: 'bus_segment_seat', status: 'active', expiresAt: { $lte: reference } }, { limit: 500 });
   for (const hold of expired) await releaseHold(hold.id, 'expired', 'hold-expiry-job');
@@ -753,6 +786,7 @@ module.exports = {
   checkoutSnapshotForHold,
   availabilityFromCheckoutSnapshot,
   scheduleContext,
+  primeScheduleContextsFromDiscovery,
   expireStaleHolds,
   getAvailability,
   holdSeats,

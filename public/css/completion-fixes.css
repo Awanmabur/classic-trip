@@ -3387,7 +3387,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
 .marketplaceListingCard.serviceCard--hotel .thumb{position:relative!important;width:100%!important;max-width:100%!important;height:135px!important;min-height:135px!important;aspect-ratio:auto!important;overflow:hidden!important;background:var(--field)!important}
 .marketplaceListingCard.serviceCard--hotel .thumb img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center!important}
 .homePage .marketplaceSection--hotel .serviceCard--hotel:nth-child(1) .thumb{height:135px!important;min-height:135px!important;aspect-ratio:auto!important}
-/* v1.6.83: Stay bars must use the same full-height media column as every bar.
+/* v1.6.84: Stay bars must use the same full-height media column as every bar.
    Earlier Stay-specific 150/142px rules overrode the natural bar stretcher and
    left blank space when amenities/content made the row taller. */
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--hotel>.listingThumbLink{
@@ -3416,7 +3416,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
   object-position:center!important;
 }
 
-/* v1.6.83 — bus amenities stay above the footer without adding card/bar spacing. */
+/* v1.6.84 — bus amenities stay above the footer without adding card/bar spacing. */
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingBody,
 .sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingBody,
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingBody{
@@ -3455,6 +3455,44 @@ body.sitePage::before{display:none!important;content:none!important;background:n
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingAmenityChip{
   position:relative!important;
   z-index:11!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .priceRow,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .priceRow,
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .priceRow{
+  position:relative!important;
+  z-index:1!important;
+  margin-top:0!important;
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+}
+
+
+/* v1.6.84 — final bus amenity layering: no spacer is added below amenities.
+   The chips themselves paint above the price/actions surface in both Cards and Bars. */
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingBody,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingBody{
+  padding-bottom:10px!important; /* restore the original body padding; remove the old 12px clipping-repair addition */
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingAmenityList,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingAmenityList,
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingAmenityList{
+  position:relative!important;
+  z-index:30!important;
+  margin-bottom:0!important;
+  background:transparent!important;
+}
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingAmenityTrack,
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingAmenityLane,
+.homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingAmenityChip,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingAmenityTrack,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingAmenityLane,
+.sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingAmenityChip,
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingAmenityTrack,
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingAmenityLane,
+.homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingAmenityChip{
+  position:relative!important;
+  z-index:31!important;
 }
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .priceRow,
 .sitePage .gridCards .marketplaceListingCard.serviceCard--bus .priceRow,
