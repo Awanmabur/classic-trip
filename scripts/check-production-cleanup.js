@@ -13,12 +13,12 @@ const seatMap = read('src/models/SeatMapTemplate.js');
 const scripts = pkg.scripts || {};
 function walk(dir) { return fs.readdirSync(dir,{withFileTypes:true}).flatMap((e)=>{ if(['node_modules','.git'].includes(e.name)) return []; const full=path.join(dir,e.name); return e.isDirectory()?walk(full):[full]; }); }
 function emptyDirs(dir) { let out=[]; for(const e of fs.readdirSync(dir,{withFileTypes:true})){ if(['node_modules','.git'].includes(e.name)) continue; const full=path.join(dir,e.name); if(!e.isDirectory()) continue; if(fs.readdirSync(full).length===0) out.push(full); else out=out.concat(emptyDirs(full)); } return out; }
-check('release is v1.6.84 and lockfile matches',()=>assert(pkg.version==='1.6.84'&&lock.version===pkg.version&&lock.packages?.['']?.version===pkg.version));
+check('release is v1.6.85 and lockfile matches',()=>assert(pkg.version==='1.6.85'&&lock.version===pkg.version&&lock.packages?.['']?.version===pkg.version));
 check('SeatMapTemplate removes redundant vehicle field index',()=>assert(!/vehicleId:\s*\{[^}]*index:\s*true/.test(seatMap)));
 check('SeatMapTemplate preserves unique partial vehicle index',()=>assert(seatMap.includes("seatMapTemplateSchema.index({ vehicleId: 1 }, { unique: true, partialFilterExpression:")));
 check('no model has duplicate field + single-field schema index',()=>{ for(const f of walk(path.join(root,'src/models')).filter(f=>f.endsWith('.js'))){ const b=fs.readFileSync(f,'utf8'); const fields=[...b.matchAll(/^\s*(\w+)\s*:\s*\{[^\n}]*\bindex\s*:\s*true/gm)].map(m=>m[1]); const singles=[...b.matchAll(/\.index\(\s*\{\s*(\w+)\s*:\s*1\s*\}/g)].map(m=>m[1]); assert(!fields.some(n=>singles.includes(n)),path.relative(root,f)); }});
 check('historical launch audits are removed',()=>{ const current=`FINAL-LAUNCH-AUDIT-v${pkg.version}.md`; assert(!fs.readdirSync(root).some(n=>/^FINAL-LAUNCH-AUDIT-v/.test(n)&&n!==current)); });
-check('only current production audit is present',()=>assert(fs.existsSync(path.join(root,'FINAL-LAUNCH-AUDIT-v1.6.84.md'))));
+check('only current production audit is present',()=>assert(fs.existsSync(path.join(root,'FINAL-LAUNCH-AUDIT-v1.6.85.md'))));
 check('version-numbered regression scripts are removed',()=>assert(!fs.readdirSync(path.join(root,'scripts')).some(n=>/^check-v\d+/.test(n))));
 check('version-numbered npm check aliases are removed',()=>assert(!Object.keys(scripts).some(k=>/^check:v\d+/.test(k))));
 check('legacy verify alias is removed',()=>assert(!scripts['verify:legacy']));

@@ -1,16 +1,12 @@
-# Classic Trip v1.6.84
+# Classic Trip v1.6.85
 
-## Amenity layering + warm booking reads
+## Exact amenity fit + light notification contrast
 
-This is a targeted follow-up to v1.6.83 based on the August 15 production trace.
-
-Changes:
-- Bus amenities in both **Cards** and **Bars** now paint above the lower price/actions layer instead of creating extra vertical space to avoid it.
-- The old extra card clipping-repair bottom padding is removed for bus cards; normal card spacing is restored.
-- Amenity dimensions stay compact at 54px on Cards and 52px on Bars; no new bottom margin or artificial card/bar height is introduced.
-- Bus listing preview primes schedule/publication context from the already-warm discovery snapshot before the browser's first availability request.
-- Secure checkout preparation primes the same context before creating the hold, while live segment inventory remains authoritative.
-- Ticket lookup now prefers the Redis/memory public discovery snapshot before operational catalog fallbacks, addressing the slow `/tickets` path in the production trace.
-- The v1.6.83 `paymentInitiationStatus: pending` correction remains in place.
-- Existing Pesapal handoff, payment verification, secure holds, commercial agreements and security controls are unchanged.
+- Fixed the real reason the bottom amenity lane was still cut off: Card amenity content occupied 58px inside a 54px scroller and Bar content occupied 56px inside a 52px scroller because of vertical padding.
+- Removed only that vertical padding, so both lanes fit their existing height exactly. **No extra bottom gap or card/bar height was added.**
+- Kept amenity chips above the lower price/actions layer on both Cards and Bars.
+- Fixed light-mode notification contrast on public pages by using the page card color when `--panel` is unavailable, plus explicit light-theme foreground/background guards.
+- Kept Pesapal's four-minute keep-warm behavior but stopped successful refreshes from spamming production `info` logs; only the first success is informational and later successful refreshes are debug-level.
+- Retains v1.6.84 warm bus schedule-context and ticket-listing lookup improvements.
+- Retains the valid `paymentInitiationStatus: pending` payment state and same-origin Pesapal handoff.
 - No dependency versions changed.

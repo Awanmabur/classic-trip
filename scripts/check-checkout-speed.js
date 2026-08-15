@@ -29,6 +29,7 @@ check('idempotency upsert race resolves the existing booking record safely', () 
 check('booking leg reuses validated availability schedule', () => assert(booking.includes('const schedule = availability.schedule') && inventory.includes('seatMapVersionId: context.schedule.seatMapVersionId')));
 check('pending booking uses inserts and optimized hold attachment', () => assert(booking.includes('bookings.insert(rows.booking') && booking.includes('attachValidatedHoldToBooking')));
 check('Pesapal control plane is prewarmed and refreshed before normal payment clicks', () => assert(payment.includes('startProviderKeepWarm') && payment.includes('4 * 60 * 1000') && pesapal.includes('async function prewarm')));
+check('Pesapal keep-warm logs first success at info and routine refreshes only at debug', () => assert(payment.includes('providerWarmLogged') && payment.includes("logger.debug('Payment provider control plane refreshed'")));
 check('server starts and stops payment-provider keep-warm lifecycle', () => assert(server.includes('paymentService.startProviderKeepWarm()') && server.includes('paymentService.stopProviderKeepWarm()')));
 check('prepare route prefers warm discovery cache over scoped cold snapshot', () => assert(listing.includes('discoverySnapshotForListing(req.params.slug, req.params.serviceType)')));
 check('listing preview primes bus schedule context from the already-warm discovery snapshot', () => assert(inventory.includes('primeScheduleContextsFromDiscovery') && listing.includes('busInventoryService.primeScheduleContextsFromDiscovery(data')));

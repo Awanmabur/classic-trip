@@ -1,22 +1,21 @@
-# Classic Trip v1.6.84 — Release Checklist
+# Classic Trip v1.6.85 — Release Checklist
 
-1. Preserve your local `.env` and `.git`, then extract v1.6.84 over the source tree.
+1. Preserve your local `.env` and `.git`, then extract v1.6.85 over the source tree.
 2. Run `npm ci`.
 3. Run `npm test`; target: **115/115 or higher, 0 failures**.
 4. Run `npm audit --omit=dev --audit-level=moderate` and confirm zero launch-blocking vulnerabilities.
 5. Run `npm run check:unit-regressions` and confirm **9/9**.
-6. Run `npm run check:checkout-speed` and confirm **27/27**.
-7. Run `npm run check:public-layout-content` and confirm **21/21**.
+6. Run `npm run check:checkout-speed` and confirm **28/28**.
+7. Run `npm run check:public-layout-content` and confirm **22/22**.
 8. Run `npm run check:commercial-agreements` and confirm **21/21**.
 9. Run `npm run check:pesapal-go-live` and confirm **9/9**.
-10. Run `npm run check:go-live` and `npm run release:check` after the Git-history credential issue is cleared.
-11. Confirm production has `PESAPAL_REQUEST_TIMEOUT_MS=12000` (or another deliberate value between 2500 and 20000ms).
-12. Open a Bus listing from Home and select a route/departure. Confirm the first availability call no longer has to rebuild the listing/company/publication context from Atlas; live seat inventory must still be authoritative.
-13. Check Home bus listings in both **Cards and Bars**. Both amenity lanes must be visible **in front of** the lower price/actions area, and there must be **no new gap below amenities**.
-14. Complete one real low-value bus checkout. Confirm no validation message mentions `paymentInitiationStatus` or `initiating`.
-15. After Pesapal initiation, confirm the browser opens `/booking/payment/handoff/<bookingRef>` and the Pesapal methods appear inside the iframe.
-16. Confirm **Open Pesapal payment** opens the same verified Pesapal checkout in the top window as a fallback.
-17. If Pesapal does not return a checkout URL, confirm Classic Trip shows the retry-safe **Continue payment** state rather than treating the booking as confirmed.
-18. Verify amount + currency are still confirmed through Pesapal GetTransactionStatus before ticket issuance.
-19. Open `/tickets?bookingRef=<ref>` after checkout and confirm it loads from the warm marketplace path instead of triggering a multi-second full-catalog read.
-20. Rotate the MongoDB credential previously detected in Git history, update Render/local env, and purge the old URI from Git history before final public launch.
+10. Check Home bus listings in both **Cards and Bars**: both amenity lanes must be fully visible; lane two must not be clipped; there must be **no new gap below amenities**.
+11. Switch to **Light mode**, open the notification popup and Notifications page, and confirm notification titles/body/status text are readable against light cards.
+12. Complete one real low-value bus checkout and confirm no validation message mentions `paymentInitiationStatus` or `initiating`.
+13. Confirm the browser opens `/booking/payment/handoff/<bookingRef>` and Pesapal payment methods appear.
+14. Confirm **Open Pesapal payment** opens the same verified Pesapal checkout in the top window as a fallback.
+15. Verify amount + currency are still confirmed through Pesapal GetTransactionStatus before ticket issuance.
+16. Confirm production logs show the first `Payment provider control plane warmed` at info, without another identical info line every four minutes under the normal production log level.
+17. Open `/tickets?bookingRef=<ref>` after checkout and confirm the warm marketplace lookup path is used.
+18. Run `npm run check:go-live` and `npm run release:check` after the Git-history credential issue is cleared.
+19. Rotate the MongoDB credential previously detected in Git history, update Render/local env, and purge the old URI from Git history before final public launch.

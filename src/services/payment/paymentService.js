@@ -5,6 +5,7 @@ const { safePaymentRedirect } = require('../../utils/paymentRedirect');
 const logger = require('../../config/logger');
 
 let providerWarmTimer = null;
+let providerWarmLogged = false;
 
 const supportedProviders = ['pesapal', 'mtn_momo', 'airtel_money', 'flutterwave', 'paystack', 'dpo'];
 
@@ -89,7 +90,11 @@ async function prewarmActiveProvider() {
 function startProviderKeepWarm() {
   if (providerWarmTimer) return providerWarmTimer;
   const run = () => prewarmActiveProvider()
-    .then((result) => { if (result.warmed) logger.info('Payment provider control plane warmed', { provider: result.provider }); })
+    .then((result) => {
+      if (!result.warmed) return;
+      if (!providerWarmLogged) { logger.info('Payment provider control plane warmed', { provider: result.provider }); providerWarmLogged = true; }
+      else logger.debug('Payment provider control plane refreshed', { provider: result.provider });
+    })
     .catch((error) => logger.warn('Payment provider warmup deferred; checkout will retry on demand', { provider: env.paymentProvider, error: error.message }));
   run();
   // Pesapal documents a maximum 5-minute bearer-token lifetime. Refresh the
@@ -103,6 +108,7 @@ function startProviderKeepWarm() {
 function stopProviderKeepWarm() {
   if (providerWarmTimer) clearInterval(providerWarmTimer);
   providerWarmTimer = null;
+  providerWarmLogged = false;
 }
 function providerSummary() {
   return supportedProviders.map((provider) => ({
