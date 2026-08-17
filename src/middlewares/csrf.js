@@ -16,6 +16,12 @@ const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, matches session co
 const READ_ONLY_PUBLIC_PATHS = [
   /^\/$/,
   /^\/search$/,
+  /^\/buses$/,
+  /^\/stays$/,
+  /^\/airbnb$/,
+  /^\/tours$/,
+  /^\/car-rentals$/,
+  /^\/cargo$/,
   /^\/services$/,
   /^\/routes$/,
   /^\/companies(?:\/[^/]+)?$/,

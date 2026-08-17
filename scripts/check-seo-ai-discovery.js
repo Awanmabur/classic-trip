@@ -19,6 +19,8 @@ const indexing = read('src/middlewares/searchIndexing.js');
 const listingController = read('src/controllers/public/listingController.js');
 const blogController = read('src/controllers/public/blogController.js');
 const render = read('render.yaml');
+const csrf = read('src/middlewares/csrf.js');
+const publicPerformance = read('src/middlewares/publicPerformance.js');
 
 check('release preserves the current SEO/AI discovery baseline', Number(String(pkg.version).split('.')[2] || 0) >= 38);
 check('clean service landing routes exist', ['/buses','/stays','/airbnb','/tours','/car-rentals','/cargo'].every((route) => routes.includes(`router.get('${route}'`)));
@@ -26,6 +28,9 @@ check('service landing routes render instead of redirecting to faceted search', 
 check('faceted search is noindex follow', /robots: 'noindex,follow/.test(search) && /req\.path === '\/search'/.test(indexing));
 check('private transactional paths receive X-Robots-Tag noindex', /X-Robots-Tag/.test(indexing) && /noindex, nofollow, noarchive/.test(indexing) && /searchIndexing/.test(app));
 check('sitemap index and child sitemap endpoints exist', /sitemapIndexXml/.test(seo) && /sitemapSectionXml/.test(seo) && /sitemaps\/:section\.xml/.test(routes) && /sitemapindex/.test(seo));
+check('robots and sitemap discovery endpoints bypass session/CSRF middleware', app.indexOf("app.get('/robots.txt', seoController.robots)") > -1 && app.indexOf("app.get('/robots.txt', seoController.robots)") < app.indexOf('app.use(sessionConfig())') && app.indexOf("app.get('/sitemap.xml', seoController.sitemap)") < app.indexOf('app.use(sessionConfig())'));
+check('indexable marketplace landing pages are anonymous-cache friendly', ['/buses','/stays','/airbnb','/tours','/car-rentals','/cargo'].every((route) => csrf.includes(`^\\/${route.slice(1).replace('-', '\\-')}\$`) || csrf.includes(`^\\/${route.slice(1)}\$`)) && ['/buses','/stays','/airbnb','/tours','/car-rentals','/cargo'].every((route) => publicPerformance.includes(route.replace('/', '\\/'))));
+check('legacy Bebeto company slug permanently redirects to canonical verified profile', /router\.get\('\/companies\/bebeto-coaches'[\s\S]{0,120}redirect\(301, '\/companies\/bebeto-coach-services'\)/.test(routes));
 check('sitemap contains canonical clean service pages and excludes search query URLs', /path: '\/buses'/.test(seo) && /path: '\/stays'/.test(seo) && !/search\?serviceType/.test(seo));
 check('sitemap lastmod is only emitted when a real timestamp exists', /if \(url\.lastmod\)/.test(seo) && /if \(!value\) return ''/.test(seo));
 check('OpenAI search crawlers are explicitly allowed independently from training', /OAI-SearchBot/.test(seo) && /ChatGPT-User/.test(seo) && /GPTBot', env\.seo\.allowAiTraining/.test(seo));

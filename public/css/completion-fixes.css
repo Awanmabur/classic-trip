@@ -3387,7 +3387,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
 .marketplaceListingCard.serviceCard--hotel .thumb{position:relative!important;width:100%!important;max-width:100%!important;height:135px!important;min-height:135px!important;aspect-ratio:auto!important;overflow:hidden!important;background:var(--field)!important}
 .marketplaceListingCard.serviceCard--hotel .thumb img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;object-position:center!important}
 .homePage .marketplaceSection--hotel .serviceCard--hotel:nth-child(1) .thumb{height:135px!important;min-height:135px!important;aspect-ratio:auto!important}
-/* v1.6.86: Stay bars must use the same full-height media column as every bar.
+/* v1.6.87: Stay bars must use the same full-height media column as every bar.
    Earlier Stay-specific 150/142px rules overrode the natural bar stretcher and
    left blank space when amenities/content made the row taller. */
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--hotel>.listingThumbLink{
@@ -3416,7 +3416,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
   object-position:center!important;
 }
 
-/* v1.6.86 — bus amenities stay above the footer without adding card/bar spacing. */
+/* v1.6.87 — bus amenities stay above the footer without adding card/bar spacing. */
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingBody,
 .sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingBody,
 .homePage .sectionListingCollection[data-view="bars"] .marketplaceListingCard.serviceCard--bus .listingBody{
@@ -3468,7 +3468,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
 }
 
 
-/* v1.6.86 — final bus amenity layering: no spacer is added below amenities.
+/* v1.6.87 — final bus amenity layering: no spacer is added below amenities.
    The chips themselves paint above the price/actions surface in both Cards and Bars. */
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingBody,
 .sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingBody{
@@ -3507,7 +3507,7 @@ body.sitePage::before{display:none!important;content:none!important;background:n
   box-shadow:none!important;
 }
 
-/* v1.6.86 exact-fit guard: 25 + 4 + 25 = 54px on Cards; 24 + 4 + 24 = 52px on Bars.
+/* v1.6.87 exact-fit guard: 25 + 4 + 25 = 54px on Cards; 24 + 4 + 24 = 52px on Bars.
    Vertical padding must remain zero or row 2 is clipped by the horizontal scroller. */
 .homePage .sectionListingCollection[data-view="cards"] .marketplaceListingCard.serviceCard--bus .listingAmenityList,
 .sitePage .gridCards .marketplaceListingCard.serviceCard--bus .listingAmenityList{padding-block:0!important}

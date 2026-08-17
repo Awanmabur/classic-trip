@@ -25,6 +25,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const { rejectDangerousInputKeys } = require('./middlewares/requestSecurity');
 const { attachBotProof } = require('./middlewares/botProtection');
 const { apiResponseSecurity } = require('./middlewares/apiResponseSecurity');
+const seoController = require('./controllers/public/seoController');
 
 const app = express();
 const PUBLIC_MARKETS = publicMarkets();
@@ -133,6 +134,16 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
     if (/\.(?:webmanifest)$/i.test(filePath)) res.setHeader('Content-Type', 'application/manifest+json');
   },
 }));
+
+// Search-engine discovery endpoints do not need cookies, sessions, Passport, CSRF,
+// referrals, or bot-proof state. Serve them before those middlewares so Googlebot
+// can fetch crawl policy and sitemap inventory with the smallest possible request
+// cost, even when Redis or session storage is under load. The public router keeps
+// equivalent routes as a compatibility fallback for isolated router tests.
+app.get('/robots.txt', seoController.robots);
+app.get('/sitemap.xml', seoController.sitemap);
+app.get('/sitemaps/:section.xml', seoController.sitemapSection);
+
 app.use(express.urlencoded({ extended: true, limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 app.use(rejectDangerousInputKeys);

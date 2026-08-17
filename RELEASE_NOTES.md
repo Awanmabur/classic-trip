@@ -1,10 +1,10 @@
-# Classic Trip v1.6.86
+# Classic Trip v1.6.87
 
-This release targets the company-dashboard and bus-availability latency observed in production on 15 August 2026.
+Google crawl/indexing readiness release.
 
-- Removes broad Overview fallback from Setup Guide.
-- Makes company Overview, Revenue, Reports and Manifests page-specific and lighter.
-- Makes company Archive service-aware instead of scanning unrelated hotel/flight/taxi/bus collections.
-- Adds a schedule/segment/seat compound index for live bus availability.
-- Removes unnecessary Mongo sorting from the availability critical path.
-- Preserves atomic live seat claims, secure holds, v1.6.85 amenity visibility, notification contrast and Pesapal handoff behavior.
+- Makes `/buses`, `/stays`, `/airbnb`, `/tours`, `/car-rentals` and `/cargo` anonymous read-only/cacheable discovery pages.
+- Serves robots and sitemap endpoints before session/CSRF middleware.
+- Permanently redirects legacy `/companies/bebeto-coaches` to `/companies/bebeto-coach-services`.
+- Preserves intentional login `noindex`, canonical host redirects, structured data, canonicals and sitemap inventory.
+- Keeps CSRF protection on Flights, Taxi, Support and booking/listing flows that submit protected actions.
+- Preserves all v1.6.86 dashboard/availability improvements and v1.6.85 amenity/notification fixes.

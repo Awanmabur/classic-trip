@@ -81,6 +81,9 @@ router.post('/partner/onboarding', authLimiter, humanFormGuard, rejectPublicFiel
 router.get('/invite/:token', invitationController.show);
 router.post('/invite/:token', authLimiter, humanFormGuard, rejectPublicFieldTampering, invitationPasswordRules, validateRequest, invitationController.accept);
 router.post('/invite/:token/reject', authLimiter, invitationController.reject);
+// Preserve crawl equity for the original seeded Bebeto company slug. The
+// canonical verified profile is now /companies/bebeto-coach-services.
+router.get('/companies/bebeto-coaches', (req, res) => res.redirect(301, '/companies/bebeto-coach-services'));
 router.get('/companies/:slug', listingController.companyProfile);
 router.get('/partner/:slug', listingController.companyProfile);
 router.get('/listings/:serviceType/:slug', listingController.listingDetails);

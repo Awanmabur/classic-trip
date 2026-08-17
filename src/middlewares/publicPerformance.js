@@ -3,6 +3,12 @@ const SAFE_METHODS = new Set(['GET', 'HEAD']);
 const CACHEABLE_PUBLIC_PATHS = [
   /^\/$/,
   /^\/search$/,
+  /^\/buses$/,
+  /^\/stays$/,
+  /^\/airbnb$/,
+  /^\/tours$/,
+  /^\/car-rentals$/,
+  /^\/cargo$/,
   /^\/services$/,
   /^\/routes$/,
   /^\/companies(?:\/[^/]+)?$/,

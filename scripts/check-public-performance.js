@@ -15,6 +15,8 @@ const app = read('src/app.js');
 const env = read('src/config/env.js');
 const render = read('render.yaml');
 const sw = read('public/sw.js');
+const csrf = read('src/middlewares/csrf.js');
+const publicPerformance = read('src/middlewares/publicPerformance.js');
 const discoveryStart = catalog.indexOf('async function loadDiscoverySnapshotFresh()');
 const discoveryEnd = catalog.indexOf('async function readSharedDiscoverySnapshot()', discoveryStart);
 const discovery = catalog.slice(discoveryStart, discoveryEnd);
@@ -57,6 +59,16 @@ check('initial Stay preview uses grouped availability counts instead of bulk roo
   assert(scoped.includes("roomNights.countGroupedBy('roomTypeId'"));
   assert(!scoped.includes('roomUnits.list('));
   assert(!scoped.includes('roomNights.list('));
+});
+check('indexable marketplace landing pages use anonymous CDN cache without CSRF session allocation', () => {
+  for (const path of ['buses','stays','airbnb','tours','car-rentals','cargo']) {
+    const token = `^\\/${path}$`;
+    assert(csrf.includes(token));
+    assert(publicPerformance.includes(token));
+  }
+  // Flights and taxi submit protected API actions from the page and must keep their signed anonymous CSRF token.
+  assert(!csrf.includes('^\\/flights$'));
+  assert(!csrf.includes('^\\/taxi$'));
 });
 check('service worker cache matches current release', () => assert(sw.includes(`classic-trip-static-v${pkg.version}`)));
 if (!process.exitCode) console.log(`\n${passed}/${passed} public performance checks passed.`);
